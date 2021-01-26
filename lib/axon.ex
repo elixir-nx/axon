@@ -1,18 +1,5 @@
 defmodule Axon do
   @moduledoc """
-  Documentation for `Axon`.
+  Nx-powered Neural Networks.
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Axon.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
 end
