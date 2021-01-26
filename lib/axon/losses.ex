@@ -15,6 +15,7 @@ defmodule Axon.Losses do
 
   # TODO: binary_crossentropy/2 - requires `reduce_max`
   # TODO: categorical_hinge/2 - requires `reduce_max`
+  # TODO: cosine_similarity/2 - requires `norm`
 
   import Nx.Defn
 
@@ -41,14 +42,34 @@ defmodule Axon.Losses do
 
   @doc """
   Logarithmic-Hyperbolic Cosine loss function.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]])
+      iex> Axon.Losses.log_cosh(y_true, y_pred)
+      #Nx.Tensor<
+        f64
+        0.10844520762075678
+      >
   """
   defn log_cosh(y_true, y_pred) do
     x = y_pred - y_true
-    Nx.mean(Nx.mean(Nx.log(1.0 + Nx.exp(x)), axes: [0]))
+    Nx.mean(Nx.mean(Nx.log((Nx.exp(-x) + Nx.exp(x)) / 2), axes: [0]))
   end
 
   @doc """
   Mean-absolute error loss function.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]])
+      iex> Axon.Losses.mean_absolute_error(y_true, y_pred)
+      #Nx.Tensor<
+        f64
+        0.5
+      >
   """
   defn mean_absolute_error(y_true, y_pred) do
     Nx.mean(Nx.abs(y_true - y_pred))
@@ -56,6 +77,16 @@ defmodule Axon.Losses do
 
   @doc """
   Mean-squared error loss function.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]])
+      iex> Axon.Losses.mean_squared_error(y_true, y_pred)
+      #Nx.Tensor<
+        f64
+        0.5
+      >
   """
   defn mean_squared_error(y_true, y_pred) do
     Nx.mean(Nx.power(y_true - y_pred, 2))
