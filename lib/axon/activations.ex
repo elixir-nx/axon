@@ -11,7 +11,7 @@ defmodule Axon.Activations do
 
   # TODO: Nx.gelu/1 - requires erf
 
-  @doc """
+  @doc ~S"""
   Continuously-differentiable exponential linear unit activation.
 
   ## Examples
@@ -44,8 +44,10 @@ defmodule Axon.Activations do
     Nx.select(Nx.greater(x, 0.0), x, alpha * Nx.expm1(x_hat))
   end
 
-  @doc """
+  @doc ~S"""
   Exponential activation.
+
+  $$f(x_i) = e^{x_i}$$
 
   ## Examples
 
@@ -119,8 +121,10 @@ defmodule Axon.Activations do
     Nx.select(Nx.greater(x, 0.0), x, x * alpha)
   end
 
-  @doc """
+  @doc ~S"""
   Linear activation.
+
+  $$f(x_i) = x_i$$
 
   ## Examples
 
@@ -130,7 +134,7 @@ defmodule Axon.Activations do
         [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  defn linear(x), do: x
+  defn(linear(x), do: x)
 
   @doc """
   Log-sigmoid activation.
@@ -143,10 +147,12 @@ defmodule Axon.Activations do
         [-3.048587351573742, -2.1269280110429727, -1.3132616875182228, -0.6931471805599453, -0.31326168751822286, -0.1269280110429726, -0.04858735157374196]
       >
   """
-  defn log_sigmoid(x), do: -softplus(-x)
+  defn(log_sigmoid(x), do: -softplus(-x))
 
-  @doc """
+  @doc ~S"""
   Rectified linear unit activation.
+
+  $$f(x_i) = \max_i(x, 0)$$
 
   ## Examples
 
@@ -161,8 +167,10 @@ defmodule Axon.Activations do
     Nx.max(x, 0.0)
   end
 
-  @doc """
+  @doc ~S"""
   Rectified linear unit 6 activation.
+
+  $$f(x_i) = \min_i(\max_i(x, 0), 6)$$
 
   ## Examples
 
@@ -176,8 +184,10 @@ defmodule Axon.Activations do
     Nx.min(Nx.max(x, 0.0), 6.0)
   end
 
-  @doc """
+  @doc ~S"""
   Sigmoid activation.
+
+  $$f(x_i) = \frac{1}{1 + e^{-x_i}}$$
 
   ## Examples
 
@@ -187,7 +197,7 @@ defmodule Axon.Activations do
         [0.04742587317756678, 0.11920292202211755, 0.2689414213699951, 0.5, 0.7310585786300049, 0.8807970779778823, 0.9525741268224334]
       >
   """
-  defn sigmoid(x), do: Nx.logistic(x)
+  defn(sigmoid(x), do: Nx.logistic(x))
 
   @doc """
   Sigmoid weighted linear unit activation.
@@ -231,11 +241,13 @@ defmodule Axon.Activations do
       >
   """
   defn softplus(x) do
-    Nx.log(1.0 + Nx.exp(x))
+    Nx.log1p(Nx.exp(x))
   end
 
-  @doc """
+  @doc ~S"""
   Softsign activation.
+
+  $$f(x_i) = \frac{x_i}{|x_i| + 1}$$
 
   ## Examples
 
@@ -249,8 +261,10 @@ defmodule Axon.Activations do
     x / (Nx.abs(x) + 1)
   end
 
-  @doc """
+  @doc ~S"""
   Hyperbolic tangent activation.
+
+  $$f(x_i) = \tanh(x_i)$$
 
   ## Examples
 
@@ -260,5 +274,5 @@ defmodule Axon.Activations do
         [-0.9950547536867305, -0.9640275800758169, -0.7615941559557649, 0.0, 0.7615941559557649, 0.9640275800758169, 0.9950547536867305]
       >
   """
-  defn tanh(x), do: Nx.tanh(x)
+  defn(tanh(x), do: Nx.tanh(x))
 end

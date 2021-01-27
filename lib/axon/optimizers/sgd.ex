@@ -20,6 +20,7 @@ defmodule Axon.Optimizers.SGD do
   @impl true
   def apply_gradients(parameters, gradients, epoch) do
     lr = learning_rate(epoch)
+
     parameters
     |> Enum.zip(gradients)
     |> Enum.map(fn {param, grad} -> update_parameter(param, grad, lr) end)

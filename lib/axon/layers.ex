@@ -3,7 +3,7 @@ defmodule Axon.Layers do
   Layer behaviour.
   """
 
-  @type tensor :: Nx.Tensor.t
+  @type tensor :: Nx.Tensor.t()
 
   # TODO: This callback needs to support a generic map or some other input of parameters
   @callback forward(input :: tensor, weight :: tensor, bias :: tensor) :: tensor
