@@ -1,19 +1,25 @@
 defmodule Axon.Layers do
   @moduledoc """
-  Layer behaviour.
+  Functional implementations of common neural network layers.
+
+  All of the functions in this module are implemented as
+  numerical functions and can be JIT or AOT compiled with
+  any supported `Nx` backend.
   """
 
-  @type tensor :: Nx.Tensor.t()
+  import Nx.Defn
 
-  # TODO: This callback needs to support a generic map or some other input of parameters
-  @callback forward(input :: tensor, weight :: tensor, bias :: tensor) :: tensor
+  @doc ~S"""
+  Dense layer.
 
-  defmacro __using__(_opts) do
-    quote do
-      @behaviour Axon.Layers
+  Linear transformation of the input such that:
 
-      import Axon.{Activations, Initializers}
-      import Nx.Defn
-    end
+  $$y = xW^T + b$$
+  """
+  # TODO: Optional bias
+  defn dense(input, weight, bias) do
+    input
+    |> Nx.dot(weight)
+    |> Nx.add(bias)
   end
 end
