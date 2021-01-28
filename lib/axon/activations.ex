@@ -16,15 +16,15 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.celu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]), 1.0)
+      iex> Axon.Activations.celu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
       #Nx.Tensor<
         f64[7]
         [-0.950212931632136, -0.8646647167633873, -0.6321205588285577, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  # TODO: change alpha to keyword
-  defn celu(x, alpha) do
-    Nx.select(Nx.greater(x, 0.0), x, alpha * Nx.expm1(x / alpha))
+  defn celu(x, opts \\ []) do
+    opts = keyword!(opts, alpha: 1.0)
+    Nx.select(Nx.greater(x, 0.0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
   end
 
   @doc """
@@ -32,16 +32,17 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.elu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]), 1.0)
+      iex> Axon.Activations.elu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
       #Nx.Tensor<
         f64[7]
         [-0.950212931632136, -0.8646647167633873, -0.6321205588285577, 0.0, 1.0, 2.0, 3.0]
       >
   """
   # TODO: change alpha to keyword
-  defn elu(x, alpha) do
+  defn elu(x, opts \\ []) do
+    opts = keyword!(opts, alpha: 1.0)
     x_hat = Nx.select(Nx.greater(x, 0.0), 0.0, x)
-    Nx.select(Nx.greater(x, 0.0), x, alpha * Nx.expm1(x_hat))
+    Nx.select(Nx.greater(x, 0.0), x, opts[:alpha] * Nx.expm1(x_hat))
   end
 
   @doc ~S"""
@@ -111,14 +112,15 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]), 1.0e-2)
+      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
       #Nx.Tensor<
         f64[7]
         [-0.03, -0.02, -0.01, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  defn leaky_relu(x, alpha) do
-    Nx.select(Nx.greater(x, 0.0), x, x * alpha)
+  defn leaky_relu(x, opts \\ []) do
+    opts = keyword!(opts, alpha: 1.0e-2)
+    Nx.select(Nx.greater(x, 0.0), x, x * opts[:alpha])
   end
 
   @doc ~S"""

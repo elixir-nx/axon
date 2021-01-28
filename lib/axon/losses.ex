@@ -184,7 +184,6 @@ defmodule Axon.Losses do
   # TODO: Remove or simplify when there's a numerically stable log
   # function similar to this in the `Nx` API
 
-  @doc false
   defnp xlogy(x, y) do
     x_ok = Nx.not_equal(x, 0.0)
     safe_x = Nx.select(x_ok, x, 1.0)
