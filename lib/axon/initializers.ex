@@ -7,12 +7,14 @@ defmodule Axon.Initializers do
   # TODO: Add random keys
   # TODO: orthogonal - requires `qr`
 
+  import Nx.Defn
+
   @doc """
   Initializes parameters to 0.
 
   ## Examples
 
-      iex> Axon.Initializers.zeros({2, 2})
+      iex> Axon.Initializers.zeros(shape: {2, 2})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -21,9 +23,9 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  def zeros(shape, opts \\ []) do
-    type = opts[:type] || {:f, 32}
-    Nx.broadcast(Nx.tensor(0, type: type), shape)
+  defn zeros(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    Nx.broadcast(Nx.tensor(0, type: opts[:type]), opts[:shape])
   end
 
   @doc """
@@ -31,7 +33,7 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.ones({2, 2})
+      iex> Axon.Initializers.ones(shape: {2, 2})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -40,9 +42,9 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  def ones(shape, opts \\ []) do
-    type = opts[:type] || {:f, 32}
-    Nx.broadcast(Nx.tensor(1, type: type), shape)
+  defn ones(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    Nx.broadcast(Nx.tensor(1, type: opts[:type]), opts[:shape])
   end
 
   @doc """
@@ -50,7 +52,7 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.identity({2, 2})
+      iex> Axon.Initializers.identity(shape: {2, 2})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -59,36 +61,42 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  def identity(shape, opts \\ []) do
-    type = opts[:type] || {:f, 32}
-
-    case shape do
-      {_, _} ->
-        Nx.as_type(Nx.equal(Nx.iota(shape, axis: 0), Nx.iota(shape, axis: 1)), type)
-
-      _ ->
-        raise ArgumentError,
-              "cannot initialize identity matrix with rank #{tuple_size(shape)} != 2"
-    end
+  defn identity(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    transform(opts[:shape], &assert_rank(&1, 2))
+    Nx.as_type(Nx.equal(Nx.iota(opts[:shape], axis: 0), Nx.iota(opts[:shape], axis: 1)), opts[:type])
   end
 
   @doc """
   Initializes parameters with a random uniform distribution.
+
+  ## Examples
+
+      iex> t = Axon.Initializers.uniform(shape: {2, 2})
+      iex> Nx.shape(t)
+      {2, 2}
+      iex> Nx.type(t)
+      {:f, 32}
   """
-  def uniform(shape, opts \\ []) do
-    type = opts[:type] || {:f, 32}
-    scale = opts[:scale] || 1.0e-2
-    Nx.random_uniform(shape, type: type) * scale
+  defn uniform(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
+    Nx.random_uniform(opts[:shape], type: opts[:type]) * opts[:scale]
   end
 
   @doc """
   Initializes parameters with a random normal distribution.
+
+  ## Examples
+
+      iex> t = Axon.Initializers.normal(shape: {2, 2})
+      iex> Nx.shape(t)
+      {2, 2}
+      iex> Nx.type(t)
+      {:f, 32}
   """
-  def normal(shape, opts \\ []) do
-    type = opts[:type] || {:f, 32}
-    scale = opts[:scale] || 1.0e-2
-    mean = opts[:mean] || 0.0
-    Nx.random_normal(shape, mean, scale, type: type)
+  defn normal(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mean: 0.0])
+    Nx.random_normal(opts[:shape], opts[:mean], opts[:scale], type: opts[:type])
   end
 
   @doc """
@@ -198,6 +206,14 @@ defmodule Axon.Initializers do
   end
 
   # Helpers
+
+  defp assert_rank(shape, rank) do
+    n = tuple_size(shape)
+    unless n == rank,
+      do: raise ArgumentError, "invalid rank for shape #{inspect(shape)}" <>
+                               " expected shape to have rank #{rank}, got" <>
+                               " #{n}"
+  end
 
   defp compute_fans(shape) do
     receptive_field_size =
