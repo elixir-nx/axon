@@ -9,6 +9,8 @@ defmodule Axon.Layers do
 
   import Nx.Defn
 
+  ## Linear
+
   @doc ~S"""
   Functional implementation of a dense layer.
 
@@ -16,17 +18,11 @@ defmodule Axon.Layers do
 
   $$y = xW^T + b$$
 
-  Both `input` and `weight` should be 2-dimensional tensors with
-  shapes:
+  ## Parameter Shapes
 
-  ```
-  input_shape = {batch_size, in_features}
-  weight_shape = {in_features, out_features}
-  ```
-
-  `bias` should be a 1-dimensional tensor or a scalar. If it is
-  a 1-dimensional tensor, it's size should match the last dimension
-  of the input weight.
+    * `input` - `{batch_size, ..., input_features}`
+    * `weight` - `{input_features, output_features}`
+    * `bias` - `{output_features}`
 
   ## Examples
 
@@ -43,28 +39,21 @@ defmodule Axon.Layers do
       >
   """
   defn dense(input, weight, bias) do
-    transform(Nx.shape(input), &assert_rank(&1, 2))
-    transform(Nx.shape(weight), &assert_rank(&1, 2))
-    transform(Nx.shape(bias), &assert_rank(&1, 1))
-
     input
     |> Nx.dot([Nx.rank(input) - 1], weight, [0])
     |> Nx.add(bias)
   end
 
+  ## Convolutional
+
   @doc """
   Functional implementation of a 1-dimensional convolution.
 
-  Both `input` and `weight` should be 3-dimensional tensors with
-  shapes:
+  ## Parameter Shapes
 
-  ```
-  input_shape = {batch_size, in_channels, in_spatial}
-  weight_shape = {out_channels, in_channels, kernel_spatial}
-  ```
-
-  `bias` should be a 1-dimensional tensor or a scalar. If it is a 1-dimensional
-  tensor, it's size should match the number of output channels from `weight`.
+    * `input` - `{batch_size, input_channels, input_spatial}`
+    * `weight` - `{output_channels, input_channels, kernel_spatial}`
+    * `bias` - `{output_channels}` or `{}`
 
   ## Examples
 
@@ -90,28 +79,28 @@ defmodule Axon.Layers do
 
   ## Options
 
-      * `:strides` - kernel strides. Can be a scalar or a tuple
-        of size 1. Defaults to 1.
+    * `:strides` - kernel strides. Can be a scalar or a tuple
+      of size 1. Defaults to 1.
 
-      * `:padding` - zero padding on the input. Can be one of
-        `:valid`, `:same` or a general padding configuration
-        without interior padding for each spatial dimension
-        of the input.
+    * `:padding` - zero padding on the input. Can be one of
+      `:valid`, `:same` or a general padding configuration
+      without interior padding for each spatial dimension
+      of the input.
 
-      * `:input_dilation` - input dilation factor. Equivalent
-        to applying interior padding on the input. The amount
-        of interior padding applied is given by `kernel_dilation - 1`.
-        Defaults to `1` or no dilation.
+    * `:input_dilation` - input dilation factor. Equivalent
+      to applying interior padding on the input. The amount
+      of interior padding applied is given by `kernel_dilation - 1`.
+      Defaults to `1` or no dilation.
 
-      * `:kernel_dilation` - kernel dilation factor. Equivalent
-        to applying interior padding on the kernel. The amount
-        of interior padding applied is given by `kernel_dilation - 1`.
-        Defaults to `1` or no dilation.
+    * `:kernel_dilation` - kernel dilation factor. Equivalent
+      to applying interior padding on the kernel. The amount
+      of interior padding applied is given by `kernel_dilation - 1`.
+      Defaults to `1` or no dilation.
 
-      * `:groups` - feature group count. Splits the input features
-        into groups. `in_channels` must be divisible by the number
-        of groups, and `out_channels` must equal `in_channels * groups`.
-        Defaults to `1`.
+    * `:groups` - feature group count. Splits the input features
+      into groups. `in_channels` must be divisible by the number
+      of groups, and `out_channels` must equal `in_channels * groups`.
+      Defaults to `1`.
   """
   defn conv1d(input, weight, bias, opts \\ []) do
     opts =
@@ -138,16 +127,11 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 2-dimensional convolution.
 
-  Both `input` and `weight` should be 4-dimensional tensors with
-  shapes:
+  ## Parameter Shapes
 
-  ```
-  input_shape = {batch_size, in_channels, in_height, in_width}
-  weight_shape = {out_channels, in_channels, kernel_height, kernel_width}
-  ```
-
-  `bias` should be a 1-dimensional tensor or a scalar. If it is a 1-dimensional
-  tensor, it's size should match the number of output channels from `weight`.
+    * `input` - `{batch_size, input_channels, input_height, input_width}`
+    * `weight` - `{output_channels, input_channels, kernel_height, kernel_width}`
+    * `bias` - `{output_channels}` or `{}`
 
   ## Examples
 
@@ -226,16 +210,11 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 3-dimensional convolution.
 
-  Both `input` and `weight` should be 5-dimensional tensors with
-  shapes:
+  ## Parameter Shapes
 
-  ```
-  input_shape = {batch_size, in_channels, in_temporal, in_height, in_width}
-  weight_shape = {out_channels, in_channels, kernel_temporal, kernel_height, kernel_width}
-  ```
-
-  `bias` should be a 1-dimensional tensor or a scalar. If it is a 1-dimensional
-  tensor, it's size should match the number of output channels from `weight`.
+    * `input` - `{batch_size, input_channels, input_temporal, input_height, input_width}`
+    * `weight` - `{output_channels, input_channels, kernel_temporal, kernel_height, kernel_width}`
+    * `bias` - `{output_channels}` or `{}`
 
   ## Examples
 
@@ -316,14 +295,6 @@ defmodule Axon.Layers do
 
   Also known as fractionally strided convolutions.
 
-  Both `input` and `weight` should be 3-dimensional tensors with
-  shapes:
-
-  ```
-  input_shape = {batch_size, in_channels, in_spatial}
-  weight_shape = {in_channels, out_channels, kernel_spatial}
-  ```
-
   ## Options
 
     * `:strides` - kernel strides. Can be a scalar or a tuple
@@ -352,12 +323,12 @@ defmodule Axon.Layers do
     * `:output_padding` - padding configuration applied to the output
       of the transposed convolution. Must be a valid padding configuration
       as a list of `{edge_low, interior, edge_high}` for each spatial
-      dimension in the output.
+        dimension in the output.
   """
   defn conv_transpose1d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
-        strides: {1, 1, 1},
+        strides: {1},
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
@@ -384,14 +355,6 @@ defmodule Axon.Layers do
   Functional implementation of a 2-dimensional transposed convolution.
 
   Also known as fractionally strided convolutions.
-
-  Both `input` and `weight` should be 4-dimensional tensors with
-  shapes:
-
-  ```
-  input_shape = {batch_size, in_channels, in_height, in_width}
-  weight_shape = {in_channels, out_channels, kernel_height, kernel_width}
-  ```
 
   ## Options
 
@@ -452,16 +415,6 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 3-dimensional transposed convolution.
 
-  Also known as fractionally strided convolutions.
-
-  Both `input` and `weight` should be 5-dimensional tensors with
-  shapes:
-
-  ```
-  input_shape = {batch_size, in_channels, in_temporal, in_height, in_width}
-  weight_shape = {in_channels, out_channels, kernel_temporal, kernel_height, kernel_width}
-  ```
-
   ## Options
 
     * `:strides` - kernel strides. Can be a scalar or a tuple
@@ -518,6 +471,93 @@ defmodule Axon.Layers do
     |> Nx.add(bias)
   end
 
+  ## Normalization
+
+  @doc ~S"""
+  Functional implementation of layer normalization.
+
+  $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
+  """
+  defn layer_norm(input, bias, gamma, opts \\ []) do
+    opts = keyword!(opts, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input)))
+
+    mean = Nx.mean(input, axes: [-1], keep_axes: true)
+    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: [-1], keep_axes: true)
+    var = mean_of_squares - Nx.power(mean, 2)
+    mul = gamma * Nx.rsqrt(var + opts[:epsilon])
+
+    (input - mean) * mul + bias
+  end
+
+  @doc """
+  Functional implementation of group normalization.
+  """
+  defn group_norm(input, bias, gamma, opts \\ []) do
+    opts = keyword!(opts, [:group_size, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input))])
+
+    group_shape =
+      transform(
+        {Nx.shape(input), opts[:group_size]},
+        fn {shape, group_size} ->
+          channels = :erlang.element(shape, 2)
+          num_groups = div(channels, group_size)
+
+          Tuple.delete_at(shape, 1)
+          |> put_elem(1, num_groups)
+          |> Tuple.insert_at(2, group_size)
+        end
+      )
+
+    x = Nx.reshape(input, group_shape)
+
+    reduction_axes =
+      transform(Nx.rank(x), fn rank -> for(i <- 1..(rank - 2), do: i) ++ [rank - 1] end)
+
+    mean = Nx.mean(x, axes: reduction_axes, keep_dims: true)
+    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_dims: true)
+    var = mean_of_squares - Nx.power(mean, 2)
+    x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
+
+    Nx.reshape(x, Nx.shape(input)) * gamma + bias
+  end
+
+  ## Stochastic
+
+  # TODO: Manage the state of these RNGs
+
+  @doc ~S"""
+  Functional implementation of a dropout layer.
+
+  Applies a mask to some elements of the input tensor
+  with probability `rate` and scales the input tensor
+  by a factor of $\frac{1}{1 - rate}$.
+  """
+  defn dropout(input, rate) do
+    keep_prob = Nx.tensor(1, type: Nx.type(input)) - rate
+    mask = Nx.less(Nx.random_uniform(Nx.shape(input), type: Nx.type(input)), keep_prob)
+    Nx.select(mask, input / keep_prob, Nx.tensor(0, type: Nx.type(input)))
+  end
+
+  @doc """
+  Functional implementation of an alpha dropout layer.
+  """
+  defn alpha_dropout(input, rate) do
+    alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
+    scale = Nx.tensor(1.0507009873554804934193349852946, type: Nx.type(input))
+    alpha_p = -alpha * scale
+    keep_prob = Nx.tensor(1, type: Nx.type(input)) - rate
+
+    mask = Nx.less(Nx.random_uniform(Nx.shape(input), type: Nx.type(input)), keep_prob)
+
+    a = Nx.rsqrt(keep_prob * Nx.power(Nx.tensor(1, type: Nx.type(input)) * alpha_p, 2))
+    b = -a * alpha_p * rate
+
+    x = Nx.select(mask, input, alpha_p)
+    a * x + b
+  end
+
+  ## Attention
+
   # Helpers
 
   # TODO: This should probably be generalized
@@ -551,17 +591,4 @@ defmodule Axon.Layers do
 
   defp conv3d_bias_reshape({}), do: {}
   defp conv3d_bias_reshape({shape}), do: {1, shape, 1, 1, 1}
-
-  # TODO: Maybe it makes sense to not always use an argument
-  # error but instead something generic
-  defp assert_rank(shape, value) do
-    rank = tuple_size(shape)
-
-    unless rank == value,
-      do:
-        raise(
-          ArgumentError,
-          "expected input with shape #{inspect(shape)} to have rank #{value}, got #{rank}"
-        )
-  end
 end

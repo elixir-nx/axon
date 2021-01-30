@@ -32,17 +32,17 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.elu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.elu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [-0.950212931632136, -0.8646647167633873, -0.6321205588285577, 0.0, 1.0, 2.0, 3.0]
+        f32[7]
+        [-0.9502129554748535, -0.8646647334098816, -0.6321205496788025, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  # TODO: change alpha to keyword
   defn elu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-    x_hat = Nx.select(Nx.greater(x, 0.0), 0.0, x)
-    Nx.select(Nx.greater(x, 0.0), x, opts[:alpha] * Nx.expm1(x_hat))
+    alpha = Nx.tensor(opts[:alpha], type: Nx.type(x))
+    x_hat = Nx.select(Nx.greater(x, 0.0), Nx.tensor(0.0, type: Nx.type(x)), x)
+    Nx.select(Nx.greater(x, 0.0), x, alpha * Nx.expm1(x_hat))
   end
 
   @doc ~S"""
@@ -67,14 +67,14 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.hard_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.hard_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [0.0, 0.16666666666666666, 0.3333333333333333, 0.5, 0.6666666666666666, 0.8333333333333334, 1.0]
+        f32[7]
+        [0.0, 0.1666666716337204, 0.3333333432674408, 0.5, 0.6666666865348816, 0.8333333134651184, 1.0]
       >
   """
   defn hard_sigmoid(x) do
-    relu6(x + 3.0) / 6.0
+    relu6(x + Nx.tensor(3.0, type: Nx.type(x))) / Nx.tensor(6.0, type: Nx.type(x))
   end
 
   @doc """
@@ -82,10 +82,10 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.hard_silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.hard_silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [0.0, -0.3333333333333333, -0.3333333333333333, 0.0, 0.6666666666666666, 1.6666666666666667, 3.0]
+        f32[7]
+        [0.0, -0.3333333432674408, -0.3333333432674408, 0.0, 0.6666666865348816, 1.6666666269302368, 3.0]
       >
   """
   defn hard_silu(x) do
@@ -97,14 +97,18 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.hard_tanh(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.hard_tanh(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
+        f32[7]
         [-1.0, -1.0, -1.0, 0.0, 1.0, 1.0, 1.0]
       >
   """
   defn hard_tanh(x) do
-    Nx.select(Nx.greater(x, 1.0), 1.0, Nx.select(Nx.less(x, -1.0), -1.0, x))
+    Nx.select(
+      Nx.greater(x, 1.0),
+      Nx.tensor(1.0, type: Nx.type(x)),
+      Nx.select(Nx.less(x, -1.0), Nx.tensor(-1.0, type: Nx.type(x)), x)
+    )
   end
 
   @doc """
@@ -120,7 +124,8 @@ defmodule Axon.Activations do
   """
   defn leaky_relu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0e-2)
-    Nx.select(Nx.greater(x, 0.0), x, x * opts[:alpha])
+    alpha = Nx.tensor(opts[:alpha], type: Nx.type(x))
+    Nx.select(Nx.greater(x, 0.0), x, x * alpha)
   end
 
   @doc ~S"""
@@ -158,9 +163,9 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
+        f32[7]
         [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0]
       >
   """
@@ -176,14 +181,14 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.relu6(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.relu6(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
+        f32[7]
         [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0]
       >
   """
   defn relu6(x) do
-    Nx.min(Nx.max(x, 0.0), 6.0)
+    Nx.min(Nx.max(x, Nx.tensor(0.0, type: Nx.type(x))), Nx.tensor(6.0, type: Nx.type(x)))
   end
 
   @doc ~S"""
@@ -193,10 +198,10 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [0.04742587317756678, 0.11920292202211755, 0.2689414213699951, 0.5, 0.7310585786300049, 0.8807970779778823, 0.9525741268224334]
+        f32[7]
+        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970881462097, 0.9525741338729858]
       >
   """
   defn(sigmoid(x), do: Nx.logistic(x))
@@ -206,40 +211,44 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [-0.14227761953270035, -0.2384058440442351, -0.2689414213699951, 0.0, 0.7310585786300049, 1.7615941559557646, 2.8577223804673]
+        f32[7]
+        [-0.14227762818336487, -0.23840583860874176, -0.2689414322376251, 0.0, 0.7310585975646973, 1.7615941762924194, 2.857722282409668]
       >
   """
   defn silu(x) do
     x * sigmoid(x)
   end
 
-  @doc """
+  @doc ~S"""
   Softmax activation.
+
+  $$\frac{e^{x_i}}{\sum_i e^{x_i}}$$
 
   ## Examples
 
-      iex> Axon.Activations.softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [0.0015683003158864725, 0.004263082250240779, 0.011588259014055805, 0.03150015390138462, 0.08562629594379711, 0.23275640430228017, 0.6326975042723549]
+        f32[7]
+        [0.0015683003002777696, 0.004263082053512335, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275640606880188, 0.6326975226402283]
       >
   """
   defn softmax(x) do
     Nx.exp(x) / Nx.sum(Nx.exp(x))
   end
 
-  @doc """
+  @doc ~S"""
   Softplus activation.
+
+  $$\log(1 + e^x_i)$$
 
   ## Examples
 
-      iex> Axon.Activations.softplus(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.softplus(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [0.04858735157374196, 0.1269280110429726, 0.31326168751822286, 0.6931471805599453, 1.3132616875182228, 2.1269280110429727, 3.048587351573742]
+        f32[7]
+        [0.04858734831213951, 0.12692801654338837, 0.3132616877555847, 0.6931471824645996, 1.31326162815094, 2.1269280910491943, 3.0485873222351074]
       >
   """
   defn softplus(x) do
@@ -253,10 +262,10 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.softsign(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.softsign(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [-0.75, -0.6666666666666666, -0.5, 0.0, 0.5, 0.6666666666666666, 0.75]
+        f32[7]
+        [-0.75, -0.6666666865348816, -0.5, 0.0, 0.5, 0.6666666865348816, 0.75]
       >
   """
   defn softsign(x) do
@@ -270,10 +279,10 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.tanh(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      iex> Axon.Activations.tanh(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
-        f64[7]
-        [-0.9950547536867305, -0.9640275800758169, -0.7615941559557649, 0.0, 0.7615941559557649, 0.9640275800758169, 0.9950547536867305]
+        f32[7]
+        [-0.9950547814369202, -0.9640275835990906, -0.7615941762924194, 0.0, 0.7615941762924194, 0.9640275835990906, 0.9950547814369202]
       >
   """
   defn(tanh(x), do: Nx.tanh(x))
