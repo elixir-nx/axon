@@ -5,7 +5,6 @@ defmodule Axon.Initializers do
 
   # TODO: These should all be defn
   # TODO: Add random keys
-  # TODO: orthogonal - requires `qr`
 
   import Nx.Defn
 
@@ -64,7 +63,11 @@ defmodule Axon.Initializers do
   defn identity(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     transform(opts[:shape], &assert_rank(&1, 2))
-    Nx.as_type(Nx.equal(Nx.iota(opts[:shape], axis: 0), Nx.iota(opts[:shape], axis: 1)), opts[:type])
+
+    Nx.as_type(
+      Nx.equal(Nx.iota(opts[:shape], axis: 0), Nx.iota(opts[:shape], axis: 1)),
+      opts[:type]
+    )
   end
 
   @doc """
@@ -209,10 +212,15 @@ defmodule Axon.Initializers do
 
   defp assert_rank(shape, rank) do
     n = tuple_size(shape)
+
     unless n == rank,
-      do: raise ArgumentError, "invalid rank for shape #{inspect(shape)}" <>
-                               " expected shape to have rank #{rank}, got" <>
-                               " #{n}"
+      do:
+        raise(
+          ArgumentError,
+          "invalid rank for shape #{inspect(shape)}" <>
+            " expected shape to have rank #{rank}, got" <>
+            " #{n}"
+        )
   end
 
   defp compute_fans(shape) do
