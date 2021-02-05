@@ -9,6 +9,9 @@ defmodule Axon.Layers do
 
   import Nx.Defn
 
+  # TODO: Configuration option
+  @default_defn_compiler {Nx.Defn, max_float_type: {:f, 32}}
+
   ## Linear
 
   @doc ~S"""
@@ -291,6 +294,244 @@ defmodule Axon.Layers do
   end
 
   @doc """
+  Functional implementation of 1-dimensional max pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+
+  ## Examples
+
+      iex> t = Nx.tensor([[
+      ...> [0.051500000059604645, -0.7042999863624573, -0.32899999618530273],
+      ...> [-0.37130001187324524, 1.6191999912261963, -0.11829999834299088],
+      ...> [0.7099999785423279, 0.7282999753952026, -0.18639999628067017]]], type: {:f, 32})
+      iex> Axon.Layers.max_pool1d(t, kernel_size: 2)
+      #Nx.Tensor<
+        f32[1][3][2]
+        [
+          [
+            [0.051500000059604645, -0.32899999618530273],
+            [1.6191999912261963, 1.6191999912261963],
+            [0.7282999753952026, 0.7282999753952026]
+          ]
+        ]
+      >
+  """
+  defn max_pool1d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_max(window_dimensions, opts)
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional max pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn max_pool2d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_max(window_dimensions, opts)
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional max pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn max_pool3d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_max(window_dimensions, opts)
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn avg_pool1d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_mean(window_dimensions, opts)
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn avg_pool2d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_mean(window_dimensions, opts)
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn avg_pool3d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
+    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
+
+    input
+    |> Nx.window_mean(window_dimensions, opts)
+  end
+
+
+  @doc """
+  Functional implementation of 1-dimensional power average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+
+  ## Examples
+
+      iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
+      iex> Axon.Layers.lp_pool1d(t, kernel_size: 2, norm: 2)
+      #Nx.Tensor<
+        f32[1][3][2]
+        [
+          [
+            [1.0547149181365967, 1.8740788698196411],
+            [1.3390626907348633, 0.4423491656780243],
+            [0.5763426423072815, 0.9326926469802856]
+          ]
+        ]
+      >
+  """
+  defn lp_pool1d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        norm: 1,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    norm = opts[:norm]
+
+    opts =
+      opts
+      |> transform(&Keyword.delete(&1, :kernel_size))
+      |> transform(&Keyword.delete(&1, :norm))
+
+    input
+    |> Nx.power(norm)
+    |> Nx.window_sum(window_dimensions, opts)
+    |> Nx.power(Nx.divide(1, norm))
+  end
+
+  @doc """
+  Functional implementation of 2-dimensional power average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn lp_pool2d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        norm: 1,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
+    norm = opts[:norm]
+
+    opts =
+      opts
+      |> transform(&Keyword.delete(&1, :kernel_size))
+      |> transform(&Keyword.delete(&1, :norm))
+
+    input
+    |> Nx.power(norm)
+    |> Nx.window_sum(window_dimensions, opts)
+    |> Nx.power(Nx.divide(1, norm))
+  end
+
+  @doc """
+  Functional implementation of 1-dimensional power average pooling.
+
+  Pooling is applied to the spatial dimension of the input tensor.
+  """
+  defn lp_pool3d(input, opts \\ []) do
+    opts =
+      keyword!(opts,
+        [:kernel_size,
+        norm: 1,
+        strides: 1,
+        padding: :valid,
+        window_dilations: 1]
+      )
+    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    norm = opts[:norm]
+
+    opts =
+      opts
+      |> transform(&Keyword.delete(&1, :kernel_size))
+      |> transform(&Keyword.delete(&1, :norm))
+
+    input
+    |> Nx.power(norm)
+    |> Nx.window_sum(window_dimensions, opts)
+    |> Nx.power(Nx.divide(1, norm))
+  end
+
+  @doc """
   Functional implementation of a 1-dimensional transposed convolution.
 
   Also known as fractionally strided convolutions.
@@ -559,6 +800,17 @@ defmodule Axon.Layers do
   ## Attention
 
   # Helpers
+
+  # `window_x` functions expect a window which matches the
+  # rank of the input shape. For basic pooling we don't pool
+  # across batch or channel dimensions, so we just specify
+  # a size of `1` for each of those
+  defp pool_window_size({w1}, 1), do: {1, 1, w1}
+  defp pool_window_size({w1, w2}, 2), do: {1, 1, w1, w2}
+  defp pool_window_size({w1, w2, w3}, 3), do: {1, 1, w1, w2, w3}
+  defp pool_window_size(w, 1), do: {1, 1, w}
+  defp pool_window_size(w, 2), do: {1, 1, w, w}
+  defp pool_window_size(w, 3), do: {1, 1, w, w, w}
 
   # TODO: This should probably be generalized
   defp conv_transpose_padding([{_, _, _} = spatial], 1), do: [{0, 0, 0}, {0, 0, 0}, spatial]
