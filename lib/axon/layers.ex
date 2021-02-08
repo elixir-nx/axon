@@ -27,6 +27,10 @@ defmodule Axon.Layers do
     * `weight` - `{input_features, output_features}`
     * `bias` - `{output_features}`
 
+  ## Output Shape
+
+    `{batch_size, output_features}`
+
   ## Examples
 
       iex> input = Nx.tensor([[1.0, 0.5, 1.0, 0.5], [1.0, 2.0, 1.0, 2.0]], type: {:f, 32})
@@ -115,7 +119,7 @@ defmodule Axon.Layers do
         groups: 1
       )
 
-    bias_reshape = transform(Nx.shape(bias), &conv1d_bias_reshape/1)
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
 
     input
     |> Nx.conv(weight,
@@ -198,7 +202,7 @@ defmodule Axon.Layers do
         groups: 1
       )
 
-    bias_reshape = transform(Nx.shape(bias), &conv2d_bias_reshape/1)
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
 
     input
     |> Nx.conv(weight,
@@ -281,7 +285,7 @@ defmodule Axon.Layers do
         groups: 1
       )
 
-    bias_reshape = transform(Nx.shape(bias), &conv3d_bias_reshape/1)
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
 
     input
     |> Nx.conv(weight,
@@ -531,187 +535,6 @@ defmodule Axon.Layers do
     |> Nx.power(Nx.divide(1, norm))
   end
 
-  @doc """
-  Functional implementation of a 1-dimensional transposed convolution.
-
-  Also known as fractionally strided convolutions.
-
-  ## Options
-
-    * `:strides` - kernel strides. Can be a scalar or a tuple
-      of size 1. Defaults to 1.
-
-    * `:padding` - zero padding on the input. Can be one of
-      `:valid`, `:same` or a general padding configuration
-      without interior padding for each spatial dimension
-      of the input.
-
-    * `:input_dilation` - input dilation factor. Equivalent
-      to applying interior padding on the input. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:kernel_dilation` - kernel dilation factor. Equivalent
-      to applying interior padding on the kernel. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
-
-    * `:output_padding` - padding configuration applied to the output
-      of the transposed convolution. Must be a valid padding configuration
-      as a list of `{edge_low, interior, edge_high}` for each spatial
-        dimension in the output.
-  """
-  defn conv_transpose1d(input, weight, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        strides: {1},
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1,
-        output_padding: [{0, 0, 0}]
-      )
-
-    output_padding_config = transform(opts[:output_padding], &conv_transpose_padding(&1, 1))
-    permutation = transform(Nx.axes(weight), &conv_transpose_permutation/1)
-    transposed_kernel = Nx.transpose(weight, axes: permutation)
-
-    input
-    |> Nx.conv(transposed_kernel,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
-    )
-    |> Nx.pad(0, output_padding_config)
-    |> Nx.add(bias)
-  end
-
-  @doc """
-  Functional implementation of a 2-dimensional transposed convolution.
-
-  Also known as fractionally strided convolutions.
-
-  ## Options
-
-    * `:strides` - kernel strides. Can be a scalar or a tuple
-      of size 2. Defaults to 1.
-
-    * `:padding` - zero padding on the input. Can be one of
-      `:valid`, `:same` or a general padding configuration
-      without interior padding for each spatial dimension
-      of the input.
-
-    * `:input_dilation` - input dilation factor. Equivalent
-      to applying interior padding on the input. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:kernel_dilation` - kernel dilation factor. Equivalent
-      to applying interior padding on the kernel. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
-
-    * `:output_padding` - padding configuration applied to the output
-      of the transposed convolution. Must be a valid padding configuration
-      as a list of `{edge_low, interior, edge_high}` for each spatial
-      dimension in the output.
-  """
-  defn conv_transpose2d(input, weight, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        strides: {1, 1, 1},
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1,
-        output_padding: [{0, 0, 0}, {0, 0, 0}]
-      )
-
-    output_padding_config = transform(opts[:output_padding], &conv_transpose_padding(&1, 2))
-    permutation = transform(Nx.axes(weight), &conv_transpose_permutation/1)
-    transposed_kernel = Nx.transpose(weight, axes: permutation)
-
-    input
-    |> Nx.conv(transposed_kernel,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
-    )
-    |> Nx.pad(0, output_padding_config)
-    |> Nx.add(bias)
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional transposed convolution.
-
-  ## Options
-
-    * `:strides` - kernel strides. Can be a scalar or a tuple
-      of size 3. Defaults to 1.
-
-    * `:padding` - zero padding on the input. Can be one of
-      `:valid`, `:same` or a general padding configuration
-      without interior padding for each spatial dimension
-      of the input.
-
-    * `:input_dilation` - input dilation factor. Equivalent
-      to applying interior padding on the input. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:kernel_dilation` - kernel dilation factor. Equivalent
-      to applying interior padding on the kernel. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
-
-    * `:output_padding` - padding configuration applied to the output
-      of the transposed convolution. Must be a valid padding configuration
-      as a list of `{edge_low, interior, edge_high}` for each spatial
-      dimension in the output.
-  """
-  defn conv_transpose3d(input, weight, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        strides: {1, 1, 1},
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1,
-        output_padding: [{0, 0, 0}, {0, 0, 0}]
-      )
-
-    output_padding_config = transform(opts[:output_padding], &conv_transpose_padding(&1, 1))
-    permutation = transform(Nx.axes(weight), &conv_transpose_permutation/1)
-    transposed_kernel = Nx.transpose(weight, axes: permutation)
-
-    input
-    |> Nx.conv(transposed_kernel,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
-    )
-    |> Nx.pad(0, output_padding_config)
-    |> Nx.add(bias)
-  end
-
   ## Normalization
 
   @doc ~S"""
@@ -773,10 +596,50 @@ defmodule Axon.Layers do
   with probability `rate` and scales the input tensor
   by a factor of $\frac{1}{1 - rate}$.
   """
-  defn dropout(input, rate) do
-    keep_prob = Nx.tensor(1, type: Nx.type(input)) - rate
-    mask = Nx.less(Nx.random_uniform(Nx.shape(input), type: Nx.type(input)), keep_prob)
+  defn dropout(input, opts \\ []) do
+    opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
+    keep_prob = Nx.tensor(1, type: Nx.type(input)) - opts[:rate]
+    mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
     Nx.select(mask, input / keep_prob, Nx.tensor(0, type: Nx.type(input)))
+  end
+
+  @doc """
+  Functional implementation of a 1-dimensional spatial
+  dropout layer.
+
+  Applies a mask to entire 1-D feature maps instead of individual
+  elements.
+  """
+  defn spatial_dropout1d(input, opts \\ []) do
+    opts = keyword!(opts, :rate)
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 1))
+    dropout(input, rate: opts[:rate], noise_shape: noise_shape)
+  end
+
+  @doc """
+  Functional implementation of a 2-dimensional spatial
+  dropout layer.
+
+  Applies a mask to entire 2-D feature maps instead of individual
+  elements.
+  """
+  defn spatial_dropout2d(input, opts \\ []) do
+    opts = keyword!(opts, :rate)
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 2))
+    dropout(input, rate: opts[:rate], noise_shape: noise_shape)
+  end
+
+  @doc """
+  Functional implementation of a 3-dimensional spatial
+  dropout layer.
+
+  Applies a mask to entire 3-D feature maps instead of individual
+  elements.
+  """
+  defn spatial_dropout3d(input, opts \\ []) do
+    opts = keyword!(opts, :rate)
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 3))
+    dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
   @doc """
@@ -799,7 +662,7 @@ defmodule Axon.Layers do
 
   ## Attention
 
-  # Helpers
+  ## Helpers
 
   # `window_x` functions expect a window which matches the
   # rank of the input shape. For basic pooling we don't pool
@@ -812,35 +675,16 @@ defmodule Axon.Layers do
   defp pool_window_size(w, 2), do: {1, 1, w, w}
   defp pool_window_size(w, 3), do: {1, 1, w, w, w}
 
-  # TODO: This should probably be generalized
-  defp conv_transpose_padding([{_, _, _} = spatial], 1), do: [{0, 0, 0}, {0, 0, 0}, spatial]
+  # In order to effectively broadcast, we need to expand
+  # the dimensions of the bias term in convolutions
+  defp conv_bias_reshape({}, _), do: {}
+  defp conv_bias_reshape({shape}, 1), do: {1, shape, 1}
+  defp conv_bias_reshape({shape}, 2), do: {1, shape, 1, 1}
+  defp conv_bias_reshape({shape}, 3), do: {1, shape, 1, 1, 1}
 
-  defp conv_transpose_padding([{_, _, _} = s1, {_, _, _} = s2], 2),
-    do: [{0, 0, 0}, {0, 0, 0}, s1, s2]
-
-  defp conv_transpose_padding([{_, _, _} = s1, {_, _, _} = s2, {_, _, _} = s3], 3),
-    do: [{0, 0, 0}, {0, 0, 0}, s1, s2, s3]
-
-  defp conv_transpose_padding(padding_config, rank),
-    do:
-      raise(
-        ArgumentError,
-        "invalid output padding configuration #{inspect(padding_config)}" <>
-          " for #{rank}-d transposed convolution, you must specify the" <>
-          " padding configuration for each output spatial dimension as" <>
-          " a list of {edge_low, interior, edge_high} values"
-      )
-
-  defp conv_transpose_permutation([0, 1, 2]), do: [1, 0, 2]
-  defp conv_transpose_permutation([0, 1, 2, 3]), do: [1, 0, 3, 2]
-  defp conv_transpose_permutation([0, 1, 2, 3, 4]), do: [1, 0, 4, 3, 2]
-
-  defp conv1d_bias_reshape({}), do: {}
-  defp conv1d_bias_reshape({shape}), do: {1, shape, 1}
-
-  defp conv2d_bias_reshape({}), do: {}
-  defp conv2d_bias_reshape({shape}), do: {1, shape, 1, 1}
-
-  defp conv3d_bias_reshape({}), do: {}
-  defp conv3d_bias_reshape({shape}), do: {1, shape, 1, 1, 1}
+  # Spatial dropout shapes are broadcasted across feature
+  # channels
+  defp spatial_dropout_noise_shape({batch, channels, _spatial}, 1), do: {batch, channels, 1}
+  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2}, 2), do: {batch, channels, 1, 1}
+  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3), do: {batch, channels, 1, 1, 1}
 end
