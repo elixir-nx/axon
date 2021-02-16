@@ -9,9 +9,6 @@ defmodule Axon.Layers do
 
   import Nx.Defn
 
-  # TODO: Configuration option
-  @default_defn_compiler {Nx.Defn, max_float_type: {:f, 32}}
-
   ## Linear
 
   @doc ~S"""
@@ -86,7 +83,7 @@ defmodule Axon.Layers do
 
   ## Options
 
-    * `:strides` - kernel strides. Can be a scalar or a tuple
+    * `:strides` - kernel strides. Can be a scalar or a list
       of size 1. Defaults to 1.
 
     * `:padding` - zero padding on the input. Can be one of
@@ -112,7 +109,7 @@ defmodule Axon.Layers do
   defn conv1d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
-        strides: {1},
+        strides: [1],
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
@@ -195,7 +192,7 @@ defmodule Axon.Layers do
   defn conv2d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
-        strides: {1, 1},
+        strides: [1, 1],
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
@@ -278,7 +275,7 @@ defmodule Axon.Layers do
   defn conv3d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
-        strides: {1, 1, 1},
+        strides: [1, 1, 1],
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
@@ -476,7 +473,7 @@ defmodule Axon.Layers do
     input
     |> Nx.power(norm)
     |> Nx.window_sum(window_dimensions, opts)
-    |> Nx.power(Nx.divide(1, norm))
+    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   @doc """

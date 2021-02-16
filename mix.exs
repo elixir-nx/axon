@@ -22,7 +22,7 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:exla, git: "git@github.com:elixir-nx/exla"},
+      {:nx, "~> 0.1.0-dev", git: "git@github.com:elixir-nx/nx", sparse: "nx"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false}
     ]
   end
