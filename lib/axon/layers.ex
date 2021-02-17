@@ -5,6 +5,10 @@ defmodule Axon.Layers do
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
   any supported `Nx` backend.
+
+  Layers are the building blocks of neural networks. These
+  functional implementations can be used to express higher-level
+  constructs using fundamental building blocks.
   """
 
   import Nx.Defn
@@ -319,12 +323,11 @@ defmodule Axon.Layers do
   """
   defn max_pool1d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -339,12 +342,11 @@ defmodule Axon.Layers do
   """
   defn max_pool2d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -359,12 +361,11 @@ defmodule Axon.Layers do
   """
   defn max_pool3d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -379,12 +380,11 @@ defmodule Axon.Layers do
   """
   defn avg_pool1d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -399,12 +399,11 @@ defmodule Axon.Layers do
   """
   defn avg_pool2d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -419,19 +418,17 @@ defmodule Axon.Layers do
   """
   defn avg_pool3d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
     |> Nx.window_mean(window_dimensions, opts)
   end
-
 
   @doc """
   Functional implementation of 1-dimensional power average pooling.
@@ -455,13 +452,11 @@ defmodule Axon.Layers do
   """
   defn lp_pool1d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        norm: 1,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
     norm = opts[:norm]
 
@@ -483,13 +478,11 @@ defmodule Axon.Layers do
   """
   defn lp_pool2d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        norm: 1,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
     norm = opts[:norm]
 
@@ -511,13 +504,11 @@ defmodule Axon.Layers do
   """
   defn lp_pool3d(input, opts \\ []) do
     opts =
-      keyword!(opts,
-        [:kernel_size,
-        norm: 1,
-        strides: 1,
-        padding: :valid,
-        window_dilations: 1]
+      keyword!(
+        opts,
+        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
       )
+
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
     norm = opts[:norm]
 
@@ -683,5 +674,7 @@ defmodule Axon.Layers do
   # channels
   defp spatial_dropout_noise_shape({batch, channels, _spatial}, 1), do: {batch, channels, 1}
   defp spatial_dropout_noise_shape({batch, channels, _s1, _s2}, 2), do: {batch, channels, 1, 1}
-  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3), do: {batch, channels, 1, 1, 1}
+
+  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3),
+    do: {batch, channels, 1, 1, 1}
 end

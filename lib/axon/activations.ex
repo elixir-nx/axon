@@ -2,6 +2,25 @@ defmodule Axon.Activations do
   @moduledoc """
   Collection of common activation functions.
 
+  Activation functions are element-wise, (typically) non-linear
+  functions called on the output of another layer, such as
+  a dense layer:
+
+      x
+      |> Axon.Layers.Dense(weight, bias)
+      |> Axon.Activations.relu()
+
+  Activation functions output the "activation" or how active
+  a given layer's neurons are in learning a representation
+  of the data-generating distribution.
+
+  The choice of activation function is generally arbitrary;
+  although some activations work better than others in certain
+  problem domains. For example ReLU (rectified linear unit)
+  activation is a widely-accepted default. You can see
+  a list of activation functions and implementations
+  [here](https://paperswithcode.com/methods/category/activation-functions).
+
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
   any supported `Nx` backend.

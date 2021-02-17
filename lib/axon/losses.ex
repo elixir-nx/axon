@@ -2,12 +2,60 @@ defmodule Axon.Losses do
   @moduledoc """
   Collection of common loss functions.
 
+  Loss functions evaluate predictions with respect to true
+  data, often to measure the divergence between a model's
+  representation of the data-generating distribution and the
+  true representation of the data-generating distribution.
+
+  Each loss function is implemented as an element-wise function
+  measuring the loss with respect to the input target `y_true`
+  and input prediction `y_pred`. As an example, the `mean_squared_error/2`
+  loss function produces a tensor whose values are the mean squared
+  error between targets and predictions:
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.mean_squared_error(y_true, y_pred)
+      #Nx.Tensor<
+        f32[2]
+        [0.5, 0.5]
+      >
+
+  It's common to compute the loss across an entire minibatch.
+  You can easily do so by composing one of these loss functions
+  with a reduction such as `Nx.sum` or `Nx.mean`:
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> losses = Axon.Losses.mean_squared_error(y_true, y_pred)
+      iex> Nx.mean(losses)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
+  You can even compose loss functions:
+
+      defn my_strange_loss(y_true, y_pred) do
+        y_true
+        |> Axon.mean_squared_error(y_pred)
+        |> Axon.binary_cross_entropy(y_pred)
+        |> Nx.sum()
+      end
+
+  Or, more commonly, you can combine loss functions with penalties for
+  regularization:
+
+      defn regularized_loss(params, y_true, y_pred) do
+        loss = Axon.mean_squared_error(y_true, y_pred)
+        penalty = l2_penalty(params)
+        Nx.sum(loss) + penalty
+      end
+
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
   any supported `Nx` backend.
 
-  Each of these functions are implemented element-wise with
-  respect to each target/input pair.
   """
 
   import Nx.Defn
@@ -17,7 +65,15 @@ defmodule Axon.Losses do
 
   $$-\frac{1}{2}(\hat{y_i} \cdot \log(y_i) + (1 - \hat{y_i}) \cdot \log(1 - y_i))$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  Binary cross-entropy is most commonly used when there are
+  two label classes in classification problems. This function
+  expects the targets `y_true` to be a one-hot encoded
+  representation of the labels.
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -39,7 +95,15 @@ defmodule Axon.Losses do
 
   $$-\sum_i^C \hat{y_i} \cdot \log(y_i)$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  Categorical cross-entropy is most commonly used when there are
+  more than two label classes in classification problems. This
+  function expects the targets `y_true` to be a one-hot encoded
+  representation of the labels.
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -58,6 +122,11 @@ defmodule Axon.Losses do
 
   @doc ~S"""
   Categorical hinge loss function.
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -80,7 +149,10 @@ defmodule Axon.Losses do
 
   $$\frac{1}{C}\max_i(1 - \hat{y_i} * y_i, 0)$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -102,7 +174,10 @@ defmodule Axon.Losses do
 
   $$\sum_i^C \hat{y_i} \cdot \log(\frac{\hat{y_i}}{y_i})$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -141,7 +216,10 @@ defmodule Axon.Losses do
 
   $$\frac{1}{C} \sum_i^C (\hat{y_i} - y_i) + \log(1 + e^{-2(\hat{y_i} - y_i)}) - \log(2)$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -169,7 +247,10 @@ defmodule Axon.Losses do
 
   $$\sum_i |\hat{y_i} - y_i|$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -191,7 +272,10 @@ defmodule Axon.Losses do
 
   $$\sum_i (\hat{y_i} - y_i)^2$$
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
@@ -213,7 +297,10 @@ defmodule Axon.Losses do
 
   $$ \frac{1}{C} \sum_i^C y_i - (\hat{y_i} \cdot \log(y_i))$$\
 
-  The shape of `y_true` must match the shape of `y_pred`.
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
 
   ## Examples
 
