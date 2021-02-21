@@ -59,6 +59,7 @@ defmodule Axon.Losses do
   """
 
   import Nx.Defn
+  import Axon.Shared
 
   @doc ~S"""
   Binary cross-entropy loss function.
@@ -86,7 +87,7 @@ defmodule Axon.Losses do
       >
   """
   defn binary_cross_entropy(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
     Nx.mean(-xlogy(y_true, y_pred) - xlogy(1 - y_true, 1 - y_pred), axes: [-1])
   end
 
@@ -116,7 +117,7 @@ defmodule Axon.Losses do
       >
   """
   defn categorical_cross_entropy(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
     -Nx.sum(xlogy(y_true, y_pred), axes: [-1])
   end
 
@@ -165,7 +166,7 @@ defmodule Axon.Losses do
       >
   """
   defn hinge(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
     Nx.mean(Nx.max(1.0 - y_true * y_pred, 0.0), axes: [-1])
   end
 
@@ -190,7 +191,7 @@ defmodule Axon.Losses do
       >
   """
   defn kl_divergence(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
 
     epsilon = 1.0e-7
 
@@ -232,7 +233,8 @@ defmodule Axon.Losses do
       >
   """
   defn log_cosh(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
+
     x = y_pred - y_true
 
     softplus_x =
@@ -263,7 +265,8 @@ defmodule Axon.Losses do
       >
   """
   defn mean_absolute_error(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
+
     Nx.mean(Nx.abs(y_true - y_pred), axes: [-1])
   end
 
@@ -288,7 +291,8 @@ defmodule Axon.Losses do
       >
   """
   defn mean_squared_error(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
+
     Nx.mean(Nx.power(y_true - y_pred, 2), axes: [-1])
   end
 
@@ -313,26 +317,13 @@ defmodule Axon.Losses do
       >
   """
   defn poisson(y_true, y_pred) do
-    transform([Nx.shape(y_true), Nx.shape(y_pred)], &assert_equal_shapes/1)
+    assert_shape!(y_true, y_pred)
 
     output_type =
       transform({Nx.type(y_true), Nx.type(y_pred)}, &Nx.Type.merge(elem(&1, 0), elem(&1, 1)))
 
     epsilon = Nx.tensor(1.0e-7, type: output_type)
     Nx.mean(y_pred - y_true * Nx.log(y_pred + epsilon), axes: [-1])
-  end
-
-  # Helpers
-
-  defp assert_equal_shapes([s1 | shapes]) do
-    Enum.each(
-      shapes,
-      fn s2 ->
-        unless s1 == s2,
-          do:
-            raise(ArgumentError, "expected shapes to match, got #{inspect(s1)} != #{inspect(s2)}")
-      end
-    )
   end
 
   # TODO: Remove or simplify when there's a numerically stable log

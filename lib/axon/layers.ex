@@ -12,6 +12,7 @@ defmodule Axon.Layers do
   """
 
   import Nx.Defn
+  import Axon.Shared
 
   ## Linear
 
@@ -292,6 +293,125 @@ defmodule Axon.Layers do
     |> Nx.conv(weight,
       strides: opts[:strides],
       padding: opts[:padding],
+      input_dilation: opts[:input_dilation],
+      kernel_dilation: opts[:kernel_dilation]
+    )
+    |> Nx.add(Nx.reshape(bias, bias_reshape))
+  end
+
+  @doc """
+  Functional implementation of a 1-dimensional transposed convolution.
+
+  ## Examples
+
+      iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
+      iex> kernel = Nx.iota({6, 3, 2}, type: {:f, 32})
+      iex> bias = Nx.tensor(1.0, type: {:f, 32})
+      iex> Axon.Layers.conv_transpose1d(input, kernel, bias)
+      #Nx.Tensor<
+        f32[1][6][4]
+        [
+          [
+            [40.0, 79.0, 94.0, 43.0],
+            [94.0, 205.0, 256.0, 133.0],
+            [148.0, 331.0, 418.0, 223.0],
+            [202.0, 457.0, 580.0, 313.0],
+            [256.0, 583.0, 742.0, 403.0],
+            [310.0, 709.0, 904.0, 493.0]
+          ]
+        ]
+      >
+  """
+  defn conv_transpose1d(input, weight, bias, opts \\ []) do
+    assert_rank!(input, weight)
+
+    opts =
+      keyword!(opts,
+        strides: [1],
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        groups: 1
+      )
+
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
+
+    padding =
+      transform(
+        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
+        &conv_transpose_padding/1
+      )
+
+    input
+    |> Nx.conv(weight,
+      strides: opts[:strides],
+      padding: padding,
+      input_dilation: opts[:input_dilation],
+      kernel_dilation: opts[:kernel_dilation]
+    )
+    |> Nx.add(Nx.reshape(bias, bias_reshape))
+  end
+
+  @doc """
+  Functional implementation of a 2-dimensional transposed convolution.
+  """
+  defn conv_transpose2d(input, weight, bias, opts \\ []) do
+    assert_rank!(input, weight)
+
+    opts =
+      keyword!(opts,
+        strides: [1, 1],
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        groups: 1
+      )
+
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
+
+    padding =
+      transform(
+        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
+        &conv_transpose_padding/1
+      )
+
+    input
+    |> Nx.conv(weight,
+      strides: opts[:strides],
+      padding: padding,
+      input_dilation: opts[:input_dilation],
+      kernel_dilation: opts[:kernel_dilation]
+    )
+    |> Nx.add(Nx.reshape(bias, bias_reshape))
+  end
+
+  @doc """
+  Functional implementation of a 3-dimensional transposed convolution.
+  """
+  defn conv_transpose3d(input, weight, bias, opts \\ []) do
+    assert_rank!(input, weight)
+
+    opts =
+      keyword!(opts,
+        strides: [1, 1, 1],
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        groups: 1
+      )
+
+    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
+
+    padding =
+      transform(
+        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
+        &conv_transpose_padding/1
+      )
+
+    input
+    |> Nx.conv(weight,
+      strides: opts[:strides],
+      padding: padding,
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation]
     )
@@ -677,4 +797,57 @@ defmodule Axon.Layers do
 
   defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3),
     do: {batch, channels, 1, 1, 1}
+
+  # Fractionally strided convolution (transposed convolution)
+  # by padding the input
+  defp conv_transpose_padding({kernel_shape, kernel_dilation, strides, padding})
+       when padding in [:valid, :same] do
+    kernel_spatial_dims =
+      kernel_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, tuple_size(kernel_spatial_dims))
+
+    effective_kernel_size =
+      kernel_spatial_dims
+      |> Tuple.to_list()
+      |> Enum.zip(kernel_dilation)
+      |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
+
+    out =
+      case padding do
+        :valid ->
+          effective_kernel_size
+          |> Enum.zip(strides)
+          |> Enum.map(fn {k, s} ->
+            pad_len = k + s - 2 + max(k - s, 0)
+            pad_a = k - 1
+            {pad_a, pad_len - pad_a}
+          end)
+
+        :same ->
+          effective_kernel_size
+          |> Enum.zip(strides)
+          |> Enum.map(fn {k, s} ->
+            pad_len = k + s - 2
+
+            pad_a =
+              if s > k - 1 do
+                k - 1
+              else
+                ceil(pad_len / 2)
+              end
+
+            {pad_a, pad_len - pad_a}
+          end)
+      end
+
+    IO.inspect(out)
+  end
+
+  defp conv_transpose_padding({_, _, _, padding}), do: padding
 end

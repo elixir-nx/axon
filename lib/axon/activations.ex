@@ -28,8 +28,6 @@ defmodule Axon.Activations do
 
   import Nx.Defn
 
-  # TODO: Nx.gelu/1 - requires erf
-
   @doc ~S"""
   Continuously-differentiable exponential linear unit activation.
 
@@ -43,7 +41,7 @@ defmodule Axon.Activations do
   """
   defn celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-    Nx.select(Nx.greater(x, 0.0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
+    Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
   end
 
   @doc """
@@ -59,9 +57,8 @@ defmodule Axon.Activations do
   """
   defn elu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-    alpha = Nx.tensor(opts[:alpha], type: Nx.type(x))
-    x_hat = Nx.select(Nx.greater(x, 0.0), Nx.tensor(0.0, type: Nx.type(x)), x)
-    Nx.select(Nx.greater(x, 0.0), x, alpha * Nx.expm1(x_hat))
+    x_hat = Nx.select(Nx.greater(x, 0), 0, x)
+    Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x_hat))
   end
 
   @doc ~S"""
@@ -81,6 +78,30 @@ defmodule Axon.Activations do
     Nx.exp(x)
   end
 
+  @doc ~S"""
+  Gaussian error linear unit activation.
+
+  $$f(x_i) = \frac{x}{2}(1 + \erf(\frac{x}{\sqrt{2}}))$$
+
+  ## Examples
+
+      iex> Axon.Activations.gelu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      #Nx.Tensor<
+        f64[7]
+        [-0.00404969409489031, -0.04550026389635842, -0.15865525393145707, 0.0, 0.8413447460685429, 1.9544997361036416, 2.99595030590511]
+      >
+  """
+  defn gelu(x) do
+    sqrt2 = Nx.sqrt(2)
+
+    x
+    |> Nx.divide(sqrt2)
+    |> Nx.erf()
+    |> Nx.add(1)
+    |> Nx.multiply(x)
+    |> Nx.divide(2)
+  end
+
   @doc """
   Hard sigmoid activation.
 
@@ -93,7 +114,10 @@ defmodule Axon.Activations do
       >
   """
   defn hard_sigmoid(x) do
-    relu6(x + Nx.tensor(3.0, type: Nx.type(x))) / Nx.tensor(6.0, type: Nx.type(x))
+    x
+    |> Nx.add(3)
+    |> relu6()
+    |> Nx.divide(6)
   end
 
   @doc """
@@ -108,7 +132,9 @@ defmodule Axon.Activations do
       >
   """
   defn hard_silu(x) do
-    x * hard_sigmoid(x)
+    x
+    |> hard_sigmoid()
+    |> Nx.multiply(x)
   end
 
   @doc """
@@ -124,9 +150,9 @@ defmodule Axon.Activations do
   """
   defn hard_tanh(x) do
     Nx.select(
-      Nx.greater(x, 1.0),
-      Nx.tensor(1.0, type: Nx.type(x)),
-      Nx.select(Nx.less(x, -1.0), Nx.tensor(-1.0, type: Nx.type(x)), x)
+      Nx.greater(x, 1),
+      1,
+      Nx.select(Nx.less(x, -1), -1, x)
     )
   end
 
@@ -143,8 +169,7 @@ defmodule Axon.Activations do
   """
   defn leaky_relu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0e-2)
-    alpha = Nx.tensor(opts[:alpha], type: Nx.type(x))
-    Nx.select(Nx.greater(x, 0.0), x, x * alpha)
+    Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
   end
 
   @doc ~S"""
@@ -160,7 +185,7 @@ defmodule Axon.Activations do
         [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  defn(linear(x), do: x)
+  defn linear(x), do: x
 
   @doc """
   Log-sigmoid activation.
@@ -173,7 +198,7 @@ defmodule Axon.Activations do
         [-3.048587351573742, -2.1269280110429727, -1.3132616875182228, -0.6931471805599453, -0.31326168751822286, -0.1269280110429726, -0.04858735157374196]
       >
   """
-  defn(log_sigmoid(x), do: -softplus(-x))
+  defn log_sigmoid(x), do: -softplus(-x)
 
   @doc ~S"""
   Rectified linear unit activation.
@@ -190,7 +215,7 @@ defmodule Axon.Activations do
   """
   # TODO: custom gradient
   defn relu(x) do
-    Nx.max(x, 0.0)
+    Nx.max(x, 0)
   end
 
   @doc ~S"""
@@ -207,7 +232,9 @@ defmodule Axon.Activations do
       >
   """
   defn relu6(x) do
-    Nx.min(Nx.max(x, Nx.tensor(0.0, type: Nx.type(x))), Nx.tensor(6.0, type: Nx.type(x)))
+    x
+    |> Nx.max(0)
+    |> Nx.min(6)
   end
 
   @doc ~S"""
@@ -223,7 +250,7 @@ defmodule Axon.Activations do
         [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970881462097, 0.9525741338729858]
       >
   """
-  defn(sigmoid(x), do: Nx.logistic(x))
+  defn sigmoid(x), do: Nx.logistic(x)
 
   @doc """
   Sigmoid weighted linear unit activation.
@@ -237,7 +264,9 @@ defmodule Axon.Activations do
       >
   """
   defn silu(x) do
-    x * sigmoid(x)
+    x
+    |> Nx.logistic()
+    |> Nx.multiply(x)
   end
 
   @doc ~S"""
@@ -250,11 +279,21 @@ defmodule Axon.Activations do
       iex> Axon.Activations.softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
         f32[7]
-        [0.0015683003002777696, 0.004263082053512335, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275640606880188, 0.6326975226402283]
+        [0.0015683004166930914, 0.004263082519173622, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275642096996307, 0.6326975226402283]
       >
   """
   defn softmax(x) do
-    Nx.exp(x) / Nx.sum(Nx.exp(x))
+    max_val = Nx.reduce_max(x)
+
+    stable_exp =
+      x
+      |> Nx.subtract(max_val)
+      |> Nx.exp()
+
+    stable_exp
+    |> Nx.sum()
+    |> reciprocal()
+    |> Nx.multiply(stable_exp)
   end
 
   @doc ~S"""
@@ -267,11 +306,18 @@ defmodule Axon.Activations do
       iex> Axon.Activations.softplus(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}))
       #Nx.Tensor<
         f32[7]
-        [0.04858734831213951, 0.12692801654338837, 0.3132616877555847, 0.6931471824645996, 1.31326162815094, 2.1269280910491943, 3.0485873222351074]
+        [0.04858734831213951, 0.12692801654338837, 0.3132616877555847, 0.6931471824645996, 1.3132617473602295, 2.1269280910491943, 3.0485873222351074]
       >
   """
   defn softplus(x) do
-    Nx.log1p(Nx.exp(x))
+    stable = Nx.max(0.0, x)
+
+    x
+    |> Nx.abs()
+    |> Nx.negate()
+    |> Nx.exp()
+    |> Nx.log1p()
+    |> Nx.add(stable)
   end
 
   @doc ~S"""
@@ -288,7 +334,11 @@ defmodule Axon.Activations do
       >
   """
   defn softsign(x) do
-    x / (Nx.abs(x) + 1)
+    x
+    |> Nx.abs()
+    |> Nx.add(1)
+    |> reciprocal()
+    |> Nx.multiply(x)
   end
 
   @doc ~S"""
@@ -304,5 +354,9 @@ defmodule Axon.Activations do
         [-0.9950547814369202, -0.9640275835990906, -0.7615941762924194, 0.0, 0.7615941762924194, 0.9640275835990906, 0.9950547814369202]
       >
   """
-  defn(tanh(x), do: Nx.tanh(x))
+  defn tanh(x), do: Nx.tanh(x)
+
+  ## Helpers
+
+  defnp reciprocal(x), do: Nx.divide(1, x)
 end
