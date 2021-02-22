@@ -1,14 +1,24 @@
 defmodule Axon.Layers do
   @moduledoc """
-  Functional implementations of common neural network layers.
-
-  All of the functions in this module are implemented as
-  numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` backend.
+  Functional implementations of common neural network layer
+  operations.
 
   Layers are the building blocks of neural networks. These
   functional implementations can be used to express higher-level
-  constructs using fundamental building blocks.
+  constructs using fundamental building blocks. Neural network
+  layers are typically stateful with respect to their parameters.
+  These implementations do not assume the responsibility of
+  managing state - instead opting to delegate this responsibility
+  to the caller.
+
+  Neural networks can often be seen as a composition of functions:
+
+      input
+      |> dense(w1, b1)
+      |> relu()
+      |> dense(w2, b2)
+      |> softmax()
+
   """
 
   import Nx.Defn
@@ -442,10 +452,10 @@ defmodule Axon.Layers do
     input
     |> Nx.conv(weight,
       strides: opts[:strides],
-      padding: padding,
+      padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: groups
+      groups: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -474,10 +484,10 @@ defmodule Axon.Layers do
     input
     |> Nx.conv(weight,
       strides: opts[:strides],
-      padding: padding,
+      padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: groups
+      groups: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -506,10 +516,10 @@ defmodule Axon.Layers do
     input
     |> Nx.conv(weight,
       strides: opts[:strides],
-      padding: padding,
+      padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: groups
+      groups: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -519,8 +529,6 @@ defmodule Axon.Layers do
   convolution.
   """
   defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
-    assert_rank!(input, weight)
-
     input
     |> depthwise_conv2d(k1, b1, opts)
     |> depthwise_conv2d(k2, b2, opts)
@@ -530,13 +538,11 @@ defmodule Axon.Layers do
   Functional implementation of a 2-dimensional separable depthwise
   convolution.
   """
-  defn separable_conv2d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
-    assert_rank!(input, weight)
-
+  defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
     input
     |> depthwise_conv3d(k1, b1, opts)
     |> depthwise_conv3d(k2, b2, opts)
-    |> deptwhise_conv3d(k3, b3, opts)
+    |> depthwise_conv3d(k3, b3, opts)
   end
 
   @doc """
@@ -766,12 +772,33 @@ defmodule Axon.Layers do
 
   ## Normalization
 
+  @doc """
+  Functional implementation of batch normalization.
+
+  Mean and variance need to be calculated separately because
+  this implementation is stateless.
+  """
+  defn batch_norm(input, gamma, bias, mean, variance, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5)
+
+    scale =
+      variance
+      |> Nx.add(opts[:epsilon])
+      |> Nx.rsqrt()
+      |> Nx.multiply(gamma)
+
+    input
+    |> Nx.subtract(mean)
+    |> Nx.multiply(scale)
+    |> Nx.add(bias)
+  end
+
   @doc ~S"""
   Functional implementation of layer normalization.
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
   """
-  defn layer_norm(input, bias, gamma, opts \\ []) do
+  defn layer_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input)))
 
     mean = Nx.mean(input, axes: [-1], keep_axes: true)
@@ -785,7 +812,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of group normalization.
   """
-  defn group_norm(input, bias, gamma, opts \\ []) do
+  defn group_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input))])
 
     group_shape =
