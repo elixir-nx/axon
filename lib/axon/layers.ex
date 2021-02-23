@@ -770,6 +770,109 @@ defmodule Axon.Layers do
     |> Nx.power(Nx.divide(1, norm))
   end
 
+  @doc """
+  Functional implementation of 1-dimensional adaptive average pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_avg_pool1d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 1))
+
+    input
+    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+  @doc """
+  Functional implementation of 2-dimensional adaptive average pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_avg_pool2d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 2))
+
+    input
+    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+  @doc """
+  Functional implementation of 3-dimensional adaptive average pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_avg_pool3d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 3))
+
+    input
+    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+
+  @doc """
+  Functional implementation of 1-dimensional adaptive max pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_max_pool1d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 1))
+
+    input
+    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+  @doc """
+  Functional implementation of 2-dimensional adaptive max pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_max_pool2d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 2))
+
+    input
+    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+  @doc """
+  Functional implementation of 3-dimensional adaptive max pooling.
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size.
+  """
+  defn adaptive_max_pool3d(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size])
+
+    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
+    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 3))
+
+    input
+    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
   ## Normalization
 
   @doc """
@@ -920,6 +1023,8 @@ defmodule Axon.Layers do
 
   ## Helpers
 
+  # TODO: Move most of those to an `Axon.Shape` module
+
   # `window_x` functions expect a window which matches the
   # rank of the input shape. For basic pooling we don't pool
   # across batch or channel dimensions, so we just specify
@@ -930,6 +1035,50 @@ defmodule Axon.Layers do
   defp pool_window_size(w, 1), do: {1, 1, w}
   defp pool_window_size(w, 2), do: {1, 1, w, w}
   defp pool_window_size(w, 3), do: {1, 1, w, w, w}
+
+  # Adaptive pooling functions adapt the strides of the window
+  # according to:
+  # stride = div(input, output)
+  # This preserves the size of the channel/batch dimension
+  defp adaptive_pool_window_strides({{_, _, input_spatial}, {output_spatial}}, 1),
+    do: [1, 1, div(input_spatial, output_spatial)]
+  defp adaptive_pool_window_strides({{_, _, input_spatial}, output_spatial}, 1),
+    do: [1, 1, div(input_spatial, output_spatial)]
+
+  defp adaptive_pool_window_strides({{_, _, input_height, input_width}, {output_height, output_width}}, 2),
+    do: [1, 1, div(input_height, output_height), div(input_width, output_width)]
+  defp adaptive_pool_window_strides({{_, _, input_height, input_width}, output_spatial}, 2),
+    do: [1, 1, div(input_height, output_spatial), div(input_width, output_spatial)]
+
+  defp adaptive_pool_window_strides({{_, _, input_height, input_width, input_temporal}, {output_height, output_width, output_temporal}}, 3),
+    do: [1, 1, div(input_height, output_height), div(input_width, output_width), div(input_temporal, output_temporal)]
+  defp adaptive_pool_window_strides({{_, _, input_height, input_width, input_temporal}, output_spatial}, 3),
+    do: [1, 1, div(input_height, output_spatial), div(input_width, output_spatial), div(input_temporal, output_spatial)]
+
+  # Adaptive pooling functions adopt the size of the window
+  # according to:
+  # size = input_size - (output_size - 1) * stride
+  # This preserves the size of the channel/batch dimension
+  defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], {output_spatial}}, 1) do
+    {1, 1, input_spatial - (output_spatial-1) * stride}
+  end
+  defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], output_spatial}, 1) do
+    {1, 1, input_spatial - (output_spatial-1) * stride}
+  end
+
+  defp adaptive_pool_window_size({{_, _, input_height, input_width}, [_, _, s1, s2], {output_height, output_width}}, 2) do
+    {1, 1, input_height - (output_height-1) * s1, input_width - (output_width-1) * s2}
+  end
+  defp adaptive_pool_window_size({{_, _, input_height, input_width}, [_, _, s1, s2], output_spatial}, 2) do
+    {1, 1, input_height - (output_spatial-1) * s1, input_width - (output_spatial-1) * s2}
+  end
+
+  defp adaptive_pool_window_size({{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], {output_height, output_width, output_temporal}}, 3) do
+    {1, 1, input_height - (output_height-1) * s1, input_width - (output_width-1) * s2, input_temporal - (output_temporal-1) * s3}
+  end
+  defp adaptive_pool_window_size({{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], output_spatial}, 3) do
+    {1, 1, input_height - (output_spatial-1) * s1, input_width - (output_spatial-1) * s2, input_temporal - (output_spatial-1) * s3}
+  end
 
   # In order to effectively broadcast, we need to expand
   # the dimensions of the bias term in convolutions
