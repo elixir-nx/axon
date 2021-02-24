@@ -1,23 +1,58 @@
 defmodule Axon.Layers do
-  @moduledoc """
+  @moduledoc ~S"""
   Functional implementations of common neural network layer
   operations.
 
   Layers are the building blocks of neural networks. These
   functional implementations can be used to express higher-level
   constructs using fundamental building blocks. Neural network
-  layers are typically stateful with respect to their parameters.
+  layers are stateful with respect to their parameters.
   These implementations do not assume the responsibility of
   managing state - instead opting to delegate this responsibility
   to the caller.
 
-  Neural networks can often be seen as a composition of functions:
+  Basic neural networks can be seen as a composition of functions:
 
       input
       |> dense(w1, b1)
       |> relu()
       |> dense(w2, b2)
       |> softmax()
+
+  These kinds of models are often referred to as deep feedforward networks
+  or multilayer perceptrons (MLPs) because information flows forward
+  through the network with no feedback connections. Mathematically,
+  a feedforward network can be represented as:
+
+    $$f(x) = f^{(3)}(f^{(2)}(f^{(1)}(x)))$$
+
+  You can see a similar pattern emerge if we condense the call stack
+  in the previous example:
+
+      softmax(dense(relu(dense(input, w1, b1)), w2, b2))
+
+  The chain structure shown here is the most common structure used
+  in neural networks. You can consider each function $f^{(n)}$ as a
+  *layer* in the neural network - for example $f^{(2)} is the 2nd
+  layer in the network. The number of function calls in the
+  structure is the *depth* of the network. This is where the term
+  *deep learning* comes from.
+
+  Neural networks are often written as the mapping:
+
+    $$y = f(x; \theta)$$
+
+  Where $x$ is the input to the neural network and $\theta$ are the
+  set of learned parameters. In Elixir, you would write this:
+
+      y = model(input, params)
+
+  From the previous example, `params` would represent the collection:
+
+      {w1, b1, w2, b2}
+
+  where `w1` and `w2` are layer *weights*, and `b1` and `b2` are layer
+  *biases*.
 
   """
 
@@ -32,6 +67,15 @@ defmodule Axon.Layers do
   Linear transformation of the input such that:
 
   $$y = xW^T + b$$
+
+  A dense layer or fully connected layer transforms
+  the input using the given weight matrix and bias
+  to compute:
+
+      Nx.dot(input, weight) + bias
+
+  Typically, both `weight` and `bias` are learnable
+  parameters trained using gradient-based optimzation.
 
   ## Parameter Shapes
 
@@ -1037,6 +1081,17 @@ defmodule Axon.Layers do
     a * x + b
   end
 
+  @doc """
+  Functional implementation of a feature alpha dropout layer.
+  """
+  defn feature_alpha_dropout(input, opts \\ []) do
+    opts = keyword!(opts, [:rate])
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, tuple_size(&1) - 2))
+    keep_prob = 1 - opts[:rate]
+    mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
+    Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
+  end
+
   ## Attention
 
   @doc """
@@ -1050,6 +1105,7 @@ defmodule Axon.Layers do
     depth = axis_size(query, -1)
     n = Nx.rank(key)
 
+    axes = opts[:axes]
     batch_dims = transform({n, axes}, fn {n, axes} -> List.to_tuple(Enum.to_list(1..n) -- [axes] ++ [n - 1]) end)
     qk_perm = transform({batch_dims, axes, n}, fn {batch_dims, axes, n} -> List.flatten([batch_dims, axes, n - 1]) end)
 
@@ -1184,35 +1240,32 @@ defmodule Axon.Layers do
       |> Enum.zip(kernel_dilation)
       |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
 
-    out =
-      case padding do
-        :valid ->
-          effective_kernel_size
-          |> Enum.zip(strides)
-          |> Enum.map(fn {k, s} ->
-            pad_len = k + s - 2 + max(k - s, 0)
-            pad_a = k - 1
-            {pad_a, pad_len - pad_a}
-          end)
+    case padding do
+      :valid ->
+        effective_kernel_size
+        |> Enum.zip(strides)
+        |> Enum.map(fn {k, s} ->
+          pad_len = k + s - 2 + max(k - s, 0)
+          pad_a = k - 1
+          {pad_a, pad_len - pad_a}
+        end)
 
-        :same ->
-          effective_kernel_size
-          |> Enum.zip(strides)
-          |> Enum.map(fn {k, s} ->
-            pad_len = k + s - 2
+      :same ->
+        effective_kernel_size
+        |> Enum.zip(strides)
+        |> Enum.map(fn {k, s} ->
+          pad_len = k + s - 2
 
-            pad_a =
-              if s > k - 1 do
-                k - 1
-              else
-                ceil(pad_len / 2)
-              end
+          pad_a =
+            if s > k - 1 do
+              k - 1
+            else
+              ceil(pad_len / 2)
+            end
 
-            {pad_a, pad_len - pad_a}
-          end)
-      end
-
-    IO.inspect(out)
+          {pad_a, pad_len - pad_a}
+        end)
+    end
   end
 
   defp conv_transpose_padding({_, _, _, padding}), do: padding
