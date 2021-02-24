@@ -32,7 +32,7 @@ defmodule Axon.Updates do
   """
   defn scale_by_rss(x, sum_of_squares, opts \\ []) do
     opts = keyword!(opts, [eps: 1.0e-7])
-    sum_of_squares = Nx.square(x) + sum_of_squares
+    sum_of_squares = Nx.power(x, 2) + sum_of_squares
     inv_sqrt_x_square = Nx.select(Nx.greater(sum_of_squares, 0), Nx.rsqrt(sum_of_squares + opts[:eps]), 0.0)
 
     x = inv_sqrt_x_square * x
@@ -63,7 +63,10 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, opts[:b1], count + 1)
     nu_hat = bias_correction(nu, opts[:b2], count + 1)
 
-    Nx.divide(mu, Nx.sqrt(nu + opts[:eps_root]) + opts[:eps])
+    x =
+      Nx.divide(mu_hat, Nx.sqrt(nu_hat + opts[:eps_root]) + opts[:eps])
+
+    {x, mu, nu}
   end
 
   @doc """
@@ -75,6 +78,8 @@ defmodule Axon.Updates do
     nu = update_moment(x, nu, opts[:decay], 2)
 
     x = x * Nx.rsqrt(nu - Nx.power(mu, 2) + opts[:eps])
+
+    {x, mu, nu}
   end
 
   @doc """
@@ -101,6 +106,35 @@ defmodule Axon.Updates do
     safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
 
     Nx.multiply(x, safe_trust_ratio)
+  end
+
+  @doc """
+  Scale by rectified adam.
+  """
+  defn scale_by_radam(x, mu, nu, count, opts \\ []) do
+    opts = keyword!(opts, [b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 0.0, threshold: 5.0])
+    ro_inf = 2.0 /(1 - opts[:b2]) - 1
+    mu = update_moment(x, mu, opts[:b1], 1)
+    nu = update_moment(x, nu, opts[:b2], 2)
+    count_inc = count + 1
+    b2t = Nx.power(opts[:b2], count_inc)
+    ro = (ro_inf - 2) * count_inc * b2t / (1 - b2t)
+    mu_hat = bias_correction(mu, opts[:b1], count_inc)
+    nu_hat = bias_correction(nu, opts[:b2], count_inc)
+
+    x =
+      if Nx.greater_equal(ro, opts[:threshold]) do
+        radam_update(ro, ro_inf, mu_hat, nu_hat, opts[:eps_root], opts[:eps])
+      else
+        mu_hat
+      end
+
+    {x, mu, nu}
+  end
+
+  defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
+    r = Nx.sqrt((ro - 4)*(ro - 2)*ro_inf/((ro_inf - 4)*(ro_inf - 2)*ro))
+    Nx.divide(Nx.multiply(r, mu), Nx.sqrt(nu + eps_root) + eps)
   end
 
   @doc """
