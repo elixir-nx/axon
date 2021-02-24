@@ -1163,4 +1163,57 @@ defmodule Axon.Layers do
 
   defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3),
     do: {batch, channels, 1, 1, 1}
+
+  # Fractionally strided convolution (transposed convolution)
+  # by padding the input
+  defp conv_transpose_padding({kernel_shape, kernel_dilation, strides, padding})
+       when padding in [:valid, :same] do
+    kernel_spatial_dims =
+      kernel_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, tuple_size(kernel_spatial_dims))
+
+    effective_kernel_size =
+      kernel_spatial_dims
+      |> Tuple.to_list()
+      |> Enum.zip(kernel_dilation)
+      |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
+
+    out =
+      case padding do
+        :valid ->
+          effective_kernel_size
+          |> Enum.zip(strides)
+          |> Enum.map(fn {k, s} ->
+            pad_len = k + s - 2 + max(k - s, 0)
+            pad_a = k - 1
+            {pad_a, pad_len - pad_a}
+          end)
+
+        :same ->
+          effective_kernel_size
+          |> Enum.zip(strides)
+          |> Enum.map(fn {k, s} ->
+            pad_len = k + s - 2
+
+            pad_a =
+              if s > k - 1 do
+                k - 1
+              else
+                ceil(pad_len / 2)
+              end
+
+            {pad_a, pad_len - pad_a}
+          end)
+      end
+
+    IO.inspect(out)
+  end
+
+  defp conv_transpose_padding({_, _, _, padding}), do: padding
 end
