@@ -216,7 +216,7 @@ defmodule Axon.Activations do
   defn relu(x) do
     custom_grad(
       Nx.max(x, 0),
-      fn _ans, g -> Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g)) end
+      fn _ans, g -> [{x, Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))}] end
     )
   end
 

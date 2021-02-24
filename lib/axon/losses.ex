@@ -244,6 +244,42 @@ defmodule Axon.Losses do
     Nx.mean(softplus_x, axes: [-1])
   end
 
+  @doc """
+  Margin ranking loss function.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([1.0, 1.0, 1.0], type: {:f, 32})
+      iex> y_pred1 = Nx.tensor([0.6934, -0.7239,  1.1954], type: {:f, 32})
+      iex> y_pred2 = Nx.tensor([-0.4691, 0.2670, -1.7452], type: {:f, 32})
+      iex> Axon.Losses.margin_ranking(y_true, y_pred1, y_pred2)
+      #Nx.Tensor<
+        f32[3]
+        [0.0, 0.9909000396728516, 0.0]
+      >
+  """
+  defn margin_ranking(y_true, y_pred1, y_pred2, opts \\ []) do
+    opts = keyword!(opts, margin: 0.0)
+    Nx.max(0, Nx.negate(y_true) * (y_pred1 - y_pred2) + opts[:margin])
+  end
+
+  @doc """
+  Soft margin loss function.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[-1.0, 1.0,  1.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.2953, -0.1709, 0.9486]], type: {:f, 32})
+      iex> Axon.Losses.soft_margin(y_true, y_pred)
+      #Nx.Tensor<
+        f32[3]
+        [0.851658046245575, 0.7822436094284058, 0.3273470401763916]
+      >
+  """
+  defn soft_margin(y_true, y_pred) do
+    Nx.sum(Nx.log1p(Nx.exp(Nx.negate(y_true) * y_pred)), axes: [0])
+  end
+
   @doc ~S"""
   Mean-absolute error loss function.
 

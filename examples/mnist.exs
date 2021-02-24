@@ -4,17 +4,29 @@ defmodule MNIST do
   @default_defn_compiler {EXLA, keep_on_device: true}
 
   defn init_random_params do
-    w1 = Axon.Initializers.uniform(shape: {784, 128})
-    b1 = Axon.Initializers.uniform(shape: {128})
-    w2 = Axon.Initializers.uniform(shape: {128, 10})
-    b2 = Axon.Initializers.uniform(shape: {10})
+    w1 = Axon.Initializers.lecun_normal(shape: {784, 128})
+    b1 = Axon.Initializers.lecun_normal(shape: {1, 128})
+    w2 = Axon.Initializers.lecun_normal(shape: {128, 10})
+    b2 = Axon.Initializers.lecun_normal(shape: {1, 10})
     {w1, b1, w2, b2}
+  end
+
+  defn init_adam_state do
+    w1_mu = Axon.Initializers.zeros(shape: {784, 128})
+    w1_nu = Axon.Initializers.zeros(shape: {784, 128})
+    b1_mu = Axon.Initializers.zeros(shape: {1, 128})
+    b1_nu = Axon.Initializers.zeros(shape: {1, 128})
+    w2_mu = Axon.Initializers.zeros(shape: {128, 10})
+    w2_nu = Axon.Initializers.zeros(shape: {128, 10})
+    b2_mu = Axon.Initializers.zeros(shape: {1, 10})
+    b2_nu = Axon.Initializers.zeros(shape: {1, 10})
+    {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}
   end
 
   defn predict({w1, b1, w2, b2}, batch) do
     batch
     |> Axon.Layers.dense(w1, b1)
-    |> Axon.Activations.sigmoid()
+    |> Axon.Activations.relu()
     |> Axon.Layers.dense(w2, b2)
     |> Axon.Activations.softmax()
     |> Nx.log()
@@ -34,24 +46,32 @@ defmodule MNIST do
     -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
   end
 
-  defn update({w1, b1, w2, b2}, batch_images, batch_labels, step) do
+  defn update({w1, b1, w2, b2}, {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}, batch_images, batch_labels, step, count) do
     {grad_w1, grad_b1, grad_w2, grad_b2} =
       grad({w1, b1, w2, b2}, loss({w1, b1, w2, b2}, batch_images, batch_labels))
 
+    {grad_w1, w1_mu, w1_nu} = Axon.Updates.scale_by_adam(grad_w1, w1_mu, w1_nu, count, b1: 0.9)
+    {grad_b1, b1_mu, b1_nu} = Axon.Updates.scale_by_adam(grad_b1, b1_mu, b1_nu, count, b1: 0.9)
+    {grad_w2, w2_mu, w2_nu} = Axon.Updates.scale_by_adam(grad_w2, w2_mu, w2_nu, count, b1: 0.9)
+    {grad_b2, b2_mu, b2_nu} = Axon.Updates.scale_by_adam(grad_b2, b2_mu, b2_nu, count, b1: 0.9)
+
     {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step
+      {
+        w1 + Axon.Updates.scale(grad_w1, step: -step),
+        b1 + Axon.Updates.scale(grad_b1, step: -step),
+        w2 + Axon.Updates.scale(grad_w2, step: -step),
+        b2 + Axon.Updates.scale(grad_b2, step: -step)
+      },
+      {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}
     }
   end
 
-  defn update_with_averages({_, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
+  defn update_with_averages({_, _, _, _} = cur_params, {_, _, _, _, _, _, _, _} = cur_opt_state, imgs, tar, avg_loss, avg_accuracy, total, count) do
     batch_loss = loss(cur_params, imgs, tar)
     batch_accuracy = accuracy(cur_params, imgs, tar)
     avg_loss = avg_loss + batch_loss / total
     avg_accuracy = avg_accuracy + batch_accuracy / total
-    {update(cur_params, imgs, tar, 0.01), avg_loss, avg_accuracy}
+    {update(cur_params, cur_opt_state, imgs, tar, 0.01, count), avg_loss, avg_accuracy, count + 1}
   end
 
   defp unzip_cache_or_download(zip) do
@@ -86,7 +106,7 @@ defmodule MNIST do
       |> Nx.from_binary({:u, 8})
       |> Nx.reshape({n_images, n_rows * n_cols})
       |> Nx.divide(255)
-      |> Nx.to_batch(32)
+      |> Nx.to_batched_list(32)
 
     IO.puts("#{n_images} #{n_rows}x#{n_cols} images\n")
 
@@ -97,47 +117,51 @@ defmodule MNIST do
       |> Nx.from_binary({:u, 8})
       |> Nx.new_axis(-1)
       |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-      |> Nx.to_batch(32)
+      |> Nx.to_batched_list(32)
 
     IO.puts("#{n_labels} labels\n")
 
     {train_images, train_labels}
   end
 
-  def train_epoch(cur_params, imgs, labels) do
+  def train_epoch(cur_params, cur_opt_state, imgs, labels, count) do
     total_batches = Enum.count(imgs)
 
     imgs
     |> Enum.zip(labels)
-    |> Enum.reduce({cur_params, Nx.tensor(0.0), Nx.tensor(0.0)}, fn
-      {imgs, tar}, {cur_params, avg_loss, avg_accuracy} ->
-        update_with_averages(cur_params, imgs, tar, avg_loss, avg_accuracy, total_batches)
+    |> Enum.reduce({{cur_params, cur_opt_state}, Nx.tensor(0.0), Nx.tensor(0.0), count}, fn
+      {imgs, tar}, {{cur_params, cur_opt_state}, avg_loss, avg_accuracy, count} ->
+        update_with_averages(cur_params, cur_opt_state, imgs, tar, avg_loss, avg_accuracy, total_batches, count)
     end)
   end
 
-  def train(imgs, labels, params, opts \\ []) do
+  def train(imgs, labels, params, opt_state, opts \\ []) do
     epochs = opts[:epochs] || 5
 
-    for epoch <- 1..epochs, reduce: params do
-      cur_params ->
-        {time, {new_params, epoch_avg_loss, epoch_avg_acc}} =
-          :timer.tc(__MODULE__, :train_epoch, [cur_params, imgs, labels])
+    for epoch <- 1..epochs, reduce: {params, opt_state, 0} do
+      {cur_params, cur_opt_state, cur_count} ->
+        {time, {{new_params, new_opt_state}, epoch_avg_loss, epoch_avg_acc, new_count}} =
+          :timer.tc(__MODULE__, :train_epoch, [cur_params, cur_opt_state, imgs, labels, cur_count])
+
+        new_count |> IO.inspect
+        new_params |> Nx.backend_transfer() |> IO.inspect
+        new_opt_state |> Nx.backend_transfer() |> IO.inspect
 
         epoch_avg_loss =
           epoch_avg_loss
-          |> Nx.device_transfer()
+          |> Nx.backend_transfer()
           |> Nx.to_scalar()
 
         epoch_avg_acc =
           epoch_avg_acc
-          |> Nx.device_transfer()
+          |> Nx.backend_transfer()
           |> Nx.to_scalar()
 
         IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
         IO.puts("Epoch #{epoch} average loss: #{inspect(epoch_avg_loss)}")
         IO.puts("Epoch #{epoch} average accuracy: #{inspect(epoch_avg_acc)}")
         IO.puts("\n")
-        new_params
+        {new_params, new_opt_state, new_count}
     end
   end
 end
@@ -147,8 +171,9 @@ end
 
 IO.puts("Initializing parameters...\n")
 params = MNIST.init_random_params()
+adam_state = MNIST.init_adam_state()
 
 IO.puts("Training MNIST for 10 epochs...\n\n")
-final_params = MNIST.train(train_images, train_labels, params, epochs: 10)
+{final_params, _} = MNIST.train(train_images, train_labels, params, adam_state, epochs: 10)
 
-IO.inspect(Nx.device_transfer(final_params))
+IO.inspect(Nx.backend_transfer(final_params))

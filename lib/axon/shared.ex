@@ -1,5 +1,7 @@
 defmodule Axon.Shared do
 
+  import Nx.Defn
+
   defmacro axis_size(shape_or_tensor, axis) do
     quote do
       Nx.Defn.Kernel.transform(
@@ -16,10 +18,10 @@ defmodule Axon.Shared do
     end
   end
 
-  defmacro invert_permutation(permuation) do
+  defmacro invert_permutation(permutation) do
     quote do
       Nx.Defn.Kernel.transform(
-        unquote(permutation)
+        unquote(permutation),
         fn perm when is_list(perm) ->
           perm
           |> Enum.with_index()
@@ -30,39 +32,41 @@ defmodule Axon.Shared do
   end
 
   @doc """
-  Asserts the lhs shape is equal to the rhs shape.
+  Asserts `lhs` has same shape as `rhs`.
   """
   defmacro assert_shape!(lhs, rhs) do
     quote do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
-        &assert_shape_impl/1
+        fn
+          {lhs, rhs} when is_tuple(lhs) and is_tuple(rhs) and lhs == rhs -> :ok
+          {lhs, rhs} when is_tuple(lhs) and lhs == rhs.shape -> :ok
+          {lhs, rhs} when is_tuple(rhs) and lhs.shape == rhs -> :ok
+          {lhs, rhs} when lhs.shape == rhs.shape -> :ok
+          {lhs, rhs} ->
+            raise ArgumentError, "expected input shapes to be equal," <>
+                                 " got #{inspect(lhs)} != #{inspect(rhs)}"
+        end
       )
     end
   end
 
-  @doc false
-  def assert_shape_impl({lhs, rhs}) do
-    unless lhs.shape == rhs.shape do
-      raise ArgumentError,
-            "expected input shapes to be equal," <>
-              " got #{inspect(lhs)} != #{inspect(rhs)}"
-    end
-  end
-
   @doc """
-  Asserts the given boolean expression on is true.
+  Asserts `lhs` has same rank as `rhs`.
   """
   defmacro assert_rank!(lhs, rhs) do
     quote do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
         fn
-          {x, y} when is_integer(x) and is_integer(y) -> x == y
-          {x, y} when is_tuple(x) and is_tuple(y) -> tuple_size(x) == tuple_size(y)
-          {x, y} when is_integer(x) and is_tuple(y) -> x == tuple_size(y)
-          {x, y} when is_tuple(x) and is_tuple(y) -> tuple_size(x) == y
-          {x, y} -> tuple_size(x.shape) == tuple_size(y.shape)
+          {x, y} when is_integer(x) and is_integer(y) and x == y -> :ok
+          {x, y} when is_tuple(x) and is_tuple(y) and tuple_size(x) == tuple_size(y) -> :ok
+          {x, y} when is_integer(x) and is_tuple(y) and x == tuple_size(y) -> :ok
+          {x, y} when is_tuple(x) and is_tuple(y) and tuple_size(x) == y -> :ok
+          {x, y} when tuple_size(x.shape) == tuple_size(y.shape) -> :ok
+          {x, y} ->
+            raise ArgumentError, "expected input shapes to have equal rank," <>
+                                 " got #{inspect(x)} and #{inspect(y)}"
         end
       )
     end
