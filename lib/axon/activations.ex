@@ -213,9 +213,11 @@ defmodule Axon.Activations do
         [0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0]
       >
   """
-  # TODO: custom gradient
   defn relu(x) do
-    Nx.max(x, 0)
+    custom_grad(
+      Nx.max(x, 0),
+      fn _ans, g -> Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g)) end
+    )
   end
 
   @doc ~S"""

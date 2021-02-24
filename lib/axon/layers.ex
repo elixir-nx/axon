@@ -881,7 +881,7 @@ defmodule Axon.Layers do
   Mean and variance need to be calculated separately because
   this implementation is stateless.
   """
-  defn batch_norm(input, gamma, bias, mean, variance, opts \\ []) do
+  defn batch_norm(input, mean, variance, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5)
 
     scale =
@@ -942,6 +942,24 @@ defmodule Axon.Layers do
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
 
     Nx.reshape(x, Nx.shape(input)) * gamma + bias
+  end
+
+  @doc """
+  Functional implementation of instance normalization.
+  """
+  defn instance_norm(input, mean, variance, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, [epsilon: 1.0e-6])
+
+    scale =
+      variance
+      |> Nx.add(opts[:epsilon])
+      |> Nx.rsqrt()
+      |> Nx.multiply(gamma)
+
+    input
+    |> Nx.subtract(mean)
+    |> Nx.multiply(scale)
+    |> Nx.add(bias)
   end
 
   ## Stochastic
@@ -1021,6 +1039,57 @@ defmodule Axon.Layers do
 
   ## Attention
 
+  @doc """
+  Functional implementation of dot product attention.
+  """
+  defn dot_product_attention(query, key, value, bias, opts \\ []) do
+    assert_rank!(key, query)
+    assert_rank!(key, value)
+    opts = keyword!(opts, axes: [])
+
+    depth = axis_size(query, -1)
+    n = Nx.rank(key)
+
+    batch_dims = transform({n, axes}, fn {n, axes} -> List.to_tuple(Enum.to_list(1..n) -- [axes] ++ [n - 1]) end)
+    qk_perm = transform({batch_dims, axes, n}, fn {batch_dims, axes, n} -> List.flatten([batch_dims, axes, n - 1]) end)
+
+    key = Nx.transpose(key, qk_perm)
+    query = Nx.transpose(query, qk_perm)
+
+    v_perm = transform({batch_dims, axes, n}, fn {batch_dims, axes, n} -> List.flatten([batch_dims, n - 1, axes]) end)
+    value = Nx.transpose(value, v_perm)
+
+    query =
+      query
+      |> Nx.divide(Nx.sqrt(depth))
+
+    # TODO: Add batch dims
+    attn_weights =
+      query
+      |> Nx.dot([n - 1], key, [n - 1])
+      |> Nx.add(bias)
+
+    norm_dims = transform({Nx.rank(attn_weights), axes}, fn {n, axes} -> Enum.to_list((n - length(axes))..n) end)
+    attn_weights =
+      attn_weights
+      |> logsumexp(axes: norm_dims, keep_axes: true)
+      |> Nx.negate()
+      |> Nx.add(attn_weights)
+      |> Nx.exp()
+
+    # TODO: Dropout
+
+    v_contracting_dims = transform({Nx.rank(value), axes}, fn {n, axes} -> Enum.to_list((n - length(axes))..n) end)
+
+    # TODO: More batch dims
+    y =
+      attn_weights
+      |> Nx.dot(norm_dims, value, v_contracting_dims)
+
+    perm_inv = invert_permutation(qk_perm)
+    Nx.transpose(y, perm_inv)
+  end
+
   ## Helpers
 
   # TODO: Move most of those to an `Axon.Shape` module
@@ -1094,57 +1163,4 @@ defmodule Axon.Layers do
 
   defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3),
     do: {batch, channels, 1, 1, 1}
-
-  # Fractionally strided convolution (transposed convolution)
-  # by padding the input
-  defp conv_transpose_padding({kernel_shape, kernel_dilation, strides, padding})
-       when padding in [:valid, :same] do
-    kernel_spatial_dims =
-      kernel_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, tuple_size(kernel_spatial_dims))
-
-    effective_kernel_size =
-      kernel_spatial_dims
-      |> Tuple.to_list()
-      |> Enum.zip(kernel_dilation)
-      |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
-
-    out =
-      case padding do
-        :valid ->
-          effective_kernel_size
-          |> Enum.zip(strides)
-          |> Enum.map(fn {k, s} ->
-            pad_len = k + s - 2 + max(k - s, 0)
-            pad_a = k - 1
-            {pad_a, pad_len - pad_a}
-          end)
-
-        :same ->
-          effective_kernel_size
-          |> Enum.zip(strides)
-          |> Enum.map(fn {k, s} ->
-            pad_len = k + s - 2
-
-            pad_a =
-              if s > k - 1 do
-                k - 1
-              else
-                ceil(pad_len / 2)
-              end
-
-            {pad_a, pad_len - pad_a}
-          end)
-      end
-
-    IO.inspect(out)
-  end
-
-  defp conv_transpose_padding({_, _, _, padding}), do: padding
 end
