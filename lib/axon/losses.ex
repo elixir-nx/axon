@@ -1,6 +1,6 @@
 defmodule Axon.Losses do
   @moduledoc """
-  Collection of common loss functions.
+  Loss functions.
 
   Loss functions evaluate predictions with respect to true
   data, often to measure the divergence between a model's
@@ -54,7 +54,7 @@ defmodule Axon.Losses do
 
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` backend.
+  any supported `Nx` compiler.
 
   """
 
@@ -360,14 +360,5 @@ defmodule Axon.Losses do
 
     epsilon = Nx.tensor(1.0e-7, type: output_type)
     Nx.mean(y_pred - y_true * Nx.log(y_pred + epsilon), axes: [-1])
-  end
-
-  # TODO: Remove or simplify when there's a numerically stable log
-  # function similar to this in the `Nx` API
-  defnp xlogy(x, y) do
-    x_ok = Nx.not_equal(x, 0.0)
-    safe_x = Nx.select(x_ok, x, Nx.tensor(1, type: Nx.type(x)))
-    safe_y = Nx.select(x_ok, y, Nx.tensor(1, type: Nx.type(y)))
-    Nx.select(x_ok, safe_x * Nx.log(safe_y), Nx.tensor(0, type: Nx.type(x)))
   end
 end

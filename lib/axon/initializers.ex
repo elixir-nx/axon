@@ -497,7 +497,7 @@ defmodule Axon.Initializers do
   defn variance_scaling(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mode: :fan_in, distribution: :normal])
 
-    assert_rank_at_least!(opts[:shape], 2)
+    assert_greater_equal_rank!(opts[:shape], 2)
 
     fans = transform(opts[:shape], &compute_fans/1)
     denominator = transform({fans, opts[:mode]},

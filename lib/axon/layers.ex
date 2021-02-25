@@ -377,7 +377,7 @@ defmodule Axon.Layers do
       >
   """
   defn conv_transpose1d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -410,7 +410,7 @@ defmodule Axon.Layers do
   Functional implementation of a 2-dimensional transposed convolution.
   """
   defn conv_transpose2d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -443,7 +443,7 @@ defmodule Axon.Layers do
   Functional implementation of a 3-dimensional transposed convolution.
   """
   defn conv_transpose3d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -479,7 +479,7 @@ defmodule Axon.Layers do
   where the number of groups is equal to the number of input channels.
   """
   defn depthwise_conv1d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -511,7 +511,7 @@ defmodule Axon.Layers do
   where the number of groups is equal to the number of input channels.
   """
   defn depthwise_conv2d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -543,7 +543,7 @@ defmodule Axon.Layers do
   where the number of groups is equal to the number of input channels.
   """
   defn depthwise_conv3d(input, weight, bias, opts \\ []) do
-    assert_rank!(input, weight)
+    assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
@@ -1098,8 +1098,8 @@ defmodule Axon.Layers do
   Functional implementation of dot product attention.
   """
   defn dot_product_attention(query, key, value, bias, opts \\ []) do
-    assert_rank!(key, query)
-    assert_rank!(key, value)
+    assert_equal_rank!(key, query)
+    assert_equal_rank!(key, value)
     opts = keyword!(opts, axes: [])
 
     depth = axis_size(query, -1)

@@ -2,6 +2,9 @@ defmodule Axon.Shared do
 
   import Nx.Defn
 
+  @doc """
+  Returns the size of the given axis.
+  """
   defmacro axis_size(shape_or_tensor, axis) do
     quote do
       Nx.Defn.Kernel.transform(
@@ -18,6 +21,10 @@ defmodule Axon.Shared do
     end
   end
 
+  @doc """
+  Inverts the give permutation. Used in certain
+  shape determining transpose permuation.
+  """
   defmacro invert_permutation(permutation) do
     quote do
       Nx.Defn.Kernel.transform(
@@ -38,14 +45,13 @@ defmodule Axon.Shared do
     quote do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
-        fn
-          {lhs, rhs} when is_tuple(lhs) and is_tuple(rhs) and lhs == rhs -> :ok
-          {lhs, rhs} when is_tuple(lhs) and lhs == rhs.shape -> :ok
-          {lhs, rhs} when is_tuple(rhs) and lhs.shape == rhs -> :ok
-          {lhs, rhs} when lhs.shape == rhs.shape -> :ok
-          {lhs, rhs} ->
+        fn {lhs, rhs} ->
+          lhs = Nx.shape(lhs)
+          rhs = Nx.shape(rhs)
+          unless lhs == rhs do
             raise ArgumentError, "expected input shapes to be equal," <>
                                  " got #{inspect(lhs)} != #{inspect(rhs)}"
+          end
         end
       )
     end
@@ -54,23 +60,44 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same rank as `rhs`.
   """
-  defmacro assert_rank!(lhs, rhs) do
+  defmacro assert_equal_rank!(lhs, rhs) do
     quote do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
-        fn
-          {x, y} when is_integer(x) and is_integer(y) and x == y -> :ok
-          {x, y} when is_tuple(x) and is_tuple(y) and tuple_size(x) == tuple_size(y) -> :ok
-          {x, y} when is_integer(x) and is_tuple(y) and x == tuple_size(y) -> :ok
-          {x, y} when is_tuple(x) and is_tuple(y) and tuple_size(x) == y -> :ok
-          {x, y} when tuple_size(x.shape) == tuple_size(y.shape) -> :ok
-          {x, y} ->
-            raise ArgumentError, "expected input shapes to have equal rank," <>
-                                 " got #{inspect(x)} and #{inspect(y)}"
+        fn {x, y} ->
+            x = if is_integer(x), do: x, else: Nx.rank(x)
+            y = if is_integer(y), do: y, else: Nx.rank(y)
+            unless x >= y do
+              raise ArgumentError, "expected input ranks to be equal," <>
+                                   " got #{x} != #{y}"
+            end
         end
       )
     end
   end
+
+  @doc """
+  Asserts `lhs` has at least rank `rhs`.
+  """
+  defmacro assert_greater_equal_rank!(lhs, rhs) do
+    quote do
+      Nx.Defn.Kernel.transform(
+        {unquote(lhs), unquote(rhs)},
+        fn {x, y} ->
+            x = if is_integer(x), do: x, else: Nx.rank(x)
+            y = if is_integer(y), do: y, else: Nx.rank(y)
+            unless x >= y do
+              raise ArgumentError, "expected input shape to have at least rank #{y}," <>
+                                   " got rank #{x}"
+            end
+        end
+      )
+    end
+  end
+
+  ## Numerical Helpers
+
+  # TODO: These should be contained somewhere else
 
   defn logsumexp(x, opts \\ []) do
     opts = keyword!(opts, [axes: [], keep_axes: false])
@@ -79,4 +106,12 @@ defmodule Axon.Shared do
     |> Nx.sum(opts)
     |> Nx.log()
   end
+
+  defn xlogy(x, y) do
+    x_ok = Nx.not_equal(x, 0.0)
+    safe_x = Nx.select(x_ok, x, Nx.tensor(1, type: Nx.type(x)))
+    safe_y = Nx.select(x_ok, y, Nx.tensor(1, type: Nx.type(y)))
+    Nx.select(x_ok, safe_x * Nx.log(safe_y), Nx.tensor(0, type: Nx.type(x)))
+  end
+
 end
