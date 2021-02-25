@@ -1,4 +1,10 @@
 defmodule Axon.Shared do
+  @moduledoc false
+
+  # Collection of private helper functions and
+  # macros for enforcing shape/type constraints,
+  # doing shape calculations, and even some
+  # helper numerical definitions.
 
   import Nx.Defn
 
@@ -14,8 +20,10 @@ defmodule Axon.Shared do
             axis = if axis < 0, do: tuple_size(x) - axis, else: axis
             elem(x, axis)
           {x, axis} when is_integer(axis) ->
-            axis = if axis < 0, do: tuple_size(x) - axis, else: axis
-            elem(x.shape, axis)
+            axis = if axis < 0, do: tuple_size(Nx.shape(x)) - axis, else: axis
+            elem(Nx.shape(x), axis)
+          _ ->
+            raise ArgumentError, "input axis must be an integer"
         end
       )
     end
@@ -91,6 +99,18 @@ defmodule Axon.Shared do
                                    " got rank #{x}"
             end
         end
+      )
+    end
+  end
+
+  @doc """
+  Transforms the given Elixir value into a scalar predicate.
+  """
+  defmacro to_predicate(term) do
+    quote do
+      Nx.Defn.Kernel.transform(
+        unquote(term),
+        fn term -> if term, do: 1, else: 0 end
       )
     end
   end
