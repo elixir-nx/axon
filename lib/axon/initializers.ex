@@ -1,6 +1,38 @@
 defmodule Axon.Initializers do
   @moduledoc """
-  Common parameter initializers.
+  Parameter initializers.
+
+  Parameter initializers are used to initialize the weights
+  and biases of a neural network. Because most deep learning
+  optimization algorithms are iterative, they require an initial
+  point to iterate from.
+
+  Sometimes the initialization of a model can determine whether
+  or not a model converges. In some cases, the initial point is
+  unstable, and therefore the model has no chance of converging
+  using common first-order optimization methods. In cases where
+  the model will converge, initialization can have a significant
+  impact on how quickly the model converges.
+
+  Most initialization strategies are built from intuition and
+  heuristics rather than theory. It's commonly accepted that
+  the parameters of different layers should be different -
+  motivating the use of random initialization for each layer's
+  parameters. Usually, only the weights of a layer are initialized
+  using a random distribution - while the biases are initialized
+  to a uniform constant (like 0).
+
+  Most initializers use Gaussian (normal) or uniform distributions
+  with variations on scale. The output scale of an initializer
+  should generally be large enough to avoid information loss but
+  small enough to avoid exploding values. The initializers in
+  this module have a default scale known to work well with
+  the initialization strategy.
+
+  All of the functions in this module are implemented as
+  numerical functions and can be JIT or AOT compiled with
+  any supported `Nx` compiler.
+
   """
 
   # TODO: Add random keys
