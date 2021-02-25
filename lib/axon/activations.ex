@@ -85,12 +85,15 @@ defmodule Axon.Activations do
   """
   defn celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-    transform(opts[:alpha],
+
+    transform(
+      opts[:alpha],
       fn x ->
         if x == 0,
-          do: raise ArgumentError, ":alpha must be non-zero in CELU activation"
+          do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
       end
     )
+
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
   end
 

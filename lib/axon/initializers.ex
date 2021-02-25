@@ -196,6 +196,7 @@ defmodule Axon.Initializers do
   """
   defn lecun_uniform(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -244,6 +245,7 @@ defmodule Axon.Initializers do
   """
   defn lecun_normal(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -295,6 +297,7 @@ defmodule Axon.Initializers do
   """
   defn glorot_uniform(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -346,6 +349,7 @@ defmodule Axon.Initializers do
   """
   defn glorot_normal(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -394,6 +398,7 @@ defmodule Axon.Initializers do
   """
   defn he_uniform(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -442,6 +447,7 @@ defmodule Axon.Initializers do
   """
   defn he_normal(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
+
     variance_scaling(
       shape: opts[:shape],
       type: opts[:type],
@@ -495,33 +501,50 @@ defmodule Axon.Initializers do
 
   """
   defn variance_scaling(opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mode: :fan_in, distribution: :normal])
+    opts =
+      keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mode: :fan_in, distribution: :normal])
 
     assert_greater_equal_rank!(opts[:shape], 2)
 
     fans = transform(opts[:shape], &compute_fans/1)
-    denominator = transform({fans, opts[:mode]},
-      fn
-        {{fan_in, _}, :fan_in} -> fan_in
-        {{_, fan_out}, :fan_out} -> fan_out
-        {{fan_in, fan_out}, :fan_avg} -> (fan_in + fan_out) / 2.0
-        {{_, _}, mode} -> raise ArgumentError, "invalid mode #{inspect(mode)} passed to variance_scaling/1"
-      end)
+
+    denominator =
+      transform(
+        {fans, opts[:mode]},
+        fn
+          {{fan_in, _}, :fan_in} ->
+            fan_in
+
+          {{_, fan_out}, :fan_out} ->
+            fan_out
+
+          {{fan_in, fan_out}, :fan_avg} ->
+            (fan_in + fan_out) / 2.0
+
+          {{_, _}, mode} ->
+            raise ArgumentError, "invalid mode #{inspect(mode)} passed to variance_scaling/1"
+        end
+      )
 
     variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), denominator)
 
     var_opts = transform(opts, &Keyword.take(&1, [:shape, :type]))
 
-    transform({opts[:distribution], variance, var_opts},
+    transform(
+      {opts[:distribution], variance, var_opts},
       fn
         {:normal, variance, opts} ->
           var_normal(variance, opts)
+
         {:uniform, variance, opts} ->
           var_uniform(variance, opts)
+
         {:truncated_normal, variance, opts} ->
           var_uniform(variance, opts)
+
         {dist, _, _} ->
-          raise ArgumentError, "invalid distribution #{inspect(dist)} passed to variance_scaling/1"
+          raise ArgumentError,
+                "invalid distribution #{inspect(dist)} passed to variance_scaling/1"
       end
     )
   end
@@ -544,12 +567,10 @@ defmodule Axon.Initializers do
   end
 
   defp compute_fans(shape) do
-    receptive_field_size =
-      Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
+    receptive_field_size = Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
 
     fan_in = elem(shape, 0) * receptive_field_size
     fan_out = elem(shape, 1) * receptive_field_size
     {fan_in, fan_out}
   end
-
 end

@@ -824,8 +824,14 @@ defmodule Axon.Layers do
   defn adaptive_avg_pool1d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 1))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 1)
+      )
 
     input
     |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
@@ -841,8 +847,14 @@ defmodule Axon.Layers do
   defn adaptive_avg_pool2d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 2))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 2)
+      )
 
     input
     |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
@@ -858,13 +870,18 @@ defmodule Axon.Layers do
   defn adaptive_avg_pool3d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 3))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 3)
+      )
 
     input
     |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
   end
-
 
   @doc """
   Functional implementation of 1-dimensional adaptive max pooling.
@@ -876,8 +893,14 @@ defmodule Axon.Layers do
   defn adaptive_max_pool1d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 1))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 1)
+      )
 
     input
     |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
@@ -893,8 +916,14 @@ defmodule Axon.Layers do
   defn adaptive_max_pool2d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 2))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 2)
+      )
 
     input
     |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
@@ -910,8 +939,14 @@ defmodule Axon.Layers do
   defn adaptive_max_pool3d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
-    window_strides = transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
-    window_dimensions = transform({Nx.shape(input), window_strides, opts[:output_size]}, &adaptive_pool_window_size(&1, 3))
+    window_strides =
+      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), window_strides, opts[:output_size]},
+        &adaptive_pool_window_size(&1, 3)
+      )
 
     input
     |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
@@ -992,7 +1027,7 @@ defmodule Axon.Layers do
   Functional implementation of instance normalization.
   """
   defn instance_norm(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, [epsilon: 1.0e-6])
+    opts = keyword!(opts, epsilon: 1.0e-6)
 
     scale =
       variance
@@ -1106,13 +1141,25 @@ defmodule Axon.Layers do
     n = Nx.rank(key)
 
     axes = opts[:axes]
-    batch_dims = transform({n, axes}, fn {n, axes} -> List.to_tuple(Enum.to_list(1..n) -- [axes] ++ [n - 1]) end)
-    qk_perm = transform({batch_dims, axes, n}, fn {batch_dims, axes, n} -> List.flatten([batch_dims, axes, n - 1]) end)
+
+    batch_dims =
+      transform({n, axes}, fn {n, axes} ->
+        List.to_tuple(Enum.to_list(1..n) -- ([axes] ++ [n - 1]))
+      end)
+
+    qk_perm =
+      transform({batch_dims, axes, n}, fn {batch_dims, axes, n} ->
+        List.flatten([batch_dims, axes, n - 1])
+      end)
 
     key = Nx.transpose(key, qk_perm)
     query = Nx.transpose(query, qk_perm)
 
-    v_perm = transform({batch_dims, axes, n}, fn {batch_dims, axes, n} -> List.flatten([batch_dims, n - 1, axes]) end)
+    v_perm =
+      transform({batch_dims, axes, n}, fn {batch_dims, axes, n} ->
+        List.flatten([batch_dims, n - 1, axes])
+      end)
+
     value = Nx.transpose(value, v_perm)
 
     query =
@@ -1125,7 +1172,11 @@ defmodule Axon.Layers do
       |> Nx.dot([n - 1], key, [n - 1])
       |> Nx.add(bias)
 
-    norm_dims = transform({Nx.rank(attn_weights), axes}, fn {n, axes} -> Enum.to_list((n - length(axes))..n) end)
+    norm_dims =
+      transform({Nx.rank(attn_weights), axes}, fn {n, axes} ->
+        Enum.to_list((n - length(axes))..n)
+      end)
+
     attn_weights =
       attn_weights
       |> logsumexp(axes: norm_dims, keep_axes: true)
@@ -1135,7 +1186,8 @@ defmodule Axon.Layers do
 
     # TODO: Dropout
 
-    v_contracting_dims = transform({Nx.rank(value), axes}, fn {n, axes} -> Enum.to_list((n - length(axes))..n) end)
+    v_contracting_dims =
+      transform({Nx.rank(value), axes}, fn {n, axes} -> Enum.to_list((n - length(axes))..n) end)
 
     # TODO: More batch dims
     y =
@@ -1167,42 +1219,85 @@ defmodule Axon.Layers do
   # This preserves the size of the channel/batch dimension
   defp adaptive_pool_window_strides({{_, _, input_spatial}, {output_spatial}}, 1),
     do: [1, 1, div(input_spatial, output_spatial)]
+
   defp adaptive_pool_window_strides({{_, _, input_spatial}, output_spatial}, 1),
     do: [1, 1, div(input_spatial, output_spatial)]
 
-  defp adaptive_pool_window_strides({{_, _, input_height, input_width}, {output_height, output_width}}, 2),
-    do: [1, 1, div(input_height, output_height), div(input_width, output_width)]
+  defp adaptive_pool_window_strides(
+         {{_, _, input_height, input_width}, {output_height, output_width}},
+         2
+       ),
+       do: [1, 1, div(input_height, output_height), div(input_width, output_width)]
+
   defp adaptive_pool_window_strides({{_, _, input_height, input_width}, output_spatial}, 2),
     do: [1, 1, div(input_height, output_spatial), div(input_width, output_spatial)]
 
-  defp adaptive_pool_window_strides({{_, _, input_height, input_width, input_temporal}, {output_height, output_width, output_temporal}}, 3),
-    do: [1, 1, div(input_height, output_height), div(input_width, output_width), div(input_temporal, output_temporal)]
-  defp adaptive_pool_window_strides({{_, _, input_height, input_width, input_temporal}, output_spatial}, 3),
-    do: [1, 1, div(input_height, output_spatial), div(input_width, output_spatial), div(input_temporal, output_spatial)]
+  defp adaptive_pool_window_strides(
+         {{_, _, input_height, input_width, input_temporal},
+          {output_height, output_width, output_temporal}},
+         3
+       ),
+       do: [
+         1,
+         1,
+         div(input_height, output_height),
+         div(input_width, output_width),
+         div(input_temporal, output_temporal)
+       ]
+
+  defp adaptive_pool_window_strides(
+         {{_, _, input_height, input_width, input_temporal}, output_spatial},
+         3
+       ),
+       do: [
+         1,
+         1,
+         div(input_height, output_spatial),
+         div(input_width, output_spatial),
+         div(input_temporal, output_spatial)
+       ]
 
   # Adaptive pooling functions adopt the size of the window
   # according to:
   # size = input_size - (output_size - 1) * stride
   # This preserves the size of the channel/batch dimension
   defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], {output_spatial}}, 1) do
-    {1, 1, input_spatial - (output_spatial-1) * stride}
+    {1, 1, input_spatial - (output_spatial - 1) * stride}
   end
+
   defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], output_spatial}, 1) do
-    {1, 1, input_spatial - (output_spatial-1) * stride}
+    {1, 1, input_spatial - (output_spatial - 1) * stride}
   end
 
-  defp adaptive_pool_window_size({{_, _, input_height, input_width}, [_, _, s1, s2], {output_height, output_width}}, 2) do
-    {1, 1, input_height - (output_height-1) * s1, input_width - (output_width-1) * s2}
-  end
-  defp adaptive_pool_window_size({{_, _, input_height, input_width}, [_, _, s1, s2], output_spatial}, 2) do
-    {1, 1, input_height - (output_spatial-1) * s1, input_width - (output_spatial-1) * s2}
+  defp adaptive_pool_window_size(
+         {{_, _, input_height, input_width}, [_, _, s1, s2], {output_height, output_width}},
+         2
+       ) do
+    {1, 1, input_height - (output_height - 1) * s1, input_width - (output_width - 1) * s2}
   end
 
-  defp adaptive_pool_window_size({{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], {output_height, output_width, output_temporal}}, 3) do
-    {1, 1, input_height - (output_height-1) * s1, input_width - (output_width-1) * s2, input_temporal - (output_temporal-1) * s3}
+  defp adaptive_pool_window_size(
+         {{_, _, input_height, input_width}, [_, _, s1, s2], output_spatial},
+         2
+       ) do
+    {1, 1, input_height - (output_spatial - 1) * s1, input_width - (output_spatial - 1) * s2}
   end
-  defp adaptive_pool_window_size({{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], output_spatial}, 3) do
-    {1, 1, input_height - (output_spatial-1) * s1, input_width - (output_spatial-1) * s2, input_temporal - (output_spatial-1) * s3}
+
+  defp adaptive_pool_window_size(
+         {{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3],
+          {output_height, output_width, output_temporal}},
+         3
+       ) do
+    {1, 1, input_height - (output_height - 1) * s1, input_width - (output_width - 1) * s2,
+     input_temporal - (output_temporal - 1) * s3}
+  end
+
+  defp adaptive_pool_window_size(
+         {{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], output_spatial},
+         3
+       ) do
+    {1, 1, input_height - (output_spatial - 1) * s1, input_width - (output_spatial - 1) * s2,
+     input_temporal - (output_spatial - 1) * s3}
   end
 
   # In order to effectively broadcast, we need to expand

@@ -57,7 +57,15 @@ defmodule Axon.Schedules do
 
   """
   defn exponential_decay(step, opts \\ []) do
-    opts = keyword!(opts, [init_value: 1.0e-2, decay_rate: 0.95, transition_steps: 10, transition_begin: 0, staircase: false])
+    opts =
+      keyword!(opts,
+        init_value: 1.0e-2,
+        decay_rate: 0.95,
+        transition_steps: 10,
+        transition_begin: 0,
+        staircase: false
+      )
+
     step = Nx.subtract(step, opts[:transition_begin])
 
     p =
@@ -67,7 +75,11 @@ defmodule Axon.Schedules do
         step / opts[:transition_steps]
       end
 
-    Nx.select(Nx.less_equal(step, 0), opts[:init_value], opts[:init_value] * Nx.power(opts[:decay_rate], p))
+    Nx.select(
+      Nx.less_equal(step, 0),
+      opts[:init_value],
+      opts[:init_value] * Nx.power(opts[:decay_rate], p)
+    )
   end
 
   @doc ~S"""
@@ -105,7 +117,7 @@ defmodule Axon.Schedules do
   """
   defn cosine_decay(step, opts \\ []) do
     pi = Nx.tensor(3.1415926535897932384626433832795028841971)
-    opts = keyword!(opts, [init_value: 1.0e-2, decay_steps: 10, alpha: 0.0])
+    opts = keyword!(opts, init_value: 1.0e-2, decay_steps: 10, alpha: 0.0)
 
     count = Nx.min(step, opts[:decay_steps])
     cosine_decay = 0.5 * (1 + Nx.cos(pi * count / opts[:decay_steps]))
@@ -140,7 +152,7 @@ defmodule Axon.Schedules do
 
   """
   defn constant(_step, opts \\ []) do
-    opts = keyword!(opts, [init_value: 1.0e-2])
+    opts = keyword!(opts, init_value: 1.0e-2)
     Nx.tensor(opts[:init_value])
   end
 
@@ -175,7 +187,15 @@ defmodule Axon.Schedules do
 
   """
   defn polynomial_decay(step, opts \\ []) do
-    opts = keyword!(opts, [init_value: 1.0e-2, end_value: 1.0e-3, power: 2, transition_steps: 10, transition_begin: 0])
+    opts =
+      keyword!(opts,
+        init_value: 1.0e-2,
+        end_value: 1.0e-3,
+        power: 2,
+        transition_steps: 10,
+        transition_begin: 0
+      )
+
     count = Nx.clip(step - opts[:transition_begin], 0, opts[:transition_steps])
     frac = 1 - count / opts[:transition_steps]
     (opts[:init_value] - opts[:end_value]) * Nx.power(frac, opts[:power]) + opts[:end_value]

@@ -19,9 +19,11 @@ defmodule Axon.Shared do
           {x, axis} when is_tuple(x) and is_integer(axis) ->
             axis = if axis < 0, do: tuple_size(x) - axis, else: axis
             elem(x, axis)
+
           {x, axis} when is_integer(axis) ->
             axis = if axis < 0, do: tuple_size(Nx.shape(x)) - axis, else: axis
             elem(Nx.shape(x), axis)
+
           _ ->
             raise ArgumentError, "input axis must be an integer"
         end
@@ -56,9 +58,11 @@ defmodule Axon.Shared do
         fn {lhs, rhs} ->
           lhs = Nx.shape(lhs)
           rhs = Nx.shape(rhs)
+
           unless lhs == rhs do
-            raise ArgumentError, "expected input shapes to be equal," <>
-                                 " got #{inspect(lhs)} != #{inspect(rhs)}"
+            raise ArgumentError,
+                  "expected input shapes to be equal," <>
+                    " got #{inspect(lhs)} != #{inspect(rhs)}"
           end
         end
       )
@@ -73,12 +77,14 @@ defmodule Axon.Shared do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
         fn {x, y} ->
-            x = if is_integer(x), do: x, else: Nx.rank(x)
-            y = if is_integer(y), do: y, else: Nx.rank(y)
-            unless x >= y do
-              raise ArgumentError, "expected input ranks to be equal," <>
-                                   " got #{x} != #{y}"
-            end
+          x = if is_integer(x), do: x, else: Nx.rank(x)
+          y = if is_integer(y), do: y, else: Nx.rank(y)
+
+          unless x >= y do
+            raise ArgumentError,
+                  "expected input ranks to be equal," <>
+                    " got #{x} != #{y}"
+          end
         end
       )
     end
@@ -92,12 +98,14 @@ defmodule Axon.Shared do
       Nx.Defn.Kernel.transform(
         {unquote(lhs), unquote(rhs)},
         fn {x, y} ->
-            x = if is_integer(x), do: x, else: Nx.rank(x)
-            y = if is_integer(y), do: y, else: Nx.rank(y)
-            unless x >= y do
-              raise ArgumentError, "expected input shape to have at least rank #{y}," <>
-                                   " got rank #{x}"
-            end
+          x = if is_integer(x), do: x, else: Nx.rank(x)
+          y = if is_integer(y), do: y, else: Nx.rank(y)
+
+          unless x >= y do
+            raise ArgumentError,
+                  "expected input shape to have at least rank #{y}," <>
+                    " got rank #{x}"
+          end
         end
       )
     end
@@ -120,7 +128,8 @@ defmodule Axon.Shared do
   # TODO: These should be contained somewhere else
 
   defn logsumexp(x, opts \\ []) do
-    opts = keyword!(opts, [axes: [], keep_axes: false])
+    opts = keyword!(opts, axes: [], keep_axes: false)
+
     x
     |> Nx.exp()
     |> Nx.sum(opts)
@@ -133,5 +142,4 @@ defmodule Axon.Shared do
     safe_y = Nx.select(x_ok, y, Nx.tensor(1, type: Nx.type(y)))
     Nx.select(x_ok, safe_x * Nx.log(safe_y), Nx.tensor(0, type: Nx.type(x)))
   end
-
 end
