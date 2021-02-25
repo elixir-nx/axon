@@ -306,18 +306,18 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
+      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
-        f32[data: 7]
+        f64[data: 7]
         [-0.03, -0.02, -0.01, 0.0, 1.0, 2.0, 3.0]
       >
 
-      iex> Axon.Activations.leaky_relu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
+      iex> Axon.Activations.leaky_relu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], names: [:batch, :data]))
       #Nx.Tensor<
-        bf16[batch: 2][data: 3]
+        f64[batch: 2][data: 3]
         [
           [-0.01, -0.02, -0.03],
-          [1.0, 1.0, 1.0]
+          [1.0, 2.0, 3.0]
         ]
       >
 
