@@ -32,8 +32,8 @@ defmodule Axon.Shared do
   end
 
   @doc """
-  Inverts the give permutation. Used in certain
-  shape determining transpose permuation.
+  Inverts the give permutation. Used in certain shape calculations
+  to determine transpose permuation.
   """
   defmacro invert_permutation(permutation) do
     quote do
@@ -142,4 +142,6 @@ defmodule Axon.Shared do
     safe_y = Nx.select(x_ok, y, Nx.tensor(1, type: Nx.type(y)))
     Nx.select(x_ok, safe_x * Nx.log(safe_y), Nx.tensor(0, type: Nx.type(x)))
   end
+
+  defn reciprocal(x), do: Nx.divide(1, x)
 end

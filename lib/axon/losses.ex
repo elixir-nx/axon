@@ -64,12 +64,7 @@ defmodule Axon.Losses do
   @doc ~S"""
   Binary cross-entropy loss function.
 
-  $$-\frac{1}{2}(\hat{y_i} \cdot \log(y_i) + (1 - \hat{y_i}) \cdot \log(1 - y_i))$$
-
-  Binary cross-entropy is most commonly used when there are
-  two label classes in classification problems. This function
-  expects the targets `y_true` to be a one-hot encoded
-  representation of the labels.
+  $$l_i = -\frac{1}{2}(\hat{y_i} \cdot \log(y_i) + (1 - \hat{y_i}) \cdot \log(1 - y_i))$$
 
   ## Argument Shapes
 
@@ -95,12 +90,7 @@ defmodule Axon.Losses do
   @doc ~S"""
   Categorical cross-entropy loss function.
 
-  $$-\sum_i^C \hat{y_i} \cdot \log(y_i)$$
-
-  Categorical cross-entropy is most commonly used when there are
-  more than two label classes in classification problems. This
-  function expects the targets `y_true` to be a one-hot encoded
-  representation of the labels.
+  $$l_i = -\sum_i^C \hat{y_i} \cdot \log(y_i)$$
 
   ## Argument Shapes
 
@@ -116,10 +106,14 @@ defmodule Axon.Losses do
         f32[2]
         [0.051293306052684784, 2.3025851249694824]
       >
+
   """
   defn categorical_cross_entropy(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
-    -Nx.sum(xlogy(y_true, y_pred), axes: [-1])
+    y_true
+    |> xlogy(y_pred)
+    |> Nx.sum(axes: [-1])
+    |> Nx.negate()
   end
 
   @doc ~S"""
@@ -139,11 +133,16 @@ defmodule Axon.Losses do
         f32[2]
         [1.6334158182144165, 1.2410175800323486]
       >
+
   """
   defn categorical_hinge(y_true, y_pred) do
-    pos = Nx.sum(y_true * y_pred, axes: [-1])
-    neg = Nx.reduce_max((1 - y_true) * y_pred, axes: [-1])
-    Nx.max(neg - pos + 1, 0.0)
+    1
+    |> Nx.subtract(y_true)
+    |> Nx.multiply(y_pred)
+    |> Nx.reduce_max(axes: [-1])
+    |> Nx.subtract(Nx.sum(Nx.multiply(y_true, y_pred), axes: [-1]))
+    |> Nx.add(1)
+    |> Nx.max(0)
   end
 
   @doc ~S"""
@@ -165,16 +164,23 @@ defmodule Axon.Losses do
         f32[2]
         [0.9700339436531067, 0.6437881588935852]
       >
+
   """
   defn hinge(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
-    Nx.mean(Nx.max(1.0 - y_true * y_pred, 0.0), axes: [-1])
+
+    y_true
+    |> Nx.multiply(y_pred)
+    |> Nx.negate()
+    |> Nx.add(1)
+    |> Nx.max(0)
+    |> Nx.mean(axes: [-1])
   end
 
   @doc ~S"""
   Kullback-Leibler divergence loss function.
 
-  $$\sum_i^C \hat{y_i} \cdot \log(\frac{\hat{y_i}}{y_i})$$
+  $$l_i = \sum_i^C \hat{y_i} \cdot \log(\frac{\hat{y_i}}{y_i})$$
 
   ## Argument Shapes
 
@@ -187,36 +193,29 @@ defmodule Axon.Losses do
       iex> y_pred = Nx.tensor([[0.6, 0.4], [0.4, 0.6]], type: {:f, 32})
       iex> Axon.Losses.kl_divergence(y_true, y_pred)
       #Nx.Tensor<
-        f32[2]
-        [0.916289210319519, -3.080907390540233e-6]
+        f64[2]
+        [0.9162891562459872, -3.0809075000914085e-6]
       >
+
   """
   defn kl_divergence(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
     epsilon = 1.0e-7
+    y_true = Nx.clip(y_true, epsilon, 1)
+    y_pred = Nx.clip(y_pred, epsilon, 1)
 
-    y_true =
-      Nx.clip(
-        y_true,
-        Nx.tensor(epsilon, type: Nx.type(y_true)),
-        Nx.tensor(1, type: Nx.type(y_true))
-      )
-
-    y_pred =
-      Nx.clip(
-        y_pred,
-        Nx.tensor(epsilon, type: Nx.type(y_pred)),
-        Nx.tensor(1, type: Nx.type(y_pred))
-      )
-
-    Nx.sum(y_true * Nx.log(y_true / y_pred), axes: [-1])
+    y_true
+    |> Nx.divide(y_pred)
+    |> Nx.log()
+    |> Nx.multiply(y_true)
+    |> Nx.sum(axes: [-1])
   end
 
   @doc ~S"""
   Logarithmic-Hyperbolic Cosine loss function.
 
-  $$\frac{1}{C} \sum_i^C (\hat{y_i} - y_i) + \log(1 + e^{-2(\hat{y_i} - y_i)}) - \log(2)$$
+  $$l_i = \frac{1}{C} \sum_i^C (\hat{y_i} - y_i) + \log(1 + e^{-2(\hat{y_i} - y_i)}) - \log(2)$$
 
   ## Argument Shapes
 
@@ -229,24 +228,31 @@ defmodule Axon.Losses do
       iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]], type: {:f, 32})
       iex> Axon.Losses.log_cosh(y_true, y_pred)
       #Nx.Tensor<
-        f32[2]
-        [0.2168903946876526, 0.0]
+        f64[2]
+        [0.2168903965923069, 1.904654323148236e-9]
       >
+
   """
   defn log_cosh(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    x = y_pred - y_true
+    x =
+      y_pred
+      |> Nx.subtract(y_true)
 
-    softplus_x =
-      x + Nx.log1p(Nx.exp(Nx.tensor(-2.0, type: Nx.type(x)) * x)) -
-        Nx.log(Nx.tensor(2.0, type: Nx.type(x)))
-
-    Nx.mean(softplus_x, axes: [-1])
+    x
+    |> Nx.multiply(-2)
+    |> Nx.exp()
+    |> Nx.log1p()
+    |> Nx.add(x)
+    |> Nx.subtract(Nx.log(2))
+    |> Nx.mean(axes: [-1])
   end
 
-  @doc """
+  @doc ~S"""
   Margin ranking loss function.
+
+  $$l_i = \max(0, -\hat{y_i} * (y^(1)_i - y^(2)_i) + \alpha)$$
 
   ## Examples
 
@@ -258,14 +264,26 @@ defmodule Axon.Losses do
         f32[3]
         [0.0, 0.9909000396728516, 0.0]
       >
+
   """
   defn margin_ranking(y_true, y_pred1, y_pred2, opts \\ []) do
+    assert_shape!(y_pred1, y_pred2)
+    assert_shape!(y_true, y_pred1)
+
     opts = keyword!(opts, margin: 0.0)
-    Nx.max(0, Nx.negate(y_true) * (y_pred1 - y_pred2) + opts[:margin])
+    margin = opts[:margin]
+
+    y_pred1
+    |> Nx.subtract(y_pred2)
+    |> Nx.multiply(Nx.negate(y_true))
+    |> Nx.add(margin)
+    |> Nx.max(0)
   end
 
-  @doc """
+  @doc ~S"""
   Soft margin loss function.
+
+  $$l_i = \sum_i \frac{\log(1 + e^{-\hat{y_i} * y_i})}{N}$$
 
   ## Examples
 
@@ -278,13 +296,18 @@ defmodule Axon.Losses do
       >
   """
   defn soft_margin(y_true, y_pred) do
-    Nx.sum(Nx.log1p(Nx.exp(Nx.negate(y_true) * y_pred)), axes: [0])
+    y_true
+    |> Nx.negate()
+    |> Nx.multiply(y_pred)
+    |> Nx.exp()
+    |> Nx.log1p()
+    |> Nx.sum(axes: [0])
   end
 
   @doc ~S"""
   Mean-absolute error loss function.
 
-  $$\sum_i |\hat{y_i} - y_i|$$
+  $$l_i = \sum_i |\hat{y_i} - y_i|$$
 
   ## Argument Shapes
 
@@ -304,13 +327,16 @@ defmodule Axon.Losses do
   defn mean_absolute_error(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    Nx.mean(Nx.abs(y_true - y_pred), axes: [-1])
+    y_true
+    |> Nx.subtract(y_pred)
+    |> Nx.abs()
+    |> Nx.mean(axes: [-1])
   end
 
   @doc ~S"""
   Mean-squared error loss function.
 
-  $$\sum_i (\hat{y_i} - y_i)^2$$
+  $$l_i = \sum_i (\hat{y_i} - y_i)^2$$
 
   ## Argument Shapes
 
@@ -330,13 +356,16 @@ defmodule Axon.Losses do
   defn mean_squared_error(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    Nx.mean(Nx.power(y_true - y_pred, 2), axes: [-1])
+    y_true
+    |> Nx.subtract(y_pred)
+    |> Nx.power(2)
+    |> Nx.mean(axes: [-1])
   end
 
   @doc ~S"""
   Poisson loss function.
 
-  $$ \frac{1}{C} \sum_i^C y_i - (\hat{y_i} \cdot \log(y_i))$$\
+  $$l_i = \frac{1}{C} \sum_i^C y_i - (\hat{y_i} \cdot \log(y_i))$$
 
   ## Argument Shapes
 
@@ -352,14 +381,19 @@ defmodule Axon.Losses do
         f32[2]
         [0.9999999403953552, 0.0]
       >
+
   """
   defn poisson(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    output_type =
-      transform({Nx.type(y_true), Nx.type(y_pred)}, &Nx.Type.merge(elem(&1, 0), elem(&1, 1)))
+    epsilon = 1.0e-7
 
-    epsilon = Nx.tensor(1.0e-7, type: output_type)
-    Nx.mean(y_pred - y_true * Nx.log(y_pred + epsilon), axes: [-1])
+    y_pred
+    |> Nx.add(epsilon)
+    |> Nx.log()
+    |> Nx.multiply(y_true)
+    |> Nx.negate()
+    |> Nx.add(y_pred)
+    |> Nx.mean(axes: [-1])
   end
 end

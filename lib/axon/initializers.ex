@@ -553,17 +553,34 @@ defmodule Axon.Initializers do
 
   defnp var_normal(variance, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
-    Nx.random_normal(opts[:shape], type: opts[:type]) * Nx.sqrt(variance)
+    shape = opts[:shape]
+    type = opts[:type]
+
+    variance
+    |> Nx.sqrt()
+    |> Nx.multiply(Nx.random_normal(shape, type: type))
   end
 
   defnp var_uniform(variance, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
-    Nx.random_uniform(opts[:shape], type: opts[:type]) * Nx.sqrt(Nx.multiply(3.0, variance))
+    shape = opts[:shape]
+    type = opts[:type]
+
+    variance
+    |> Nx.multiply(3)
+    |> Nx.sqrt()
+    |> Nx.multiply(Nx.random_uniform(shape, type: type))
   end
 
   defnp var_truncated(variance, opts \\ []) do
-    stddev = Nx.divide(Nx.sqrt(variance), 0.87962566103423978)
-    Nx.multiply(Nx.clip(Nx.random_normal(opts[:shape], type: opts[:type]), -2.0, 2.0), stddev)
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    shape = opts[:shape]
+    type = opts[:type]
+
+    variance
+    |> Nx.sqrt()
+    |> Nx.divide(0.87962566103423978)
+    |> Nx.multiply(Nx.clip(Nx.random_normal(shape, type: type), -2, 2))
   end
 
   defp compute_fans(shape) do

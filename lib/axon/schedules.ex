@@ -65,20 +65,33 @@ defmodule Axon.Schedules do
         transition_begin: 0,
         staircase: false
       )
+    init_value = opts[:init_value]
+    rate = opts[:decay_rate]
+    staircase? = to_predicate(opts[:staircase])
+    k = opts[:transition_steps]
+    start = opts[:transition_begin]
 
-    step = Nx.subtract(step, opts[:transition_begin])
+    t = Nx.subtract(step, start)
 
     p =
-      if to_predicate(opts[:staircase]) do
-        Nx.floor(step / opts[:transition_steps])
+      if staircase? do
+        t
+        |> Nx.divide(k)
+        |> Nx.floor()
       else
-        step / opts[:transition_steps]
+        t
+        |> Nx.divide(k)
       end
 
+    decayed_value =
+      rate
+      |> Nx.power(p)
+      |> Nx.multiply(init_value)
+
     Nx.select(
-      Nx.less_equal(step, 0),
-      opts[:init_value],
-      opts[:init_value] * Nx.power(opts[:decay_rate], p)
+      Nx.less_equal(t, 0),
+      init_value,
+      decayed_value
     )
   end
 
@@ -116,14 +129,21 @@ defmodule Axon.Schedules do
 
   """
   defn cosine_decay(step, opts \\ []) do
-    pi = Nx.tensor(3.1415926535897932384626433832795028841971)
     opts = keyword!(opts, init_value: 1.0e-2, decay_steps: 10, alpha: 0.0)
+    init_value = opts[:init_value]
+    decay_steps = opts[:decay_steps]
+    alpha = opts[:alpha]
 
-    count = Nx.min(step, opts[:decay_steps])
-    cosine_decay = 0.5 * (1 + Nx.cos(pi * count / opts[:decay_steps]))
-    decayed = (1 - opts[:alpha]) * cosine_decay + opts[:alpha]
-
-    opts[:init_value] * decayed
+    step
+    |> Nx.min(decay_steps)
+    |> Nx.divide(decay_steps)
+    |> Nx.multiply(3.1415926535897932384626433832795028841971)
+    |> Nx.cos()
+    |> Nx.add(1)
+    |> Nx.divide(2)
+    |> Nx.multiply(1 - alpha)
+    |> Nx.add(alpha)
+    |> Nx.multiply(init_value)
   end
 
   @doc ~S"""
@@ -195,9 +215,20 @@ defmodule Axon.Schedules do
         transition_steps: 10,
         transition_begin: 0
       )
+    init_value = opts[:init_value]
+    end_value = opts[:end_value]
+    start = opts[:transition_begin]
+    k = opts[:transition_steps]
+    p = opts[:power]
 
-    count = Nx.clip(step - opts[:transition_begin], 0, opts[:transition_steps])
-    frac = 1 - count / opts[:transition_steps]
-    (opts[:init_value] - opts[:end_value]) * Nx.power(frac, opts[:power]) + opts[:end_value]
+    step
+    |> Nx.subtract(start)
+    |> Nx.clip(0, k)
+    |> Nx.divide(k)
+    |> Nx.negate()
+    |> Nx.add(1)
+    |> Nx.power(p)
+    |> Nx.multiply(Nx.subtract(init_value, end_value))
+    |> Nx.add(end_value)
   end
 end

@@ -45,6 +45,7 @@ defmodule Axon.Activations do
   """
 
   import Nx.Defn
+  import Axon.Shared
 
   @doc ~S"""
   Continuously-differentiable exponential linear unit activation.
@@ -661,8 +662,4 @@ defmodule Axon.Activations do
 
   """
   defn tanh(x), do: Nx.tanh(x)
-
-  ## Helpers
-
-  defnp reciprocal(x), do: Nx.divide(1, x)
 end

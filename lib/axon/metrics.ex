@@ -47,12 +47,10 @@ defmodule Axon.Metrics do
   defn accuracy(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    Nx.mean(
-      Nx.equal(
-        Nx.argmax(y_true, axis: -1),
-        Nx.argmax(y_pred, axis: -1)
-      )
-    )
+    y_true
+    |> Nx.argmax(axis: -1)
+    |> Nx.equal(Nx.argmax(y_pred, axis: -1))
+    |> Nx.mean()
   end
 
   # defndelegate mean_squared_error(y_true, y_pred), to: Axon.Losses
@@ -85,10 +83,16 @@ defmodule Axon.Metrics do
     assert_shape!(y_true, y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
-    thresholded_preds = Nx.greater(y_pred, opts[:threshold])
-    positives = Nx.sum(thresholded_preds)
-    true_positives = Nx.sum(Nx.logical_and(Nx.equal(y_true, thresholded_preds), positives))
-    Nx.divide(true_positives, Nx.sum(positives) + 1.0e-16)
+
+    thresholded_preds =
+      y_pred
+      |> Nx.greater(opts[:threshold])
+
+    thresholded_preds
+    |> Nx.equal(y_true)
+    |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
+    |> Nx.sum()
+    |> Nx.divide(Nx.sum(thresholded_preds) + 1.0e-16)
   end
 
   @doc ~S"""
@@ -118,15 +122,22 @@ defmodule Axon.Metrics do
     assert_shape!(y_true, y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
-    thresholded_preds = Nx.greater(y_pred, opts[:threshold])
+
+    thresholded_preds =
+      y_pred
+      |> Nx.greater(opts[:threshold])
 
     true_positives =
-      Nx.sum(Nx.logical_and(Nx.equal(y_true, thresholded_preds), Nx.equal(thresholded_preds, 1)))
+      thresholded_preds
+      |> Nx.equal(y_true)
+      |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
+      |> Nx.sum()
 
     false_negatives =
-      Nx.sum(
-        Nx.logical_and(Nx.not_equal(y_true, thresholded_preds), Nx.equal(thresholded_preds, 0))
-      )
+      thresholded_preds
+      |> Nx.not_equal(y_true)
+      |> Nx.logical_and(Nx.equal(thresholded_preds, 0))
+      |> Nx.sum()
 
     Nx.divide(true_positives, false_negatives + true_positives + 1.0e-16)
   end
@@ -158,6 +169,7 @@ defmodule Axon.Metrics do
     assert_shape!(y_true, y_pred)
 
     opts = keyword!(opts, thresold: 0.5)
+
     recall(y_true, y_pred, opts)
   end
 
@@ -188,15 +200,20 @@ defmodule Axon.Metrics do
     assert_shape!(y_true, y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
+
     thresholded_preds = Nx.greater(y_pred, opts[:threshold])
 
     true_negatives =
-      Nx.sum(Nx.logical_and(Nx.equal(y_true, thresholded_preds), Nx.equal(thresholded_preds, 0)))
+      thresholded_preds
+      |> Nx.equal(y_true)
+      |> Nx.logical_and(Nx.equal(thresholded_preds, 0))
+      |> Nx.sum()
 
     false_positives =
-      Nx.sum(
-        Nx.logical_and(Nx.not_equal(y_true, thresholded_preds), Nx.equal(thresholded_preds, 1))
-      )
+      thresholded_preds
+      |> Nx.not_equal(y_true)
+      |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
+      |> Nx.sum()
 
     Nx.divide(true_negatives, false_positives + true_negatives + 1.0e-16)
   end
