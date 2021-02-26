@@ -96,12 +96,25 @@ defmodule Axon.Updates do
   """
   defn scale_by_adam(x, mu, nu, count, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 0.0)
-    mu = update_moment(x, mu, opts[:b1], 1)
-    nu = update_moment(x, nu, opts[:b2], 2)
-    mu_hat = bias_correction(mu, opts[:b1], count + 1)
-    nu_hat = bias_correction(nu, opts[:b2], count + 1)
+    b1 = opts[:b1]
+    b2 = opts[:b2]
+    eps = opts[:eps]
+    eps_root = opts[:eps_root]
 
-    x = Nx.divide(mu_hat, Nx.sqrt(nu_hat + opts[:eps_root]) + opts[:eps])
+    mu = update_moment(x, mu, b1, 1)
+    nu = update_moment(x, nu, b2, 2)
+
+    mu_hat = bias_correction(mu, b1, count + 1)
+    nu_hat = bias_correction(nu, b2, count + 1)
+
+    x =
+      nu_hat
+      |> Nx.add(eps_root)
+      |> Nx.sqrt()
+      |> Nx.add(eps)
+      |> reciprocal()
+      |> Nx.multiply(mu_hat)
+
     {x, mu, nu}
   end
 
@@ -117,12 +130,23 @@ defmodule Axon.Updates do
   """
   defn scale_by_rss(x, sum_of_squares, opts \\ []) do
     opts = keyword!(opts, eps: 1.0e-7)
-    sum_of_squares = Nx.power(x, 2) + sum_of_squares
+    eps = opts[:eps]
 
-    inv_sqrt_x_square =
-      Nx.select(Nx.greater(sum_of_squares, 0), Nx.rsqrt(sum_of_squares + opts[:eps]), 0.0)
+    sum_of_squares =
+      x
+      |> Nx.power(2)
+      |> Nx.add(sum_of_squares)
 
-    x = inv_sqrt_x_square * x
+    inv_sqrt_squares =
+      sum_of_squares
+      |> Nx.add(eps)
+      |> Nx.rsqrt()
+
+    inv_sqrt_x_square = Nx.select(Nx.greater(sum_of_squares, 0), inv_sqrt_squares, 0.0)
+
+    x =
+      x
+      |> Nx.multiply(inv_sqrt_x_square)
 
     {x, sum_of_squares}
   end
@@ -144,9 +168,16 @@ defmodule Axon.Updates do
   """
   defn scale_by_rms(x, nu, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
-    nu = update_moment(x, nu, opts[:decay], 2)
+    decay = opts[:decay]
+    eps = opts[:eps]
 
-    x = x * Nx.rsqrt(nu + opts[:eps])
+    nu = update_moment(x, nu, decay, 2)
+
+    x =
+      nu
+      |> Nx.add(eps)
+      |> Nx.rsqrt()
+      |> Nx.multiply(x)
 
     {x, nu}
   end
@@ -170,13 +201,27 @@ defmodule Axon.Updates do
   """
   defn scale_by_belief(x, mu, nu, count, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 0.0, eps_root: 1.0e-16)
-    mu = update_moment(x, mu, opts[:b1], 1)
-    pred_error = x - mu
-    nu = update_moment(pred_error, nu, opts[:b2], 2)
-    mu_hat = bias_correction(mu, opts[:b1], count + 1)
-    nu_hat = bias_correction(nu, opts[:b2], count + 1)
+    b1 = opts[:b1]
+    b2 = opts[:b2]
+    eps = opts[:eps]
+    eps_root = opts[:eps_root]
 
-    x = Nx.divide(mu_hat, Nx.sqrt(nu_hat + opts[:eps_root]) + opts[:eps])
+    mu = update_moment(x, mu, b1, 1)
+    nu =
+      x
+      |> Nx.subtract(mu)
+      |> update_moment(nu, b2, 2)
+
+    mu_hat = bias_correction(mu, b1, count + 1)
+    nu_hat = bias_correction(nu, b2, count + 1)
+
+    x =
+      nu_hat
+      |> Nx.add(eps_root)
+      |> Nx.sqrt()
+      |> Nx.add(eps)
+      |> reciprocal()
+      |> Nx.multiply(mu_hat)
 
     {x, mu, nu}
   end
@@ -198,10 +243,20 @@ defmodule Axon.Updates do
   """
   defn scale_by_stddev(x, mu, nu, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
-    mu = update_moment(x, mu, opts[:decay], 1)
-    nu = update_moment(x, nu, opts[:decay], 2)
+    decay = opts[:decay]
+    eps = opts[:eps]
 
-    x = x * Nx.rsqrt(nu - Nx.power(mu, 2) + opts[:eps])
+    mu = update_moment(x, mu, decay, 1)
+    nu = update_moment(x, nu, decay, 2)
+
+    x =
+      mu
+      |> Nx.power(2)
+      |> Nx.negate()
+      |> Nx.add(nu)
+      |> Nx.add(eps)
+      |> Nx.rsqrt()
+      |> Nx.multiply(x)
 
     {x, mu, nu}
   end
@@ -230,12 +285,13 @@ defmodule Axon.Updates do
   """
   defn scale_by_trust_ratio(x, g, opts \\ []) do
     opts = keyword!(opts, min_norm: 0.0)
-    param_norm = safe_norm(x, opts[:min_norm])
-    update_norm = safe_norm(g, opts[:min_norm])
-    trust_ratio = Nx.divide(param_norm, update_norm)
+    min_norm = opts[:min_norm]
 
+    param_norm = safe_norm(x, min_norm)
+    update_norm = safe_norm(g, min_norm)
     zero_norm = Nx.logical_or(Nx.equal(param_norm, 0), Nx.equal(update_norm, 0))
 
+    trust_ratio = Nx.divide(param_norm, update_norm)
     safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
 
     Nx.multiply(x, safe_trust_ratio)
@@ -261,18 +317,40 @@ defmodule Axon.Updates do
   """
   defn scale_by_radam(x, mu, nu, count, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 0.0, threshold: 5.0)
-    ro_inf = 2.0 / (1 - opts[:b2]) - 1
-    mu = update_moment(x, mu, opts[:b1], 1)
-    nu = update_moment(x, nu, opts[:b2], 2)
-    count_inc = count + 1
-    b2t = Nx.power(opts[:b2], count_inc)
-    ro = (ro_inf - 2) * count_inc * b2t / (1 - b2t)
-    mu_hat = bias_correction(mu, opts[:b1], count_inc)
-    nu_hat = bias_correction(nu, opts[:b2], count_inc)
+    b1 = opts[:b1]
+    b2 = opts[:b2]
+    eps = opts[:eps]
+    eps_root = opts[:eps_root]
+    threshold = opts[:threshold]
+
+    ro_inf =
+      1
+      |> Nx.subtract(b2)
+      |> reciprocal()
+      |> Nx.multiply(2)
+      |> Nx.subtract(1)
+
+
+    mu = update_moment(x, mu, b1, 1)
+    nu = update_moment(x, nu, b2, 2)
+
+    b2t =
+      b2
+      |> Nx.power(count + 1)
+
+    ro =
+      ro_inf
+      |> Nx.subtract(2)
+      |> Nx.multiply(count + 1)
+      |> Nx.multiply(b2t)
+      |> Nx.divide(1 - b2t)
+
+    mu_hat = bias_correction(mu, b1, count + 1)
+    nu_hat = bias_correction(nu, b2, count + 1)
 
     x =
-      if Nx.greater_equal(ro, opts[:threshold]) do
-        radam_update(ro, ro_inf, mu_hat, nu_hat, opts[:eps_root], opts[:eps])
+      if Nx.greater_equal(ro, threshold) do
+        radam_update(ro, ro_inf, mu_hat, nu_hat, eps_root, eps)
       else
         mu_hat
       end
@@ -281,8 +359,29 @@ defmodule Axon.Updates do
   end
 
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
-    r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
-    Nx.divide(Nx.multiply(r, mu), Nx.sqrt(nu + eps_root) + eps)
+    top =
+      ro
+      |> Nx.subtract(4)
+      |> Nx.multiply(Nx.subtract(ro, 2))
+      |> Nx.multiply(ro_inf)
+
+    bottom =
+      ro_inf
+      |> Nx.subtract(4)
+      |> Nx.multiply(Nx.subtract(ro, 2))
+      |> Nx.multiply(ro)
+
+    nu_hat =
+      nu
+      |> Nx.add(eps_root)
+      |> Nx.sqrt()
+      |> Nx.add(eps)
+
+    top
+    |> Nx.divide(bottom)
+    |> Nx.sqrt()
+    |> Nx.multiply(mu)
+    |> Nx.divide(nu_hat)
   end
 
   @doc """
@@ -300,11 +399,19 @@ defmodule Axon.Updates do
   """
   defn trace(x, trace, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, nesterov: false)
-    update_trace = x + opts[:decay] * trace
+    decay = opts[:decay]
+    nesterov? = to_predicate(opts[:nesterov])
+
+    update_trace =
+      trace
+      |> Nx.multiply(decay)
+      |> Nx.add(x)
 
     x =
-      if to_predicate(opts[:nesterov]) do
-        x + opts[:decay] * update_trace
+      if nesterov? do
+        update_trace
+        |> Nx.multiply(decay)
+        |> Nx.add(x)
       else
         update_trace
       end
@@ -349,6 +456,14 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
 
+  ## Examples
+
+      iex> Axon.Updates.clip_by_global_norm(Nx.tensor([-3.0, -2.5, 0.0, 2.0, 1.0]))
+      #Nx.Tensor<
+        f64[5]
+        [-0.6666666666666666, -0.5555555555555556, 0.0, 0.4444444444444444, 0.2222222222222222]
+      >
+
   """
   defn clip_by_global_norm(x, opts \\ []) do
     opts = keyword!(opts, max_norm: 1.0)
@@ -360,7 +475,12 @@ defmodule Axon.Updates do
       |> Nx.sum()
       |> Nx.sqrt()
 
-    Nx.select(Nx.less(g_norm, max_norm), x, x / g_norm * max_norm)
+    x_norm =
+      x
+      |> Nx.divide(g_norm)
+      |> Nx.multiply(max_norm)
+
+    Nx.select(Nx.less(g_norm, max_norm), x, x_norm)
   end
 
   @doc """
