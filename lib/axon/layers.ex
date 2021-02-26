@@ -101,6 +101,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :linear
   defn dense(input, weight, bias) do
     input
     |> Nx.dot([Nx.rank(input) - 1], weight, [0])
@@ -165,6 +166,7 @@ defmodule Axon.Layers do
       of groups, and `out_channels` must equal `in_channels * groups`.
       Defaults to `1`.
   """
+  @doc type: :convolutional
   defn conv1d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
@@ -248,6 +250,7 @@ defmodule Axon.Layers do
       of groups, and `out_channels` must equal `in_channels * groups`.
       Defaults to `1`.
   """
+  @doc type: :convolutional
   defn conv2d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
@@ -331,6 +334,7 @@ defmodule Axon.Layers do
       of groups, and `out_channels` must equal `in_channels * groups`.
       Defaults to `1`.
   """
+  @doc type: :convolutional
   defn conv3d(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
@@ -376,6 +380,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :convolutional
   defn conv_transpose1d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -409,6 +414,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 2-dimensional transposed convolution.
   """
+  @doc type: :convolutional
   defn conv_transpose2d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -442,6 +448,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 3-dimensional transposed convolution.
   """
+  @doc type: :convolutional
   defn conv_transpose3d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -478,6 +485,7 @@ defmodule Axon.Layers do
   A depthwise convolution is essentially just a grouped convolution
   where the number of groups is equal to the number of input channels.
   """
+  @doc type: :convolutional
   defn depthwise_conv1d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -510,6 +518,7 @@ defmodule Axon.Layers do
   A depthwise convolution is essentially just a grouped convolution
   where the number of groups is equal to the number of input channels.
   """
+  @doc type: :convolutional
   defn depthwise_conv2d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -542,6 +551,7 @@ defmodule Axon.Layers do
   A depthwise convolution is essentially just a grouped convolution
   where the number of groups is equal to the number of input channels.
   """
+  @doc type: :convolutional
   defn depthwise_conv3d(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
@@ -572,6 +582,7 @@ defmodule Axon.Layers do
   Functional implementation of a 2-dimensional separable depthwise
   convolution.
   """
+  @doc type: :convolutional
   defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
     input
     |> depthwise_conv2d(k1, b1, opts)
@@ -582,6 +593,7 @@ defmodule Axon.Layers do
   Functional implementation of a 2-dimensional separable depthwise
   convolution.
   """
+  @doc type: :convolutional
   defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
     input
     |> depthwise_conv3d(k1, b1, opts)
@@ -612,6 +624,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :pooling
   defn max_pool1d(input, opts \\ []) do
     opts =
       keyword!(
@@ -631,6 +644,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn max_pool2d(input, opts \\ []) do
     opts =
       keyword!(
@@ -650,6 +664,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn max_pool3d(input, opts \\ []) do
     opts =
       keyword!(
@@ -669,6 +684,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn avg_pool1d(input, opts \\ []) do
     opts =
       keyword!(
@@ -688,6 +704,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn avg_pool2d(input, opts \\ []) do
     opts =
       keyword!(
@@ -707,6 +724,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn avg_pool3d(input, opts \\ []) do
     opts =
       keyword!(
@@ -741,6 +759,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :pooling
   defn lp_pool1d(input, opts \\ []) do
     opts =
       keyword!(
@@ -767,6 +786,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn lp_pool2d(input, opts \\ []) do
     opts =
       keyword!(
@@ -793,6 +813,7 @@ defmodule Axon.Layers do
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
+  @doc type: :pooling
   defn lp_pool3d(input, opts \\ []) do
     opts =
       keyword!(
@@ -821,6 +842,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_avg_pool1d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -844,6 +866,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_avg_pool2d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -867,6 +890,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_avg_pool3d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -890,6 +914,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_max_pool1d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -913,6 +938,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_max_pool2d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -936,6 +962,7 @@ defmodule Axon.Layers do
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
+  @doc type: :pooling
   defn adaptive_max_pool3d(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
@@ -960,6 +987,7 @@ defmodule Axon.Layers do
   Mean and variance need to be calculated separately because
   this implementation is stateless.
   """
+  @doc type: :normalization
   defn batch_norm(input, mean, variance, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5)
 
@@ -980,6 +1008,7 @@ defmodule Axon.Layers do
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
   """
+  @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input)))
 
@@ -994,6 +1023,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of group normalization.
   """
+  @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input))])
 
@@ -1026,6 +1056,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of instance normalization.
   """
+  @doc type: :normalization
   defn instance_norm(input, mean, variance, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-6)
 
@@ -1052,6 +1083,7 @@ defmodule Axon.Layers do
   with probability `rate` and scales the input tensor
   by a factor of $\frac{1}{1 - rate}$.
   """
+  @doc type: :dropout
   defn dropout(input, opts \\ []) do
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - opts[:rate]
@@ -1066,9 +1098,10 @@ defmodule Axon.Layers do
   Applies a mask to entire 1-D feature maps instead of individual
   elements.
   """
+  @doc type: :dropout
   defn spatial_dropout1d(input, opts \\ []) do
     opts = keyword!(opts, :rate)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 1))
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
@@ -1079,9 +1112,10 @@ defmodule Axon.Layers do
   Applies a mask to entire 2-D feature maps instead of individual
   elements.
   """
+  @doc type: :dropout
   defn spatial_dropout2d(input, opts \\ []) do
     opts = keyword!(opts, :rate)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 2))
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
@@ -1092,15 +1126,17 @@ defmodule Axon.Layers do
   Applies a mask to entire 3-D feature maps instead of individual
   elements.
   """
+  @doc type: :dropout
   defn spatial_dropout3d(input, opts \\ []) do
     opts = keyword!(opts, :rate)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, 3))
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
   @doc """
   Functional implementation of an alpha dropout layer.
   """
+  @doc type: :dropout
   defn alpha_dropout(input, rate) do
     alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
     scale = Nx.tensor(1.0507009873554804934193349852946, type: Nx.type(input))
@@ -1119,9 +1155,10 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a feature alpha dropout layer.
   """
+  @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
     opts = keyword!(opts, [:rate])
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape(&1, tuple_size(&1) - 2))
+    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
@@ -1132,6 +1169,7 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of dot product attention.
   """
+  @doc type: :attention
   defn dot_product_attention(query, key, value, bias, opts \\ []) do
     assert_equal_rank!(key, query)
     assert_equal_rank!(key, value)
@@ -1200,120 +1238,98 @@ defmodule Axon.Layers do
 
   ## Helpers
 
-  # TODO: Move most of those to an `Axon.Shape` module
-
   # `window_x` functions expect a window which matches the
   # rank of the input shape. For basic pooling we don't pool
   # across batch or channel dimensions, so we just specify
   # a size of `1` for each of those
-  defp pool_window_size({w1}, 1), do: {1, 1, w1}
-  defp pool_window_size({w1, w2}, 2), do: {1, 1, w1, w2}
-  defp pool_window_size({w1, w2, w3}, 3), do: {1, 1, w1, w2, w3}
-  defp pool_window_size(w, 1), do: {1, 1, w}
-  defp pool_window_size(w, 2), do: {1, 1, w, w}
-  defp pool_window_size(w, 3), do: {1, 1, w, w, w}
+  defp pool_window_size(w, spatial_rank) do
+    spatial_dims =
+      case w do
+        x when is_integer(x) -> List.duplicate(x, spatial_rank)
+        x when is_tuple(x) -> Tuple.to_list(x)
+        x -> raise ArgumentError, "expected pool window to be tuple or integer" <>
+                                  " , got #{inspect(x)}"
+      end
+    List.to_tuple([1, 1 | spatial_dims])
+  end
 
   # Adaptive pooling functions adapt the strides of the window
   # according to:
   # stride = div(input, output)
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_strides({{_, _, input_spatial}, {output_spatial}}, 1),
-    do: [1, 1, div(input_spatial, output_spatial)]
+  defp adaptive_pool_window_strides({{input_shape, output_spatial}}, spatial_rank) do
+    input_spatial =
+      input_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
 
-  defp adaptive_pool_window_strides({{_, _, input_spatial}, output_spatial}, 1),
-    do: [1, 1, div(input_spatial, output_spatial)]
+    output_spatial =
+      case output_spatial do
+        x when is_integer(x) -> List.duplicate(x, spatial_rank)
+        x when is_tuple(x) -> Tuple.to_list(x)
+        x -> raise ArgumentError, "expected output spatial dimensions to be tuple" <>
+                                  " or integer, got #{inspect(x)}"
+      end
 
-  defp adaptive_pool_window_strides(
-         {{_, _, input_height, input_width}, {output_height, output_width}},
-         2
-       ),
-       do: [1, 1, div(input_height, output_height), div(input_width, output_width)]
+    strides =
+      output_spatial
+      |> Tuple.to_list()
+      |> Enum.zip(input_spatial)
+      |> Enum.map(fn {input, output} -> div(input, output) end)
 
-  defp adaptive_pool_window_strides({{_, _, input_height, input_width}, output_spatial}, 2),
-    do: [1, 1, div(input_height, output_spatial), div(input_width, output_spatial)]
-
-  defp adaptive_pool_window_strides(
-         {{_, _, input_height, input_width, input_temporal},
-          {output_height, output_width, output_temporal}},
-         3
-       ),
-       do: [
-         1,
-         1,
-         div(input_height, output_height),
-         div(input_width, output_width),
-         div(input_temporal, output_temporal)
-       ]
-
-  defp adaptive_pool_window_strides(
-         {{_, _, input_height, input_width, input_temporal}, output_spatial},
-         3
-       ),
-       do: [
-         1,
-         1,
-         div(input_height, output_spatial),
-         div(input_width, output_spatial),
-         div(input_temporal, output_spatial)
-       ]
+    [1, 1 | strides]
+  end
 
   # Adaptive pooling functions adopt the size of the window
   # according to:
   # size = input_size - (output_size - 1) * stride
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], {output_spatial}}, 1) do
-    {1, 1, input_spatial - (output_spatial - 1) * stride}
-  end
+  defp adaptive_pool_window_size({{input_shape, [_, _, stride], output_spatial}}, spatial_rank) do
+    input_spatial =
+      input_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
 
-  defp adaptive_pool_window_size({{_, _, input_spatial}, [_, _, stride], output_spatial}, 1) do
-    {1, 1, input_spatial - (output_spatial - 1) * stride}
-  end
+    output_spatial =
+      case output_spatial do
+        x when is_integer(x) -> List.duplicate(x, spatial_rank)
+        x when is_tuple(x) -> Tuple.to_list(x)
+        x -> raise ArgumentError, "expected output spatial dimensions to be tuple" <>
+                                  " or integer, got #{inspect(x)}"
+      end
 
-  defp adaptive_pool_window_size(
-         {{_, _, input_height, input_width}, [_, _, s1, s2], {output_height, output_width}},
-         2
-       ) do
-    {1, 1, input_height - (output_height - 1) * s1, input_width - (output_width - 1) * s2}
-  end
+    zip_all = [input_spatial, output_spatial, stride]
 
-  defp adaptive_pool_window_size(
-         {{_, _, input_height, input_width}, [_, _, s1, s2], output_spatial},
-         2
-       ) do
-    {1, 1, input_height - (output_spatial - 1) * s1, input_width - (output_spatial - 1) * s2}
-  end
+    output_size =
+      zip_all
+      |> Enum.zip()
+      |> Enum.map(fn {input, output, s} -> input - (output - 1) * s end)
 
-  defp adaptive_pool_window_size(
-         {{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3],
-          {output_height, output_width, output_temporal}},
-         3
-       ) do
-    {1, 1, input_height - (output_height - 1) * s1, input_width - (output_width - 1) * s2,
-     input_temporal - (output_temporal - 1) * s3}
-  end
-
-  defp adaptive_pool_window_size(
-         {{_, _, input_height, input_width, input_temporal}, [_, _, s1, s2, s3], output_spatial},
-         3
-       ) do
-    {1, 1, input_height - (output_spatial - 1) * s1, input_width - (output_spatial - 1) * s2,
-     input_temporal - (output_spatial - 1) * s3}
+    List.to_tuple([1, 1 | output_size])
   end
 
   # In order to effectively broadcast, we need to expand
-  # the dimensions of the bias term in convolutions
-  defp conv_bias_reshape({}, _), do: {}
-  defp conv_bias_reshape({shape}, 1), do: {1, shape, 1}
-  defp conv_bias_reshape({shape}, 2), do: {1, shape, 1, 1}
-  defp conv_bias_reshape({shape}, 3), do: {1, shape, 1, 1, 1}
+  # the dimensions of the bias term in convolutions - if
+  # the input bias shape is a vector, otherwise we'll just
+  # attempt to let it broadcast itself
+  defp conv_bias_reshape(input_shape, spatial_rank) do
+    case input_shape do
+      {} -> {}
+      {shape} ->
+        spatial_dims = List.duplicate(1, spatial_rank)
+        List.to_tuple([1, shape | spatial_dims])
+      shape when is_tuple(shape) -> shape
+    end
+  end
 
   # Spatial dropout shapes are broadcasted across feature
-  # channels
-  defp spatial_dropout_noise_shape({batch, channels, _spatial}, 1), do: {batch, channels, 1}
-  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2}, 2), do: {batch, channels, 1, 1}
-
-  defp spatial_dropout_noise_shape({batch, channels, _s1, _s2, _s3}, 3),
-    do: {batch, channels, 1, 1, 1}
+  # channels, so we set the channel size to 1 and preserve
+  # the spatial dimensions
+  defp spatial_dropout_noise_shape(input_shape) do
+    :erlang.setelement(2, input_shape, 1)
+  end
 
   # Fractionally strided convolution (transposed convolution)
   # by padding the input
