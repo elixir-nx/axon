@@ -85,6 +85,7 @@ defmodule Axon.Losses do
         f32[3]
         [0.8644828796386719, 0.5150601863861084, 0.4598664939403534]
       >
+
   """
   defn binary_cross_entropy(y_true, y_pred) do
     assert_shape!(y_true, y_pred)

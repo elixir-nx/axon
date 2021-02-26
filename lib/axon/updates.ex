@@ -351,7 +351,7 @@ defmodule Axon.Updates do
 
   """
   defn clip_by_global_norm(x, opts \\ []) do
-    opts = keyword!(opts, [max_norm: 1.0])
+    opts = keyword!(opts, max_norm: 1.0)
     max_norm = opts[:max_norm]
 
     g_norm =
