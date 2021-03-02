@@ -45,13 +45,13 @@ defmodule Axon.Schedules do
 
       iex> Axon.Schedules.exponential_decay(5)
       #Nx.Tensor<
-        f64
-        0.009746794344808964
+        f32
+        0.009746793657541275
       >
 
       iex> Axon.Schedules.exponential_decay(10, staircase: true, transition_steps: 5)
       #Nx.Tensor<
-        f64
+        f32
         0.009025
       >
 
@@ -113,14 +113,14 @@ defmodule Axon.Schedules do
 
       iex> Axon.Schedules.cosine_decay(5)
       #Nx.Tensor<
-        f64
+        f32
         0.005
       >
 
       iex> Axon.Schedules.cosine_decay(1, decay_steps: 4)
       #Nx.Tensor<
-        f64
-        0.008535533905932738
+        f32
+        0.008535534143447876
       >
 
   ## References
@@ -160,19 +160,19 @@ defmodule Axon.Schedules do
 
       iex> Axon.Schedules.constant(100)
       #Nx.Tensor<
-        f64
+        f32
         0.01
       >
 
-      iex> Axon.Schedules.constant(5, init_value: 1.0e-5)
+      iex> Axon.Schedules.constant(5, init_value: 1.0)
       #Nx.Tensor<
-        f64
-        1.0e-5
+        f32
+        1.0
       >
 
   """
   defn constant(_step, opts \\ []) do
-    opts = keyword!(opts, init_value: 1.0e-2)
+    opts = keyword!(opts, init_value: 0.01)
     Nx.tensor(opts[:init_value])
   end
 
@@ -195,14 +195,14 @@ defmodule Axon.Schedules do
 
       iex> Axon.Schedules.polynomial_decay(11)
       #Nx.Tensor<
-        f64
+        f32
         0.001
       >
 
       iex> Axon.Schedules.polynomial_decay(2, power: 1.5)
       #Nx.Tensor<
-        f64
-        0.007439875775199396
+        f32
+        0.007439875975251198
       >
 
   """

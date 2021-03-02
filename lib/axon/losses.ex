@@ -73,8 +73,8 @@ defmodule Axon.Losses do
 
   ## Examples
 
-      iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]], type: {:f, 32})
-      iex> y_pred = Nx.tensor([[0.6811, 0.5565], [0.6551, 0.4551], [0.5422, 0.2648]], type: {:f, 32})
+      iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
+      iex> y_pred = Nx.tensor([[0.6811, 0.5565], [0.6551, 0.4551], [0.5422, 0.2648]])
       iex> Axon.Losses.binary_cross_entropy(y_true, y_pred)
       #Nx.Tensor<
         f32[3]
@@ -100,7 +100,7 @@ defmodule Axon.Losses do
   ## Examples
 
       iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
-      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
       iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred)
       #Nx.Tensor<
         f32[2]
@@ -127,7 +127,7 @@ defmodule Axon.Losses do
   ## Examples
 
       iex> y_true = Nx.tensor([[1, 0, 0], [0, 0, 1]], type: {:s, 8})
-      iex> y_pred = Nx.tensor([[0.05300799, 0.21617081, 0.68642382], [0.3754382 , 0.08494169, 0.13442067]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.05300799, 0.21617081, 0.68642382], [0.3754382 , 0.08494169, 0.13442067]])
       iex> Axon.Losses.categorical_hinge(y_true, y_pred)
       #Nx.Tensor<
         f32[2]
@@ -158,7 +158,7 @@ defmodule Axon.Losses do
   ## Examples
 
       iex> y_true = Nx.tensor([[ 1,  1, -1], [ 1,  1, -1]], type: {:s, 8})
-      iex> y_pred = Nx.tensor([[0.45440044, 0.31470688, 0.67920924], [0.24311459, 0.93466766, 0.10914676]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.45440044, 0.31470688, 0.67920924], [0.24311459, 0.93466766, 0.10914676]])
       iex> Axon.Losses.hinge(y_true, y_pred)
       #Nx.Tensor<
         f32[2]
@@ -189,12 +189,12 @@ defmodule Axon.Losses do
 
   ## Examples
 
-      iex> y_true = Nx.tensor([[0, 1], [0, 0]], type: {:f, 32})
-      iex> y_pred = Nx.tensor([[0.6, 0.4], [0.4, 0.6]], type: {:f, 32})
+      iex> y_true = Nx.tensor([[0, 1], [0, 0]], type: {:u, 8})
+      iex> y_pred = Nx.tensor([[0.6, 0.4], [0.4, 0.6]])
       iex> Axon.Losses.kl_divergence(y_true, y_pred)
       #Nx.Tensor<
-        f64[2]
-        [0.9162891562459872, -3.0809075000914085e-6]
+        f32[2]
+        [0.916289210319519, -3.080907390540233e-6]
       >
 
   """
@@ -224,12 +224,12 @@ defmodule Axon.Losses do
 
   ## Examples
 
-      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
-      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]])
       iex> Axon.Losses.log_cosh(y_true, y_pred)
       #Nx.Tensor<
-        f64[2]
-        [0.2168903965923069, 1.904654323148236e-9]
+        f32[2]
+        [0.2168903946876526, 0.0]
       >
 
   """

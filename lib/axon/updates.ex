@@ -56,13 +56,13 @@ defmodule Axon.Updates do
 
       iex> Axon.Updates.scale(Nx.tensor([-1.0, 0.0, 1.0]), step: 0.01)
       #Nx.Tensor<
-        f64[3]
+        f32[3]
         [-0.01, 0.0, 0.01]
       >
 
       iex> Axon.Updates.scale(Nx.tensor([[-5, 2, 1, 4, 2], [0, 2, 1, 4, 1]]), step: 0.1)
       #Nx.Tensor<
-        f64[2][5]
+        f32[2][5]
         [
           [-0.5, 0.2, 0.1, 0.4, 0.2],
           [0.0, 0.2, 0.1, 0.4, 0.1]
@@ -431,13 +431,13 @@ defmodule Axon.Updates do
 
       iex> Axon.Updates.clip(Nx.tensor([-3.0, -2.5, 0.0, 2.0, 1.0]))
       #Nx.Tensor<
-        f64[5]
+        f32[5]
         [-2.0, -2.0, 0.0, 2.0, 1.0]
       >
 
       iex> Axon.Updates.clip(Nx.tensor([-5, -3, -1, 0, 2, 10, 4]), delta: 2.5)
       #Nx.Tensor<
-        f64[7]
+        f32[7]
         [-2.5, -2.5, -1.0, 0.0, 2.0, 2.5, 2.5]
       >
 
@@ -460,8 +460,8 @@ defmodule Axon.Updates do
 
       iex> Axon.Updates.clip_by_global_norm(Nx.tensor([-3.0, -2.5, 0.0, 2.0, 1.0]))
       #Nx.Tensor<
-        f64[5]
-        [-0.6666666666666666, -0.5555555555555556, 0.0, 0.4444444444444444, 0.2222222222222222]
+        f32[5]
+        [-0.6666666865348816, -0.5555555820465088, 0.0, 0.4444444477558136, 0.2222222238779068]
       >
 
   """
@@ -490,13 +490,13 @@ defmodule Axon.Updates do
 
     iex> Axon.Updates.centralize(Nx.tensor([2.0, -3.0, 1.0, 2.0, -3.0]))
     #Nx.Tensor<
-      f64[5]
+      f32[5]
       [2.2, -2.8, 1.2, 2.2, -2.8]
     >
 
     iex> Axon.Updates.centralize(Nx.tensor([[1.0, -2.0, 5.0, 10.0], [2.0, 3.0, 4.0, 5.0]]))
     #Nx.Tensor<
-      f64[2][4]
+      f32[2][4]
       [
         [-2.5, -5.5, 1.5, 6.5],
         [-1.5, -0.5, 0.5, 1.5]

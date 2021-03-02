@@ -174,7 +174,8 @@ defmodule Axon.Layers do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        groups: 1
+        feature_group_size: 1,
+        batch_group_size: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
@@ -184,7 +185,9 @@ defmodule Axon.Layers do
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
+      kernel_dilation: opts[:kernel_dilation],
+      feature_group_size: opts[:feature_group_size],
+      batch_group_size: opts[:batch_group_size]
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -258,7 +261,8 @@ defmodule Axon.Layers do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        groups: 1
+        feature_group_size: 1,
+        batch_group_size: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
@@ -268,7 +272,9 @@ defmodule Axon.Layers do
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
+      kernel_dilation: opts[:kernel_dilation],
+      feature_group_size: opts[:feature_group_size],
+      batch_group_size: opts[:batch_group_size]
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -342,7 +348,8 @@ defmodule Axon.Layers do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        groups: 1
+        feature_group_size: 1,
+        batch_group_size: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
@@ -352,7 +359,9 @@ defmodule Axon.Layers do
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
+      kernel_dilation: opts[:kernel_dilation],
+      feature_group_size: 1,
+      batch_group_size: 1
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -389,8 +398,7 @@ defmodule Axon.Layers do
         strides: [1],
         padding: :valid,
         input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1
+        kernel_dilation: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
@@ -423,8 +431,7 @@ defmodule Axon.Layers do
         strides: [1, 1],
         padding: :valid,
         input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1
+        kernel_dilation: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
@@ -457,8 +464,7 @@ defmodule Axon.Layers do
         strides: [1, 1, 1],
         padding: :valid,
         input_dilation: 1,
-        kernel_dilation: 1,
-        groups: 1
+        kernel_dilation: 1
       )
 
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
@@ -507,7 +513,7 @@ defmodule Axon.Layers do
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: num_groups
+      feature_group_size: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -540,7 +546,7 @@ defmodule Axon.Layers do
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: num_groups
+      feature_group_size: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -573,7 +579,7 @@ defmodule Axon.Layers do
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      groups: num_groups
+      feature_group_size: num_groups
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
