@@ -1242,6 +1242,27 @@ defmodule Axon.Layers do
     Nx.transpose(y, perm_inv)
   end
 
+  ## Shape
+
+  @doc """
+  Flattens input to shape of `{batch, units}` by folding outer
+  dimensions.
+  """
+  defn flatten(x) do
+    new_shape = transform(Nx.shape(x),
+      fn shape ->
+        batch_size = elem(shape, 0)
+        new_units =
+          shape
+          |> Tuple.delete_at(0)
+          |> Nx.size()
+        {batch_size, new_units}
+      end
+    )
+
+    Nx.reshape(x, new_shape)
+  end
+
   ## Helpers
 
   # `window_x` functions expect a window which matches the
