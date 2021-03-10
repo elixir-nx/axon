@@ -65,6 +65,7 @@ defmodule Axon.Schedules do
         transition_begin: 0,
         staircase: false
       )
+
     init_value = opts[:init_value]
     rate = opts[:decay_rate]
     staircase? = to_predicate(opts[:staircase])
@@ -215,6 +216,7 @@ defmodule Axon.Schedules do
         transition_steps: 10,
         transition_begin: 0
       )
+
     init_value = opts[:init_value]
     end_value = opts[:end_value]
     start = opts[:transition_begin]

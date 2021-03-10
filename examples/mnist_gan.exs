@@ -4,15 +4,6 @@ defmodule MNIST do
 
   @default_defn_compiler {EXLA, max_float_type: {:f, 32}}
 
-  defmacro log(level, msg, metadata \\ []) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        {unquote(level), unquote(msg), unquote(metadata)},
-        fn {level, msg, metadata} -> Logger.log(level, msg, metadata) end
-      )
-    end
-  end
-
   defn init_g_random_params do
     w1 = Axon.Initializers.uniform(shape: {100, 256})
     b1 = Axon.Initializers.uniform(shape: {256})

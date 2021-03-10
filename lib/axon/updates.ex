@@ -207,6 +207,7 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root]
 
     mu = update_moment(x, mu, b1, 1)
+
     nu =
       x
       |> Nx.subtract(mu)
@@ -329,7 +330,6 @@ defmodule Axon.Updates do
       |> reciprocal()
       |> Nx.multiply(2)
       |> Nx.subtract(1)
-
 
     mu = update_moment(x, mu, b1, 1)
     nu = update_moment(x, nu, b2, 2)

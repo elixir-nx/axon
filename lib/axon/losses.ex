@@ -110,6 +110,7 @@ defmodule Axon.Losses do
   """
   defn categorical_cross_entropy(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
+
     y_true
     |> xlogy(y_pred)
     |> Nx.sum(axes: [-1])

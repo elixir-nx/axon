@@ -1251,11 +1251,18 @@ defmodule Axon.Layers do
   defp pool_window_size(w, spatial_rank) do
     spatial_dims =
       case w do
-        x when is_integer(x) -> List.duplicate(x, spatial_rank)
-        x when is_tuple(x) -> Tuple.to_list(x)
-        x -> raise ArgumentError, "expected pool window to be tuple or integer" <>
-                                  " , got #{inspect(x)}"
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected pool window to be tuple or integer" <>
+                  " , got #{inspect(x)}"
       end
+
     List.to_tuple([1, 1 | spatial_dims])
   end
 
@@ -1272,10 +1279,16 @@ defmodule Axon.Layers do
 
     output_spatial =
       case output_spatial do
-        x when is_integer(x) -> List.duplicate(x, spatial_rank)
-        x when is_tuple(x) -> Tuple.to_list(x)
-        x -> raise ArgumentError, "expected output spatial dimensions to be tuple" <>
-                                  " or integer, got #{inspect(x)}"
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected output spatial dimensions to be tuple" <>
+                  " or integer, got #{inspect(x)}"
       end
 
     strides =
@@ -1300,10 +1313,16 @@ defmodule Axon.Layers do
 
     output_spatial =
       case output_spatial do
-        x when is_integer(x) -> List.duplicate(x, spatial_rank)
-        x when is_tuple(x) -> Tuple.to_list(x)
-        x -> raise ArgumentError, "expected output spatial dimensions to be tuple" <>
-                                  " or integer, got #{inspect(x)}"
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected output spatial dimensions to be tuple" <>
+                  " or integer, got #{inspect(x)}"
       end
 
     zip_all = [input_spatial, output_spatial, stride]
@@ -1322,11 +1341,15 @@ defmodule Axon.Layers do
   # attempt to let it broadcast itself
   defp conv_bias_reshape(input_shape, spatial_rank) do
     case input_shape do
-      {} -> {}
+      {} ->
+        {}
+
       {shape} ->
         spatial_dims = List.duplicate(1, spatial_rank)
         List.to_tuple([1, shape | spatial_dims])
-      shape when is_tuple(shape) -> shape
+
+      shape when is_tuple(shape) ->
+        shape
     end
   end
 
