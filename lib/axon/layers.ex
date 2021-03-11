@@ -659,10 +659,16 @@ defmodule Axon.Layers do
       )
 
     window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
+    strides = transform(opts[:strides], fn strides -> [1, 1 | strides] end)
+
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
-    |> Nx.window_max(window_dimensions, opts)
+    |> Nx.window_max(window_dimensions,
+      strides: strides,
+      padding: opts[:padding],
+      window_dilations: opts[:window_dilations]
+    )
   end
 
   @doc """
@@ -996,17 +1002,7 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn batch_norm(input, mean, variance, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5)
-
-    scale =
-      variance
-      |> Nx.add(opts[:epsilon])
-      |> Nx.rsqrt()
-      |> Nx.multiply(gamma)
-
-    input
-    |> Nx.subtract(mean)
-    |> Nx.multiply(scale)
-    |> Nx.add(bias)
+    scale_and_shift(input, mean, variance, gamma, bias, opts)
   end
 
   @doc ~S"""
@@ -1249,16 +1245,20 @@ defmodule Axon.Layers do
   dimensions.
   """
   defn flatten(x) do
-    new_shape = transform(Nx.shape(x),
-      fn shape ->
-        batch_size = elem(shape, 0)
-        new_units =
-          shape
-          |> Tuple.delete_at(0)
-          |> Nx.size()
-        {batch_size, new_units}
-      end
-    )
+    new_shape =
+      transform(
+        Nx.shape(x),
+        fn shape ->
+          batch_size = elem(shape, 0)
+
+          new_units =
+            shape
+            |> Tuple.delete_at(0)
+            |> Nx.size()
+
+          {batch_size, new_units}
+        end
+      )
 
     Nx.reshape(x, new_shape)
   end

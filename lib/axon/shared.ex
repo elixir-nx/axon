@@ -144,4 +144,21 @@ defmodule Axon.Shared do
   end
 
   defn reciprocal(x), do: Nx.divide(1, x)
+
+  # Scale and shift in style of normalization
+
+  defn scale_and_shift(input, mean, variance, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-6)
+
+    scale =
+      variance
+      |> Nx.add(opts[:epsilon])
+      |> Nx.rsqrt()
+      |> Nx.multiply(gamma)
+
+    input
+    |> Nx.subtract(mean)
+    |> Nx.multiply(scale)
+    |> Nx.add(bias)
+  end
 end
