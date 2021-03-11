@@ -1,5 +1,5 @@
 defmodule MNIST do
-  use Axon.Trainer
+  import Nx.Defn
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
@@ -46,7 +46,6 @@ defmodule MNIST do
     -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
   end
 
-  @impl true
   defn update({w1, b1, w2, b2}, {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}, batch_images, batch_labels, step, count) do
     {grad_w1, grad_b1, grad_w2, grad_b2} =
       grad({w1, b1, w2, b2}, loss({w1, b1, w2, b2}, batch_images, batch_labels))
@@ -63,8 +62,7 @@ defmodule MNIST do
         w2 + Axon.Updates.scale(grad_w2, step: -step),
         b2 + Axon.Updates.scale(grad_b2, step: -step)
       },
-      {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu},
-      count + 1
+      {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}
     }
   end
 
@@ -125,6 +123,47 @@ defmodule MNIST do
 
     {train_images, train_labels}
   end
+
+  def train_epoch(cur_params, cur_opt_state, imgs, labels, count) do
+    total_batches = Enum.count(imgs)
+
+    imgs
+    |> Enum.zip(labels)
+    |> Enum.reduce({{cur_params, cur_opt_state}, Nx.tensor(0.0), Nx.tensor(0.0), count}, fn
+      {imgs, tar}, {{cur_params, cur_opt_state}, avg_loss, avg_accuracy, count} ->
+        update_with_averages(cur_params, cur_opt_state, imgs, tar, avg_loss, avg_accuracy, total_batches, count)
+    end)
+  end
+
+  def train(imgs, labels, params, opt_state, opts \\ []) do
+    epochs = opts[:epochs] || 5
+
+    for epoch <- 1..epochs, reduce: {params, opt_state, 0} do
+      {cur_params, cur_opt_state, cur_count} ->
+        {time, {{new_params, new_opt_state}, epoch_avg_loss, epoch_avg_acc, new_count}} =
+          :timer.tc(__MODULE__, :train_epoch, [cur_params, cur_opt_state, imgs, labels, cur_count])
+
+        new_count |> IO.inspect
+        new_params |> Nx.backend_transfer() |> IO.inspect
+        new_opt_state |> Nx.backend_transfer() |> IO.inspect
+
+        epoch_avg_loss =
+          epoch_avg_loss
+          |> Nx.backend_transfer()
+          |> Nx.to_scalar()
+
+        epoch_avg_acc =
+          epoch_avg_acc
+          |> Nx.backend_transfer()
+          |> Nx.to_scalar()
+
+        IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
+        IO.puts("Epoch #{epoch} average loss: #{inspect(epoch_avg_loss)}")
+        IO.puts("Epoch #{epoch} average accuracy: #{inspect(epoch_avg_acc)}")
+        IO.puts("\n")
+        {new_params, new_opt_state, new_count}
+    end
+  end
 end
 
 {train_images, train_labels} =
@@ -135,6 +174,6 @@ params = MNIST.init_random_params()
 adam_state = MNIST.init_adam_state()
 
 IO.puts("Training MNIST for 10 epochs...\n\n")
-{final_params, _} = MNIST.train(params, adam_state, train_images, train_labels, epochs: 10)
+{final_params, _} = MNIST.train(train_images, train_labels, params, adam_state, epochs: 10)
 
 IO.inspect(Nx.backend_transfer(final_params))
