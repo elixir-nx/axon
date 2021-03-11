@@ -6,7 +6,7 @@ defmodule CIFAR do
   defn init_random_params() do
     # Feature extractor
     # TODO: Changing this to lecun normal makes it numerically unstable
-    w1 = Axon.Initializers.lecun_normal(shape: {32, 3, 3, 3})
+    w1 = Axon.Initializers.normal(shape: {32, 3, 3, 3})
     b1 = Axon.Initializers.normal(shape: {1, 32, 1, 1}, scale: 1.0e-6)
     w2 = Axon.Initializers.normal(shape: {64, 32, 3, 3})
     b2 = Axon.Initializers.normal(shape: {1, 64, 1, 1}, scale: 1.0e-6)
@@ -16,7 +16,7 @@ defmodule CIFAR do
     # FC Classifier
     w4 = Axon.Initializers.normal(shape: {36864, 64})
     b4 = Axon.Initializers.normal(shape: {64}, scale: 1.0e-6)
-    w5 = Axon.Initializers.lecun_normal(shape: {64, 10})
+    w5 = Axon.Initializers.normal(shape: {64, 10})
     b5 = Axon.Initializers.normal(shape: {10}, scale: 1.0e-6)
 
     {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}
@@ -50,13 +50,13 @@ defmodule CIFAR do
 
   defn predict({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}, batch) do
     batch
-    |> Axon.Layers.conv2d(w1, b1, strides: [1, 1])
+    |> Axon.Layers.conv(w1, b1, strides: [1, 1])
     |> Axon.Activations.relu()
-    |> Axon.Layers.max_pool2d(kernel_size: {2, 2}, strides: [1, 1])
-    |> Axon.Layers.conv2d(w2, b2, strides: [1, 1])
+    |> Axon.Layers.max_pool(kernel_size: {2, 2}, strides: [1, 1])
+    |> Axon.Layers.conv(w2, b2, strides: [1, 1])
     |> Axon.Activations.relu()
-    |> Axon.Layers.max_pool2d(kernel_size: {2, 2}, strides: [1, 1])
-    |> Axon.Layers.conv2d(w3, b3, strides: [1, 1])
+    |> Axon.Layers.max_pool(kernel_size: {2, 2}, strides: [1, 1])
+    |> Axon.Layers.conv(w3, b3, strides: [1, 1])
     |> Axon.Layers.flatten()
     |> Axon.Layers.dense(w4, b4)
     |> Axon.Activations.relu()

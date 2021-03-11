@@ -111,40 +111,19 @@ defmodule Axon.Layers do
   ## Convolutional
 
   @doc """
-  Functional implementation of a 1-dimensional convolution.
+  A general dimensional convolution.
 
   ## Parameter Shapes
 
-    * `input` - `{batch_size, input_channels, input_spatial}`
-    * `weight` - `{output_channels, input_channels, kernel_spatial}`
+    * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
+    * `weight` - `{output_channels, input_channels, kernel_spatial0, ..., kernel_spatialN}`
     * `bias` - `{output_channels}` or `{}`
-
-  ## Examples
-
-      iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
-      iex> weight = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
-      iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
-      iex> Axon.Layers.conv1d(input, weight, bias)
-      #Nx.Tensor<
-        f32[2][3][2]
-        [
-          [
-            [-0.24591797590255737, 3.08001708984375],
-            [-0.1704912781715393, 0.6029025316238403],
-            [0.9496372938156128, 2.80519962310791]
-          ],
-          [
-            [0.7885514497756958, -3.0088953971862793],
-            [0.9677201509475708, -0.4984228312969208],
-            [2.207162380218506, -0.3534282445907593]
-          ]
-        ]
-      >
 
   ## Options
 
     * `:strides` - kernel strides. Can be a scalar or a list
-      of size 1. Defaults to 1.
+      who's length matches the number of spatial dimensions in
+      the input tensor. Defaults to 1.
 
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
@@ -165,43 +144,32 @@ defmodule Axon.Layers do
       into groups. `in_channels` must be divisible by the number
       of groups, and `out_channels` must equal `in_channels * groups`.
       Defaults to `1`.
-  """
-  @doc type: :convolutional
-  defn conv1d(input, weight, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        strides: [1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1,
-        feature_group_size: 1,
-        batch_group_size: 1
-      )
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: opts[:feature_group_size],
-      batch_group_size: opts[:batch_group_size]
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 2-dimensional convolution.
-
-  ## Parameter Shapes
-
-    * `input` - `{batch_size, input_channels, input_height, input_width}`
-    * `weight` - `{output_channels, input_channels, kernel_height, kernel_width}`
-    * `bias` - `{output_channels}` or `{}`
 
   ## Examples
+
+  ### One-dimensional convolution
+
+      iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
+      iex> weight = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
+      iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
+      iex> Axon.Layers.conv(input, weight, bias)
+      #Nx.Tensor<
+        f32[2][3][2]
+        [
+          [
+            [-0.24591797590255737, 3.08001708984375],
+            [-0.1704912781715393, 0.6029025316238403],
+            [0.9496372938156128, 2.80519962310791]
+          ],
+          [
+            [0.7885514497756958, -3.0088953971862793],
+            [0.9677201509475708, -0.4984228312969208],
+            [2.207162380218506, -0.3534282445907593]
+          ]
+        ]
+      >
+
+  ### Two-dimensional convolution
 
       iex> input = Nx.tensor([[[[-1.0476, -0.5041], [-0.9336, 1.5907]]]], type: {:f, 32})
       iex> weight = Nx.tensor([
@@ -210,7 +178,7 @@ defmodule Axon.Layers do
       ...>  [[[1.8587, 0.4722], [0.6058, -1.0301]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([1.9564, 0.2822, -0.5385], type: {:f, 32})
-      iex> Axon.Layers.conv2d(input, weight, bias)
+      iex> Axon.Layers.conv(input, weight, bias)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -228,67 +196,7 @@ defmodule Axon.Layers do
         ]
       >
 
-  ## Options
-
-    * `:strides` - kernel strides. Can be a scalar or a tuple
-      of size 2. Defaults to 1.
-
-    * `:padding` - zero padding on the input. Can be one of
-      `:valid`, `:same` or a general padding configuration
-      without interior padding for each spatial dimension
-      of the input.
-
-    * `:input_dilation` - input dilation factor. Equivalent
-      to applying interior padding on the input. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:kernel_dilation` - kernel dilation factor. Equivalent
-      to applying interior padding on the kernel. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
-  """
-  @doc type: :convolutional
-  defn conv2d(input, weight, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        strides: [1, 1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1,
-        feature_group_size: 1,
-        batch_group_size: 1
-      )
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: opts[:feature_group_size],
-      batch_group_size: opts[:batch_group_size]
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional convolution.
-
-  ## Parameter Shapes
-
-    * `input` - `{batch_size, input_channels, input_temporal, input_height, input_width}`
-    * `weight` - `{output_channels, input_channels, kernel_temporal, kernel_height, kernel_width}`
-    * `bias` - `{output_channels}` or `{}`
-
-  ## Examples
+    ### Three-dimensional convolution
 
     iex> input = Nx.tensor([[[[[-0.6497], [1.0939]], [[-2.5465], [0.7801]]]]], type: {:f, 32})
     iex> weight = Nx.tensor([
@@ -296,7 +204,7 @@ defmodule Axon.Layers do
     ...>  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
     ...> ], type: {:f, 32})
     iex> bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
-    iex> Axon.Layers.conv3d(input, weight, bias)
+    iex> Axon.Layers.conv(input, weight, bias)
     #Nx.Tensor<
       f32[1][2][1][1][1]
       [
@@ -314,37 +222,12 @@ defmodule Axon.Layers do
         ]
       ]
     >
-
-  ## Options
-
-    * `:strides` - kernel strides. Can be a scalar or a tuple
-      of size 3. Defaults to 1.
-
-    * `:padding` - zero padding on the input. Can be one of
-      `:valid`, `:same` or a general padding configuration
-      without interior padding for each spatial dimension
-      of the input.
-
-    * `:input_dilation` - input dilation factor. Equivalent
-      to applying interior padding on the input. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:kernel_dilation` - kernel dilation factor. Equivalent
-      to applying interior padding on the kernel. The amount
-      of interior padding applied is given by `kernel_dilation - 1`.
-      Defaults to `1` or no dilation.
-
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
   """
   @doc type: :convolutional
-  defn conv3d(input, weight, bias, opts \\ []) do
+  defn conv(input, weight, bias, opts \\ []) do
     opts =
       keyword!(opts,
-        strides: [1, 1, 1],
+        strides: 1,
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
@@ -352,7 +235,10 @@ defmodule Axon.Layers do
         batch_group_size: 1
       )
 
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
+    bias_reshape = transform({Nx.shape(bias), Nx.rank(input)},
+      fn {bias_shape, rank} ->
+        conv_bias_reshape(bias_shape, rank - 2)
+      end)
 
     input
     |> Nx.conv(weight,
@@ -360,21 +246,21 @@ defmodule Axon.Layers do
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: 1,
-      batch_group_size: 1
+      feature_group_size: opts[:feature_group_size],
+      batch_group_size: opts[:batch_group_size]
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
 
   @doc """
-  Functional implementation of a 1-dimensional transposed convolution.
+  A general dimensional transposed convolution.
 
   ## Examples
 
       iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
       iex> kernel = Nx.iota({6, 3, 2}, type: {:f, 32})
       iex> bias = Nx.tensor(1.0, type: {:f, 32})
-      iex> Axon.Layers.conv_transpose1d(input, kernel, bias)
+      iex> Axon.Layers.conv_transpose(input, kernel, bias)
       #Nx.Tensor<
         f32[1][6][4]
         [
@@ -390,88 +276,31 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :convolutional
-  defn conv_transpose1d(input, weight, bias, opts \\ []) do
+  defn conv_transpose(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
-        strides: [1],
+        strides: 1,
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1
       )
 
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
+    bias_reshape = transform({Nx.shape(bias), Nx.rank(input)},
+      fn {bias_shape, rank} ->
+        conv_bias_reshape(bias_shape, rank - 2)
+      end)
+
+    strides = transform({Nx.rank(input), opts[:strides]},
+      fn
+        {_, [_ | _] = strides} -> strides
+        {rank, strides} -> List.duplicate(strides, rank - 2)
+      end)
 
     padding =
       transform(
-        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
-        &conv_transpose_padding/1
-      )
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: padding,
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 2-dimensional transposed convolution.
-  """
-  @doc type: :convolutional
-  defn conv_transpose2d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1, 1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
-
-    padding =
-      transform(
-        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
-        &conv_transpose_padding/1
-      )
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: padding,
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation]
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional transposed convolution.
-  """
-  @doc type: :convolutional
-  defn conv_transpose3d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1, 1, 1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
-
-    padding =
-      transform(
-        {Nx.shape(weight), opts[:kernel_dilation], opts[:strides], opts[:padding]},
+        {Nx.shape(weight), opts[:kernel_dilation], strides, opts[:padding]},
         &conv_transpose_padding/1
       )
 
@@ -608,7 +437,7 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of 1-dimensional max pooling.
+  A general dimensional functional max pooling layer.
 
   Pooling is applied to the spatial dimension of the input tensor.
 
@@ -618,7 +447,7 @@ defmodule Axon.Layers do
       ...> [0.051500000059604645, -0.7042999863624573, -0.32899999618530273],
       ...> [-0.37130001187324524, 1.6191999912261963, -0.11829999834299088],
       ...> [0.7099999785423279, 0.7282999753952026, -0.18639999628067017]]], type: {:f, 32})
-      iex> Axon.Layers.max_pool1d(t, kernel_size: 2)
+      iex> Axon.Layers.max_pool(t, kernel_size: 2)
       #Nx.Tensor<
         f32[1][3][2]
         [
@@ -631,135 +460,67 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :pooling
-  defn max_pool1d(input, opts \\ []) do
+  defn max_pool(input, opts \\ []) do
     opts =
       keyword!(
         opts,
         [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
 
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
+      fn {rank, kernel_size} ->
+        pool_window_size(kernel_size, rank - 2)
+      end)
+
+    strides = transform({Nx.rank(input), opts[:strides]},
+      fn
+        {_, [_ | _] = strides} -> [1, 1 | strides]
+        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+      end)
+
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
-    |> Nx.window_max(window_dimensions, opts)
+    |> Nx.window_max(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
   end
 
   @doc """
-  Functional implementation of 1-dimensional max pooling.
+  A general dimensional functional average pooling layer.
 
   Pooling is applied to the spatial dimension of the input tensor.
   """
   @doc type: :pooling
-  defn max_pool2d(input, opts \\ []) do
+  defn avg_pool(input, opts \\ []) do
     opts =
       keyword!(
         opts,
         [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
 
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
-    strides = transform(opts[:strides], fn strides -> [1, 1 | strides] end)
+    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
+      fn {rank, kernel_size} ->
+        pool_window_size(kernel_size, rank - 2)
+      end)
+
+    strides = transform({Nx.rank(input), opts[:strides]},
+      fn
+        {_, [_ | _] = strides} -> [1, 1 | strides]
+        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+      end)
 
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
-    |> Nx.window_max(window_dimensions,
-      strides: strides,
-      padding: opts[:padding],
-      window_dilations: opts[:window_dilations]
-    )
+    |> Nx.window_mean(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
   end
 
   @doc """
-  Functional implementation of 1-dimensional max pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn max_pool3d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
-    input
-    |> Nx.window_max(window_dimensions, opts)
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn avg_pool1d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
-    input
-    |> Nx.window_mean(window_dimensions, opts)
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn avg_pool2d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
-    input
-    |> Nx.window_mean(window_dimensions, opts)
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn avg_pool3d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 3))
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
-    input
-    |> Nx.window_mean(window_dimensions, opts)
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional power average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
+  General dimensional functional power average pooling layer.
 
   ## Examples
 
       iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
-      iex> Axon.Layers.lp_pool1d(t, kernel_size: 2, norm: 2)
+      iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2)
       #Nx.Tensor<
         f32[1][3][2]
         [
@@ -772,14 +533,24 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :pooling
-  defn lp_pool1d(input, opts \\ []) do
+  defn lp_pool(input, opts \\ []) do
     opts =
       keyword!(
         opts,
-        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
+        [:kernel_size, strides: 1, padding: :valid, window_dilations: 1, norm: 2]
       )
 
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
+    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
+      fn {rank, kernel_size} ->
+        pool_window_size(kernel_size, rank - 2)
+      end)
+
+    strides = transform({Nx.rank(input), opts[:strides]},
+      fn
+        {_, [_ | _] = strides} -> [1, 1 | strides]
+        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+      end)
+
     norm = opts[:norm]
 
     opts =
@@ -789,82 +560,35 @@ defmodule Axon.Layers do
 
     input
     |> Nx.power(norm)
-    |> Nx.window_sum(window_dimensions, opts)
+    |> Nx.window_sum(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   @doc """
-  Functional implementation of 2-dimensional power average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn lp_pool2d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 2))
-    norm = opts[:norm]
-
-    opts =
-      opts
-      |> transform(&Keyword.delete(&1, :kernel_size))
-      |> transform(&Keyword.delete(&1, :norm))
-
-    input
-    |> Nx.power(norm)
-    |> Nx.window_sum(window_dimensions, opts)
-    |> Nx.power(Nx.divide(1, norm))
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional power average pooling.
-
-  Pooling is applied to the spatial dimension of the input tensor.
-  """
-  @doc type: :pooling
-  defn lp_pool3d(input, opts \\ []) do
-    opts =
-      keyword!(
-        opts,
-        [:kernel_size, norm: 1, strides: 1, padding: :valid, window_dilations: 1]
-      )
-
-    window_dimensions = transform(opts[:kernel_size], &pool_window_size(&1, 1))
-    norm = opts[:norm]
-
-    opts =
-      opts
-      |> transform(&Keyword.delete(&1, :kernel_size))
-      |> transform(&Keyword.delete(&1, :norm))
-
-    input
-    |> Nx.power(norm)
-    |> Nx.window_sum(window_dimensions, opts)
-    |> Nx.power(Nx.divide(1, norm))
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional adaptive average pooling.
+  General dimensional functional adaptive average pooling.
 
   Adaptive pooling allows you to specify the desired output size
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
   @doc type: :pooling
-  defn adaptive_avg_pool1d(input, opts \\ []) do
+  defn adaptive_avg_pool(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
     window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
+      transform(
+        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
+        fn {shape, rank, output_size} ->
+          adaptive_pool_window_strides({shape, output_size}, rank - 2)
+        end
+      )
 
     window_dimensions =
       transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 1)
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
+        fn {shape, rank, strides, output_size} ->
+          adaptive_pool_window_strides({shape, strides, output_size}, rank - 2)
+        end
       )
 
     input
@@ -872,119 +596,30 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of 2-dimensional adaptive average pooling.
+  General dimensional functional adaptive max pooling.
 
   Adaptive pooling allows you to specify the desired output size
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size.
   """
   @doc type: :pooling
-  defn adaptive_avg_pool2d(input, opts \\ []) do
+  defn adaptive_max_pool(input, opts \\ []) do
     opts = keyword!(opts, [:output_size])
 
     window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
-
-    window_dimensions =
       transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 2)
+        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
+        fn {shape, rank, output_size} ->
+          adaptive_pool_window_strides({shape, output_size}, rank - 2)
+        end
       )
 
-    input
-    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
-  end
-
-  @doc """
-  Functional implementation of 3-dimensional adaptive average pooling.
-
-  Adaptive pooling allows you to specify the desired output size
-  of the transformed input. This will automatically adapt the
-  window size and strides to obtain the desired output size.
-  """
-  @doc type: :pooling
-  defn adaptive_avg_pool3d(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
-
-    window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
-
     window_dimensions =
       transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 3)
-      )
-
-    input
-    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
-  end
-
-  @doc """
-  Functional implementation of 1-dimensional adaptive max pooling.
-
-  Adaptive pooling allows you to specify the desired output size
-  of the transformed input. This will automatically adapt the
-  window size and strides to obtain the desired output size.
-  """
-  @doc type: :pooling
-  defn adaptive_max_pool1d(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
-
-    window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 1))
-
-    window_dimensions =
-      transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 1)
-      )
-
-    input
-    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
-  end
-
-  @doc """
-  Functional implementation of 2-dimensional adaptive max pooling.
-
-  Adaptive pooling allows you to specify the desired output size
-  of the transformed input. This will automatically adapt the
-  window size and strides to obtain the desired output size.
-  """
-  @doc type: :pooling
-  defn adaptive_max_pool2d(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
-
-    window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 2))
-
-    window_dimensions =
-      transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 2)
-      )
-
-    input
-    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
-  end
-
-  @doc """
-  Functional implementation of 3-dimensional adaptive max pooling.
-
-  Adaptive pooling allows you to specify the desired output size
-  of the transformed input. This will automatically adapt the
-  window size and strides to obtain the desired output size.
-  """
-  @doc type: :pooling
-  defn adaptive_max_pool3d(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
-
-    window_strides =
-      transform({Nx.shape(input), opts[:output_size]}, &adaptive_pool_window_strides(&1, 3))
-
-    window_dimensions =
-      transform(
-        {Nx.shape(input), window_strides, opts[:output_size]},
-        &adaptive_pool_window_size(&1, 3)
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
+        fn {shape, rank, strides, output_size} ->
+          adaptive_pool_window_size({shape, strides, output_size}, rank - 2)
+        end
       )
 
     input
