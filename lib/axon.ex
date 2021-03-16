@@ -69,7 +69,7 @@ defmodule Axon do
       end)
 
     tuple_args = for _ <- 1..num_params, do: {:_, [], nil}
-    predict_args = [{:=, [], [{:{}, [], tuple_args}, {:params, [line: 26], nil}]}, {:batch, [], nil}]
+    predict_args = [{:=, [], [{:{}, [], tuple_args}, {:params, [], nil}]}, {:batch, [], nil}]
     predict_signature = {:predict, [], predict_args}
 
     quote do
