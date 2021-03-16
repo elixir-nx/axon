@@ -13,7 +13,6 @@ defmodule MNISTGAN do
     |> activation(:tanh)
     |> dense(784)
     |> activation(:tanh)
-    |> reshape({32, 28, 28})
   end
 
   model discriminator do
@@ -71,7 +70,7 @@ defmodule MNISTGAN do
     }
   end
 
-  defn update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
+  def update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
     valid = Nx.iota({32, 2}, axis: 1)
     fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
     latent = Nx.random_normal({32, 100})
@@ -79,6 +78,7 @@ defmodule MNISTGAN do
     fake_images =
       g_params
       |> generator(latent)
+      |> Nx.reshape({32, 28, 28})
 
     new_d_params =
       d_params
@@ -97,13 +97,12 @@ defmodule MNISTGAN do
     |> Enum.with_index()
     |> Enum.reduce({g_params, d_params}, fn
       {imgs, i}, {g_params, d_params} ->
-        IO.puts("Batch: #{i+1}\n")
         {new_g, new_d} =
           update(g_params, d_params, imgs)
 
         if rem(i, 50) == 0 do
           latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap generator(g_params, latent)
+          IO.inspect Nx.to_heatmap generator(g_params, latent) |> Nx.reshape({1, 28, 28})
         end
 
         {new_g, new_d}
