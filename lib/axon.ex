@@ -200,6 +200,34 @@ defmodule Axon do
     def unquote(activation)(%Axon{} = x, opts \\ []), do: activation(x, unquote(activation), opts)
   end
 
+  ## Dropout
+
+  # TODO: Need a way to turn these layers off
+
+  @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
+
+  for dropout <- @dropout_layers do
+    def unquote(dropout)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
+      {id, name} = unique_identifiers(unquote(dropout), opts[:name])
+
+      rate = opts[:rate] || 0.5
+
+      node = %Axon{
+        id: id,
+        name: name,
+        op: unquote(dropout),
+        output_shape: parent_shape,
+        parent: x,
+        params: [],
+        opts: [
+          rate: rate
+        ]
+      }
+
+      node
+    end
+  end
+
   ## Pooling
 
   @pooling_layers [:max_pool, :avg_pool, :lp_pool]
@@ -232,23 +260,23 @@ defmodule Axon do
     end
   end
 
-  # TODO: Wrap all Nx ops so they can be called at any point
+  @doc """
+  Adds a flatten layer to the network.
 
-  def reshape(%Axon{} = x, new_shape, opts \\ []) do
-    id = System.unique_integer([:positive, :monotonic])
-    name = opts[:name] || "reshape_#{id}"
-    %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :reshape, params: []}
-  end
+  This layer will flatten all but the batch dimensions
+  of the input into a single layer. Typically called to flatten
+  the output of a convolution for use with a dense layer.
 
+  ## Options
+
+    * `name` - Layer name.
+
+  """
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
     id = System.unique_integer([:positive, :monotonic])
     name = opts[:name] || "flatten_#{id}"
     new_shape = Axon.Shape.flatten(shape)
     %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
-  end
-
-  defp param(name, shape, initializer, _opts \\ []) do
-    %Axon.Parameter{name: name, shape: shape, initializer: initializer}
   end
 
   @doc """
@@ -408,6 +436,12 @@ defmodule Axon do
     apply(Axon.Layers, op, [expr, opts])
   end
 
+  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
+       when op in @dropout_layers do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, op, [expr, opts])
+  end
+
   defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Layers, :dense, [expr, w, b])
@@ -448,4 +482,8 @@ defmodule Axon do
   end
 
   defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
+
+  defp param(name, shape, initializer, _opts \\ []) do
+    %Axon.Parameter{name: name, shape: shape, initializer: initializer}
+  end
 end
