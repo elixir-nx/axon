@@ -1,44 +1,14 @@
 defmodule MNIST do
-  import Nx.Defn
+  use Axon
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
-  defn init_random_params do
-    w1 = Axon.Initializers.lecun_normal(shape: {784, 128})
-    b1 = Axon.Initializers.lecun_normal(shape: {1, 128})
-    w2 = Axon.Initializers.lecun_normal(shape: {128, 10})
-    b2 = Axon.Initializers.lecun_normal(shape: {1, 10})
-    {w1, b1, w2, b2}
-  end
-
-  defn init_adam_state do
-    w1_mu = Axon.Initializers.zeros(shape: {784, 128})
-    w1_nu = Axon.Initializers.zeros(shape: {784, 128})
-    b1_mu = Axon.Initializers.zeros(shape: {1, 128})
-    b1_nu = Axon.Initializers.zeros(shape: {1, 128})
-    w2_mu = Axon.Initializers.zeros(shape: {128, 10})
-    w2_nu = Axon.Initializers.zeros(shape: {128, 10})
-    b2_mu = Axon.Initializers.zeros(shape: {1, 10})
-    b2_nu = Axon.Initializers.zeros(shape: {1, 10})
-    {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}
-  end
-
-  defn predict({w1, b1, w2, b2}, batch) do
-    batch
-    |> Axon.Layers.dense(w1, b1)
-    |> Axon.Activations.relu()
-    |> Axon.Layers.dense(w2, b2)
-    |> Axon.Activations.softmax()
-    |> Nx.log()
-  end
-
-  defn accuracy({w1, b1, w2, b2}, batch_images, batch_labels) do
-    Nx.mean(
-      Nx.equal(
-        Nx.argmax(batch_labels, axis: 1),
-        Nx.argmax(predict({w1, b1, w2, b2}, batch_images), axis: 1)
-      )
-    )
+  model do
+    input({32, 784})
+    |> dense(128)
+    |> activation(:relu)
+    |> dense(10)
+    |> activation(:log_softmax)
   end
 
   defn loss({w1, b1, w2, b2}, batch_images, batch_labels) do
@@ -46,32 +16,24 @@ defmodule MNIST do
     -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
   end
 
-  defn update({w1, b1, w2, b2}, {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}, batch_images, batch_labels, step, count) do
+  defn update({w1, b1, w2, b2}, batch_images, batch_labels, step) do
     {grad_w1, grad_b1, grad_w2, grad_b2} =
       grad({w1, b1, w2, b2}, loss({w1, b1, w2, b2}, batch_images, batch_labels))
 
-    {grad_w1, w1_mu, w1_nu} = Axon.Updates.scale_by_adam(grad_w1, w1_mu, w1_nu, count, b1: 0.9)
-    {grad_b1, b1_mu, b1_nu} = Axon.Updates.scale_by_adam(grad_b1, b1_mu, b1_nu, count, b1: 0.9)
-    {grad_w2, w2_mu, w2_nu} = Axon.Updates.scale_by_adam(grad_w2, w2_mu, w2_nu, count, b1: 0.9)
-    {grad_b2, b2_mu, b2_nu} = Axon.Updates.scale_by_adam(grad_b2, b2_mu, b2_nu, count, b1: 0.9)
-
     {
-      {
-        w1 + Axon.Updates.scale(grad_w1, step: -step),
-        b1 + Axon.Updates.scale(grad_b1, step: -step),
-        w2 + Axon.Updates.scale(grad_w2, step: -step),
-        b2 + Axon.Updates.scale(grad_b2, step: -step)
-      },
-      {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu}
+      w1 + Axon.Updates.scale(grad_w1, step: -step),
+      b1 + Axon.Updates.scale(grad_b1, step: -step),
+      w2 + Axon.Updates.scale(grad_w2, step: -step),
+      b2 + Axon.Updates.scale(grad_b2, step: -step)
     }
   end
 
-  defn update_with_averages({_, _, _, _} = cur_params, {_, _, _, _, _, _, _, _} = cur_opt_state, imgs, tar, avg_loss, avg_accuracy, total, count) do
+  defn update_with_averages({_, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
     batch_loss = loss(cur_params, imgs, tar)
-    batch_accuracy = accuracy(cur_params, imgs, tar)
+    batch_accuracy = Axon.Metrics.accuracy(tar, predict(cur_params, imgs))
     avg_loss = avg_loss + batch_loss / total
     avg_accuracy = avg_accuracy + batch_accuracy / total
-    {update(cur_params, cur_opt_state, imgs, tar, 0.01, count), avg_loss, avg_accuracy, count + 1}
+    {update(cur_params, imgs, tar, 0.01), avg_loss, avg_accuracy}
   end
 
   defp unzip_cache_or_download(zip) do
@@ -124,28 +86,24 @@ defmodule MNIST do
     {train_images, train_labels}
   end
 
-  def train_epoch(cur_params, cur_opt_state, imgs, labels, count) do
+  def train_epoch(cur_params, imgs, labels) do
     total_batches = Enum.count(imgs)
 
     imgs
     |> Enum.zip(labels)
-    |> Enum.reduce({{cur_params, cur_opt_state}, Nx.tensor(0.0), Nx.tensor(0.0), count}, fn
-      {imgs, tar}, {{cur_params, cur_opt_state}, avg_loss, avg_accuracy, count} ->
-        update_with_averages(cur_params, cur_opt_state, imgs, tar, avg_loss, avg_accuracy, total_batches, count)
+    |> Enum.reduce({cur_params, Nx.tensor(0.0), Nx.tensor(0.0)}, fn
+      {imgs, tar}, {cur_params, avg_loss, avg_accuracy} ->
+        update_with_averages(cur_params, imgs, tar, avg_loss, avg_accuracy, total_batches)
     end)
   end
 
-  def train(imgs, labels, params, opt_state, opts \\ []) do
+  def train(imgs, labels, params, opts \\ []) do
     epochs = opts[:epochs] || 5
 
-    for epoch <- 1..epochs, reduce: {params, opt_state, 0} do
-      {cur_params, cur_opt_state, cur_count} ->
-        {time, {{new_params, new_opt_state}, epoch_avg_loss, epoch_avg_acc, new_count}} =
-          :timer.tc(__MODULE__, :train_epoch, [cur_params, cur_opt_state, imgs, labels, cur_count])
-
-        new_count |> IO.inspect
-        new_params |> Nx.backend_transfer() |> IO.inspect
-        new_opt_state |> Nx.backend_transfer() |> IO.inspect
+    for epoch <- 1..epochs, reduce: params do
+      cur_params ->
+        {time, {new_params, epoch_avg_loss, epoch_avg_acc}} =
+          :timer.tc(__MODULE__, :train_epoch, [cur_params, imgs, labels])
 
         epoch_avg_loss =
           epoch_avg_loss
@@ -161,7 +119,7 @@ defmodule MNIST do
         IO.puts("Epoch #{epoch} average loss: #{inspect(epoch_avg_loss)}")
         IO.puts("Epoch #{epoch} average accuracy: #{inspect(epoch_avg_acc)}")
         IO.puts("\n")
-        {new_params, new_opt_state, new_count}
+        new_params
     end
   end
 end
@@ -171,9 +129,8 @@ end
 
 IO.puts("Initializing parameters...\n")
 params = MNIST.init_random_params()
-adam_state = MNIST.init_adam_state()
 
 IO.puts("Training MNIST for 10 epochs...\n\n")
-{final_params, _} = MNIST.train(train_images, train_labels, params, adam_state, epochs: 10)
+final_params = MNIST.train(train_images, train_labels, params, epochs: 10)
 
 IO.inspect(Nx.backend_transfer(final_params))
