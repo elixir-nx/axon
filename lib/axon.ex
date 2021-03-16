@@ -15,6 +15,11 @@ defmodule Axon do
 
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
+  # TODO: Allow arbitrary calls to Nx functions and numerical definitions inside `model`
+  # TODO: Models should be easily composable inside other model blocks
+  # TODO: Unify parameters and variables under `%Axon.State{}`
+  # TODO: Add rest of `Axon.Layers`
+
   @doc """
   Adds an input layer to the network.
 
