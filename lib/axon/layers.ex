@@ -111,7 +111,8 @@ defmodule Axon.Layers do
   ## Convolutional
 
   @doc """
-  A general dimensional convolution.
+  General dimensional functional implementation of a convolutional
+  layer.
 
   ## Parameter Shapes
 
@@ -235,10 +236,13 @@ defmodule Axon.Layers do
         batch_group_size: 1
       )
 
-    bias_reshape = transform({Nx.shape(bias), Nx.rank(input)},
-      fn {bias_shape, rank} ->
-        conv_bias_reshape(bias_shape, rank - 2)
-      end)
+    bias_reshape =
+      transform(
+        {Nx.shape(bias), Nx.rank(input)},
+        fn {bias_shape, rank} ->
+          conv_bias_reshape(bias_shape, rank - 2)
+        end
+      )
 
     input
     |> Nx.conv(weight,
@@ -253,7 +257,29 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  A general dimensional transposed convolution.
+  General dimensional functional implementation of a transposed convolutional
+  layer.
+
+  ## Options
+
+    * `:strides` - kernel strides. Can be a scalar or a list
+      who's length matches the number of spatial dimensions in
+      the input tensor. Defaults to 1.
+
+    * `:padding` - zero padding on the input. Can be one of
+      `:valid`, `:same` or a general padding configuration
+      without interior padding for each spatial dimension
+      of the input.
+
+    * `:input_dilation` - input dilation factor. Equivalent
+      to applying interior padding on the input. The amount
+      of interior padding applied is given by `kernel_dilation - 1`.
+      Defaults to `1` or no dilation.
+
+    * `:kernel_dilation` - kernel dilation factor. Equivalent
+      to applying interior padding on the kernel. The amount
+      of interior padding applied is given by `kernel_dilation - 1`.
+      Defaults to `1` or no dilation.
 
   ## Examples
 
@@ -287,16 +313,22 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    bias_reshape = transform({Nx.shape(bias), Nx.rank(input)},
-      fn {bias_shape, rank} ->
-        conv_bias_reshape(bias_shape, rank - 2)
-      end)
+    bias_reshape =
+      transform(
+        {Nx.shape(bias), Nx.rank(input)},
+        fn {bias_shape, rank} ->
+          conv_bias_reshape(bias_shape, rank - 2)
+        end
+      )
 
-    strides = transform({Nx.rank(input), opts[:strides]},
-      fn
-        {_, [_ | _] = strides} -> strides
-        {rank, strides} -> List.duplicate(strides, rank - 2)
-      end)
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> strides
+          {rank, strides} -> List.duplicate(strides, rank - 2)
+        end
+      )
 
     padding =
       transform(
@@ -467,21 +499,31 @@ defmodule Axon.Layers do
         [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
 
-    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
-      fn {rank, kernel_size} ->
-        pool_window_size(kernel_size, rank - 2)
-      end)
+    window_dimensions =
+      transform(
+        {Nx.rank(input), opts[:kernel_size]},
+        fn {rank, kernel_size} ->
+          pool_window_size(kernel_size, rank - 2)
+        end
+      )
 
-    strides = transform({Nx.rank(input), opts[:strides]},
-      fn
-        {_, [_ | _] = strides} -> [1, 1 | strides]
-        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
-      end)
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> [1, 1 | strides]
+          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+        end
+      )
 
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
-    |> Nx.window_max(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
+    |> Nx.window_max(window_dimensions,
+      strides: strides,
+      padding: opts[:padding],
+      window_dilations: opts[:window_dilations]
+    )
   end
 
   @doc """
@@ -497,21 +539,31 @@ defmodule Axon.Layers do
         [:kernel_size, strides: 1, padding: :valid, window_dilations: 1]
       )
 
-    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
-      fn {rank, kernel_size} ->
-        pool_window_size(kernel_size, rank - 2)
-      end)
+    window_dimensions =
+      transform(
+        {Nx.rank(input), opts[:kernel_size]},
+        fn {rank, kernel_size} ->
+          pool_window_size(kernel_size, rank - 2)
+        end
+      )
 
-    strides = transform({Nx.rank(input), opts[:strides]},
-      fn
-        {_, [_ | _] = strides} -> [1, 1 | strides]
-        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
-      end)
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> [1, 1 | strides]
+          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+        end
+      )
 
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
-    |> Nx.window_mean(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
+    |> Nx.window_mean(window_dimensions,
+      strides: strides,
+      padding: opts[:padding],
+      window_dilations: opts[:window_dilations]
+    )
   end
 
   @doc """
@@ -540,16 +592,22 @@ defmodule Axon.Layers do
         [:kernel_size, strides: 1, padding: :valid, window_dilations: 1, norm: 2]
       )
 
-    window_dimensions = transform({Nx.rank(input), opts[:kernel_size]},
-      fn {rank, kernel_size} ->
-        pool_window_size(kernel_size, rank - 2)
-      end)
+    window_dimensions =
+      transform(
+        {Nx.rank(input), opts[:kernel_size]},
+        fn {rank, kernel_size} ->
+          pool_window_size(kernel_size, rank - 2)
+        end
+      )
 
-    strides = transform({Nx.rank(input), opts[:strides]},
-      fn
-        {_, [_ | _] = strides} -> [1, 1 | strides]
-        {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
-      end)
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> [1, 1 | strides]
+          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+        end
+      )
 
     norm = opts[:norm]
 
@@ -560,7 +618,11 @@ defmodule Axon.Layers do
 
     input
     |> Nx.power(norm)
-    |> Nx.window_sum(window_dimensions, [strides: strides, padding: opts[:padding], window_dilations: opts[:window_dilations]])
+    |> Nx.window_sum(window_dimensions,
+      strides: strides,
+      padding: opts[:padding],
+      window_dilations: opts[:window_dilations]
+    )
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
@@ -729,43 +791,16 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of a 1-dimensional spatial
+  Functional implementation of an n-dimensional spatial
   dropout layer.
 
-  Applies a mask to entire 1-D feature maps instead of individual
+  Applies a mask to entire feature maps instead of individual
   elements.
   """
   @doc type: :dropout
-  defn spatial_dropout1d(input, opts \\ []) do
-    opts = keyword!(opts, :rate)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
-    dropout(input, rate: opts[:rate], noise_shape: noise_shape)
-  end
+  defn spatial_dropout(input, opts \\ []) do
+    opts = keyword!(opts, [rate: 0.5])
 
-  @doc """
-  Functional implementation of a 2-dimensional spatial
-  dropout layer.
-
-  Applies a mask to entire 2-D feature maps instead of individual
-  elements.
-  """
-  @doc type: :dropout
-  defn spatial_dropout2d(input, opts \\ []) do
-    opts = keyword!(opts, :rate)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
-    dropout(input, rate: opts[:rate], noise_shape: noise_shape)
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional spatial
-  dropout layer.
-
-  Applies a mask to entire 3-D feature maps instead of individual
-  elements.
-  """
-  @doc type: :dropout
-  defn spatial_dropout3d(input, opts \\ []) do
-    opts = keyword!(opts, :rate)
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
@@ -774,7 +809,10 @@ defmodule Axon.Layers do
   Functional implementation of an alpha dropout layer.
   """
   @doc type: :dropout
-  defn alpha_dropout(input, rate) do
+  defn alpha_dropout(input, opts \\ []) do
+    opts = keyword!(opts, [rate: 0.5])
+    rate = opts[:rate]
+
     alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
     scale = Nx.tensor(1.0507009873554804934193349852946, type: Nx.type(input))
     alpha_p = -alpha * scale
@@ -794,7 +832,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [:rate])
+    opts = keyword!(opts, [rate: 0.5])
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)

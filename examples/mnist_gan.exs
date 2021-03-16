@@ -1,55 +1,22 @@
-defmodule MNIST do
-  import Nx.Defn
-  require Logger
+defmodule MNISTGAN do
+  use Axon
 
-  @default_defn_compiler {EXLA, max_float_type: {:f, 32}}
+  @default_defn_compiler {EXLA, keep_on_device: true}
 
-  defn init_g_random_params do
-    w1 = Axon.Initializers.uniform(shape: {100, 256})
-    b1 = Axon.Initializers.uniform(shape: {256})
-    w2 = Axon.Initializers.uniform(shape: {256, 512})
-    b2 = Axon.Initializers.uniform(shape: {512})
-    w3 = Axon.Initializers.uniform(shape: {512, 1024})
-    b3 = Axon.Initializers.uniform(shape: {1024})
-    w4 = Axon.Initializers.uniform(shape: {1024, 784})
-    b4 = Axon.Initializers.uniform(shape: {784})
-    {w1, b1, w2, b2, w3, b3, w4, b4}
+  model generator do
+    input({32, 100})
+    |> dense(256, activation: :tanh)
+    |> dense(512, activation: :tanh)
+    |> dense(1024, activation: :tanh)
+    |> dense(784, activation: :tanh)
   end
 
-  defn init_d_random_params do
-    w1 = Axon.Initializers.uniform(shape: {784, 512})
-    b1 = Axon.Initializers.uniform(shape: {512})
-    w2 = Axon.Initializers.uniform(shape: {512, 256})
-    b2 = Axon.Initializers.uniform(shape: {256})
-    w3 = Axon.Initializers.uniform(shape: {256, 2})
-    b3 = Axon.Initializers.uniform(shape: {2})
-    {w1, b1, w2, b2, w3, b3}
-  end
-
-  defn g_predict({w1, b1, w2, b2, w3, b3, w4, b4}, latent) do
-    batch_size = transform(Nx.shape(latent), fn {batch_size, _} -> batch_size end)
-    latent
-    |> Axon.Layers.dense(w1, b1)
-    |> Axon.Activations.tanh()
-    |> Axon.Layers.dense(w2, b2)
-    |> Axon.Activations.tanh()
-    |> Axon.Layers.dense(w3, b3)
-    |> Axon.Activations.tanh()
-    |> Axon.Layers.dense(w4, b4)
-    |> Axon.Activations.tanh()
-    |> Nx.reshape({batch_size, 28, 28})
-  end
-
-  defn d_predict({w1, b1, w2, b2, w3, b3}, image) do
-    batch_size = transform(Nx.shape(image), fn {batch_size, _, _} -> batch_size end)
-    image
-    |> Nx.reshape({batch_size, 784})
-    |> Axon.Layers.dense(w1, b1)
-    |> Axon.Activations.tanh()
-    |> Axon.Layers.dense(w2, b2)
-    |> Axon.Activations.tanh()
-    |> Axon.Layers.dense(w3, b3)
-    |> Axon.Activations.softmax()
+  model discriminator do
+    input({32, 28, 28})
+    |> flatten()
+    |> dense(512, activation: :tanh)
+    |> dense(256, activation: :tanh)
+    |> dense(2, activation: :log_softmax)
   end
 
   defn cross_entropy_loss(y_true, y_false) do
@@ -57,7 +24,7 @@ defmodule MNIST do
   end
 
   defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
-    preds = d_predict(d_params, images)
+    preds = discriminator(d_params, images)
     cross_entropy_loss(preds, targets)
   end
 
@@ -76,7 +43,7 @@ defmodule MNIST do
 
   defn g_loss({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
     valid = Nx.iota({32, 2}, axis: 1)
-    g_preds = g_predict(g_params, latent)
+    g_preds = generator(g_params, latent)
     d_loss(d_params, g_preds, valid)
   end
 
@@ -96,14 +63,15 @@ defmodule MNIST do
     }
   end
 
-  defn update({gw1, gb1, gw2, gb2, gw3, gb3, gw4, gb4} = g_params, {dw1, db1, dw2, db2, dw3, db3} = d_params, images) do
+  def update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
     valid = Nx.iota({32, 2}, axis: 1)
     fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
     latent = Nx.random_normal({32, 100})
 
     fake_images =
       g_params
-      |> g_predict(latent)
+      |> generator(latent)
+      |> Nx.reshape({32, 28, 28})
 
     new_d_params =
       d_params
@@ -118,18 +86,16 @@ defmodule MNIST do
   end
 
   def train_epoch(g_params, d_params, imgs) do
-    total_batches = Enum.count(imgs)
     imgs
     |> Enum.with_index()
     |> Enum.reduce({g_params, d_params}, fn
       {imgs, i}, {g_params, d_params} ->
-        IO.puts("Batch: #{i+1}\n")
         {new_g, new_d} =
           update(g_params, d_params, imgs)
 
         if rem(i, 50) == 0 do
           latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap g_predict(g_params, latent)
+          IO.inspect Nx.to_heatmap generator(g_params, latent) |> Nx.reshape({1, 28, 28})
         end
 
         {new_g, new_d}
@@ -190,13 +156,13 @@ defmodule MNIST do
 end
 
 train_images =
-  MNIST.download('train-images-idx3-ubyte.gz')
+  MNISTGAN.download('train-images-idx3-ubyte.gz')
 
 IO.puts("Initializing parameters...\n")
-d_params = MNIST.init_d_random_params()
-g_params = MNIST.init_g_random_params()
+d_params = MNISTGAN.init_discriminator()
+g_params = MNISTGAN.init_generator()
 
-{g_params, d_params} = MNIST.train(train_images, g_params, d_params, epochs: 10)
+{g_params, _d_params} = MNISTGAN.train(train_images, g_params, d_params, epochs: 10)
 
 latent = Nx.random_uniform({1, 100})
-IO.inspect Nx.to_heatmap MNIST.g_predict(g_params, latent)
+IO.inspect Nx.to_heatmap MNISTGAN.generator(g_params, latent)
