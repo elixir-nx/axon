@@ -49,6 +49,22 @@ defmodule Axon do
     %Axon{id: id, name: name, output_shape: shape, parent: x, op: activation, params: []}
   end
 
+
+  # TODO: Wrap all Nx ops so they can be called at any point
+
+  def reshape(%Axon{} = x, new_shape, opts \\ []) do
+    id = System.unique_integer([:positive, :monotonic])
+    name = opts[:name] || "reshape_#{id}"
+    %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :reshape, params: []}
+  end
+
+  def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
+    id = System.unique_integer([:positive, :monotonic])
+    name = opts[:name] || "flatten_#{id}"
+    new_shape = Axon.Shape.flatten(shape)
+    %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
+  end
+
   @doc """
   Model parameter.
   """
@@ -91,6 +107,43 @@ defmodule Axon do
     end
   end
 
+  @doc """
+  Defines a new Axon model.
+  """
+  defmacro model(call, do: block) do
+    {name, _} = Macro.decompose_call(call)
+
+    # TODO: I don't think this is the best way to determine number of params
+    # to match on in predict
+    {_, num_params} = Macro.prewalk(block, 0,
+      fn
+        {:dense, _, _} = node, acc -> {node, acc + 2}
+        node, acc -> {node, acc}
+      end)
+
+    tuple_args = for _ <- 1..num_params, do: {:_, [], nil}
+    predict_args = [{:=, [], [{:{}, [], tuple_args}, {:params, [], nil}]}, {:batch, [], nil}]
+    predict_signature = {name, [], predict_args}
+
+    quote do
+      import Nx.Defn
+
+      @axon_ast unquote(block)
+
+      def unquote(axon_name(name))(), do: @axon_ast
+
+      defn unquote(init_function_name(name))() do
+        transform(:ok, fn _ -> Axon.__jit_params__(unquote(axon_name(name))()) end)
+      end
+
+      defn unquote(predict_signature) do
+        transform({unquote({:params, [], nil}), unquote({:batch, [], nil})}, fn {params, input} ->
+          Axon.__jit_predict__(unquote(axon_name(name))(), params, input)
+        end)
+      end
+    end
+  end
+
   defmacro __using__(_opts) do
     quote do
       require Axon
@@ -107,7 +160,6 @@ defmodule Axon do
   @doc false
   def __jit_params__(graph) do
     {names_and_exprs, _} = to_param_expr(graph, %{}, 0)
-    IO.inspect names_and_exprs
     names_and_exprs
     |> Map.values()
     |> Enum.reverse()
@@ -145,7 +197,7 @@ defmodule Axon do
     to_predict_expr(graph, Enum.reverse(Tuple.to_list(params)), input)
   end
 
-  @activation_layers [:relu, :softmax, :log_softmax]
+  @activation_layers [:relu, :softmax, :tanh, :log_softmax]
 
   defp to_predict_expr(%Axon{op: op, parent: parent}, params, input) when op in @activation_layers do
     expr = to_predict_expr(parent, params, input)
@@ -157,7 +209,25 @@ defmodule Axon do
     apply(Axon.Layers, :dense, [expr, w, b])
   end
 
+  defp to_predict_expr(%Axon{op: :reshape, output_shape: shape, parent: parent}, params, input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Nx, :reshape, [expr, shape])
+  end
+
+  defp to_predict_expr(%Axon{op: :flatten, output_shape: shape, parent: parent}, params, input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :flatten, [expr])
+  end
+
   defp to_predict_expr(%Axon{op: :input, parent: nil}, _params, input) do
     input
+  end
+
+  defp init_function_name(name) do
+    String.to_atom("init_" <> Atom.to_string(name))
+  end
+
+  defp axon_name(name) do
+    String.to_atom("__" <> Atom.to_string(name) <> "_axon__")
   end
 end
