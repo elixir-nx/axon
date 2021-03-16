@@ -1,10 +1,13 @@
 defmodule Axon.Shape do
   @moduledoc """
-  Layer shape calculations.
+  Collection of layer shape calculations for determining
+  output shapes and parameter shapes.
   """
 
+  # TODO: Clean this up along with Nx.Shape
+
   @doc """
-  Flatten shape.
+  Calculates the shape after a flatten layer.
   """
   def flatten(shape) do
     out_units = div(Nx.size(shape), elem(shape, 0))
@@ -60,6 +63,7 @@ defmodule Axon.Shape do
         1,
         padding_config
       )
+
     shape
   end
 
@@ -98,7 +102,9 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Output after pooling operation.
+  Calculates the output shape after a pooling operation
+  with the given parent shape, kernel size, strides, and
+  padding.
   """
   def pool_output(parent_shape, kernel_size, strides, padding) do
     strides =
@@ -112,13 +118,19 @@ defmodule Axon.Shape do
       |> Tuple.insert_at(0, 1)
 
     padding_config = padding_config(parent_shape, kernel_shape, padding, strides)
-    padding_config = [{0, 0, 0}, {0, 0, 0} | Enum.map(padding_config, fn {lo, hi} -> {lo, hi, 0} end)]
+
+    padding_config = [
+      {0, 0, 0},
+      {0, 0, 0} | Enum.map(padding_config, fn {lo, hi} -> {lo, hi, 0} end)
+    ]
 
     padded_input_shape = Nx.Shape.pad(parent_shape, padding_config)
     shape = Nx.Shape.window(padded_input_shape, kernel_shape, strides)
 
     shape
   end
+
+  ## Helpers
 
   defp padding_config(parent_shape, kernel_shape, padding, strides) do
     spatial_parent =
@@ -127,7 +139,7 @@ defmodule Axon.Shape do
       |> Tuple.delete_at(0)
 
     spatial_kernel =
-      parent_shape
+      kernel_shape
       |> Tuple.delete_at(0)
       |> Tuple.delete_at(0)
 

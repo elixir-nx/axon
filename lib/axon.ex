@@ -16,7 +16,21 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
-  Input node.
+  Adds an input layer to the network.
+
+  Input layers specify a models inputs. For example, a model
+  with two `input` layers would have the following predict function:
+
+      defn predict(params, input_1, input_2) do
+        ...
+      end
+
+  Input layers are always the root layers of the neural network.
+
+  ## Options
+
+    * `name` - Layer name.
+
   """
   def input(input_shape, opts \\ []) do
     {id, name} = unique_identifiers(:input, opts[:name])
@@ -24,12 +38,30 @@ defmodule Axon do
   end
 
   @doc """
-  Dense node.
+  Adds a dense layer to the network.
+
+  The dense layer implements:
+
+      output = activation(dot(input, kernel) + bias)
+
+  where `activation` is given by the `:activation` option and both
+  `kernel` and `bias` are layer parameters. `units` specifies the
+  number of output units.
+
+  Compiles to `Axon.Layers.dense/3`.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+
   """
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     {id, name} = unique_identifiers(:dense, opts[:name])
 
-    weight_init = opts[:weight_initializer] || :uniform
+    weight_init = opts[:kernel_initializer] || :uniform
     bias_init = opts[:bias_initializer] || :zeros
     activation = opts[:activation]
     param_shape = {elem(parent_shape, 1), units}
@@ -55,7 +87,26 @@ defmodule Axon do
   end
 
   @doc """
-  Conv node.
+  Adds a convolution layer to the network.
+
+  The convolution layer implements a general dimensional
+  convolutional layer - which convolves a kernel over the input
+  to produce an output.
+
+  Compiles to `Axon.Layers.conv/3`.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+    * `kernel_size` - Size of the kernel spatial dimensions.
+    * `strides` - Stride during convolution.
+    * `padding` - Padding to the spatial dimensions of the input.
+    * `input_dilation` - Dilation to apply to input.
+    * `kernel_dilation` - Dilation to apply to kernel.
+
   """
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     {id, name} = unique_identifiers(:conv, opts[:name])
@@ -74,7 +125,16 @@ defmodule Axon do
 
     kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size)
     bias_shape = Axon.Shape.conv_bias(parent_shape, units)
-    output_shape = Axon.Shape.conv_output(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation)
+
+    output_shape =
+      Axon.Shape.conv_output(
+        parent_shape,
+        kernel_shape,
+        strides,
+        padding,
+        input_dilation,
+        kernel_dilation
+      )
 
     kernel = param(name <> "_kernel", kernel_shape, kernel_init)
     bias = param(name <> "_bias", bias_shape, bias_init)
@@ -103,42 +163,73 @@ defmodule Axon do
   end
 
   @doc """
-  Max pool node.
-  """
-  def max_pool(%Axon{output_shape: parent_shape} = x, opts \\ []) do
-    {id, name} = unique_identifiers(:max_pool, opts[:name])
+  Adds an activation layer to the network.
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
-    padding = opts[:padding] || :valid
+  Activation layers are element-wise functions typically called
+  after the output of another layer.
 
-    output_shape = Axon.Shape.pool_output(parent_shape, kernel_size, strides, padding)
+  ## Options
 
-    node = %Axon{
-      id: id,
-      name: name,
-      output_shape: output_shape,
-      parent: x,
-      op: :max_pool,
-      params: [],
-      opts: [
-        kernel_size: kernel_size,
-        strides: strides,
-        padding: padding
-      ]
-    }
+    - `name` - Layer name.
 
-    node
-  end
-
-  @doc """
-  Activation node.
   """
   def activation(%Axon{output_shape: shape} = x, activation, opts \\ [])
       when is_atom(activation) do
     id = System.unique_integer([:positive, :monotonic])
     name = opts[:name] || "#{Atom.to_string(activation)}_#{id}"
     %Axon{id: id, name: name, output_shape: shape, parent: x, op: activation, params: []}
+  end
+
+  ## Activation
+
+  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                       [:leaky_relu, :linear, :log_sigmoid, :log_softmax, :relu, :relu6] ++
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+
+  for activation <- @activation_layers do
+    @doc """
+    Adds #{Atom.to_string(activation)} activation layer to the network.
+
+    See `Axon.Activations.#{Atom.to_string(activation)}/1` for more details.
+
+    ## Options
+
+      - `name` - Layer name.
+
+    """
+    def unquote(activation)(%Axon{} = x, opts \\ []), do: activation(x, unquote(activation), opts)
+  end
+
+  ## Pooling
+
+  @pooling_layers [:max_pool, :avg_pool, :lp_pool]
+
+  for pool <- @pooling_layers do
+    def unquote(pool)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
+      {id, name} = unique_identifiers(unquote(pool), opts[:name])
+
+      kernel_size = opts[:kernel_size] || 1
+      strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
+      padding = opts[:padding] || :valid
+
+      output_shape = Axon.Shape.pool_output(parent_shape, kernel_size, strides, padding)
+
+      node = %Axon{
+        id: id,
+        name: name,
+        output_shape: output_shape,
+        parent: x,
+        op: unquote(pool),
+        params: [],
+        opts: [
+          kernel_size: kernel_size,
+          strides: strides,
+          padding: padding
+        ]
+      }
+
+      node
+    end
   end
 
   # TODO: Wrap all Nx ops so they can be called at any point
@@ -197,9 +288,11 @@ defmodule Axon do
   end
 
   @doc """
-  Defines a new Axon model.
+  Defines a new Axon model with the given name.
   """
   defmacro model(call, do: block) do
+    # TODO: Call can take inputs such that we don't have
+    # to specify input layers, but we lose shape information
     {name, _} = Macro.decompose_call(call)
 
     # TODO: I don't think this is the best way to determine number of params
@@ -303,12 +396,16 @@ defmodule Axon do
     to_predict_expr(graph, Enum.reverse(Tuple.to_list(params)), input)
   end
 
-  @activation_layers [:relu, :softmax, :tanh, :log_softmax]
-
   defp to_predict_expr(%Axon{op: op, parent: parent}, params, input)
        when op in @activation_layers do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Activations, op, [expr])
+  end
+
+  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
+       when op in @pooling_layers do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, op, [expr, opts])
   end
 
   defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
@@ -321,17 +418,12 @@ defmodule Axon do
     apply(Axon.Layers, :conv, [expr, w, b, opts])
   end
 
-  defp to_predict_expr(%Axon{op: :max_pool, parent: parent, opts: opts}, params, input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :max_pool, [expr, opts])
-  end
-
   defp to_predict_expr(%Axon{op: :reshape, output_shape: shape, parent: parent}, params, input) do
     expr = to_predict_expr(parent, params, input)
     apply(Nx, :reshape, [expr, shape])
   end
 
-  defp to_predict_expr(%Axon{op: :flatten, output_shape: shape, parent: parent}, params, input) do
+  defp to_predict_expr(%Axon{op: :flatten, parent: parent}, params, input) do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Layers, :flatten, [expr])
   end
