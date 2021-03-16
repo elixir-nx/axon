@@ -5,25 +5,18 @@ defmodule MNISTGAN do
 
   model generator do
     input({32, 100})
-    |> dense(256)
-    |> activation(:tanh)
-    |> dense(512)
-    |> activation(:tanh)
-    |> dense(1024)
-    |> activation(:tanh)
-    |> dense(784)
-    |> activation(:tanh)
+    |> dense(256, activation: :tanh)
+    |> dense(512, activation: :tanh)
+    |> dense(1024, activation: :tanh)
+    |> dense(784, activation: :tanh)
   end
 
   model discriminator do
     input({32, 28, 28})
     |> flatten()
-    |> dense(512)
-    |> activation(:tanh)
-    |> dense(256)
-    |> activation(:tanh)
-    |> dense(2)
-    |> activation(:log_softmax)
+    |> dense(512, activation: :tanh)
+    |> dense(256, activation: :tanh)
+    |> dense(2, activation: :log_softmax)
   end
 
   defn cross_entropy_loss(y_true, y_false) do

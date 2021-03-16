@@ -13,14 +13,13 @@ defmodule Axon do
 
   @type t :: %__MODULE__{}
 
-  defstruct [:id, :name, :output_shape, :parent, :op, :params]
+  defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
   Input node.
   """
   def input(input_shape, opts \\ []) do
-    id = System.unique_integer([:positive])
-    name = opts[:name] || "input_#{id}"
+    {id, name} = unique_identifiers(:input, opts[:name])
     %Axon{id: id, name: name, output_shape: input_shape, parent: nil, op: :input, params: []}
   end
 
@@ -28,15 +27,108 @@ defmodule Axon do
   Dense node.
   """
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
-    id = System.unique_integer([:positive, :monotonic])
-    name = opts[:name] || "dense_#{id}"
+    {id, name} = unique_identifiers(:dense, opts[:name])
+
     weight_init = opts[:weight_initializer] || :uniform
     bias_init = opts[:bias_initializer] || :zeros
+    activation = opts[:activation]
     param_shape = {elem(parent_shape, 1), units}
     shape = {elem(parent_shape, 0), units}
-    weight = __param__(name <> "_weight", param_shape, weight_init)
-    bias = __param__(name <> "_bias", {1, units}, bias_init)
-    %Axon{id: id, name: name, output_shape: shape, parent: x, op: :dense, params: [bias, weight]}
+    weight = param(name <> "_weight", param_shape, weight_init)
+    bias = param(name <> "_bias", {1, units}, bias_init)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: shape,
+      parent: x,
+      op: :dense,
+      params: [bias, weight]
+    }
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
+  Conv node.
+  """
+  def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
+    {id, name} = unique_identifiers(:conv, opts[:name])
+
+    kernel_init = opts[:kernel_initializer] || :uniform
+    bias_init = opts[:bias_initializer] || :zeros
+    activation = opts[:activation]
+
+    kernel_size =
+      opts[:kernel_size] || List.to_tuple(List.duplicate(1, Nx.rank(parent_shape) - 2))
+
+    strides = opts[:strides] || 1
+    padding = opts[:padding] || :valid
+    input_dilation = opts[:input_dilation] || 1
+    kernel_dilation = opts[:kernel_dilation] || 1
+
+    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size)
+    bias_shape = Axon.Shape.conv_bias(parent_shape, units)
+    output_shape = Axon.Shape.conv_output(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation)
+
+    kernel = param(name <> "_kernel", kernel_shape, kernel_init)
+    bias = param(name <> "_bias", bias_shape, bias_init)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: x,
+      op: :conv,
+      params: [bias, kernel],
+      opts: [
+        strides: strides,
+        padding: padding,
+        input_dilation: input_dilation,
+        kernel_dilation: kernel_dilation
+      ]
+    }
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
+  Max pool node.
+  """
+  def max_pool(%Axon{output_shape: parent_shape} = x, opts \\ []) do
+    {id, name} = unique_identifiers(:max_pool, opts[:name])
+
+    kernel_size = opts[:kernel_size] || 1
+    strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
+    padding = opts[:padding] || :valid
+
+    output_shape = Axon.Shape.pool_output(parent_shape, kernel_size, strides, padding)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: x,
+      op: :max_pool,
+      params: [],
+      opts: [
+        kernel_size: kernel_size,
+        strides: strides,
+        padding: padding
+      ]
+    }
+
+    node
   end
 
   @doc """
@@ -48,7 +140,6 @@ defmodule Axon do
     name = opts[:name] || "#{Atom.to_string(activation)}_#{id}"
     %Axon{id: id, name: name, output_shape: shape, parent: x, op: activation, params: []}
   end
-
 
   # TODO: Wrap all Nx ops so they can be called at any point
 
@@ -65,10 +156,7 @@ defmodule Axon do
     %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
   end
 
-  @doc """
-  Model parameter.
-  """
-  def __param__(name, shape, initializer, _opts \\ []) do
+  defp param(name, shape, initializer, _opts \\ []) do
     %Axon.Parameter{name: name, shape: shape, initializer: initializer}
   end
 
@@ -78,9 +166,10 @@ defmodule Axon do
   defmacro model(do: block) do
     # TODO: I don't think this is the best way to determine number of params
     # to match on in predict
-    {_, num_params} = Macro.prewalk(block, 0,
-      fn
+    {_, num_params} =
+      Macro.prewalk(block, 0, fn
         {:dense, _, _} = node, acc -> {node, acc + 2}
+        {:conv, _, _} = node, acc -> {node, acc + 2}
         node, acc -> {node, acc}
       end)
 
@@ -115,9 +204,10 @@ defmodule Axon do
 
     # TODO: I don't think this is the best way to determine number of params
     # to match on in predict
-    {_, num_params} = Macro.prewalk(block, 0,
-      fn
+    {_, num_params} =
+      Macro.prewalk(block, 0, fn
         {:dense, _, _} = node, acc -> {node, acc + 2}
+        {:conv, _, _} = node, acc -> {node, acc + 2}
         node, acc -> {node, acc}
       end)
 
@@ -160,6 +250,7 @@ defmodule Axon do
   @doc false
   def __jit_params__(graph) do
     {names_and_exprs, _} = to_param_expr(graph, %{}, 0)
+
     names_and_exprs
     |> Map.values()
     |> Enum.reverse()
@@ -167,26 +258,41 @@ defmodule Axon do
   end
 
   defp to_param_expr(%Axon{parent: nil, params: params}, names_and_exprs, counter) do
-    Enum.reduce(params, {names_and_exprs, counter},
-      fn %Axon.Parameter{name: name, shape: shape, initializer: initializer}, {names_and_exprs, counter} ->
-        {
-          Map.put(names_and_exprs, "#{counter}_" <> name, apply(Axon.Initializers, initializer, [[shape: shape]])),
-          counter+1
-        }
-      end
-    )
+    Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
+                                                         name: name,
+                                                         shape: shape,
+                                                         initializer: initializer
+                                                       },
+                                                       {names_and_exprs, counter} ->
+      {
+        Map.put(
+          names_and_exprs,
+          "#{counter}_" <> name,
+          apply(Axon.Initializers, initializer, [[shape: shape]])
+        ),
+        counter + 1
+      }
+    end)
   end
 
   defp to_param_expr(%Axon{parent: parent, params: params}, names_and_exprs, counter) do
     {names_and_exprs, counter} =
-      Enum.reduce(params, {names_and_exprs, counter},
-        fn %Axon.Parameter{name: name, shape: shape, initializer: initializer}, {names_and_exprs, counter} ->
-          {
-            Map.put(names_and_exprs, "#{counter}_" <> name, apply(Axon.Initializers, initializer, [[shape: shape]])),
-            counter+1
-          }
-        end
-      )
+      Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
+                                                           name: name,
+                                                           shape: shape,
+                                                           initializer: initializer
+                                                         },
+                                                         {names_and_exprs, counter} ->
+        {
+          Map.put(
+            names_and_exprs,
+            "#{counter}_" <> name,
+            apply(Axon.Initializers, initializer, [[shape: shape]])
+          ),
+          counter + 1
+        }
+      end)
+
     to_param_expr(parent, names_and_exprs, counter)
   end
 
@@ -199,7 +305,8 @@ defmodule Axon do
 
   @activation_layers [:relu, :softmax, :tanh, :log_softmax]
 
-  defp to_predict_expr(%Axon{op: op, parent: parent}, params, input) when op in @activation_layers do
+  defp to_predict_expr(%Axon{op: op, parent: parent}, params, input)
+       when op in @activation_layers do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Activations, op, [expr])
   end
@@ -207,6 +314,16 @@ defmodule Axon do
   defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Layers, :dense, [expr, w, b])
+  end
+
+  defp to_predict_expr(%Axon{op: :conv, parent: parent, opts: opts}, [b, w | params], input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :conv, [expr, w, b, opts])
+  end
+
+  defp to_predict_expr(%Axon{op: :max_pool, parent: parent, opts: opts}, params, input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :max_pool, [expr, opts])
   end
 
   defp to_predict_expr(%Axon{op: :reshape, output_shape: shape, parent: parent}, params, input) do
@@ -230,4 +347,13 @@ defmodule Axon do
   defp axon_name(name) do
     String.to_atom("__" <> Atom.to_string(name) <> "_axon__")
   end
+
+  ## Helpers
+
+  defp unique_identifiers(type, nil) do
+    id = System.unique_integer([:positive, :monotonic])
+    {id, Atom.to_string(type) <> "_#{id}"}
+  end
+
+  defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
 end

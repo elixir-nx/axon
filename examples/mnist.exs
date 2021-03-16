@@ -5,10 +5,8 @@ defmodule MNIST do
 
   model do
     input({32, 784})
-    |> dense(128)
-    |> activation(:relu)
-    |> dense(10)
-    |> activation(:log_softmax)
+    |> dense(128, activation: :relu)
+    |> dense(10, activation: :log_softmax)
   end
 
   defn loss({w1, b1, w2, b2}, batch_images, batch_labels) do
