@@ -48,19 +48,15 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
 
-  ## Options
-
-      * `:step` - step size. $alpha$ in the above formulation.
-
   ## Examples
 
-      iex> Axon.Updates.scale(Nx.tensor([-1.0, 0.0, 1.0]), step: 0.01)
+      iex> Axon.Updates.scale(Nx.tensor([-1.0, 0.0, 1.0]), 0.01)
       #Nx.Tensor<
         f32[3]
         [-0.01, 0.0, 0.01]
       >
 
-      iex> Axon.Updates.scale(Nx.tensor([[-5, 2, 1, 4, 2], [0, 2, 1, 4, 1]]), step: 0.1)
+      iex> Axon.Updates.scale(Nx.tensor([[-5, 2, 1, 4, 2], [0, 2, 1, 4, 1]]), 0.1)
       #Nx.Tensor<
         f32[2][5]
         [
@@ -70,11 +66,9 @@ defmodule Axon.Updates do
       >
 
   """
-  defn scale(x, opts \\ []) do
-    opts = keyword!(opts, [:step])
-
+  defn scale(x, step) do
     x
-    |> Nx.multiply(opts[:step])
+    |> Nx.multiply(step)
   end
 
   @doc """
