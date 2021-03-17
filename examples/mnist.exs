@@ -19,10 +19,10 @@ defmodule MNIST do
       grad({w1, b1, w2, b2}, loss({w1, b1, w2, b2}, batch_images, batch_labels))
 
     {
-      w1 + Axon.Updates.scale(grad_w1, step: -step),
-      b1 + Axon.Updates.scale(grad_b1, step: -step),
-      w2 + Axon.Updates.scale(grad_w2, step: -step),
-      b2 + Axon.Updates.scale(grad_b2, step: -step)
+      w1 + Axon.Updates.scale(grad_w1, -step),
+      b1 + Axon.Updates.scale(grad_b1, -step),
+      w2 + Axon.Updates.scale(grad_w2, -step),
+      b2 + Axon.Updates.scale(grad_b2, -step)
     }
   end
 
