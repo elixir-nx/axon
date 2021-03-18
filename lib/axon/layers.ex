@@ -795,7 +795,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
+    opts = keyword!(opts, rate: 0.5)
 
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
@@ -806,7 +806,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
+    opts = keyword!(opts, rate: 0.5)
     rate = opts[:rate]
 
     alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
@@ -828,7 +828,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
+    opts = keyword!(opts, rate: 0.5)
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)

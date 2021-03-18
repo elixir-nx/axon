@@ -1,6 +1,6 @@
-defmodule Axon.Parameter do
+defmodule Axon.State do
   @moduledoc """
-  Model parameter.
+  Model stateful variable.
   """
 
   defstruct [:name, :shape, :initializer]

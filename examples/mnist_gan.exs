@@ -4,18 +4,23 @@ defmodule MNISTGAN do
   @default_defn_compiler {EXLA, keep_on_device: true}
 
   model generator do
-    input({nil, 100})
+    input({32, 100})
     |> dense(256, activation: :tanh)
+    |> batch_norm()
     |> dense(512, activation: :tanh)
+    |> batch_norm()
     |> dense(1024, activation: :tanh)
+    |> batch_norm()
     |> dense(784, activation: :tanh)
   end
 
   model discriminator do
-    input({nil, 28, 28})
+    input({32, 28, 28})
     |> flatten()
     |> dense(512, activation: :tanh)
+    |> batch_norm()
     |> dense(256, activation: :tanh)
+    |> batch_norm()
     |> dense(2, activation: :log_softmax)
   end
 
@@ -23,95 +28,125 @@ defmodule MNISTGAN do
     -Nx.mean(Nx.sum(y_true * y_false, axes: [-1]))
   end
 
-  defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
-    preds = discriminator(d_params, images)
+  defn d_loss({_, _, _, _, _, _, _, _, _, _} = d_params, {_, _, _, _} = d_vars, images, targets) do
+    {preds, _} = discriminator(d_params, d_vars, images)
     cross_entropy_loss(preds, targets)
   end
 
-  defn update_d({w1, b1, w2, b2, w3, b3} = d_params, images, targets, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3} =
-      grad(d_params, &d_loss(&1, images, targets))
+  defn update_d({w1, b1, gamma1, beta1, w2, b2, gamma2, beta2, w3, b3} = d_params, {_, _, _, _} = d_vars, images, targets, step) do
+    {grad_w1, grad_b1, grad_gamma1, grad_beta1, grad_w2, grad_b2, grad_gamma2, grad_beta2, grad_w3, grad_b3} =
+      grad(d_params, &d_loss(&1, d_vars, images, targets))
+
     {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step,
-      w3 - grad_w3 * step,
-      b3 - grad_b3 * step
-    }
+       w1 - grad_w1 * step,
+       b1 - grad_b1 * step,
+       gamma1 - grad_gamma1 * step,
+       beta1 - grad_beta1 * step,
+       w2 - grad_w2 * step,
+       b2 - grad_b2 * step,
+       gamma2 - grad_gamma2 * step,
+       beta2 - grad_beta2 * step,
+       w3 - grad_w3 * step,
+       b3 - grad_b3 * step
+     }
   end
 
-  defn g_loss({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
+  defn g_loss(
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params,
+         {_, _, _, _, _, _} = g_vars,
+         {_, _, _, _, _, _, _, _, _, _} = d_params,
+         {_, _, _, _} = d_vars,
+         latent
+       ) do
     valid = Nx.iota({32, 2}, axis: 1)
-    g_preds = generator(g_params, latent)
-    d_loss(d_params, g_preds, valid)
+    {g_preds, _} = generator(g_params, g_vars, latent)
+    d_loss(d_params, d_vars, g_preds, valid)
   end
 
-  defn update_g({w1, b1, w2, b2, w3, b3, w4, b4} = g_params, {_, _, _, _, _, _} = d_params, latent, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4} =
-      grad(g_params, &g_loss(&1, d_params, latent))
+  defn update_g(
+         {w1, b1, gamma1, beta1, w2, b2, gamma2, beta2, w3, b3, gamma3, beta3, w4, b4} = g_params,
+         {_, _, _, _, _, _} = g_vars,
+         {_, _, _, _, _, _, _, _, _, _} = d_params,
+         {_, _, _, _} = d_vars,
+         latent,
+         step
+       ) do
+    {grad_w1, grad_b1, grad_gamma1, grad_beta1, grad_w2, grad_b2, grad_gamma2, grad_beta2, grad_w3, grad_b3, grad_gamma3, grad_beta3, grad_w4, grad_b4} =
+      grad(g_params, &g_loss(&1, g_vars, d_params, d_vars, latent))
 
     {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step,
-      w3 - grad_w3 * step,
-      b3 - grad_b3 * step,
-      w4 - grad_w4 * step,
-      b4 - grad_b4 * step
-    }
+       w1 - grad_w1 * step,
+       b1 - grad_b1 * step,
+       gamma1 - grad_gamma1 * step,
+       beta1 - grad_beta1 * step,
+       w2 - grad_w2 * step,
+       b2 - grad_b2 * step,
+       gamma2 - grad_gamma2 * step,
+       beta2 - grad_beta2 * step,
+       w3 - grad_w3 * step,
+       b3 - grad_b3 * step,
+       gamma3 - grad_gamma3 * step,
+       beta3 - grad_beta3 * step,
+       w4 - grad_w4 * step,
+       b4 - grad_b4 * step
+     }
   end
 
-  defn update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
+  def update(
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params,
+         {_, _, _, _, _, _} = g_vars,
+         {_, _, _, _, _, _, _, _, _, _} = d_params,
+         {_, _, _, _} = d_vars,
+         images
+       ) do
     valid = Nx.iota({32, 2}, axis: 1)
     fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
     latent = Nx.random_normal({32, 100})
 
-    fake_images =
+    {fake_images, new_g_vars} =
       g_params
-      |> generator(latent)
-      |> Nx.reshape({32, 28, 28})
+      |> generator(g_vars, latent)
 
-    new_d_params =
-      d_params
-      |> update_d(images, valid, 0.01)
-      |> update_d(fake_images, fake, 0.01)
+    fake_images = fake_images |> Nx.reshape({32, 28, 28})
+
+    new_d_params = update_d(d_params, d_vars, images, valid, 0.01)
+    new_d_params = update_d(new_d_params, d_vars, fake_images, fake, 0.01)
 
     new_g_params =
       g_params
-      |> update_g(new_d_params, latent, 0.05)
+      |> update_g(new_g_vars, new_d_params, d_vars, latent, 0.05)
 
-    {new_g_params, new_d_params}
+    {_, new_d_vars} = discriminator(d_params, d_vars, Nx.concatenate([fake_images, images]))
+
+    {new_g_params, new_g_vars, new_d_params, new_d_vars}
   end
 
-  def train_epoch(g_params, d_params, imgs) do
+  def train_epoch(g_params, g_vars, d_params, d_vars, imgs) do
     imgs
     |> Enum.with_index()
-    |> Enum.reduce({g_params, d_params}, fn
-      {imgs, i}, {g_params, d_params} ->
-        {new_g, new_d} =
-          update(g_params, d_params, imgs)
+    |> Enum.reduce({g_params, g_vars, d_params, d_vars}, fn
+      {imgs, i}, {g_params, g_vars, d_params, d_vars} ->
+        {new_g, new_g_vars, new_d, new_d_vars} = update(g_params, g_vars, d_params, d_vars, imgs)
 
         if rem(i, 50) == 0 do
           latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap generator(g_params, latent) |> Nx.reshape({1, 28, 28})
+          IO.inspect(Nx.to_heatmap(elem(generator(g_params, g_vars, latent), 0) |> Nx.reshape({1, 28, 28})))
         end
 
-        {new_g, new_d}
+        {new_g, new_g_vars, new_d, new_d_vars}
     end)
   end
 
-  def train(imgs, g_params, d_params, opts \\ []) do
+  def train(imgs, g_params, g_vars, d_params, d_vars, opts \\ []) do
     epochs = opts[:epochs] || 5
 
-    for epoch <- 1..epochs, reduce: {g_params, d_params} do
-      {g_params, d_params} ->
-        {time, {new_g_params, new_d_params}} =
-          :timer.tc(__MODULE__, :train_epoch, [g_params, d_params, imgs])
+    for epoch <- 1..epochs, reduce: {g_params, g_vars, d_params, d_vars} do
+      {g_params, g_vars, d_params, d_vars} ->
+        {time, {new_g_params, new_g_vars, new_d_params, new_d_vars}} =
+          :timer.tc(__MODULE__, :train_epoch, [g_params, g_vars, d_params, d_vars, imgs])
 
         IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
-        {new_g_params, new_d_params}
+        {new_g_params, new_g_vars, new_d_params, new_d_vars}
     end
   end
 
@@ -155,14 +190,13 @@ defmodule MNISTGAN do
   end
 end
 
-train_images =
-  MNISTGAN.download('train-images-idx3-ubyte.gz')
+train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
 
 IO.puts("Initializing parameters...\n")
-d_params = MNISTGAN.init_discriminator()
-g_params = MNISTGAN.init_generator()
+{d_params, d_vars} = MNISTGAN.init_discriminator()
+{g_params, g_vars} = MNISTGAN.init_generator()
 
-{g_params, _d_params} = MNISTGAN.train(train_images, g_params, d_params, epochs: 10)
+{g_params, g_vars, _d_params, _d_vars} = MNISTGAN.train(train_images, g_params, g_vars, d_params, d_vars, epochs: 10)
 
 latent = Nx.random_uniform({1, 100})
-IO.inspect Nx.to_heatmap MNISTGAN.generator(g_params, latent)
+IO.inspect(Nx.to_heatmap(MNISTGAN.generator(g_params, g_vars, latent)))
