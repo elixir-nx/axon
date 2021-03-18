@@ -141,11 +141,6 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
-    * `:groups` - feature group count. Splits the input features
-      into groups. `in_channels` must be divisible by the number
-      of groups, and `out_channels` must equal `in_channels * groups`.
-      Defaults to `1`.
-
   ## Examples
 
   ### One-dimensional convolution
@@ -300,6 +295,7 @@ defmodule Axon.Layers do
           ]
         ]
       >
+
   """
   @doc type: :convolutional
   defn conv_transpose(input, weight, bias, opts \\ []) do

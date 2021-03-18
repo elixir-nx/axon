@@ -123,7 +123,7 @@ defmodule Axon do
     kernel_size =
       opts[:kernel_size] || List.to_tuple(List.duplicate(1, Nx.rank(parent_shape) - 2))
 
-    strides = opts[:strides] || 1
+    strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
@@ -278,10 +278,30 @@ defmodule Axon do
 
   """
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
-    id = System.unique_integer([:positive, :monotonic])
-    name = opts[:name] || "flatten_#{id}"
+    {id, name} = unique_identifiers(:flatten, opts[:name])
     new_shape = Axon.Shape.flatten(shape)
     %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
+  end
+
+  ## Combinators
+
+  @doc """
+  Adds two layers.
+  """
+  def add(%Axon{output_shape: shape} = x, %Axon{} = y, opts \\ []) do
+    {id, name} = unique_identifiers(:flatten, opts[:name])
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: shape,
+      parent: [x, y],
+      op: :add,
+      params: [],
+      opts: []
+    }
+
+    node
   end
 
   @doc """
@@ -445,6 +465,12 @@ defmodule Axon do
        when op in @dropout_layers do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Layers, op, [expr, opts])
+  end
+
+  defp to_predict_expr(%Axon{op: :add, parent: [x, y]}, params, input) do
+    x_expr = to_predict_expr(x, params, input)
+    y_expr = to_predict_expr(y, params, input)
+    apply(Nx, :add, [x_expr, y_expr])
   end
 
   defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
