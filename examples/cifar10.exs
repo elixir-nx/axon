@@ -32,7 +32,7 @@ defmodule CIFAR do
          step
        ) do
     {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5} =
-      grad(params, loss(params, batch_images, batch_labels))
+      grad(params, &loss(&1, batch_images, batch_labels))
 
     {
       w1 - grad_w1 * step,

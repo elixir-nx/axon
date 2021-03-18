@@ -16,7 +16,7 @@ defmodule MNIST do
 
   defn update({w1, b1, w2, b2}, batch_images, batch_labels, step) do
     {grad_w1, grad_b1, grad_w2, grad_b2} =
-      grad({w1, b1, w2, b2}, loss({w1, b1, w2, b2}, batch_images, batch_labels))
+      grad({w1, b1, w2, b2}, &loss(&1, batch_images, batch_labels))
 
     {
       w1 + Axon.Updates.scale(grad_w1, -step),

@@ -30,7 +30,7 @@ defmodule MNISTGAN do
 
   defn update_d({w1, b1, w2, b2, w3, b3} = d_params, images, targets, step) do
     {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3} =
-      grad({w1, b1, w2, b2, w3, b3}, d_loss(d_params, images, targets))
+      grad(d_params, &d_loss(&1, images, targets))
     {
       w1 - grad_w1 * step,
       b1 - grad_b1 * step,
@@ -49,7 +49,7 @@ defmodule MNISTGAN do
 
   defn update_g({w1, b1, w2, b2, w3, b3, w4, b4} = g_params, {_, _, _, _, _, _} = d_params, latent, step) do
     {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4} =
-      grad({w1, b1, w2, b2, w3, b3, w4, b4}, g_loss(g_params, d_params, latent))
+      grad(g_params, &g_loss(&1, d_params, latent))
 
     {
       w1 - grad_w1 * step,
@@ -63,7 +63,7 @@ defmodule MNISTGAN do
     }
   end
 
-  def update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
+  defn update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
     valid = Nx.iota({32, 2}, axis: 1)
     fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
     latent = Nx.random_normal({32, 100})

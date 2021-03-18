@@ -25,10 +25,18 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:nx, "~> 0.1.0-dev", nx_opts()},
       {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-      {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false}
     ]
+  end
+
+  defp nx_opts do
+    if path = System.get_env("AXON_NX_PATH") do
+      [path: path, override: true]
+    else
+      [github: "elixir-nx/nx", sparse: "nx", override: true]
+    end
   end
 
   defp docs do
