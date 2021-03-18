@@ -299,8 +299,8 @@ defmodule Axon do
     gamma = stateful(name <> "_gamma", {1, elem(shape, 1)}, gamma_initializer)
     beta = stateful(name <> "_beta", {1, elem(shape, 1)}, beta_initializer)
 
-    ra_mean = stateful(name <> "_mean", {}, :zeros)
-    ra_var = stateful(name <> "_variance", {}, :zeros)
+    ra_mean = stateful(name <> "_mean", {1, elem(shape, 1)}, :zeros)
+    ra_var = stateful(name <> "_variance", {1, elem(shape, 1)}, :zeros)
 
     node = %Axon{
       id: id,

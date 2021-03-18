@@ -112,9 +112,12 @@ defmodule MNISTGAN do
     new_d_params = update_d(d_params, d_vars, images, valid, 0.01)
     new_d_params = update_d(new_d_params, d_vars, fake_images, fake, 0.01)
 
+    {_, new_d_vars} = discriminator(d_params, d_vars, images)
+    {_, new_d_vars} = discriminator(new_d_params, new_d_vars, fake_images)
+
     new_g_params =
       g_params
-      |> update_g(new_g_vars, new_d_params, d_vars, latent, 0.05)
+      |> update_g(new_g_vars, new_d_params, new_d_vars, latent, 0.05)
 
     {_, new_d_vars} = discriminator(d_params, d_vars, Nx.concatenate([fake_images, images]))
 
