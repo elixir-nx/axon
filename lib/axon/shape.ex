@@ -10,7 +10,14 @@ defmodule Axon.Shape do
   Calculates the shape after a flatten layer.
   """
   def flatten(shape) do
-    out_units = div(Nx.size(shape), elem(shape, 0))
+    # Account for possibly `nil` batch dimension
+    out_units =
+      if elem(shape, 0) do
+        div(Nx.size(shape), elem(shape, 0))
+      else
+        Nx.size(Tuple.delete_at(shape, 0))
+      end
+
     {elem(shape, 0), out_units}
   end
 

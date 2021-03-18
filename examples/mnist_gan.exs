@@ -4,7 +4,7 @@ defmodule MNISTGAN do
   @default_defn_compiler {EXLA, keep_on_device: true}
 
   model generator do
-    input({32, 100})
+    input({nil, 100})
     |> dense(256, activation: :tanh)
     |> dense(512, activation: :tanh)
     |> dense(1024, activation: :tanh)
@@ -12,7 +12,7 @@ defmodule MNISTGAN do
   end
 
   model discriminator do
-    input({32, 28, 28})
+    input({nil, 28, 28})
     |> flatten()
     |> dense(512, activation: :tanh)
     |> dense(256, activation: :tanh)
