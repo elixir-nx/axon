@@ -187,7 +187,7 @@ defmodule CIFAR do
       fn
         {imgs, tar}, {cur_params, avg_loss, avg_accuracy} ->
           # This augmentation maybe should be tied somewhere else?
-          # imgs = augment(imgs)
+          imgs = augment(imgs)
           update_with_averages(
             cur_params,
             imgs,
