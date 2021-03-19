@@ -502,7 +502,7 @@ defmodule Axon.Initializers do
   """
   defn variance_scaling(opts \\ []) do
     opts =
-      keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mode: :fan_in, distribution: :normal])
+      keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0, mode: :fan_in, distribution: :normal])
 
     assert_greater_equal_rank!(opts[:shape], 2)
 
@@ -526,7 +526,7 @@ defmodule Axon.Initializers do
         end
       )
 
-    variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), denominator)
+    variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), Nx.max(denominator, 1.0))
 
     var_opts = transform(opts, &Keyword.take(&1, [:shape, :type]))
 
@@ -566,10 +566,8 @@ defmodule Axon.Initializers do
     shape = opts[:shape]
     type = opts[:type]
 
-    variance
-    |> Nx.multiply(3)
-    |> Nx.sqrt()
-    |> Nx.multiply(Nx.random_uniform(shape, type: type))
+    limit = Nx.sqrt(3 * variance)
+    limit * Nx.random_uniform(shape, -1.0, 1.0, type: type)
   end
 
   defnp var_truncated(variance, opts \\ []) do
@@ -584,10 +582,23 @@ defmodule Axon.Initializers do
   end
 
   defp compute_fans(shape) do
-    receptive_field_size = Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
+    rank = Nx.rank(shape)
+    {fan_in, fan_out} =
+      cond do
+        rank < 1 ->
+          {1, 1}
+        rank == 1 ->
+          {elem(shape, 0), elem(shape, 0)}
+        rank == 2 ->
+          {elem(shape, 0), elem(shape, 1)}
+        true ->
+          receptive_field_size = Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
 
-    fan_in = elem(shape, 0) * receptive_field_size
-    fan_out = elem(shape, 1) * receptive_field_size
+          fan_in = elem(shape, 0) * receptive_field_size
+          fan_out = elem(shape, 1) * receptive_field_size
+          {fan_in, fan_out}
+      end
+
     {fan_in, fan_out}
   end
 end

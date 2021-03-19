@@ -66,7 +66,7 @@ defmodule Axon do
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     {id, name} = unique_identifiers(:dense, opts[:name])
 
-    weight_init = opts[:kernel_initializer] || :uniform
+    weight_init = opts[:kernel_initializer] || :glorot_uniform
     bias_init = opts[:bias_initializer] || :zeros
     activation = opts[:activation]
     param_shape = {elem(parent_shape, 1), units}
@@ -116,7 +116,7 @@ defmodule Axon do
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     {id, name} = unique_identifiers(:conv, opts[:name])
 
-    kernel_init = opts[:kernel_initializer] || :uniform
+    kernel_init = opts[:kernel_initializer] || :glorot_uniform
     bias_init = opts[:bias_initializer] || :zeros
     activation = opts[:activation]
 
