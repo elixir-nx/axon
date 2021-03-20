@@ -300,6 +300,40 @@ defmodule Axon do
   end
 
   @doc """
+  Applies the given `Nx` expression to the input.
+
+  ## Options
+
+    * `name` - Layer name.
+
+  """
+  def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
+    {id, name} = unique_identifiers(:nx, opts[:name])
+
+    param = Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, 0)
+    expr =
+      if Nx.Defn.Compiler.current() do
+        fun.(param)
+      else
+        Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
+      end
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: expr.shape,
+      parent: x,
+      op: :nx,
+      params: [],
+      opts: [
+        fun: fun
+      ]
+    }
+
+    node
+  end
+
+  @doc """
   Adds a flatten layer to the network.
 
   This layer will flatten all but the batch dimensions

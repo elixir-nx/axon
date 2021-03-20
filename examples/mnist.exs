@@ -3,9 +3,15 @@ defmodule MNIST do
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
+  defn mish(x) do
+    x * Nx.tanh(Axon.Activations.softplus(x))
+  end
+
   def model do
     input({nil, 784})
-    |> dense(128, activation: :tanh)
+    |> dense(128)
+    |> nx(&mish/1)
+    |> nx(fn x -> x end)
     |> dense(10, activation: :log_softmax)
   end
 

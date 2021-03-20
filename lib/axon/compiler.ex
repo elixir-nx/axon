@@ -127,6 +127,11 @@ defmodule Axon.Compiler do
     apply(Axon.Layers, :conv, [expr, w, b, opts])
   end
 
+  defp to_predict_expr(%Axon{op: :nx, parent: parent, opts: [fun: fun]}, params, input) do
+    expr = to_predict_expr(parent, params, input)
+    fun.(expr)
+  end
+
   defp to_predict_expr(%Axon{op: :flatten, parent: parent}, params, input) do
     expr = to_predict_expr(parent, params, input)
     apply(Axon.Layers, :flatten, [expr])
