@@ -343,13 +343,13 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of a 1-dimensional depthwise convolution.
+  Functional implementation of a general dimensional depthwise convolution.
 
   A depthwise convolution is essentially just a grouped convolution
   where the number of groups is equal to the number of input channels.
   """
   @doc type: :convolutional
-  defn depthwise_conv1d(input, weight, bias, opts \\ []) do
+  defn depthwise_conv(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
     opts =
@@ -360,8 +360,7 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    num_groups = transform(Nx.shape(input), fn {_, channels, _} -> channels end)
-
+    num_groups = transform(Nx.shape(input), &elem(&1, 1))
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
 
     input
@@ -376,69 +375,14 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of a 2-dimensional depthwise convolution.
-
-  A depthwise convolution is essentially just a grouped convolution
-  where the number of groups is equal to the number of input channels.
+  Functional implementation of a 2-dimensional separable depthwise
+  convolution.
   """
   @doc type: :convolutional
-  defn depthwise_conv2d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    num_groups = transform(Nx.shape(input), fn {_, channels, _, _} -> channels end)
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
-
+  defn separable_conv(input, k1, k2, b1, b2, opts \\ []) do
     input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: num_groups
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional depthwise convolution.
-
-  A depthwise convolution is essentially just a grouped convolution
-  where the number of groups is equal to the number of input channels.
-  """
-  @doc type: :convolutional
-  defn depthwise_conv3d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    num_groups = transform(Nx.shape(input), fn {_, channels, _, _, _} -> channels end)
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: num_groups
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
+    |> depthwise_conv(k1, b1, opts)
+    |> depthwise_conv(k2, b2, opts)
   end
 
   @doc """
@@ -446,22 +390,11 @@ defmodule Axon.Layers do
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
+  defn separable_conv(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
     input
-    |> depthwise_conv2d(k1, b1, opts)
-    |> depthwise_conv2d(k2, b2, opts)
-  end
-
-  @doc """
-  Functional implementation of a 2-dimensional separable depthwise
-  convolution.
-  """
-  @doc type: :convolutional
-  defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
-    input
-    |> depthwise_conv3d(k1, b1, opts)
-    |> depthwise_conv3d(k2, b2, opts)
-    |> depthwise_conv3d(k3, b3, opts)
+    |> depthwise_conv(k1, b1, opts)
+    |> depthwise_conv(k2, b2, opts)
+    |> depthwise_conv(k3, b3, opts)
   end
 
   @doc """

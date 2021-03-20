@@ -146,6 +146,14 @@ defmodule Axon.Shape do
     permutation = [0, 1, 2, 3]
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
+    # Account for possibly nil batch dimension
+    parent_shape =
+      if elem(parent_shape, 0) do
+        parent_shape
+      else
+        put_elem(parent_shape, 0, 1)
+      end
+
     {shape, _, _} =
       Nx.Shape.conv(
         parent_shape,
@@ -171,26 +179,23 @@ defmodule Axon.Shape do
   with the given parent shape, kernel size, strides, and
   padding.
   """
-  def pool_output(parent_shape, kernel_size, strides, padding) do
-    strides =
-      if is_list(strides),
-        do: [1, 1 | strides],
-        else: [1, 1 | List.duplicate(strides, Nx.rank(parent_shape) - 2)]
-
-    kernel_shape =
+  def pool(parent_shape, kernel_size, strides, padding) do
+    kernel_dilation = List.duplicate(1, Nx.rank(parent_shape))
+    kernel_size =
       kernel_size
       |> Tuple.insert_at(0, 1)
       |> Tuple.insert_at(0, 1)
 
-    padding_config = padding_config(parent_shape, kernel_shape, padding, strides)
+    strides = [1, 1 | strides]
 
-    padding_config = [
-      {0, 0, 0},
-      {0, 0, 0} | Enum.map(padding_config, fn {lo, hi} -> {lo, hi, 0} end)
-    ]
-
-    padded_input_shape = Nx.Shape.pad(parent_shape, padding_config)
-    shape = Nx.Shape.window(padded_input_shape, kernel_shape, strides)
+    {shape, _} =
+      Nx.Shape.pool(
+        parent_shape,
+        kernel_size,
+        strides,
+        padding,
+        kernel_dilation
+      )
 
     shape
   end
@@ -232,36 +237,5 @@ defmodule Axon.Shape do
       end
 
     {elem(shape, 0), out_units}
-  end
-
-  ## Helpers
-
-  defp padding_config(parent_shape, kernel_shape, padding, strides) do
-    spatial_parent =
-      parent_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-
-    spatial_kernel =
-      kernel_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-
-    case padding do
-      :valid ->
-        List.duplicate({0, 0}, Nx.rank(parent_shape) - 2)
-
-      :same ->
-        Nx.Shape.calculate_padding(spatial_parent, spatial_kernel, strides)
-
-      config when is_list(config) ->
-        config
-
-      _ ->
-        raise ArgumentError,
-              "invalid padding configuration, padding must be" <>
-                " :valid or :same, or a padding configuration for" <>
-                " the dimensions of the input tensor"
-    end
   end
 end

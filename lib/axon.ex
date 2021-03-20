@@ -55,7 +55,7 @@ defmodule Axon do
   `kernel` and `bias` are layer parameters. `units` specifies the
   number of output units.
 
-  Compiles to `Axon.Layers.dense/3`.
+  Compiles to `Axon.Layers.dense/4`.
 
   ## Options
 
@@ -104,7 +104,7 @@ defmodule Axon do
   convolutional layer - which convolves a kernel over the input
   to produce an output.
 
-  Compiles to `Axon.Layers.conv/3`.
+  Compiles to `Axon.Layers.conv/4`.
 
   ## Options
 
@@ -226,12 +226,12 @@ defmodule Axon do
       - `name` - Layer name.
 
     """
-    def unquote(activation)(%Axon{} = x, opts \\ []), do: activation(x, unquote(activation), opts)
+    def unquote(activation)(%Axon{} = x, opts \\ []) do
+      activation(x, unquote(activation), opts)
+    end
   end
 
   ## Dropout
-
-  # TODO: Need a way to turn these layers off
 
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
 
@@ -266,10 +266,20 @@ defmodule Axon do
       {id, name} = unique_identifiers(unquote(pool), opts[:name])
 
       kernel_size = opts[:kernel_size] || 1
-      strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
+      strides = opts[:strides] || 1
       padding = opts[:padding] || :valid
 
-      output_shape = Axon.Shape.pool_output(parent_shape, kernel_size, strides, padding)
+      kernel_size =
+        if is_tuple(kernel_size),
+          do: kernel_size,
+          else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+
+      strides =
+        if is_list(strides),
+          do: strides,
+          else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
+
+      output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
       node = %Axon{
         id: id,
