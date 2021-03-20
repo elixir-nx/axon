@@ -175,6 +175,113 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the shape of a depthwise convolution kernel given the
+  input shape, output filters, and kernel size.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 224, 224}, 3, {3, 3})
+      {9, 3, 3, 3}
+
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 28}, 2, {2})
+      {6, 3, 2}
+
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
+      {1, 1, 2, 1, 3}
+
+  ### Error cases
+
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 28, 28}, 32, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
+  """
+  def depthwise_conv_kernel(input_shape, channel_multiplier, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+
+    input_channels = elem(input_shape, 1)
+    List.to_tuple([input_channels * channel_multiplier, 1 | Tuple.to_list(kernel_size)])
+  end
+
+  @doc """
+  Calculates the shape of a convolution bias given the
+  input shape, channel multiplier, and kernel size.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3})
+      {1, 9, 1, 1}
+
+      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2})
+      {1, 6, 1}
+
+      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
+      {1, 1, 1, 1, 1}
+
+  ### Error cases
+
+      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 28, 28}, 2, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
+  """
+  def depthwise_conv_bias(input_shape, channel_multiplier, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+    input_channels = elem(input_shape, 1)
+    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
+    List.to_tuple([1, input_channels * channel_multiplier | spatial_dims])
+  end
+
+  @doc """
+  Calculates the shape after a depthwise convolution layer with
+  the given parent shape, kernel shape, strides, padding, input
+  dilation, and kernel dilation.
+  """
+  def depthwise_conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+    permutation = [0, 1, 2, 3]
+    names = List.duplicate(nil, Nx.rank(parent_shape))
+
+    # Account for possibly nil batch dimension
+    parent_shape =
+      if elem(parent_shape, 0) do
+        parent_shape
+      else
+        put_elem(parent_shape, 0, 1)
+      end
+
+    input_channels = elem(parent_shape, 1)
+
+    {shape, _, _} =
+      Nx.Shape.conv(
+        parent_shape,
+        names,
+        kernel_shape,
+        names,
+        strides,
+        padding,
+        input_channels,
+        1,
+        input_dilation,
+        kernel_dilation,
+        permutation,
+        permutation,
+        permutation
+      )
+
+    shape
+  end
+
+  @doc """
   Calculates the output shape after a pooling operation
   with the given parent shape, kernel size, strides, and
   padding.

@@ -5,7 +5,7 @@ defmodule CIFAR do
 
   def model do
     input({32, 3, 32, 32})
-    |> conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> depthwise_conv(3, kernel_size: {3, 3}, activation: :relu)
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
     |> max_pool(kernel_size: {2, 2})

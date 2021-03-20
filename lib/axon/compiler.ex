@@ -97,6 +97,13 @@ defmodule Axon.Compiler do
     apply(Axon.Activations, op, [expr])
   end
 
+  ## Linear Layers
+
+  defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :dense, [expr, w, b])
+  end
+
   ## Pooling Layers
 
   @pooling_layers [:max_pool, :avg_pool, :lp_pool]
@@ -117,14 +124,14 @@ defmodule Axon.Compiler do
     apply(Axon.Layers, op, [expr, opts])
   end
 
-  defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :dense, [expr, w, b])
-  end
+  ## Conv Layers
 
-  defp to_predict_expr(%Axon{op: :conv, parent: parent, opts: opts}, [b, w | params], input) do
+  @conv_layers [:conv, :depthwise_conv]
+
+  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, [b, w | params], input)
+       when op in @conv_layers do
     expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :conv, [expr, w, b, opts])
+    apply(Axon.Layers, op, [expr, w, b, opts])
   end
 
   defp to_predict_expr(%Axon{op: :nx, parent: parent, opts: [fun: fun]}, params, input) do

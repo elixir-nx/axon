@@ -192,6 +192,106 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a depthwise convolution layer to the network.
+
+  The depthwise convolution layer implements a general
+  dimensional depthwise convolution - which is a convolution
+  where the feature group size is equal to the number of
+  input channels.
+
+  Channel multiplier grows the input channels by the given
+  factor. An input factor of 1 means the output channels
+  are the same as the input channels.
+
+  Compiles to `Axon.Layers.depthwise_conv`/4.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+    * `kernel_size` - Size of the kernel spatial dimensions.
+    * `strides` - Stride during convolution.
+    * `padding` - Padding to the spatial dimensions of the input.
+    * `input_dilation` - Dilation to apply to input.
+    * `kernel_dilation` - Dilation to apply to kernel.
+
+  """
+  def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+     when is_integer(channel_multiplier) and channel_multiplier >= 1 do
+    {id, name} = unique_identifiers(:conv, opts[:name])
+
+    kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    bias_init = opts[:bias_initializer] || :zeros
+    activation = opts[:activation]
+
+    kernel_size = opts[:kernel_size] || 1
+    strides = opts[:strides] || 1
+    padding = opts[:padding] || :valid
+    input_dilation = opts[:input_dilation] || 1
+    kernel_dilation = opts[:kernel_dilation] || 1
+
+    kernel_size =
+      if is_tuple(kernel_size),
+        do: kernel_size,
+        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+
+    strides =
+      if is_list(strides),
+        do: strides,
+        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
+
+    input_dilation =
+      if is_list(input_dilation),
+        do: input_dilation,
+        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+
+    kernel_shape = Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size)
+    bias_shape = Axon.Shape.depthwise_conv_bias(parent_shape, channel_multiplier, kernel_size)
+
+    output_shape =
+      Axon.Shape.depthwise_conv(
+        parent_shape,
+        kernel_shape,
+        strides,
+        padding,
+        input_dilation,
+        kernel_dilation
+      )
+
+    kernel = param(name <> "_kernel", kernel_shape, kernel_init)
+    bias = param(name <> "_bias", bias_shape, bias_init)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: x,
+      op: :depthwise_conv,
+      params: [bias, kernel],
+      opts: [
+        strides: strides,
+        padding: padding,
+        input_dilation: input_dilation,
+        kernel_dilation: kernel_dilation
+      ]
+    }
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
   Adds an activation layer to the network.
 
   Activation layers are element-wise functions typically called

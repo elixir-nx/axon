@@ -354,10 +354,19 @@ defmodule Axon.Layers do
 
     opts =
       keyword!(opts,
-        strides: [1],
+        strides: 1,
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1
+      )
+
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> strides
+          {rank, strides} -> List.duplicate(strides, rank - 2)
+        end
       )
 
     num_groups = transform(Nx.shape(input), &elem(&1, 1))
@@ -365,7 +374,7 @@ defmodule Axon.Layers do
 
     input
     |> Nx.conv(weight,
-      strides: opts[:strides],
+      strides: strides,
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
