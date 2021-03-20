@@ -308,6 +308,14 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the output shape after an adaptive pooling operation
+  with the given parent shape and output size.
+  """
+  def adaptive_pool(parent_shape, output_size) do
+    List.to_tuple([elem(parent_shape, 0), elem(parent_shape, 1) | Tuple.to_list(output_size)])
+  end
+
+  @doc """
   Calculates the shape after a flatten layer, which
   flattens the non-minibatch dimensions into a single
   dimension.

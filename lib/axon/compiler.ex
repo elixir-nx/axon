@@ -106,7 +106,7 @@ defmodule Axon.Compiler do
 
   ## Pooling Layers
 
-  @pooling_layers [:max_pool, :avg_pool, :lp_pool]
+  @pooling_layers [:max_pool, :avg_pool, :lp_pool, :adaptive_avg_pool, :adaptive_max_pool]
 
   defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
        when op in @pooling_layers do

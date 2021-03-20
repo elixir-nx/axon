@@ -388,18 +388,18 @@ defmodule Axon.Layers do
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv(input, k1, k2, b1, b2, opts \\ []) do
+  defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
   end
 
   @doc """
-  Functional implementation of a 2-dimensional separable depthwise
+  Functional implementation of a 3-dimensional separable depthwise
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
+  defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -902,7 +902,7 @@ defmodule Axon.Layers do
   # according to:
   # stride = div(input, output)
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_strides({{input_shape, output_spatial}}, spatial_rank) do
+  defp adaptive_pool_window_strides({input_shape, output_spatial}, spatial_rank) do
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)
@@ -925,7 +925,6 @@ defmodule Axon.Layers do
 
     strides =
       output_spatial
-      |> Tuple.to_list()
       |> Enum.zip(input_spatial)
       |> Enum.map(fn {input, output} -> div(input, output) end)
 
@@ -936,7 +935,7 @@ defmodule Axon.Layers do
   # according to:
   # size = input_size - (output_size - 1) * stride
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_size({{input_shape, [_, _, stride], output_spatial}}, spatial_rank) do
+  defp adaptive_pool_window_size({input_shape, [_, _ | stride], output_spatial}, spatial_rank) do
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)

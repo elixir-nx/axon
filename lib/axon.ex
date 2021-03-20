@@ -399,6 +399,39 @@ defmodule Axon do
     end
   end
 
+  ## Adaptive Pooling
+
+  @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool]
+
+  for pool <- @adaptive_pooling_layers do
+    def unquote(pool)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
+      {id, name} = unique_identifiers(unquote(pool), opts[:name])
+
+      output_size = opts[:output_size]
+
+      output_size =
+        if is_tuple(output_size),
+          do: output_size,
+          else: Tuple.to_list(List.duplicate(output_size, Nx.rank(parent_shape) - 2))
+
+      output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
+
+      node = %Axon{
+        id: id,
+        name: name,
+        output_shape: output_shape,
+        parent: x,
+        op: unquote(pool),
+        params: [],
+        opts: [
+          output_size: output_size
+        ]
+      }
+
+      node
+    end
+  end
+
   @doc """
   Applies the given `Nx` expression to the input.
 
