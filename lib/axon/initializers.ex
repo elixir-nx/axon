@@ -124,7 +124,7 @@ defmodule Axon.Initializers do
   defn uniform(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
     shape = Nx.shape(opts[:shape])
-    Nx.random_uniform(shape, type: opts[:type]) * opts[:scale]
+    Nx.random_uniform(shape, Nx.negate(opts[:scale]), opts[:scale], type: opts[:type])
   end
 
   @doc """
@@ -556,9 +556,9 @@ defmodule Axon.Initializers do
     shape = opts[:shape]
     type = opts[:type]
 
-    variance
-    |> Nx.sqrt()
-    |> Nx.multiply(Nx.random_normal(shape, type: type))
+    sigma = Nx.sqrt(variance)
+
+    Nx.random_normal(shape, 0.0, sigma, type: type)
   end
 
   defnp var_uniform(variance, opts \\ []) do
@@ -567,7 +567,7 @@ defmodule Axon.Initializers do
     type = opts[:type]
 
     limit = Nx.sqrt(3 * variance)
-    limit * Nx.random_uniform(shape, -1.0, 1.0, type: type)
+    Nx.random_uniform(shape, -limit, limit, type: type)
   end
 
   defnp var_truncated(variance, opts \\ []) do
@@ -575,22 +575,28 @@ defmodule Axon.Initializers do
     shape = opts[:shape]
     type = opts[:type]
 
-    variance
-    |> Nx.sqrt()
-    |> Nx.divide(0.87962566103423978)
-    |> Nx.multiply(Nx.clip(Nx.random_normal(shape, type: type), -2, 2))
+    sigma =
+      variance
+      |> Nx.sqrt()
+      |> Nx.divide(0.87962566103423978)
+
+    Nx.clip(Nx.random_normal(shape, 0.0, sigma, type: type), -2, 2)
   end
 
   defp compute_fans(shape) do
     rank = Nx.rank(shape)
+
     {fan_in, fan_out} =
       cond do
         rank < 1 ->
           {1, 1}
+
         rank == 1 ->
           {elem(shape, 0), elem(shape, 0)}
+
         rank == 2 ->
           {elem(shape, 0), elem(shape, 1)}
+
         true ->
           receptive_field_size = Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
 

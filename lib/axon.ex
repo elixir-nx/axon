@@ -15,6 +15,14 @@ defmodule Axon do
 
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
+  defmacro __using__(_opts) do
+    quote do
+      require Axon
+      import Axon
+      import Nx.Defn
+    end
+  end
+
   # TODO: Allow arbitrary calls to Nx functions and numerical definitions inside `model`
   # TODO: Models should be easily composable inside other model blocks
   # TODO: Unify parameters and variables under `%Axon.State{}`
@@ -23,14 +31,8 @@ defmodule Axon do
   @doc """
   Adds an input layer to the network.
 
-  Input layers specify a models inputs. For example, a model
-  with two `input` layers would have the following predict function:
-
-      defn predict(params, input_1, input_2) do
-        ...
-      end
-
-  Input layers are always the root layers of the neural network.
+  Input layers specify a models inputs. Input layers are
+  always the root layers of the neural network.
 
   ## Options
 
@@ -69,18 +71,22 @@ defmodule Axon do
     weight_init = opts[:kernel_initializer] || :glorot_uniform
     bias_init = opts[:bias_initializer] || :zeros
     activation = opts[:activation]
-    param_shape = {elem(parent_shape, 1), units}
-    shape = {elem(parent_shape, 0), units}
-    weight = param(name <> "_weight", param_shape, weight_init)
-    bias = param(name <> "_bias", {1, units}, bias_init)
+
+    kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
+    bias_shape = Axon.Shape.dense_bias(parent_shape, units)
+    output_shape = Axon.Shape.dense(parent_shape, units)
+
+    weight = param(name <> "_weight", kernel_shape, weight_init)
+    bias = param(name <> "_bias", bias_shape, bias_init)
 
     node = %Axon{
       id: id,
       name: name,
-      output_shape: shape,
+      output_shape: output_shape,
       parent: x,
       op: :dense,
-      params: [bias, weight]
+      params: [bias, weight],
+      opts: []
     }
 
     if activation do
@@ -120,19 +126,37 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     activation = opts[:activation]
 
-    kernel_size =
-      opts[:kernel_size] || List.to_tuple(List.duplicate(1, Nx.rank(parent_shape) - 2))
-
-    strides = opts[:strides] || List.duplicate(1, Nx.rank(parent_shape) - 2)
+    kernel_size = opts[:kernel_size] || 1
+    strides = opts[:strides] || 1
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
 
+    kernel_size =
+      if is_tuple(kernel_size),
+        do: kernel_size,
+        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+
+    strides =
+      if is_list(strides),
+        do: strides,
+        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
+
+    input_dilation =
+      if is_list(input_dilation),
+        do: input_dilation,
+        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+
     kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units)
+    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size)
 
     output_shape =
-      Axon.Shape.conv_output(
+      Axon.Shape.conv(
         parent_shape,
         kernel_shape,
         strides,
@@ -283,226 +307,45 @@ defmodule Axon do
     %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
   end
 
-  ## Combinators
-
   @doc """
-  Adds two layers.
+  Compiles and runs the given models initialization function.
   """
-  def add(%Axon{output_shape: shape} = x, %Axon{} = y, opts \\ []) do
-    {id, name} = unique_identifiers(:flatten, opts[:name])
-
-    node = %Axon{
-      id: id,
-      name: name,
-      output_shape: shape,
-      parent: [x, y],
-      op: :add,
-      params: [],
-      opts: []
-    }
-
-    node
+  defmacro init(model, opts \\ []) do
+    define_init(model, :init, [], opts)
   end
 
   @doc """
-  Defines a new Axon model.
+  Compiles and runs the given Axon model with `params` on
+  `input` with the given compiler options.
   """
-  defmacro model(do: block) do
-    # TODO: I don't think this is the best way to determine number of params
-    # to match on in predict
-    {_, num_params} =
-      Macro.prewalk(block, 0, fn
-        {:dense, _, _} = node, acc -> {node, acc + 2}
-        {:conv, _, _} = node, acc -> {node, acc + 2}
-        node, acc -> {node, acc}
-      end)
+  defmacro predict(model, params, input, opts \\ []) do
+    define_predict(model, :predict, [params, input], opts)
+  end
 
-    tuple_args = for _ <- 1..num_params, do: {:_, [], nil}
-    predict_args = [{:=, [], [{:{}, [], tuple_args}, {:params, [], nil}]}, {:batch, [], nil}]
-    predict_signature = {:predict, [], predict_args}
+  ## Implementation
 
+  defp define_init(model, caller, args, opts \\ []) do
     quote do
-      import Nx.Defn
+      Nx.Defn.Kernel.transform(unquote(args), fn args ->
+        model = unquote(model)
+        opts = unquote(opts)
+        caller = unquote(caller)
 
-      @axon_ast unquote(block)
-
-      def __axon__, do: @axon_ast
-
-      defn init_random_params() do
-        transform(:ok, fn _ -> Axon.__jit_params__(__axon__()) end)
-      end
-
-      defn unquote(predict_signature) do
-        transform({unquote({:params, [], nil}), unquote({:batch, [], nil})}, fn {params, input} ->
-          Axon.__jit_predict__(__axon__(), params, input)
-        end)
-      end
+        Axon.Compiler.__jit_init__(model, caller, args, opts)
+      end)
     end
   end
 
-  @doc """
-  Defines a new Axon model with the given name.
-  """
-  defmacro model(call, do: block) do
-    # TODO: Call can take inputs such that we don't have
-    # to specify input layers, but we lose shape information
-    {name, _} = Macro.decompose_call(call)
-
-    # TODO: I don't think this is the best way to determine number of params
-    # to match on in predict
-    {_, num_params} =
-      Macro.prewalk(block, 0, fn
-        {:dense, _, _} = node, acc -> {node, acc + 2}
-        {:conv, _, _} = node, acc -> {node, acc + 2}
-        node, acc -> {node, acc}
-      end)
-
-    tuple_args = for _ <- 1..num_params, do: {:_, [], nil}
-    predict_args = [{:=, [], [{:{}, [], tuple_args}, {:params, [], nil}]}, {:batch, [], nil}]
-    predict_signature = {name, [], predict_args}
-
+  defp define_predict(model, caller, args, opts \\ []) do
     quote do
-      import Nx.Defn
+      Nx.Defn.Kernel.transform(unquote(args), fn args ->
+        model = unquote(model)
+        opts = unquote(opts)
+        caller = unquote(caller)
 
-      @axon_ast unquote(block)
-
-      def unquote(axon_name(name))(), do: @axon_ast
-
-      defn unquote(init_function_name(name))() do
-        transform(:ok, fn _ -> Axon.__jit_params__(unquote(axon_name(name))()) end)
-      end
-
-      defn unquote(predict_signature) do
-        transform({unquote({:params, [], nil}), unquote({:batch, [], nil})}, fn {params, input} ->
-          Axon.__jit_predict__(unquote(axon_name(name))(), params, input)
-        end)
-      end
-    end
-  end
-
-  defmacro __using__(_opts) do
-    quote do
-      require Axon
-      import Axon
-      import Nx.Defn
-    end
-  end
-
-  ## Parameter JIT Compilation
-
-  # TODO: This is a pretty fragile way of enforcing parameter ordering.
-  # Need a more coherent strategy
-
-  @doc false
-  def __jit_params__(graph) do
-    {names_and_exprs, _} = to_param_expr(graph, %{}, 0)
-
-    names_and_exprs
-    |> Map.values()
-    |> Enum.reverse()
-    |> List.to_tuple()
-  end
-
-  defp to_param_expr(%Axon{parent: nil, params: params}, names_and_exprs, counter) do
-    Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
-                                                         name: name,
-                                                         shape: shape,
-                                                         initializer: initializer
-                                                       },
-                                                       {names_and_exprs, counter} ->
-      {
-        Map.put(
-          names_and_exprs,
-          "#{counter}_" <> name,
-          apply(Axon.Initializers, initializer, [[shape: shape]])
-        ),
-        counter + 1
-      }
-    end)
-  end
-
-  defp to_param_expr(%Axon{parent: parent, params: params}, names_and_exprs, counter) do
-    {names_and_exprs, counter} =
-      Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
-                                                           name: name,
-                                                           shape: shape,
-                                                           initializer: initializer
-                                                         },
-                                                         {names_and_exprs, counter} ->
-        {
-          Map.put(
-            names_and_exprs,
-            "#{counter}_" <> name,
-            apply(Axon.Initializers, initializer, [[shape: shape]])
-          ),
-          counter + 1
-        }
+        Axon.Compiler.__jit_predict__(model, caller, args, opts)
       end)
-
-    to_param_expr(parent, names_and_exprs, counter)
-  end
-
-  ## Model JIT Compilation
-
-  @doc false
-  def __jit_predict__(graph, params, input) do
-    to_predict_expr(graph, Enum.reverse(Tuple.to_list(params)), input)
-  end
-
-  defp to_predict_expr(%Axon{op: op, parent: parent}, params, input)
-       when op in @activation_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Activations, op, [expr])
-  end
-
-  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
-       when op in @pooling_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, opts])
-  end
-
-  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
-       when op in @dropout_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, opts])
-  end
-
-  defp to_predict_expr(%Axon{op: :add, parent: [x, y]}, params, input) do
-    x_expr = to_predict_expr(x, params, input)
-    y_expr = to_predict_expr(y, params, input)
-    apply(Nx, :add, [x_expr, y_expr])
-  end
-
-  defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :dense, [expr, w, b])
-  end
-
-  defp to_predict_expr(%Axon{op: :conv, parent: parent, opts: opts}, [b, w | params], input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :conv, [expr, w, b, opts])
-  end
-
-  defp to_predict_expr(%Axon{op: :reshape, output_shape: shape, parent: parent}, params, input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Nx, :reshape, [expr, shape])
-  end
-
-  defp to_predict_expr(%Axon{op: :flatten, parent: parent}, params, input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :flatten, [expr])
-  end
-
-  defp to_predict_expr(%Axon{op: :input, parent: nil}, _params, input) do
-    input
-  end
-
-  defp init_function_name(name) do
-    String.to_atom("init_" <> Atom.to_string(name))
-  end
-
-  defp axon_name(name) do
-    String.to_atom("__" <> Atom.to_string(name) <> "_axon__")
+    end
   end
 
   ## Helpers

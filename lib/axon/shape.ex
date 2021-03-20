@@ -1,24 +1,140 @@
 defmodule Axon.Shape do
-  @moduledoc """
-  Collection of layer shape calculations for determining
-  output shapes and parameter shapes.
-  """
+  @moduledoc false
 
-  # TODO: Clean this up along with Nx.Shape
+  # Collection of shape calculations for calculating the
+  # output and trainable parameter shapes for high-level
+  # layers.
+  #
+  # `nil` is often used as a stand-in for unknown batch
+  # size, so each of these methods must account for that.
+
+  ## Linear
 
   @doc """
-  Calculates the shape after a flatten layer.
-  """
-  def flatten(shape) do
-    # Account for possibly `nil` batch dimension
-    out_units =
-      if elem(shape, 0) do
-        div(Nx.size(shape), elem(shape, 0))
-      else
-        Nx.size(Tuple.delete_at(shape, 0))
-      end
+  Calculates the shape of a dense kernel given the input
+  shape and output units.
 
-    {elem(shape, 0), out_units}
+  ## Examples
+
+      iex> Axon.Shape.dense_kernel({nil, 784}, 128)
+      {784, 128}
+
+      iex> Axon.Shape.dense_kernel({nil, 128}, 256)
+      {128, 256}
+
+      iex> Axon.Shape.dense_kernel({nil, 3, 256, 256}, 128)
+      {256, 128}
+  """
+  def dense_kernel(input_shape, units) do
+    {elem(input_shape, Nx.rank(input_shape) - 1), units}
+  end
+
+  @doc """
+  Calculates the shape of a dense bias given the input
+  shape and output units.
+
+  ## Examples
+
+      iex> Axon.Shape.dense_bias({nil, 784}, 128)
+      {1, 128}
+
+      iex> Axon.Shape.dense_bias({nil, 128}, 256)
+      {1, 256}
+
+      iex> Axon.Shape.dense_bias({nil, 3, 256, 256}, 128)
+      {1, 128}
+  """
+  def dense_bias(_input_shape, units) do
+    {1, units}
+  end
+
+  @doc """
+  Calculates the output shape of a dense layer given the
+  input shape and output units.
+
+  ## Examples
+
+      iex> Axon.Shape.dense({nil, 784}, 128)
+      {nil, 128}
+
+      iex> Axon.Shape.dense({nil, 256}, 512)
+      {nil, 512}
+
+      iex> Axon.Shape.dense({nil, 128}, 128)
+      {nil, 128}
+  """
+  def dense(input_shape, units) do
+    {elem(input_shape, 0), units}
+  end
+
+  ## Conv
+
+  @doc """
+  Calculates the shape of a convolution kernel given the
+  input shape, output filters, and kernel size.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3})
+      {32, 3, 3, 3}
+
+      iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2})
+      {64, 3, 2}
+
+      iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
+      {32, 1, 2, 1, 3}
+
+  ### Error cases
+
+      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
+  """
+  def conv_kernel(input_shape, output_filters, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+
+    input_channels = elem(input_shape, 1)
+    List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
+  end
+
+  @doc """
+  Calculates the shape of a convolution bias given the
+  input shape, output filters, and kernel size.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3})
+      {1, 32, 1, 1}
+
+      iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2})
+      {1, 64, 1}
+
+      iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
+      {1, 32, 1, 1, 1}
+
+  ### Error cases
+
+      iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
+  """
+  def conv_bias(input_shape, output_filters, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+
+    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
+    List.to_tuple([1, output_filters | spatial_dims])
   end
 
   @doc """
@@ -26,86 +142,28 @@ defmodule Axon.Shape do
   the given parent shape, kernel shape, strides, padding,
   input dilation and kernel dilation.
   """
-  def conv_output(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
-    padding_config = padding_config(parent_shape, kernel_shape, padding, strides)
+  def conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+    permutation = [0, 1, 2, 3]
+    names = List.duplicate(nil, Nx.rank(parent_shape))
 
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: for(_ <- 1..(Nx.rank(parent_shape) - 2), do: kernel_dilation)
-
-    kernel_dilation_padding_config = [
-      {0, 0, 0},
-      {0, 0, 0} | Enum.map(kernel_dilation, &{0, 0, &1 - 1})
-    ]
-
-    dilated_kernel_shape = Nx.Shape.pad(kernel_shape, kernel_dilation_padding_config)
-
-    input_dilation =
-      if is_list(input_dilation),
-        do: input_dilation,
-        else: for(_ <- 1..(Nx.rank(parent_shape) - 2), do: input_dilation)
-
-    input_dilation_padding_config = [
-      {0, 0, 0},
-      {0, 0, 0} | Enum.map(input_dilation, &{0, 0, &1 - 1})
-    ]
-
-    dilated_input_shape = Nx.Shape.pad(parent_shape, input_dilation_padding_config)
-
-    nil_names = List.duplicate(nil, Nx.rank(parent_shape))
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
-    {shape, _} =
+    {shape, _, _} =
       Nx.Shape.conv(
-        dilated_input_shape,
-        nil_names,
-        dilated_kernel_shape,
-        nil_names,
+        parent_shape,
+        names,
+        kernel_shape,
+        names,
         strides,
+        padding,
         1,
-        padding_config
+        1,
+        input_dilation,
+        kernel_dilation,
+        permutation,
+        permutation,
+        permutation
       )
 
     shape
-  end
-
-  @doc """
-  Calculates the kernel shape for a convolution with
-  the given parent shape, kernel size, and output channels.
-  """
-  def conv_kernel(parent_shape, output_channels, kernel_size) when is_integer(kernel_size) do
-    kernel_size =
-      kernel_size
-      |> List.duplicate(Nx.rank(parent_shape) - 2)
-      |> List.to_tuple()
-
-    conv_kernel(parent_shape, output_channels, kernel_size)
-  end
-
-  def conv_kernel(parent_shape, output_channels, kernel_size)
-      when is_tuple(parent_shape) and is_integer(output_channels) and is_tuple(kernel_size) do
-    unless Nx.rank(kernel_size) == Nx.rank(parent_shape) - 2 do
-      raise ArgumentError,
-            "expected kernel size to match the number of spatial dimensions" <>
-              " in input, got #{inspect(kernel_size)} and #{inspect(parent_shape)}"
-    end
-
-    # TODO: Conv dimension numbers
-    ([output_channels, elem(parent_shape, 1)] ++ Tuple.to_list(kernel_size)) |> List.to_tuple()
-  end
-
-  @doc """
-  Calculates the bias shape for a convolution with
-  the given parent shape and output channels.
-  """
-  def conv_bias(parent_shape, output_channels) do
-    spatial_dims = List.duplicate(1, Nx.rank(parent_shape) - 2)
-    List.to_tuple([1, output_channels | spatial_dims])
   end
 
   @doc """
@@ -135,6 +193,45 @@ defmodule Axon.Shape do
     shape = Nx.Shape.window(padded_input_shape, kernel_shape, strides)
 
     shape
+  end
+
+  @doc """
+  Calculates the shape after a flatten layer, which
+  flattens the non-minibatch dimensions into a single
+  dimension.
+
+  ## Examples
+
+      iex> Axon.Shape.flatten({nil, 1, 28, 28})
+      {nil, 784}
+
+      iex> Axon.Shape.flatten({nil, 128})
+      {nil, 128}
+
+      iex> Axon.Shape.flatten({nil, 10, 10})
+      {nil, 100}
+
+  ### Error cases
+
+      iex> Axon.Shape.flatten({nil})
+      ** (ArgumentError) expected flatten input shape to have at least rank 2, got {nil} with rank 1
+  """
+  def flatten(shape) do
+    unless Nx.rank(shape) >= 2 do
+      raise ArgumentError,
+            "expected flatten input shape to have at least" <>
+              " rank 2, got #{inspect(shape)} with rank #{Nx.rank(shape)}"
+    end
+
+    # Account for possibly `nil` batch dimension
+    out_units =
+      if elem(shape, 0) do
+        div(Nx.size(shape), elem(shape, 0))
+      else
+        Nx.size(Tuple.delete_at(shape, 0))
+      end
+
+    {elem(shape, 0), out_units}
   end
 
   ## Helpers

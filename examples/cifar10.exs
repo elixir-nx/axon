@@ -3,7 +3,7 @@ defmodule CIFAR do
 
   @default_defn_compiler {EXLA, run_options: [keep_on_device: true]}
 
-  model do
+  def model do
     input({32, 3, 32, 32})
     |> conv(32, kernel_size: {3, 3}, activation: :relu)
     |> max_pool(kernel_size: {2, 2})
@@ -15,13 +15,15 @@ defmodule CIFAR do
     |> dense(10, activation: :log_softmax)
   end
 
+  defn init, do: Axon.init(model())
+
   defn accuracy({_, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
-    preds = predict(params, batch_images)
+    preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
   end
 
-  defn loss({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}, batch_images, batch_labels) do
-    preds = predict({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}, batch_images)
+  defn loss({_, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+    preds = Axon.predict(model(), params, batch_images)
     -Nx.sum(Nx.mean(preds * batch_labels, axes: [-1]))
   end
 
@@ -234,7 +236,7 @@ end
 {train_images, train_labels} = CIFAR.download('cifar-10-binary.tar.gz')
 
 IO.puts("Initializing parameters...\n")
-params = CIFAR.init_random_params()
+params = CIFAR.init()
 
 IO.puts("Training CIFAR for 10 epochs...\n\n")
 

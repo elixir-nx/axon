@@ -3,7 +3,7 @@ defmodule MNISTGAN do
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
-  model generator do
+  def generator do
     input({nil, 100})
     |> dense(256, activation: :tanh)
     |> dense(512, activation: :tanh)
@@ -11,7 +11,9 @@ defmodule MNISTGAN do
     |> dense(784, activation: :tanh)
   end
 
-  model discriminator do
+  defn init_generator, do: Axon.init(generator())
+
+  def discriminator do
     input({nil, 28, 28})
     |> flatten()
     |> dense(512, activation: :tanh)
@@ -19,12 +21,14 @@ defmodule MNISTGAN do
     |> dense(2, activation: :log_softmax)
   end
 
+  defn init_discriminator, do: Axon.init(discriminator())
+
   defn cross_entropy_loss(y_true, y_false) do
     -Nx.mean(Nx.sum(y_true * y_false, axes: [-1]))
   end
 
   defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
-    preds = discriminator(d_params, images)
+    preds = Axon.predict(discriminator(), d_params, images)
     cross_entropy_loss(preds, targets)
   end
 
@@ -43,7 +47,7 @@ defmodule MNISTGAN do
 
   defn g_loss({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
     valid = Nx.iota({32, 2}, axis: 1)
-    g_preds = generator(g_params, latent)
+    g_preds = Axon.predict(generator(), g_params, latent)
     d_loss(d_params, g_preds, valid)
   end
 
@@ -69,8 +73,7 @@ defmodule MNISTGAN do
     latent = Nx.random_normal({32, 100})
 
     fake_images =
-      g_params
-      |> generator(latent)
+      Axon.predict(generator(), g_params, latent)
       |> Nx.reshape({32, 28, 28})
 
     new_d_params =
@@ -95,7 +98,7 @@ defmodule MNISTGAN do
 
         if rem(i, 50) == 0 do
           latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap generator(g_params, latent) |> Nx.reshape({1, 28, 28})
+          IO.inspect Nx.to_heatmap Axon.predict(generator(), g_params, latent) |> Nx.reshape({1, 28, 28})
         end
 
         {new_g, new_d}
