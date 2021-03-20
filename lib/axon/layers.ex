@@ -635,9 +635,17 @@ defmodule Axon.Layers do
   this implementation is stateless.
   """
   @doc type: :normalization
-  defn batch_norm(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5)
-    scale_and_shift(input, mean, variance, gamma, bias, opts)
+  defn batch_norm(input, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+    axes = transform({Nx.axes(input), opts[:channel_index]},
+      fn {axes, idx} ->
+        Enum.filter(axes, & &1 != idx)
+      end)
+    mean = Nx.mean(input, axes: axes, keep_axes: true)
+    mean_of_squares = Nx.mean(input * input, axes: axes, keep_axes: true)
+    var = mean_of_squares - (mean * mean)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   @doc ~S"""

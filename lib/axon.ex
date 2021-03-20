@@ -432,6 +432,40 @@ defmodule Axon do
     end
   end
 
+  ## Normalization
+
+  @doc """
+  Adds a batch normalization layer to the network.
+
+  ## Options
+
+    * `:name` - Layer name.
+  """
+  def batch_norm(%Axon{output_shape: shape} = x, opts \\ []) do
+    {id, name} = unique_identifiers(:batch_norm, opts[:name])
+
+    gamma_shape = Axon.Shape.batch_norm_param(shape, 1)
+    beta_shape = Axon.Shape.batch_norm_param(shape, 1)
+
+    gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
+    beta = param(name <> "_beta", beta_shape, :glorot_uniform)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: shape,
+      parent: x,
+      op: :batch_norm,
+      params: [beta, gamma],
+      opts: [
+        epsilon: 1.0e-5,
+        channel_index: 1
+      ]
+    }
+
+    node
+  end
+
   @doc """
   Applies the given `Nx` expression to the input.
 

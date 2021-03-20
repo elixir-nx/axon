@@ -11,30 +11,32 @@ defmodule MNIST do
     input({nil, 784})
     |> dense(128)
     |> nx(&mish/1)
-    |> nx(fn x -> x end)
+    |> batch_norm()
     |> dense(10, activation: :log_softmax)
   end
 
   defn init, do: Axon.init(model())
 
-  defn loss({w1, b1, w2, b2}, batch_images, batch_labels) do
-    preds = Axon.predict(model(), {w1, b1, w2, b2}, batch_images)
+  defn loss({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels) do
+    preds = Axon.predict(model(), {w1, b1, w2, b2, w3, b3}, batch_images)
     -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
   end
 
-  defn update({w1, b1, w2, b2}, batch_images, batch_labels, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2} =
-      grad({w1, b1, w2, b2}, &loss(&1, batch_images, batch_labels))
+  defn update({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels, step) do
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3} =
+      grad({w1, b1, w2, b2, w3, b3}, &loss(&1, batch_images, batch_labels))
 
     {
       w1 + Axon.Updates.scale(grad_w1, -step),
       b1 + Axon.Updates.scale(grad_b1, -step),
       w2 + Axon.Updates.scale(grad_w2, -step),
-      b2 + Axon.Updates.scale(grad_b2, -step)
+      b2 + Axon.Updates.scale(grad_b2, -step),
+      w3 + Axon.Updates.scale(grad_w3, -step),
+      b3 + Axon.Updates.scale(grad_b3, -step)
     }
   end
 
-  defn update_with_averages({_, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
+  defn update_with_averages({_, _, _, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
     batch_loss = loss(cur_params, imgs, tar)
     batch_accuracy = Axon.Metrics.accuracy(tar, Axon.predict(model(), cur_params, imgs))
     avg_loss = avg_loss + batch_loss / total

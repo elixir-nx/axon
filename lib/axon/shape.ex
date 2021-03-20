@@ -316,6 +316,18 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the gamma/beta shape of a batch norm layer
+  given the input shape and channel index.
+  """
+  def batch_norm_param(parent_shape, channel_index) do
+    parent_shape
+    |> Tuple.to_list()
+    |> Enum.with_index()
+    |> Enum.map(fn {x, i} -> if i == channel_index, do: x, else: 1 end)
+    |> List.to_tuple()
+  end
+
+  @doc """
   Calculates the shape after a flatten layer, which
   flattens the non-minibatch dimensions into a single
   dimension.

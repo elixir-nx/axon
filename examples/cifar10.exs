@@ -5,11 +5,14 @@ defmodule CIFAR do
 
   def model do
     input({32, 3, 32, 32})
-    |> depthwise_conv(3, kernel_size: {3, 3}, activation: :relu)
+    |> conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> batch_norm()
     |> flatten()
     |> dense(64, activation: :relu)
     |> dense(10, activation: :log_softmax)
@@ -17,23 +20,23 @@ defmodule CIFAR do
 
   defn init, do: Axon.init(model())
 
-  defn accuracy({_, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
   end
 
-  defn loss({_, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     -Nx.sum(Nx.mean(preds * batch_labels, axes: [-1]))
   end
 
   defn update(
-         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5} = params,
+         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7, w8, b8} = params,
          batch_images,
          batch_labels,
          step
        ) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5} =
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7, grad_w8, grad_b8} =
       grad(params, &loss(&1, batch_images, batch_labels))
 
     {
@@ -46,12 +49,18 @@ defmodule CIFAR do
       w4 - grad_w4 * step,
       b4 - grad_b4 * step,
       w5 - grad_w5 * step,
-      b5 - grad_b5 * step
+      b5 - grad_b5 * step,
+      w6 - grad_w6 * step,
+      b6 - grad_b6 * step,
+      w7 - grad_w7 * step,
+      b7 - grad_b7 * step,
+      w8 - grad_w8 * step,
+      b8 - grad_b8 * step
     }
   end
 
   defn update_with_averages(
-         {_, _, _, _, _, _, _, _, _, _} = cur_params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
          imgs,
          tar,
          avg_loss,

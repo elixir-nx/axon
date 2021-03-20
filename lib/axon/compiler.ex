@@ -38,7 +38,7 @@ defmodule Axon.Compiler do
       {
         Map.put(
           names_and_exprs,
-          "#{counter}_" <> name,
+          "#{counter_to_name(counter)}_" <> name,
           apply(Axon.Initializers, initializer, [[shape: shape]])
         ),
         counter + 1
@@ -57,7 +57,7 @@ defmodule Axon.Compiler do
         {
           Map.put(
             names_and_exprs,
-            "#{counter}_" <> name,
+            "#{counter_to_name(counter)}_" <> name,
             apply(Axon.Initializers, initializer, [[shape: shape]])
           ),
           counter + 1
@@ -134,6 +134,11 @@ defmodule Axon.Compiler do
     apply(Axon.Layers, op, [expr, w, b, opts])
   end
 
+  defp to_predict_expr(%Axon{op: :batch_norm, parent: parent, opts: opts}, [b, w | params], input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :batch_norm, [expr, w, b, opts])
+  end
+
   defp to_predict_expr(%Axon{op: :nx, parent: parent, opts: [fun: fun]}, params, input) do
     expr = to_predict_expr(parent, params, input)
     fun.(expr)
@@ -147,4 +152,12 @@ defmodule Axon.Compiler do
   defp to_predict_expr(%Axon{op: :input, parent: nil}, _params, input) do
     input
   end
+
+  ## Helpers
+
+  defp counter_to_name(counter) when counter >= 26 do
+    [counter_to_name(div(counter, 26)) | counter_to_name(rem(counter, 26))]
+  end
+
+  defp counter_to_name(counter), do: [Enum.at(?a..?z, counter)]
 end
