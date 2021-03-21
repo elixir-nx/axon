@@ -330,8 +330,8 @@ defmodule Axon do
 
     k1_shape = Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
     k2_shape = Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
-    b1_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size, 1)
-    b2_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size, 2)
+    b1_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size)
+    b2_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size)
 
     output_shape =
       Axon.Shape.separable_conv2d(
@@ -355,6 +355,90 @@ defmodule Axon do
       parent: x,
       op: :separable_conv2d,
       params: [b1, k1, b2, k2],
+      opts: [
+        strides: strides,
+        padding: padding,
+        input_dilation: input_dilation,
+        kernel_dilation: kernel_dilation
+      ]
+    }
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
+  Adds a depthwise separable 3-dimensional convolution to the
+  network.
+  """
+  def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ []) do
+    {id, name} = unique_identifiers(:separable_conv3d, opts[:name])
+
+    kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    bias_init = opts[:bias_initializer] || :zeros
+    activation = opts[:activation]
+
+    kernel_size = opts[:kernel_size] || 1
+    strides = opts[:strides] || 1
+    padding = opts[:padding] || :valid
+    input_dilation = opts[:input_dilation] || 1
+    kernel_dilation = opts[:kernel_dilation] || 1
+
+    kernel_size =
+      if is_tuple(kernel_size),
+        do: kernel_size,
+        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+
+    strides =
+      if is_list(strides),
+        do: strides,
+        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
+
+    input_dilation =
+      if is_list(input_dilation),
+        do: input_dilation,
+        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+
+    k1_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
+    k2_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
+    k3_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 3)
+    b1_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
+    b2_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
+    b3_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
+
+    output_shape =
+      Axon.Shape.separable_conv3d(
+        parent_shape,
+        Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size),
+        strides,
+        padding,
+        input_dilation,
+        kernel_dilation
+      )
+
+    k1 = param(name <> "_kernel_1", k1_shape, kernel_init)
+    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
+    k3 = param(name <> "_kernel_3", k3_shape, kernel_init)
+    b1 = param(name <> "_bias_1", b1_shape, bias_init)
+    b2 = param(name <> "_bias_2", b2_shape, bias_init)
+    b3 = param(name <> "_bias_3", b3_shape, bias_init)
+
+    node = %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: x,
+      op: :separable_conv3d,
+      params: [b1, k1, b2, k2, b3, k3],
       opts: [
         strides: strides,
         padding: padding,

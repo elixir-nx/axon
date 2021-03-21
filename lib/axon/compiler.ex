@@ -139,6 +139,11 @@ defmodule Axon.Compiler do
     apply(Axon.Layers, :separable_conv2d, [expr, w1, b1, w2, b2, opts])
   end
 
+  defp to_predict_expr(%Axon{op: :separable_conv3d, parent: parent, opts: opts}, [b1, w1, b2, w2, b3, w3 | params], input) do
+    expr = to_predict_expr(parent, params, input)
+    apply(Axon.Layers, :separable_conv3d, [expr, w1, b1, w2, b2, w3, b3, opts])
+  end
+
   ## Normalization Layers
 
   @normalization_layers [:batch_norm, :layer_norm, :group_norm]

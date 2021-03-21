@@ -282,7 +282,7 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Calculates the shape of a depthwise separable convolution
+  Calculates the shape of a 2d depthwise separable convolution
   kernel.
   """
   def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num) do
@@ -304,7 +304,58 @@ defmodule Axon.Shape do
   Calculates the shape of a depthwise separable convolution
   bias.
   """
-  def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size, num) do
+  def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+
+    {1, elem(input_shape, 1) * channel_multiplier, 1, 1}
+  end
+
+  @doc """
+  Calculates the shape after a depthwise separable convolution.
+  """
+  def separable_conv2d(input_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+    permutation = [0, 1, 2, 3]
+    names = List.duplicate(nil, Nx.rank(input_shape))
+
+    # Account for possibly nil batch dimension
+    input_shape =
+      if elem(input_shape, 0) do
+        input_shape
+      else
+        put_elem(input_shape, 0, 1)
+      end
+
+    input_channels = elem(input_shape, 1)
+
+    {shape, _, _} =
+      Nx.Shape.conv(
+        input_shape,
+        names,
+        kernel_shape,
+        names,
+        strides,
+        padding,
+        input_channels,
+        1,
+        input_dilation,
+        kernel_dilation,
+        permutation,
+        permutation,
+        permutation
+      )
+
+    shape
+  end
+
+  @doc """
+  Calculates the shape of a 3-d depthwise separable convolution
+  kernel.
+  """
+  def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
@@ -313,16 +364,32 @@ defmodule Axon.Shape do
 
     cond do
       num == 1 ->
-        {1, elem(input_shape, 1) * channel_multiplier, 1, 1}
+        {elem(input_shape, 1) * channel_multiplier, 1, elem(kernel_size, 0), 1, 1}
       num == 2 ->
-        {1, elem(input_shape, 1) * channel_multiplier, 1, 1}
+        {elem(input_shape, 1) * channel_multiplier, 1, 1, elem(kernel_size, 1), 1}
+      num == 3 ->
+        {elem(input_shape, 1) * channel_multiplier, 1, 1, 1, 1, elem(kernel_size, 2)}
     end
+  end
+
+  @doc """
+  Calculates the shape of a depthwise separable convolution
+  bias.
+  """
+  def separable_conv3d_bias(input_shape, channel_multiplier, kernel_size) do
+    unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
+              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
+    end
+
+    {1, elem(input_shape, 1) * channel_multiplier, 1, 1, 1}
   end
 
   @doc """
   Calculates the shape after a depthwise separable convolution.
   """
-  def separable_conv2d(input_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+  def separable_conv3d(input_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
     permutation = [0, 1, 2, 3]
     names = List.duplicate(nil, Nx.rank(input_shape))
 
