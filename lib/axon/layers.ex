@@ -343,96 +343,38 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Functional implementation of a 1-dimensional depthwise convolution.
+  Functional implementation of a general dimensional depthwise convolution.
 
   A depthwise convolution is essentially just a grouped convolution
   where the number of groups is equal to the number of input channels.
   """
   @doc type: :convolutional
-  defn depthwise_conv1d(input, weight, bias, opts \\ []) do
+  defn depthwise_conv(input, weight, bias, opts \\ []) do
     assert_equal_rank!(input, weight)
 
     opts =
       keyword!(opts,
-        strides: [1],
+        strides: 1,
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1
       )
 
-    num_groups = transform(Nx.shape(input), fn {_, channels, _} -> channels end)
+    strides =
+      transform(
+        {Nx.rank(input), opts[:strides]},
+        fn
+          {_, [_ | _] = strides} -> strides
+          {rank, strides} -> List.duplicate(strides, rank - 2)
+        end
+      )
 
+    num_groups = transform(Nx.shape(input), &elem(&1, 1))
     bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
 
     input
     |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: num_groups
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 2-dimensional depthwise convolution.
-
-  A depthwise convolution is essentially just a grouped convolution
-  where the number of groups is equal to the number of input channels.
-  """
-  @doc type: :convolutional
-  defn depthwise_conv2d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    num_groups = transform(Nx.shape(input), fn {_, channels, _, _} -> channels end)
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 2))
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
-      padding: opts[:padding],
-      input_dilation: opts[:input_dilation],
-      kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: num_groups
-    )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
-  end
-
-  @doc """
-  Functional implementation of a 3-dimensional depthwise convolution.
-
-  A depthwise convolution is essentially just a grouped convolution
-  where the number of groups is equal to the number of input channels.
-  """
-  @doc type: :convolutional
-  defn depthwise_conv3d(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
-
-    opts =
-      keyword!(opts,
-        strides: [1],
-        padding: :valid,
-        input_dilation: 1,
-        kernel_dilation: 1
-      )
-
-    num_groups = transform(Nx.shape(input), fn {_, channels, _, _, _} -> channels end)
-
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 3))
-
-    input
-    |> Nx.conv(weight,
-      strides: opts[:strides],
+      strides: strides,
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
@@ -446,22 +388,22 @@ defmodule Axon.Layers do
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
+  defn separable_conv2d(input, k1, b1, k2, b2, opts \\ []) do
     input
-    |> depthwise_conv2d(k1, b1, opts)
-    |> depthwise_conv2d(k2, b2, opts)
+    |> depthwise_conv(k1, b1, opts)
+    |> depthwise_conv(k2, b2, opts)
   end
 
   @doc """
-  Functional implementation of a 2-dimensional separable depthwise
+  Functional implementation of a 3-dimensional separable depthwise
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
+  defn separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ []) do
     input
-    |> depthwise_conv3d(k1, b1, opts)
-    |> depthwise_conv3d(k2, b2, opts)
-    |> depthwise_conv3d(k3, b3, opts)
+    |> depthwise_conv(k1, b1, opts)
+    |> depthwise_conv(k2, b2, opts)
+    |> depthwise_conv(k3, b3, opts)
   end
 
   @doc """
@@ -693,9 +635,17 @@ defmodule Axon.Layers do
   this implementation is stateless.
   """
   @doc type: :normalization
-  defn batch_norm(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5)
-    scale_and_shift(input, mean, variance, gamma, bias, opts)
+  defn batch_norm(input, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+    axes = transform({Nx.axes(input), opts[:channel_index]},
+      fn {axes, idx} ->
+        Enum.filter(axes, & &1 != idx)
+      end)
+    mean = Nx.mean(input, axes: axes, keep_axes: true)
+    mean_of_squares = Nx.mean(input * input, axes: axes, keep_axes: true)
+    var = mean_of_squares - (mean * mean)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   @doc ~S"""
@@ -705,14 +655,13 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input)))
-
-    mean = Nx.mean(input, axes: [-1], keep_axes: true)
-    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: [-1], keep_axes: true)
-    var = mean_of_squares - Nx.power(mean, 2)
-    mul = gamma * Nx.rsqrt(var + opts[:epsilon])
-
-    (input - mean) * mul + bias
+    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    axes = opts[:channel_index]
+    mean = Nx.mean(input, axes: [axes], keep_axes: true)
+    mean_of_squares = Nx.mean(input * input, axes: [axes], keep_axes: true)
+    var = mean_of_squares - (mean * mean)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   @doc """
@@ -720,18 +669,17 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, [:group_size, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input))])
+    opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
 
     group_shape =
       transform(
-        {Nx.shape(input), opts[:group_size]},
-        fn {shape, group_size} ->
-          channels = :erlang.element(shape, 2)
+        {Nx.shape(input), opts[:group_size], opts[:channel_index]},
+        fn {shape, group_size, channel_index} ->
+          channels = :erlang.element(channel_index + 1, shape)
           num_groups = div(channels, group_size)
-
-          Tuple.delete_at(shape, 1)
-          |> put_elem(1, num_groups)
-          |> Tuple.insert_at(2, group_size)
+          Tuple.delete_at(shape, channel_index)
+          |> Tuple.insert_at(channel_index, num_groups)
+          |> Tuple.insert_at(channel_index + 1, group_size)
         end
       )
 
@@ -740,8 +688,8 @@ defmodule Axon.Layers do
     reduction_axes =
       transform(Nx.rank(x), fn rank -> for(i <- 1..(rank - 2), do: i) ++ [rank - 1] end)
 
-    mean = Nx.mean(x, axes: reduction_axes, keep_dims: true)
-    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_dims: true)
+    mean = Nx.mean(x, axes: reduction_axes, keep_axes: true)
+    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_axes: true)
     var = mean_of_squares - Nx.power(mean, 2)
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
 
@@ -752,19 +700,22 @@ defmodule Axon.Layers do
   Functional implementation of instance normalization.
   """
   @doc type: :normalization
-  defn instance_norm(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6)
-
-    scale =
-      variance
-      |> Nx.add(opts[:epsilon])
-      |> Nx.rsqrt()
-      |> Nx.multiply(gamma)
-
-    input
-    |> Nx.subtract(mean)
-    |> Nx.multiply(scale)
-    |> Nx.add(bias)
+  defn instance_norm(input, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    axes = transform({Nx.axes(input), opts[:channel_index]},
+      fn {axes, channel_index} ->
+        reduction_axes = axes -- [0, channel_index]
+        if reduction_axes == [] do
+          raise ArgumentError, "rank of input shape must be at least 3"
+        else
+          reduction_axes
+        end
+      end)
+    mean = Nx.mean(input, axes: axes, keep_axes: true)
+    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: axes, keep_axes: true)
+    var = mean_of_squares - Nx.power(mean, 2)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   ## Stochastic
@@ -783,6 +734,12 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - opts[:rate]
     mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
+    mask = transform({mask, Nx.shape(input)},
+      fn {mask, input_shape} ->
+        if Nx.shape(mask) == input_shape,
+          do: mask,
+          else: Nx.broadcast(mask, input_shape)
+      end)
     Nx.select(mask, input / keep_prob, Nx.tensor(0, type: Nx.type(input)))
   end
 
@@ -795,8 +752,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
-
+    opts = keyword!(opts, rate: 0.5)
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
@@ -806,7 +762,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
+    opts = keyword!(opts, rate: 0.5)
     rate = opts[:rate]
 
     alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
@@ -828,10 +784,16 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, [rate: 0.5])
+    opts = keyword!(opts, rate: 0.5)
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
+    mask = transform({mask, Nx.shape(input)},
+      fn {mask, input_shape} ->
+        if Nx.shape(mask) == input_shape,
+          do: mask,
+          else: Nx.broadcast(mask, input_shape)
+      end)
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
   end
 
@@ -960,7 +922,7 @@ defmodule Axon.Layers do
   # according to:
   # stride = div(input, output)
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_strides({{input_shape, output_spatial}}, spatial_rank) do
+  defp adaptive_pool_window_strides({input_shape, output_spatial}, spatial_rank) do
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)
@@ -983,7 +945,6 @@ defmodule Axon.Layers do
 
     strides =
       output_spatial
-      |> Tuple.to_list()
       |> Enum.zip(input_spatial)
       |> Enum.map(fn {input, output} -> div(input, output) end)
 
@@ -994,7 +955,7 @@ defmodule Axon.Layers do
   # according to:
   # size = input_size - (output_size - 1) * stride
   # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_size({{input_shape, [_, _, stride], output_spatial}}, spatial_rank) do
+  defp adaptive_pool_window_size({input_shape, [_, _ | stride], output_spatial}, spatial_rank) do
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)

@@ -3,32 +3,42 @@ defmodule MNIST do
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
-  model do
-    input({32, 784})
+  defn mish(x) do
+    x * Nx.tanh(Axon.Activations.softplus(x))
+  end
+
+  def model do
+    input({nil, 784})
     |> dense(128, activation: :relu)
+    |> group_norm(32)
+    |> dropout()
     |> dense(10, activation: :log_softmax)
   end
 
-  defn loss({w1, b1, w2, b2}, batch_images, batch_labels) do
-    preds = predict({w1, b1, w2, b2}, batch_images)
+  defn init, do: Axon.init(model())
+
+  defn loss({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels) do
+    preds = Axon.predict(model(), {w1, b1, w2, b2, w3, b3}, batch_images)
     -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
   end
 
-  defn update({w1, b1, w2, b2}, batch_images, batch_labels, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2} =
-      grad({w1, b1, w2, b2}, &loss(&1, batch_images, batch_labels))
+  defn update({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels, step) do
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3} =
+      grad({w1, b1, w2, b2, w3, b3}, &loss(&1, batch_images, batch_labels))
 
     {
       w1 + Axon.Updates.scale(grad_w1, -step),
       b1 + Axon.Updates.scale(grad_b1, -step),
       w2 + Axon.Updates.scale(grad_w2, -step),
-      b2 + Axon.Updates.scale(grad_b2, -step)
+      b2 + Axon.Updates.scale(grad_b2, -step),
+      w3 + Axon.Updates.scale(grad_w3, -step),
+      b3 + Axon.Updates.scale(grad_b3, -step)
     }
   end
 
-  defn update_with_averages({_, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
+  defn update_with_averages({_, _, _, _, _, _} = cur_params, imgs, tar, avg_loss, avg_accuracy, total) do
     batch_loss = loss(cur_params, imgs, tar)
-    batch_accuracy = Axon.Metrics.accuracy(tar, predict(cur_params, imgs))
+    batch_accuracy = Axon.Metrics.accuracy(tar, Axon.predict(model(), cur_params, imgs))
     avg_loss = avg_loss + batch_loss / total
     avg_accuracy = avg_accuracy + batch_accuracy / total
     {update(cur_params, imgs, tar, 0.01), avg_loss, avg_accuracy}
@@ -95,8 +105,11 @@ defmodule MNIST do
     end)
   end
 
-  def train(imgs, labels, params, opts \\ []) do
+  def train(imgs, labels, opts \\ []) do
     epochs = opts[:epochs] || 5
+
+    IO.puts("Initializing parameters...\n")
+    params = init()
 
     for epoch <- 1..epochs, reduce: params do
       cur_params ->
@@ -125,10 +138,7 @@ end
 {train_images, train_labels} =
   MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
 
-IO.puts("Initializing parameters...\n")
-params = MNIST.init_random_params()
-
 IO.puts("Training MNIST for 10 epochs...\n\n")
-final_params = MNIST.train(train_images, train_labels, params, epochs: 10)
+final_params = MNIST.train(train_images, train_labels, epochs: 10)
 
 IO.inspect(Nx.backend_transfer(final_params))

@@ -3,15 +3,20 @@ defmodule MNISTGAN do
 
   @default_defn_compiler {EXLA, keep_on_device: true}
 
-  model generator do
+  def generator do
     input({nil, 100})
-    |> dense(256, activation: :tanh)
-    |> dense(512, activation: :tanh)
-    |> dense(1024, activation: :tanh)
+    |> dense(256, activation: :leaky_relu)
+    |> batch_norm()
+    |> dense(512, activation: :leaky_relu)
+    |> batch_norm()
+    |> dense(1024, activation: :leaky_relu)
+    |> batch_norm()
     |> dense(784, activation: :tanh)
   end
 
-  model discriminator do
+  defn init_generator, do: Axon.init(generator())
+
+  def discriminator do
     input({nil, 28, 28})
     |> flatten()
     |> dense(512, activation: :tanh)
@@ -19,12 +24,18 @@ defmodule MNISTGAN do
     |> dense(2, activation: :log_softmax)
   end
 
+  defn init_discriminator, do: Axon.init(discriminator())
+
+  defn generate({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, latent) do
+    Axon.predict(generator(), params, latent)
+  end
+
   defn cross_entropy_loss(y_true, y_false) do
     -Nx.mean(Nx.sum(y_true * y_false, axes: [-1]))
   end
 
   defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
-    preds = discriminator(d_params, images)
+    preds = Axon.predict(discriminator(), d_params, images)
     cross_entropy_loss(preds, targets)
   end
 
@@ -41,14 +52,14 @@ defmodule MNISTGAN do
     }
   end
 
-  defn g_loss({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
+  defn g_loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
     valid = Nx.iota({32, 2}, axis: 1)
-    g_preds = generator(g_params, latent)
+    g_preds = Axon.predict(generator(), g_params, latent)
     d_loss(d_params, g_preds, valid)
   end
 
-  defn update_g({w1, b1, w2, b2, w3, b3, w4, b4} = g_params, {_, _, _, _, _, _} = d_params, latent, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4} =
+  defn update_g({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7} = g_params, {_, _, _, _, _, _} = d_params, latent, step) do
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7} =
       grad(g_params, &g_loss(&1, d_params, latent))
 
     {
@@ -59,18 +70,23 @@ defmodule MNISTGAN do
       w3 - grad_w3 * step,
       b3 - grad_b3 * step,
       w4 - grad_w4 * step,
-      b4 - grad_b4 * step
+      b4 - grad_b4 * step,
+      w5 - grad_w5 * step,
+      b5 - grad_b5 * step,
+      w6 - grad_w6 * step,
+      b6 - grad_b6 * step,
+      w7 - grad_w7 * step,
+      b7 - grad_b7 * step
     }
   end
 
-  defn update({_, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
+  defn update({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
     valid = Nx.iota({32, 2}, axis: 1)
     fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
     latent = Nx.random_normal({32, 100})
 
     fake_images =
-      g_params
-      |> generator(latent)
+      Axon.predict(generator(), g_params, latent)
       |> Nx.reshape({32, 28, 28})
 
     new_d_params =
@@ -95,7 +111,7 @@ defmodule MNISTGAN do
 
         if rem(i, 50) == 0 do
           latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap generator(g_params, latent) |> Nx.reshape({1, 28, 28})
+          IO.inspect Nx.to_heatmap generate(g_params, latent) |> Nx.reshape({1, 28, 28})
         end
 
         {new_g, new_d}

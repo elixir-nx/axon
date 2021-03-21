@@ -3,35 +3,42 @@ defmodule CIFAR do
 
   @default_defn_compiler {EXLA, run_options: [keep_on_device: true]}
 
-  model do
+  def model do
     input({32, 3, 32, 32})
     |> conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> instance_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> spatial_dropout()
+    |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> batch_norm()
     |> flatten()
     |> dense(64, activation: :relu)
+    |> dropout()
     |> dense(10, activation: :log_softmax)
   end
 
-  defn accuracy({_, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
-    preds = predict(params, batch_images)
+  defn init, do: Axon.init(model())
+
+  defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+    preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
   end
 
-  defn loss({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}, batch_images, batch_labels) do
-    preds = predict({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5}, batch_images)
+  defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+    preds = Axon.predict(model(), params, batch_images)
     -Nx.sum(Nx.mean(preds * batch_labels, axes: [-1]))
   end
 
   defn update(
-         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5} = params,
+         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7, w8, b8, w9, b9} = params,
          batch_images,
          batch_labels,
          step
        ) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5} =
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7, grad_w8, grad_b8, grad_w9, grad_b9} =
       grad(params, &loss(&1, batch_images, batch_labels))
 
     {
@@ -44,12 +51,20 @@ defmodule CIFAR do
       w4 - grad_w4 * step,
       b4 - grad_b4 * step,
       w5 - grad_w5 * step,
-      b5 - grad_b5 * step
+      b5 - grad_b5 * step,
+      w6 - grad_w6 * step,
+      b6 - grad_b6 * step,
+      w7 - grad_w7 * step,
+      b7 - grad_b7 * step,
+      w8 - grad_w8 * step,
+      b8 - grad_b8 * step,
+      w9 - grad_w9 * step,
+      b9 - grad_b9 * step
     }
   end
 
   defn update_with_averages(
-         {_, _, _, _, _, _, _, _, _, _} = cur_params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
          imgs,
          tar,
          avg_loss,
@@ -234,12 +249,12 @@ end
 {train_images, train_labels} = CIFAR.download('cifar-10-binary.tar.gz')
 
 IO.puts("Initializing parameters...\n")
-params = CIFAR.init_random_params()
+params = CIFAR.init()
 
 IO.puts("Training CIFAR for 10 epochs...\n\n")
 
 final_params =
-  CIFAR.train(train_images, train_labels, params, epochs: 10)
+  CIFAR.train(train_images, train_labels, params, epochs: 20)
 
 IO.puts("Bring the parameters back from the device and print them")
 final_params = Nx.backend_transfer(final_params)

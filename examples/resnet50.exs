@@ -1,21 +1,23 @@
-defmodule Helpers do
-  import Axon
+
+defmodule ResNet50 do
+  use Axon
+
   def conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
     shortcut =
       x
       |> conv(f3, kernel_size: kernel_size, strides: strides)
-      # |> batch_norm()
+      |> batch_norm()
 
     main =
       x
       |> conv(f1, kernel_size: {1, 1}, strides: strides)
-      # |> batch_norm()
+      |> batch_norm()
       |> relu()
       |> conv(f2, kernel_size: kernel_size, strides: strides, padding: :same)
-      # |> batch_norm()
+      |> batch_norm()
       |> relu()
       |> conv(f3, kernel_size: {1, 1})
-      # |> batch_norm()
+      |> batch_norm()
 
     shortcut
     |> add(main)
@@ -25,29 +27,24 @@ defmodule Helpers do
   def identity_block(%Axon{output_shape: shape} = x, kernel_size, [f1, f2]) do
     x
     |> conv(f1, kernel_size: {1, 1})
-    # |> batch_norm()
+    |> batch_norm()
     |> relu()
     |> conv(f2, kernel_size: kernel_size, padding: :same)
-    # |> batch_norm()
+    |> batch_norm()
     |> relu()
     |> conv(elem(shape, 1), kernel_size: {1, 1})
-    # |> batch_norm()
+    |> batch_norm()
     |> add(x)
     |> relu()
   end
-end
 
-defmodule ResNet50 do
-  use Axon
-  import Helpers
-
-  model do
+  def resnet do
     x = input({8, 3, 224, 224})
 
     stage1 =
       x
       |> conv(64, kernel_size: {7, 7}, strides: [2, 2], padding: :same)
-      # |> batch_norm()
+      |> batch_norm()
       |> relu()
       |> max_pool(kernel_size: {3, 3}, strides: [2, 2])
 
@@ -85,3 +82,5 @@ defmodule ResNet50 do
     log_softmax(stage5)
   end
 end
+
+IO.inspect ResNet50.resnet()
