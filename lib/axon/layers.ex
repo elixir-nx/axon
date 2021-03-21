@@ -700,19 +700,22 @@ defmodule Axon.Layers do
   Functional implementation of instance normalization.
   """
   @doc type: :normalization
-  defn instance_norm(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6)
-
-    scale =
-      variance
-      |> Nx.add(opts[:epsilon])
-      |> Nx.rsqrt()
-      |> Nx.multiply(gamma)
-
-    input
-    |> Nx.subtract(mean)
-    |> Nx.multiply(scale)
-    |> Nx.add(bias)
+  defn instance_norm(input, gamma, bias, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    axes = transform({Nx.axes(input), opts[:channel_index]},
+      fn {axes, channel_index} ->
+        reduction_axes = axes -- [0, channel_index]
+        if reduction_axes == [] do
+          raise ArgumentError, "rank of input shape must be at least 3"
+        else
+          reduction_axes
+        end
+      end)
+    mean = Nx.mean(input, axes: axes, keep_axes: true)
+    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: axes, keep_axes: true)
+    var = mean_of_squares - Nx.power(mean, 2)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   ## Stochastic

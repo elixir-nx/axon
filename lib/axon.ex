@@ -598,88 +598,40 @@ defmodule Axon do
 
   ## Normalization
 
-  @doc """
-  Adds a batch normalization layer to the network.
+  @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
 
-  ## Options
+  for op <- @normalization_layers do
+    def unquote(op)(%Axon{output_shape: shape} = x, opts \\ []) do
+      {id, name} = unique_identifiers(unquote(op), opts[:name])
 
-    * `:name` - Layer name.
-    * `:channel_index` - Feature index to normalize
-    * `:epsilon` - Avoids division by zero in normalization.
-  """
-  def batch_norm(%Axon{output_shape: shape} = x, opts \\ []) do
-    {id, name} = unique_identifiers(:batch_norm, opts[:name])
+      channel_index = opts[:channel_index] || 1
+      epsilon = opts[:epsilon] || 1.0e-5
 
-    channel_index = opts[:channel_index] || 1
-    epsilon = opts[:epsilon] || 1.0e-5
+      gamma_shape = Axon.Shape.norm_param(shape, channel_index)
+      beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
-    beta_shape = Axon.Shape.norm_param(shape, channel_index)
+      gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
+      beta = param(name <> "_beta", beta_shape, :glorot_uniform)
 
-    gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
-    beta = param(name <> "_beta", beta_shape, :glorot_uniform)
+      node = %Axon{
+        id: id,
+        name: name,
+        output_shape: shape,
+        parent: x,
+        op: unquote(op),
+        params: [beta, gamma],
+        opts: [
+          epsilon: epsilon,
+          channel_index: channel_index
+        ]
+      }
 
-    node = %Axon{
-      id: id,
-      name: name,
-      output_shape: shape,
-      parent: x,
-      op: :batch_norm,
-      params: [beta, gamma],
-      opts: [
-        epsilon: epsilon,
-        channel_index: channel_index
-      ]
-    }
-
-    node
-  end
-
-  @doc """
-  Adds a layer normalization layer to the network.
-
-  ## Options
-
-    * `:name` - Layer name.
-    * `:channel_index` - Feature index to normalize.
-    * `:epsilon` - Avoids division by zero in normalization.
-  """
-  def layer_norm(%Axon{output_shape: shape} = x, opts \\ []) do
-    {id, name} = unique_identifiers(:layer_norm, opts[:name])
-
-    channel_index = opts[:channel_index] || 1
-    epsilon = opts[:epsilon] || 1.0e-5
-
-    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
-    beta_shape = Axon.Shape.norm_param(shape, channel_index)
-
-    gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
-    beta = param(name <> "_beta", beta_shape, :glorot_uniform)
-
-    node = %Axon{
-      id: id,
-      name: name,
-      output_shape: shape,
-      parent: x,
-      op: :layer_norm,
-      params: [beta, gamma],
-      opts: [
-        epsilon: epsilon,
-        channel_index: channel_index
-      ]
-    }
-
-    node
+      node
+    end
   end
 
   @doc """
   Adds a group normalization layer to the network.
-
-  ## Options
-
-    * `:name` - Layer name.
-    * `:channel_index` - Feature index to normalize.
-    * `:epsilon` - Avoids divison by zero in normalization.
   """
   def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ []) do
     {id, name} = unique_identifiers(:group_norm, opts[:name])
@@ -701,9 +653,9 @@ defmodule Axon do
       op: :group_norm,
       params: [beta, gamma],
       opts: [
-        group_size: group_size,
         epsilon: epsilon,
-        channel_index: channel_index
+        channel_index: channel_index,
+        group_size: group_size
       ]
     }
 

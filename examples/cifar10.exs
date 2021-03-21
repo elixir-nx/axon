@@ -5,8 +5,8 @@ defmodule CIFAR do
 
   def model do
     input({32, 3, 32, 32})
-    |> separable_conv2d(3, kernel_size: {3, 3}, activation: :relu)
-    |> batch_norm()
+    |> conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> instance_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
     |> spatial_dropout()
