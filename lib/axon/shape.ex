@@ -184,10 +184,10 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 224, 224}, 3, {3, 3})
-      {9, 3, 3, 3}
+      {9, 1, 3, 3}
 
       iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 28}, 2, {2})
-      {6, 3, 2}
+      {6, 1, 2}
 
       iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
       {1, 1, 2, 1, 3}
@@ -237,6 +237,7 @@ defmodule Axon.Shape do
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
+
     input_channels = elem(input_shape, 1)
     spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
     List.to_tuple([1, input_channels * channel_multiplier | spatial_dims])
@@ -247,7 +248,14 @@ defmodule Axon.Shape do
   the given parent shape, kernel shape, strides, padding, input
   dilation, and kernel dilation.
   """
-  def depthwise_conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+  def depthwise_conv(
+        parent_shape,
+        kernel_shape,
+        strides,
+        padding,
+        input_dilation,
+        kernel_dilation
+      ) do
     permutation = [0, 1, 2, 3]
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
@@ -283,7 +291,24 @@ defmodule Axon.Shape do
 
   @doc """
   Calculates the shape of a 2d depthwise separable convolution
-  kernel.
+  kernel given the input shape, channel multiplier, kernel size
+  and parameter number.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 1)
+      {9, 1, 3, 1}
+
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 2)
+      {9, 1, 1, 3}
+
+  ### Error cases
+
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1)
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
   def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
@@ -295,14 +320,34 @@ defmodule Axon.Shape do
     cond do
       num == 1 ->
         {elem(input_shape, 1) * channel_multiplier, 1, elem(kernel_size, 0), 1}
+
       num == 2 ->
         {elem(input_shape, 1) * channel_multiplier, 1, 1, elem(kernel_size, 1)}
+
+      true ->
+        raise ArgumentError, "invalid kernel number"
     end
   end
 
   @doc """
   Calculates the shape of a depthwise separable convolution
-  bias.
+  bias given the input shape, channel multiplier and kernel size.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3})
+      {1, 9, 1, 1}
+
+      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3})
+      {1, 12, 1, 1}
+
+  ### Error cases
+
+      iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28}, 2, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
   def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
@@ -315,45 +360,28 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Calculates the shape after a depthwise separable convolution.
-  """
-  def separable_conv2d(input_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
-    permutation = [0, 1, 2, 3]
-    names = List.duplicate(nil, Nx.rank(input_shape))
-
-    # Account for possibly nil batch dimension
-    input_shape =
-      if elem(input_shape, 0) do
-        input_shape
-      else
-        put_elem(input_shape, 0, 1)
-      end
-
-    input_channels = elem(input_shape, 1)
-
-    {shape, _, _} =
-      Nx.Shape.conv(
-        input_shape,
-        names,
-        kernel_shape,
-        names,
-        strides,
-        padding,
-        input_channels,
-        1,
-        input_dilation,
-        kernel_dilation,
-        permutation,
-        permutation,
-        permutation
-      )
-
-    shape
-  end
-
-  @doc """
   Calculates the shape of a 3-d depthwise separable convolution
-  kernel.
+  kernel given the input shape, channel multiplier, kernel size,
+  and parameter number.
+
+  Kernel size must match the number of spatial dimensions
+  in the input (input rank - 2).
+
+  ## Examples
+
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 3, {3, 3, 3}, 1)
+      {9, 1, 3, 1, 1}
+
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 2)
+      {12, 1, 1, 3, 1}
+
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 3)
+      {12, 1, 1, 1, 3}
+
+  ### Error cases
+
+      iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28, 3}, 2, {2})
+      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (3)
   """
   def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
@@ -365,10 +393,12 @@ defmodule Axon.Shape do
     cond do
       num == 1 ->
         {elem(input_shape, 1) * channel_multiplier, 1, elem(kernel_size, 0), 1, 1}
+
       num == 2 ->
         {elem(input_shape, 1) * channel_multiplier, 1, 1, elem(kernel_size, 1), 1}
+
       num == 3 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, 1, 1, 1, elem(kernel_size, 2)}
+        {elem(input_shape, 1) * channel_multiplier, 1, 1, 1, elem(kernel_size, 2)}
     end
   end
 
@@ -387,49 +417,13 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Calculates the shape after a depthwise separable convolution.
-  """
-  def separable_conv3d(input_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
-    permutation = [0, 1, 2, 3]
-    names = List.duplicate(nil, Nx.rank(input_shape))
-
-    # Account for possibly nil batch dimension
-    input_shape =
-      if elem(input_shape, 0) do
-        input_shape
-      else
-        put_elem(input_shape, 0, 1)
-      end
-
-    input_channels = elem(input_shape, 1)
-
-    {shape, _, _} =
-      Nx.Shape.conv(
-        input_shape,
-        names,
-        kernel_shape,
-        names,
-        strides,
-        padding,
-        input_channels,
-        1,
-        input_dilation,
-        kernel_dilation,
-        permutation,
-        permutation,
-        permutation
-      )
-
-    shape
-  end
-
-  @doc """
   Calculates the output shape after a pooling operation
   with the given parent shape, kernel size, strides, and
   padding.
   """
   def pool(parent_shape, kernel_size, strides, padding) do
     kernel_dilation = List.duplicate(1, Nx.rank(parent_shape))
+
     kernel_size =
       kernel_size
       |> Tuple.insert_at(0, 1)
@@ -452,14 +446,50 @@ defmodule Axon.Shape do
   @doc """
   Calculates the output shape after an adaptive pooling operation
   with the given parent shape and output size.
+
+  ## Examples
+
+      iex> Axon.Shape.adaptive_pool({nil, 3, 32, 32}, {27, 27})
+      {nil, 3, 27, 27}
+
+      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {25, 25})
+      {nil, 1, 25, 25}
+
+  ### Error cases
+
+      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {30, 30})
+      ** (ArgumentError) invalid output size for adaptive pool operation for input with shape {nil, 1, 28, 28} and output size {30, 30} each dimension of output size must be greater than or equal to spatial dimension of input
   """
   def adaptive_pool(parent_shape, output_size) do
+    valid_output_size? =
+      parent_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(output_size))
+      |> Enum.all?(&elem(&1, 0) >= elem(&1, 1))
+
+    unless valid_output_size? do
+      raise ArgumentError, "invalid output size for adaptive pool operation for" <>
+                           " input with shape #{inspect(parent_shape)} and output" <>
+                           " size #{inspect(output_size)} each dimension" <>
+                           " of output size must be greater than or equal to spatial" <>
+                           " dimension of input"
+    end
     List.to_tuple([elem(parent_shape, 0), elem(parent_shape, 1) | Tuple.to_list(output_size)])
   end
 
   @doc """
   Calculates the gamma/beta shape of a normalization layer
   given the input shape and channel index.
+
+  ## Examples
+
+      iex> Axon.Shape.norm_param({nil, 3, 28, 28}, 1)
+      {1, 3, 1, 1}
+
+      iex> Axon.Shape.norm_param({nil, 28, 28, 3}, 3)
+      {1, 1, 1, 3}
   """
   def norm_param(parent_shape, channel_index) do
     parent_shape

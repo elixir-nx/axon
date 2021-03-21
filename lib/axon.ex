@@ -23,11 +23,6 @@ defmodule Axon do
     end
   end
 
-  # TODO: Allow arbitrary calls to Nx functions and numerical definitions inside `model`
-  # TODO: Models should be easily composable inside other model blocks
-  # TODO: Unify parameters and variables under `%Axon.State{}`
-  # TODO: Add rest of `Axon.Layers`
-
   @doc """
   Adds an input layer to the network.
 
@@ -65,7 +60,8 @@ defmodule Axon do
     * `activation` - Element-wise activation function.
 
   """
-  def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
+  def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
+      when is_integer(units) and units > 0 do
     {id, name} = unique_identifiers(:dense, opts[:name])
 
     weight_init = opts[:kernel_initializer] || :glorot_uniform
@@ -119,7 +115,8 @@ defmodule Axon do
     * `kernel_dilation` - Dilation to apply to kernel.
 
   """
-  def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
+  def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
+      when is_integer(units) and units > 0 do
     {id, name} = unique_identifiers(:conv, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
@@ -219,7 +216,7 @@ defmodule Axon do
 
   """
   def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
-     when is_integer(channel_multiplier) and channel_multiplier >= 1 do
+      when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     {id, name} = unique_identifiers(:depthwise_conv, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
@@ -295,7 +292,8 @@ defmodule Axon do
   Adds a depthwise separable 2-dimensional convolution to the
   network.
   """
-  def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ []) do
+  def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+      when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     {id, name} = unique_identifiers(:separable_conv2d, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
@@ -328,13 +326,17 @@ defmodule Axon do
         do: kernel_dilation,
         else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
 
-    k1_shape = Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
-    k2_shape = Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
+    k1_shape =
+      Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
+
+    k2_shape =
+      Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
+
     b1_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size)
     b2_shape = Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size)
 
     output_shape =
-      Axon.Shape.separable_conv2d(
+      Axon.Shape.depthwise_conv(
         parent_shape,
         Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size),
         strides,
@@ -375,7 +377,8 @@ defmodule Axon do
   Adds a depthwise separable 3-dimensional convolution to the
   network.
   """
-  def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ []) do
+  def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+      when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     {id, name} = unique_identifiers(:separable_conv3d, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
@@ -408,15 +411,21 @@ defmodule Axon do
         do: kernel_dilation,
         else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
 
-    k1_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
-    k2_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
-    k3_shape = Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 3)
+    k1_shape =
+      Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
+
+    k2_shape =
+      Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 2)
+
+    k3_shape =
+      Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 3)
+
     b1_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
     b2_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
     b3_shape = Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size)
 
     output_shape =
-      Axon.Shape.separable_conv3d(
+      Axon.Shape.depthwise_conv(
         parent_shape,
         Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size),
         strides,
@@ -633,7 +642,8 @@ defmodule Axon do
   @doc """
   Adds a group normalization layer to the network.
   """
-  def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ []) do
+  def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
+      when is_integer(group_size) and group_size >= 1 do
     {id, name} = unique_identifiers(:group_norm, opts[:name])
 
     channel_index = opts[:channel_index] || 1
@@ -674,6 +684,7 @@ defmodule Axon do
     {id, name} = unique_identifiers(:nx, opts[:name])
 
     param = Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, 0)
+
     expr =
       if Nx.Defn.Compiler.current() do
         fun.(param)

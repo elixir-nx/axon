@@ -637,13 +637,18 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn batch_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
-    axes = transform({Nx.axes(input), opts[:channel_index]},
-      fn {axes, idx} ->
-        Enum.filter(axes, & &1 != idx)
-      end)
+
+    axes =
+      transform(
+        {Nx.axes(input), opts[:channel_index]},
+        fn {axes, idx} ->
+          Enum.filter(axes, &(&1 != idx))
+        end
+      )
+
     mean = Nx.mean(input, axes: axes, keep_axes: true)
     mean_of_squares = Nx.mean(input * input, axes: axes, keep_axes: true)
-    var = mean_of_squares - (mean * mean)
+    var = mean_of_squares - mean * mean
     inv = gamma * Nx.rsqrt(var + opts[:epsilon])
     (input - mean) * inv + bias
   end
@@ -659,7 +664,7 @@ defmodule Axon.Layers do
     axes = opts[:channel_index]
     mean = Nx.mean(input, axes: [axes], keep_axes: true)
     mean_of_squares = Nx.mean(input * input, axes: [axes], keep_axes: true)
-    var = mean_of_squares - (mean * mean)
+    var = mean_of_squares - mean * mean
     inv = gamma * Nx.rsqrt(var + opts[:epsilon])
     (input - mean) * inv + bias
   end
@@ -677,6 +682,7 @@ defmodule Axon.Layers do
         fn {shape, group_size, channel_index} ->
           channels = :erlang.element(channel_index + 1, shape)
           num_groups = div(channels, group_size)
+
           Tuple.delete_at(shape, channel_index)
           |> Tuple.insert_at(channel_index, num_groups)
           |> Tuple.insert_at(channel_index + 1, group_size)
@@ -702,15 +708,21 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
-    axes = transform({Nx.axes(input), opts[:channel_index]},
-      fn {axes, channel_index} ->
-        reduction_axes = axes -- [0, channel_index]
-        if reduction_axes == [] do
-          raise ArgumentError, "rank of input shape must be at least 3"
-        else
-          reduction_axes
+
+    axes =
+      transform(
+        {Nx.axes(input), opts[:channel_index]},
+        fn {axes, channel_index} ->
+          reduction_axes = axes -- [0, channel_index]
+
+          if reduction_axes == [] do
+            raise ArgumentError, "rank of input shape must be at least 3"
+          else
+            reduction_axes
+          end
         end
-      end)
+      )
+
     mean = Nx.mean(input, axes: axes, keep_axes: true)
     mean_of_squares = Nx.mean(Nx.power(input, 2), axes: axes, keep_axes: true)
     var = mean_of_squares - Nx.power(mean, 2)
@@ -734,12 +746,17 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - opts[:rate]
     mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
-    mask = transform({mask, Nx.shape(input)},
-      fn {mask, input_shape} ->
-        if Nx.shape(mask) == input_shape,
-          do: mask,
-          else: Nx.broadcast(mask, input_shape)
-      end)
+
+    mask =
+      transform(
+        {mask, Nx.shape(input)},
+        fn {mask, input_shape} ->
+          if Nx.shape(mask) == input_shape,
+            do: mask,
+            else: Nx.broadcast(mask, input_shape)
+        end
+      )
+
     Nx.select(mask, input / keep_prob, Nx.tensor(0, type: Nx.type(input)))
   end
 
@@ -788,12 +805,17 @@ defmodule Axon.Layers do
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
-    mask = transform({mask, Nx.shape(input)},
-      fn {mask, input_shape} ->
-        if Nx.shape(mask) == input_shape,
-          do: mask,
-          else: Nx.broadcast(mask, input_shape)
-      end)
+
+    mask =
+      transform(
+        {mask, Nx.shape(input)},
+        fn {mask, input_shape} ->
+          if Nx.shape(mask) == input_shape,
+            do: mask,
+            else: Nx.broadcast(mask, input_shape)
+        end
+      )
+
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
   end
 
