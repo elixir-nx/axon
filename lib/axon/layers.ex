@@ -637,20 +637,9 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn batch_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
-
-    axes =
-      transform(
-        {Nx.axes(input), opts[:channel_index]},
-        fn {axes, idx} ->
-          Enum.filter(axes, &(&1 != idx))
-        end
-      )
-
-    mean = Nx.mean(input, axes: axes, keep_axes: true)
-    mean_of_squares = Nx.mean(input * input, axes: axes, keep_axes: true)
-    var = mean_of_squares - mean * mean
-    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
-    (input - mean) * inv + bias
+    axes = transform({Nx.axes(input), opts[:channel_index]}, &batch_norm_axes/1)
+    {mean, var} = mean_and_variance(input, axes: axes)
+    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
   end
 
   @doc ~S"""
@@ -662,11 +651,8 @@ defmodule Axon.Layers do
   defn layer_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
     axes = opts[:channel_index]
-    mean = Nx.mean(input, axes: [axes], keep_axes: true)
-    mean_of_squares = Nx.mean(input * input, axes: [axes], keep_axes: true)
-    var = mean_of_squares - mean * mean
-    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
-    (input - mean) * inv + bias
+    {mean, var} = mean_and_variance(input, axes: [axes])
+    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
   end
 
   @doc """
@@ -675,30 +661,11 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
-
-    group_shape =
-      transform(
-        {Nx.shape(input), opts[:group_size], opts[:channel_index]},
-        fn {shape, group_size, channel_index} ->
-          channels = :erlang.element(channel_index + 1, shape)
-          num_groups = div(channels, group_size)
-
-          Tuple.delete_at(shape, channel_index)
-          |> Tuple.insert_at(channel_index, num_groups)
-          |> Tuple.insert_at(channel_index + 1, group_size)
-        end
-      )
-
+    group_shape = transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, &group_norm_shape/1)
     x = Nx.reshape(input, group_shape)
-
-    reduction_axes =
-      transform(Nx.rank(x), fn rank -> for(i <- 1..(rank - 2), do: i) ++ [rank - 1] end)
-
-    mean = Nx.mean(x, axes: reduction_axes, keep_axes: true)
-    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_axes: true)
-    var = mean_of_squares - Nx.power(mean, 2)
-    x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
-
+    axes = transform(Nx.rank(x), &group_norm_axes/1)
+    {mean, var} = mean_and_variance(x, axes: axes)
+    x = normalize(x, mean, var, gamma, bias)
     Nx.reshape(x, Nx.shape(input)) * gamma + bias
   end
 
@@ -708,26 +675,9 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
-
-    axes =
-      transform(
-        {Nx.axes(input), opts[:channel_index]},
-        fn {axes, channel_index} ->
-          reduction_axes = axes -- [0, channel_index]
-
-          if reduction_axes == [] do
-            raise ArgumentError, "rank of input shape must be at least 3"
-          else
-            reduction_axes
-          end
-        end
-      )
-
-    mean = Nx.mean(input, axes: axes, keep_axes: true)
-    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: axes, keep_axes: true)
-    var = mean_of_squares - Nx.power(mean, 2)
-    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
-    (input - mean) * inv + bias
+    axes = transform({Nx.axes(input), opts[:channel_index]}, &instance_norm_axes/1)
+    {mean, var} = mean_and_variance(input, axes: axes)
+    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
   end
 
   ## Stochastic
@@ -1082,4 +1032,32 @@ defmodule Axon.Layers do
   end
 
   defp conv_transpose_padding({_, _, _, padding}), do: padding
+
+  defp batch_norm_axes({axes, channel_index}) do
+    axes
+    |> Enum.filter(& &1 != channel_index)
+  end
+
+  defp instance_norm_axes({axes, channel_index}) do
+    reduction_axes = axes -- [0, channel_index]
+
+    if reduction_axes == [] do
+      raise ArgumentError, "rank of input shape must be at least 3"
+    else
+      reduction_axes
+    end
+  end
+
+  defp group_norm_axes(rank) do
+    for(i <- 1..(rank - 2), do: i) ++ [rank - 1]
+  end
+
+  defp group_norm_shape({shape, group_size, channel_index}) do
+    channels = :erlang.element(channel_index + 1, shape)
+    num_groups = div(channels, group_size)
+
+    Tuple.delete_at(shape, channel_index)
+    |> Tuple.insert_at(channel_index, num_groups)
+    |> Tuple.insert_at(channel_index + 1, group_size)
+  end
 end
