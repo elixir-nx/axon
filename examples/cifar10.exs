@@ -9,12 +9,14 @@ defmodule CIFAR do
     |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> spatial_dropout()
     |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
     |> batch_norm()
     |> flatten()
     |> dense(64, activation: :relu)
+    |> dropout()
     |> dense(10, activation: :log_softmax)
   end
 
@@ -250,7 +252,7 @@ params = CIFAR.init()
 IO.puts("Training CIFAR for 10 epochs...\n\n")
 
 final_params =
-  CIFAR.train(train_images, train_labels, params, epochs: 10)
+  CIFAR.train(train_images, train_labels, params, epochs: 20)
 
 IO.puts("Bring the parameters back from the device and print them")
 final_params = Nx.backend_transfer(final_params)

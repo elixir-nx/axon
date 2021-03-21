@@ -732,6 +732,12 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - opts[:rate]
     mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
+    mask = transform({mask, Nx.shape(input)},
+      fn {mask, input_shape} ->
+        if Nx.shape(mask) == input_shape,
+          do: mask,
+          else: Nx.broadcast(mask, input_shape)
+      end)
     Nx.select(mask, input / keep_prob, Nx.tensor(0, type: Nx.type(input)))
   end
 
@@ -745,7 +751,6 @@ defmodule Axon.Layers do
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
     opts = keyword!(opts, rate: 0.5)
-
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
