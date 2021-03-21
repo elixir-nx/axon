@@ -134,9 +134,14 @@ defmodule Axon.Compiler do
     apply(Axon.Layers, op, [expr, w, b, opts])
   end
 
-  defp to_predict_expr(%Axon{op: :batch_norm, parent: parent, opts: opts}, [b, w | params], input) do
+  ## Normalization Layers
+
+  @normalization_layers [:batch_norm, :layer_norm]
+
+  defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, [b, w | params], input)
+       when op in @normalization_layers do
     expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :batch_norm, [expr, w, b, opts])
+    apply(Axon.Layers, op, [expr, w, b, opts])
   end
 
   defp to_predict_expr(%Axon{op: :nx, parent: parent, opts: [fun: fun]}, params, input) do

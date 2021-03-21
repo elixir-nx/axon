@@ -11,7 +11,7 @@ defmodule MNIST do
     input({nil, 784})
     |> dense(128)
     |> nx(&mish/1)
-    |> batch_norm()
+    |> layer_norm()
     |> dense(10, activation: :log_softmax)
   end
 

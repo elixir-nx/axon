@@ -655,14 +655,13 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input)))
-
-    mean = Nx.mean(input, axes: [-1], keep_axes: true)
-    mean_of_squares = Nx.mean(Nx.power(input, 2), axes: [-1], keep_axes: true)
-    var = mean_of_squares - Nx.power(mean, 2)
-    mul = gamma * Nx.rsqrt(var + opts[:epsilon])
-
-    (input - mean) * mul + bias
+    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    axes = opts[:channel_index]
+    mean = Nx.mean(input, axes: [axes], keep_axes: true)
+    mean_of_squares = Nx.mean(input * input, axes: [axes], keep_axes: true)
+    var = mean_of_squares - (mean * mean)
+    inv = gamma * Nx.rsqrt(var + opts[:epsilon])
+    (input - mean) * inv + bias
   end
 
   @doc """
