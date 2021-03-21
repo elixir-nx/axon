@@ -669,18 +669,17 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, [:group_size, epsilon: Nx.tensor(1.0e-6, type: Nx.type(input))])
+    opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
 
     group_shape =
       transform(
-        {Nx.shape(input), opts[:group_size]},
-        fn {shape, group_size} ->
-          channels = :erlang.element(shape, 2)
+        {Nx.shape(input), opts[:group_size], opts[:channel_index]},
+        fn {shape, group_size, channel_index} ->
+          channels = :erlang.element(channel_index + 1, shape)
           num_groups = div(channels, group_size)
-
-          Tuple.delete_at(shape, 1)
-          |> put_elem(1, num_groups)
-          |> Tuple.insert_at(2, group_size)
+          Tuple.delete_at(shape, channel_index)
+          |> Tuple.insert_at(channel_index, num_groups)
+          |> Tuple.insert_at(channel_index + 1, group_size)
         end
       )
 
@@ -689,8 +688,8 @@ defmodule Axon.Layers do
     reduction_axes =
       transform(Nx.rank(x), fn rank -> for(i <- 1..(rank - 2), do: i) ++ [rank - 1] end)
 
-    mean = Nx.mean(x, axes: reduction_axes, keep_dims: true)
-    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_dims: true)
+    mean = Nx.mean(x, axes: reduction_axes, keep_axes: true)
+    mean_of_squares = Nx.mean(Nx.power(x, 2), axes: reduction_axes, keep_axes: true)
     var = mean_of_squares - Nx.power(mean, 2)
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
 
@@ -786,6 +785,12 @@ defmodule Axon.Layers do
     noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
+    mask = transform({mask, Nx.shape(input)},
+      fn {mask, input_shape} ->
+        if Nx.shape(mask) == input_shape,
+          do: mask,
+          else: Nx.broadcast(mask, input_shape)
+      end)
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
   end
 

@@ -316,10 +316,10 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Calculates the gamma/beta shape of a batch norm layer
+  Calculates the gamma/beta shape of a normalization layer
   given the input shape and channel index.
   """
-  def batch_norm_param(parent_shape, channel_index) do
+  def norm_param(parent_shape, channel_index) do
     parent_shape
     |> Tuple.to_list()
     |> Enum.with_index()
