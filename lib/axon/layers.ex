@@ -388,7 +388,7 @@ defmodule Axon.Layers do
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv2d(input, k1, k2, b1, b2, opts \\ []) do
+  defn separable_conv2d(input, k1, b1, k2, b2, opts \\ []) do
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -399,7 +399,7 @@ defmodule Axon.Layers do
   convolution.
   """
   @doc type: :convolutional
-  defn separable_conv3d(input, k1, k2, k3, b1, b2, b3, opts \\ []) do
+  defn separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ []) do
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
