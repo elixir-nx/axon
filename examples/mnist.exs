@@ -9,9 +9,9 @@ defmodule MNIST do
 
   def model do
     input({nil, 784})
-    |> dense(128)
-    |> nx(&mish/1)
+    |> dense(128, activation: :relu)
     |> layer_norm()
+    |> dropout()
     |> dense(10, activation: :log_softmax)
   end
 

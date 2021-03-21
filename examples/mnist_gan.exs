@@ -5,11 +5,11 @@ defmodule MNISTGAN do
 
   def generator do
     input({nil, 100})
-    |> dense(256, activation: :tanh)
+    |> dense(256, activation: :leaky_relu)
     |> batch_norm()
-    |> dense(512, activation: :tanh)
+    |> dense(512, activation: :leaky_relu)
     |> batch_norm()
-    |> dense(1024, activation: :tanh)
+    |> dense(1024, activation: :leaky_relu)
     |> batch_norm()
     |> dense(784, activation: :tanh)
   end

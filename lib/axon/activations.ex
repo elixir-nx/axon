@@ -663,6 +663,8 @@ defmodule Axon.Activations do
   """
   defn tanh(x), do: Nx.tanh(x)
 
-  # TODO: Delete, just for testing
+  @doc """
+  Log-softmax activation.
+  """
   defn log_softmax(x), do: softmax(x) |> Nx.log()
 end
