@@ -29,7 +29,7 @@ defmodule CIFAR do
 
   defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
-    -Nx.sum(Nx.mean(preds * batch_labels, axes: [-1]))
+    Nx.mean(Axon.Losses.categorical_cross_entropy(batch_labels, preds))
   end
 
   defn update(

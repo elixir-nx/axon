@@ -12,14 +12,14 @@ defmodule MNIST do
     |> dense(128, activation: :relu)
     |> layer_norm()
     |> dropout()
-    |> dense(10, activation: :log_softmax)
+    |> dense(10, activation: :softmax)
   end
 
   defn init, do: Axon.init(model())
 
   defn loss({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels) do
     preds = Axon.predict(model(), {w1, b1, w2, b2, w3, b3}, batch_images)
-    -Nx.mean(Nx.sum(batch_labels * preds, axes: [-1]))
+    Nx.mean(Axon.Losses.categorical_cross_entropy(batch_labels, preds))
   end
 
   defn update({w1, b1, w2, b2, w3, b3}, batch_images, batch_labels, step) do

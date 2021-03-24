@@ -21,7 +21,7 @@ defmodule MNISTGAN do
     |> flatten()
     |> dense(512, activation: :tanh)
     |> dense(256, activation: :tanh)
-    |> dense(2, activation: :log_softmax)
+    |> dense(1, activation: :sigmoid)
   end
 
   defn init_discriminator, do: Axon.init(discriminator())
@@ -30,13 +30,9 @@ defmodule MNISTGAN do
     Axon.predict(generator(), params, latent)
   end
 
-  defn cross_entropy_loss(y_true, y_false) do
-    -Nx.mean(Nx.sum(y_true * y_false, axes: [-1]))
-  end
-
   defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
     preds = Axon.predict(discriminator(), d_params, images)
-    cross_entropy_loss(preds, targets)
+    Nx.mean(Axon.Losses.binary_cross_entropy(preds, targets))
   end
 
   defn update_d({w1, b1, w2, b2, w3, b3} = d_params, images, targets, step) do
@@ -53,7 +49,7 @@ defmodule MNISTGAN do
   end
 
   defn g_loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
-    valid = Nx.iota({32, 2}, axis: 1)
+    valid = Nx.broadcast(Nx.tensor(1, type: {:u, 8}), {32, 1})
     g_preds = Axon.predict(generator(), g_params, latent)
     d_loss(d_params, g_preds, valid)
   end
@@ -81,8 +77,9 @@ defmodule MNISTGAN do
   end
 
   defn update({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
-    valid = Nx.iota({32, 2}, axis: 1)
-    fake = Nx.iota({32, 2}, axis: 1) |> Nx.reverse()
+    valid = Nx.broadcast(Nx.tensor(1, type: {:u, 8}), {32, 1})
+    fake = Nx.broadcast(Nx.tensor(0, type: {:u, 8}), {32, 1})
+
     latent = Nx.random_normal({32, 100})
 
     fake_images =
