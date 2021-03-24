@@ -17,7 +17,7 @@ defmodule CIFAR do
     |> flatten()
     |> dense(64, activation: :relu)
     |> dropout()
-    |> dense(10, activation: :log_softmax)
+    |> dense(10, activation: :softmax)
   end
 
   defn init, do: Axon.init(model())
