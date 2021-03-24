@@ -161,7 +161,7 @@ defmodule CIFAR do
         files
         |> Enum.filter(fn {fname, _} -> String.match?(List.to_string(fname), ~r/data_batch/) end)
         |> Enum.map(fn {_, content} -> Task.async(fn -> parse_images(content) end) end)
-        |> Enum.map(&Task.await(&1, 60000))
+        |> Enum.map(&Task.await(&1, :infinity))
         |> Enum.unzip()
 
       # Batch and one hot encode
@@ -196,12 +196,13 @@ defmodule CIFAR do
     imgs
     |> Enum.zip(labels)
     |> Enum.reduce(
-      {cur_params, Nx.tensor(0.0), Nx.tensor(0.0)},
+      {cur_params, Nx.tensor(0.0), Nx.tensor(0.0), 0},
       fn
-        {imgs, tar}, {cur_params, avg_loss, avg_accuracy} ->
+        {imgs, tar}, {cur_params, avg_loss, avg_accuracy, batch} ->
+          IO.puts "Batch #{batch+1}\n"
           # This augmentation maybe should be tied somewhere else?
           imgs = augment(imgs)
-          update_with_averages(
+          {params, avg_loss, avg_acc} = update_with_averages(
             cur_params,
             imgs,
             tar,
@@ -209,6 +210,7 @@ defmodule CIFAR do
             avg_accuracy,
             total_batches
           )
+          {params, avg_loss, avg_acc, batch + 1}
       end
     )
   end

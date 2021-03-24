@@ -32,57 +32,96 @@ def deps do
 end
 ```
 
-## A Basic Neural Network
+## Functional API
 
-You can create neural networks inside modules with the `model` macro:
+At the lowest level, `Axon` contains functional building blocks that implement common activation functions, layers, loss functions, parameter initializers, and more. All of these building blocks are implemented as `Nx` numerical definitions, so they can be used with any `Nx` compiler or backend and called arbitrarily from within `defn` or regular Elixir code.
+
+For those familiar with frameworks in other ecosystems, the `Axon` functional API should feel similar to PyTorch's `torch.nn.functional` namespace.
+
+## Creating Models
+
+You can create models using the `Axon` API:
 
 ```elixir
-defmodule MyNN do
+model =
+  input({nil, 3, 32, 32})
+  |> conv(32, kernel_size: {3, 3})
+  |> max_pool(kernel_size: {2, 2})
+  |> flatten()
+  |> dense(64, activation: :relu)
+  |> dense(10, activation: :log_softmax)
+```
+
+The API builds an `Axon` struct that contains information about how to initialize, compile, and run the model. You can initialize the model anywhere using the `Axon.init/1` macro:
+
+```elixir
+model =
+  input({nil, 3, 32, 32})
+  |> conv(32, kernel_size: {3, 3})
+  |> max_pool(kernel_size: {2, 2})
+  |> flatten()
+  |> dense(64, activation: :relu)
+  |> dense(10, activation: :log_softmax)
+
+params = Axon.init(model)
+```
+
+and then make predictions using `Axon.predict/2`:
+
+```elixir
+model =
+  input({nil, 3, 32, 32})
+  |> conv(32, kernel_size: {3, 3})
+  |> max_pool(kernel_size: {2, 2})
+  |> flatten()
+  |> dense(64, activation: :relu)
+  |> dense(10, activation: :log_softmax)
+
+params = Axon.init(model)
+
+Axon.predict(model, params)
+```
+
+Both macros can be used arbitrarily from within `defn` or in regular Elixir functions - and will still utilize whatever `Nx` backend or compiler you are using. You can even use regular Elixir functions to break up your model:
+
+```elixir
+defmodule Model do
   use Axon
 
-  model do
+  def residual(x) do
+    x
+    |> conv(32, kernel_size: {3, 3})
+    |> add(x)
+  end
+
+  def model do
+    input({nil, 3, 32, 32})
+    |> conv(32, kernel_size: {3, 3})
+    |> residual()
+    |> max_pool(kernel_size: {3, 3})
+    |> flatten()
+    |> dense(10, activation: :log_softmax)
+  end
+end
+```
+
+You can also arbitrarily call `Nx` functions or predefined numerical definitions using an `nx` layer:
+
+```elixir
+defmodule Model do
+  use Axon
+
+  defn mish(x) do
+    x * Nx.tanh(Axon.Activations.softplus(x))
+  end
+
+  def model do
     input({nil, 784})
     |> dense(128)
-    |> relu()
-    |> dense(64, activation: :tanh)
-    |> dropout(rate: 0.5)
-    |> dense(10)
-    |> activation(:softmax)
-  end
-end
-```
-
-`model` will generate the numerical definitions `init_random_params/0` and `predict/2`. You can also name models for using multiple models in the same training loop:
-
-```elixir
-defmodule GAN do
-  use Axon
-
-  model generator do
-    input({nil, 100})
-    |> dense(128)
-    |> tanh()
-    |> dense(256)
-    |> tanh()
-    |> dense(512)
-    |> tanh()
-    |> dense(1024)
-    |> tanh()
-    |> dense(784)
-    |> tanh()
-  end
-
-  model discriminator do
-    input({nil, 28, 28})
-    |> flatten()
-    |> dense(128)
-    |> relu()
+    |> nx(&mish/1)
     |> dense(64)
-    |> relu()
-    |> dense(2)
-    |> softmax()
+    |> nx(fn x -> Nx.max(x, 0) end)
+    |> dense(10, activation: :log_softmax)
   end
 end
 ```
-
-In the above example, you can initialize and apply both models using: `init_generator`/`generator` and `init_discriminator`/`discriminator` respectively.
