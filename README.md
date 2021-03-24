@@ -27,7 +27,7 @@ def deps do
   [
     {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
     {:exla, "~> 0.1.0-dev", github: "elixir-nx/exla", branch: "main", sparse: "exla"},
-    {:torchx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "torchx"},
+    {:torchx, "~> 0.1.0-dev", github: "elixir-nx/nx", branch: "main", sparse: "torchx"},
   ]
 end
 ```
