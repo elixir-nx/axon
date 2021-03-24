@@ -6,7 +6,7 @@ defmodule CIFAR do
   def model do
     input({32, 3, 32, 32})
     |> conv(32, kernel_size: {3, 3}, activation: :relu)
-    |> instance_norm()
+    |> batch_norm()
     |> max_pool(kernel_size: {2, 2})
     |> conv(64, kernel_size: {3, 3}, activation: :relu)
     |> spatial_dropout()
@@ -22,23 +22,23 @@ defmodule CIFAR do
 
   defn init, do: Axon.init(model())
 
-  defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
   end
 
-  defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     -Nx.sum(Nx.mean(preds * batch_labels, axes: [-1]))
   end
 
   defn update(
-         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7, w8, b8, w9, b9} = params,
+         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7, w8, b8} = params,
          batch_images,
          batch_labels,
          step
        ) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7, grad_w8, grad_b8, grad_w9, grad_b9} =
+    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7, grad_w8, grad_b8} =
       grad(params, &loss(&1, batch_images, batch_labels))
 
     {
@@ -57,14 +57,12 @@ defmodule CIFAR do
       w7 - grad_w7 * step,
       b7 - grad_b7 * step,
       w8 - grad_w8 * step,
-      b8 - grad_b8 * step,
-      w9 - grad_w9 * step,
-      b9 - grad_b9 * step
+      b8 - grad_b8 * step
     }
   end
 
   defn update_with_averages(
-         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
          imgs,
          tar,
          avg_loss,
