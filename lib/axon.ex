@@ -740,6 +740,56 @@ defmodule Axon do
     define_predict(model, :predict, [params, input], opts)
   end
 
+  @doc """
+  Returns a list of models parameters.
+  """
+  defmacro get_params(model) do
+    define_get_params(model)
+  end
+
+  @doc """
+  Applies updates to params.
+  """
+  defmacro apply_updates(params, updates) do
+    quote do
+      Nx.Defn.Kernel.transform({unquote(params), unquote(updates)}, fn {params, updates} ->
+        params
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(updates))
+        |> Enum.map(fn {x, u} -> Nx.add(x, u) end)
+        |> List.to_tuple()
+      end)
+    end
+  end
+
+  @doc """
+  Maps `fun` over `args`.
+  """
+  defmacro map(args, fun) do
+    quote do
+      Nx.Defn.Kernel.transform(unquote(args), fn args ->
+        Nx.Defn.Tree.composite(args, unquote(fun))
+      end)
+    end
+  end
+
+  defp define_get_params(model) do
+    quote do
+      Nx.Defn.Kernel.transform(:ok, fn :ok ->
+        model = unquote(model)
+        Axon.__params__(model, [])
+      end)
+    end
+  end
+
+  def __params__(%Axon{parent: nil, params: layer_params}, params) do
+    List.flatten([layer_params | params])
+  end
+
+  def __params__(%Axon{parent: x, params: layer_params}, params) do
+    __params__(x, [Enum.reverse(layer_params) | params])
+  end
+
   ## Implementation
 
   defp define_init(model, caller, args, opts \\ []) do

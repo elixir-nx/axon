@@ -21,64 +21,55 @@ defmodule MNISTGAN do
     |> flatten()
     |> dense(512, activation: :tanh)
     |> dense(256, activation: :tanh)
-    |> dense(1, activation: :sigmoid)
+    |> dense(2, activation: :softmax)
   end
 
   defn init_discriminator, do: Axon.init(discriminator())
 
-  defn generate({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, latent) do
+  defn generate(params, latent) do
     Axon.predict(generator(), params, latent)
   end
 
-  defn d_loss({_, _, _, _, _, _} = d_params, images, targets) do
+  defn d_loss(d_params, images, targets) do
     preds = Axon.predict(discriminator(), d_params, images)
-    Nx.mean(Axon.Losses.binary_cross_entropy(preds, targets))
+    Nx.mean(Axon.Losses.categorical_cross_entropy(preds, targets))
   end
 
-  defn update_d({w1, b1, w2, b2, w3, b3} = d_params, images, targets, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3} =
-      grad(d_params, &d_loss(&1, images, targets))
-    {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step,
-      w3 - grad_w3 * step,
-      b3 - grad_b3 * step
-    }
+  defn update_d(params, images, targets, step) do
+    gradients = grad(params, &d_loss(&1, images, targets))
+
+    transform({params, gradients, step},
+      fn {params, gradients, step} ->
+        params
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(gradients))
+        |> Enum.map(fn {x, g} -> x + Axon.Updates.scale(g, -step) end)
+        |> List.to_tuple()
+      end)
   end
 
-  defn g_loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, latent) do
-    valid = Nx.broadcast(Nx.tensor(1, type: {:u, 8}), {32, 1})
+  defn g_loss(g_params, d_params, latent) do
+    valid = Nx.iota({32, 2}, axis: 1, type: {:u, 8})
     g_preds = Axon.predict(generator(), g_params, latent)
     d_loss(d_params, g_preds, valid)
   end
 
-  defn update_g({w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7} = g_params, {_, _, _, _, _, _} = d_params, latent, step) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7} =
-      grad(g_params, &g_loss(&1, d_params, latent))
+  defn update_g(g_params, d_params, latent, step) do
+    gradients = grad(g_params, &g_loss(&1, d_params, latent))
 
-    {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step,
-      w3 - grad_w3 * step,
-      b3 - grad_b3 * step,
-      w4 - grad_w4 * step,
-      b4 - grad_b4 * step,
-      w5 - grad_w5 * step,
-      b5 - grad_b5 * step,
-      w6 - grad_w6 * step,
-      b6 - grad_b6 * step,
-      w7 - grad_w7 * step,
-      b7 - grad_b7 * step
-    }
+    transform({g_params, gradients, step},
+      fn {params, gradients, step} ->
+        params
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(gradients))
+        |> Enum.map(fn {x, g} -> x + Axon.Updates.scale(g, -step) end)
+        |> List.to_tuple()
+      end)
   end
 
-  defn update({_, _, _, _, _, _, _, _, _, _, _, _, _, _} = g_params, {_, _, _, _, _, _} = d_params, images) do
-    valid = Nx.broadcast(Nx.tensor(1, type: {:u, 8}), {32, 1})
-    fake = Nx.broadcast(Nx.tensor(0, type: {:u, 8}), {32, 1})
+  defn update(g_params, d_params, images) do
+    valid = Nx.iota({32, 2}, axis: 1, type: {:u, 8})
+    fake = Nx.iota({32, 2}, axis: 1, type: {:u, 8}) |> Nx.reverse(axes: [1])
 
     latent = Nx.random_normal({32, 100})
 
@@ -168,8 +159,10 @@ defmodule MNISTGAN do
   end
 end
 
-train_images =
-  MNISTGAN.download('train-images-idx3-ubyte.gz')
+IO.inspect MNISTGAN.generator()
+IO.inspect MNISTGAN.discriminator()
+
+train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
 
 IO.puts("Initializing parameters...\n")
 d_params = MNISTGAN.init_discriminator()
