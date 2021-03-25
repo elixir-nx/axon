@@ -89,7 +89,7 @@ defmodule Axon.Updates do
 
   """
   defn scale_by_adam(x, mu, nu, count, opts \\ []) do
-    opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 0.0)
+    opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-6, eps_root: 1.0e-5)
     b1 = opts[:b1]
     b2 = opts[:b2]
     eps = opts[:eps]
@@ -101,13 +101,7 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x =
-      nu_hat
-      |> Nx.add(eps_root)
-      |> Nx.sqrt()
-      |> Nx.add(eps)
-      |> reciprocal()
-      |> Nx.multiply(mu_hat)
+    x = mu_hat / (Nx.sqrt(nu_hat + eps_root) + eps)
 
     {x, mu, nu}
   end

@@ -22,6 +22,44 @@ defmodule CIFAR do
 
   defn init, do: Axon.init(model())
 
+  defn init_adam do
+    w1_mu = Axon.Initializers.zeros(shape: {32, 3, 3, 3})
+    w1_nu = Axon.Initializers.zeros(shape: {32, 3, 3, 3})
+    b1_mu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    b1_nu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    w2_mu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    w2_nu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    b2_mu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    b2_nu = Axon.Initializers.zeros(shape: {1, 32, 1, 1})
+    w3_mu = Axon.Initializers.zeros(shape: {64, 32, 3, 3})
+    w3_nu = Axon.Initializers.zeros(shape: {64, 32, 3, 3})
+    b3_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b3_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w4_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w4_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b4_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b4_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w5_mu = Axon.Initializers.zeros(shape: {64, 64, 3, 3})
+    w5_nu = Axon.Initializers.zeros(shape: {64, 64, 3, 3})
+    b5_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b5_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w6_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w6_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b6_mu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    b6_nu = Axon.Initializers.zeros(shape: {1, 64, 1, 1})
+    w7_mu = Axon.Initializers.zeros(shape: {36864, 64})
+    w7_nu = Axon.Initializers.zeros(shape: {36864, 64})
+    b7_mu = Axon.Initializers.zeros(shape: {1, 64})
+    b7_nu = Axon.Initializers.zeros(shape: {1, 64})
+    w8_mu = Axon.Initializers.zeros(shape: {64, 10})
+    w8_nu = Axon.Initializers.zeros(shape: {64, 10})
+    b8_mu = Axon.Initializers.zeros(shape: {1, 10})
+    b8_nu = Axon.Initializers.zeros(shape: {1, 10})
+
+    {w1_mu, w1_nu, b1_mu, b1_nu, w2_mu, w2_nu, b2_mu, b2_nu, w3_mu, w3_nu, b3_mu, b3_nu, w4_mu, w4_nu, b4_mu, b4_nu,
+      w5_mu, w5_nu, b5_mu, b5_nu, w6_mu, w6_nu, b6_mu, b6_nu, w7_mu, w7_nu, b7_mu, b7_nu, w8_mu, w8_nu, b8_mu, b8_nu}
+  end
+
   defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
@@ -33,48 +71,51 @@ defmodule CIFAR do
   end
 
   defn update(
-         {w1, b1, w2, b2, w3, b3, w4, b4, w5, b5, w6, b6, w7, b7, w8, b8} = params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = optim_params,
          batch_images,
          batch_labels,
-         step
+         step,
+         count
        ) do
-    {grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_w4, grad_b4, grad_w5, grad_b5, grad_w6, grad_b6, grad_w7, grad_b7, grad_w8, grad_b8} =
-      grad(params, &loss(&1, batch_images, batch_labels))
 
-    {
-      w1 - grad_w1 * step,
-      b1 - grad_b1 * step,
-      w2 - grad_w2 * step,
-      b2 - grad_b2 * step,
-      w3 - grad_w3 * step,
-      b3 - grad_b3 * step,
-      w4 - grad_w4 * step,
-      b4 - grad_b4 * step,
-      w5 - grad_w5 * step,
-      b5 - grad_b5 * step,
-      w6 - grad_w6 * step,
-      b6 - grad_b6 * step,
-      w7 - grad_w7 * step,
-      b7 - grad_b7 * step,
-      w8 - grad_w8 * step,
-      b8 - grad_b8 * step
-    }
+    gradients = grad(params, &loss(&1, batch_images, batch_labels))
+
+    transform({gradients, params, optim_params, count, step},
+      fn {updates, params, optim_params, count, step} ->
+        {new_params, new_optim_params} =
+          updates
+            |> Tuple.to_list()
+            |> Enum.zip(Tuple.to_list(params))
+            |> Enum.with_index()
+            |> Enum.reduce({[], []},
+                fn {{update, param}, i}, {new_params, new_optim_params} ->
+                  {mu, nu} = {elem(optim_params, i * 2), elem(optim_params, (i * 2) + 1)}
+                  {update, new_mu, new_nu} = Axon.Updates.scale_by_adam(update, mu, nu, count)
+                  {[param + Axon.Updates.scale(update, -step) | new_params], [new_nu, new_mu | new_optim_params]}
+                end
+              )
+        {List.to_tuple(Enum.reverse(new_params)), List.to_tuple(Enum.reverse(new_optim_params))}
+      end
+    )
   end
 
   defn update_with_averages(
          {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
+         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = optim_params,
          imgs,
          tar,
          avg_loss,
          avg_accuracy,
-         total
+         total,
+         count
        ) do
     batch_loss = loss(cur_params, imgs, tar)
     batch_accuracy = accuracy(cur_params, imgs, tar)
     avg_loss = avg_loss + batch_loss / total
     avg_accuracy = avg_accuracy + batch_accuracy / total
 
-    {update(cur_params, imgs, tar, 0.005), avg_loss, avg_accuracy}
+    {update(cur_params, optim_params, imgs, tar, 0.001, count), avg_loss, avg_accuracy}
   end
 
   defn random_flip_left_right(img) do
@@ -190,41 +231,44 @@ defmodule CIFAR do
     end
   end
 
-  def train_epoch(cur_params, imgs, labels) do
+  def train_epoch(cur_params, optim_params, imgs, labels, count) do
     total_batches = Enum.count(imgs)
 
     imgs
     |> Enum.zip(labels)
     |> Enum.reduce(
-      {cur_params, Nx.tensor(0.0), Nx.tensor(0.0), 0},
+      {{cur_params, optim_params}, Nx.tensor(0.0), Nx.tensor(0.0), count},
       fn
-        {imgs, tar}, {cur_params, avg_loss, avg_accuracy, batch} ->
-          IO.puts "Batch #{batch+1}\n"
+        {imgs, tar}, {{cur_params, cur_optim_params}, avg_loss, avg_accuracy, count} ->
           # This augmentation maybe should be tied somewhere else?
           imgs = augment(imgs)
-          {params, avg_loss, avg_acc} = update_with_averages(
+          {{params, optim_params}, avg_loss, avg_acc} = update_with_averages(
             cur_params,
+            cur_optim_params,
             imgs,
             tar,
             avg_loss,
             avg_accuracy,
-            total_batches
+            total_batches,
+            count
           )
-          {params, avg_loss, avg_acc, batch + 1}
+          {{params, optim_params}, avg_loss, avg_acc, count + 1}
       end
     )
   end
 
-  def train(imgs, labels, params, opts \\ []) do
+  def train(imgs, labels, params, optim_params, opts \\ []) do
     epochs = opts[:epochs] || 5
 
-    for epoch <- 1..epochs, reduce: params do
-      cur_params ->
-        {time, {new_params, epoch_avg_loss, epoch_avg_acc}} =
+    for epoch <- 1..epochs, reduce: {params, optim_params, 0} do
+      {cur_params, cur_optim_params, count} ->
+        {time, {{new_params, new_optim_params}, epoch_avg_loss, epoch_avg_acc, count}} =
           :timer.tc(__MODULE__, :train_epoch, [
             cur_params,
+            cur_optim_params,
             imgs,
-            labels
+            labels,
+            count
           ])
 
         epoch_avg_loss =
@@ -241,7 +285,7 @@ defmodule CIFAR do
         IO.puts("Epoch #{epoch} average loss: #{inspect(epoch_avg_loss)}")
         IO.puts("Epoch #{epoch} average accuracy: #{inspect(epoch_avg_acc)}")
         IO.puts("\n")
-        new_params
+        {new_params, new_optim_params, count}
     end
   end
 end
@@ -250,11 +294,11 @@ end
 
 IO.puts("Initializing parameters...\n")
 params = CIFAR.init()
+optim_params = CIFAR.init_adam()
 
 IO.puts("Training CIFAR for 10 epochs...\n\n")
 
-final_params =
-  CIFAR.train(train_images, train_labels, params, epochs: 20)
+{final_params, _, _} = CIFAR.train(train_images, train_labels, params, optim_params, epochs: 20)
 
 IO.puts("Bring the parameters back from the device and print them")
 final_params = Nx.backend_transfer(final_params)
