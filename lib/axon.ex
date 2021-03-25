@@ -766,6 +766,37 @@ defmodule Axon do
     end
   end
 
+  ## Inspection
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(axon, _opts) do
+      title = "Model"
+      header = ["Layer", "Shape", "Parameters"]
+      rows = axon_to_rows(axon, [])
+
+      rows
+      |> TableRex.Table.new(header, title)
+      |> TableRex.Table.render!(header_separator_symbol: "=", title_separator_symbol: "=", vertical_style: :off)
+      |> string()
+    end
+
+    defp axon_to_rows(%Axon{op: :input, output_shape: shape, parent: nil, name: name}, layers) do
+      row = [name <> " (input)", "#{inspect(shape)}", 0]
+      [row | layers]
+    end
+
+    defp axon_to_rows(%Axon{op: op, output_shape: shape, parent: x, name: name, params: params}, layers) do
+      total_params =
+        params
+        |> Enum.reduce(0, fn %Axon.Parameter{shape: shape}, acc -> Nx.size(shape) + acc end)
+
+      row = [name <> " (#{Atom.to_string(op)})", "#{inspect(shape)}", "#{total_params}"]
+      axon_to_rows(x, [row | layers])
+    end
+  end
+
   ## Helpers
 
   defp unique_identifiers(type, nil) do

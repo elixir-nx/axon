@@ -27,7 +27,8 @@ defmodule Axon.MixProject do
     [
       {:nx, "~> 0.1.0-dev", nx_opts()},
       {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:table_rex, "~> 3.1.1"}
     ]
   end
 

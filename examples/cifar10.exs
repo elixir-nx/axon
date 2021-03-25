@@ -290,6 +290,8 @@ defmodule CIFAR do
   end
 end
 
+IO.inspect CIFAR.model()
+
 {train_images, train_labels} = CIFAR.download('cifar-10-binary.tar.gz')
 
 IO.puts("Initializing parameters...\n")

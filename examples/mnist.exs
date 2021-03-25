@@ -135,6 +135,8 @@ defmodule MNIST do
   end
 end
 
+IO.inspect MNIST.model()
+
 {train_images, train_labels} =
   MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
 
