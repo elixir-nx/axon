@@ -60,25 +60,17 @@ defmodule CIFAR do
       w5_mu, w5_nu, b5_mu, b5_nu, w6_mu, w6_nu, b6_mu, b6_nu, w7_mu, w7_nu, b7_mu, b7_nu, w8_mu, w8_nu, b8_mu, b8_nu}
   end
 
-  defn accuracy({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn accuracy(params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     Axon.Metrics.accuracy(preds, batch_labels)
   end
 
-  defn loss({_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params, batch_images, batch_labels) do
+  defn loss(params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
-    Nx.mean(Axon.Losses.categorical_cross_entropy(batch_labels, preds))
+    Axon.Losses.categorical_cross_entropy(batch_labels, preds, reduction: :none)
   end
 
-  defn update(
-         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = params,
-         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = optim_params,
-         batch_images,
-         batch_labels,
-         step,
-         count
-       ) do
-
+  defn update(params, optim_params, batch_images, batch_labels, step, count) do
     gradients = grad(params, &loss(&1, batch_images, batch_labels))
 
     transform({gradients, params, optim_params, count, step},
@@ -100,22 +92,13 @@ defmodule CIFAR do
     )
   end
 
-  defn update_with_averages(
-         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = cur_params,
-         {_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _} = optim_params,
-         imgs,
-         tar,
-         avg_loss,
-         avg_accuracy,
-         total,
-         count
-       ) do
+  defn update_with_averages(cur_params, optim_params, imgs, tar, avg_loss, avg_accuracy, total, count) do
     batch_loss = loss(cur_params, imgs, tar)
     batch_accuracy = accuracy(cur_params, imgs, tar)
     avg_loss = avg_loss + batch_loss / total
     avg_accuracy = avg_accuracy + batch_accuracy / total
 
-    {update(cur_params, optim_params, imgs, tar, 0.001, count), avg_loss, avg_accuracy}
+    {update(cur_params, optim_params, imgs, tar, 0.01, count), avg_loss, avg_accuracy}
   end
 
   defn random_flip_left_right(img) do

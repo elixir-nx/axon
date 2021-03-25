@@ -32,7 +32,7 @@ defmodule MNISTGAN do
 
   defn d_loss(d_params, images, targets) do
     preds = Axon.predict(discriminator(), d_params, images)
-    Nx.mean(Axon.Losses.categorical_cross_entropy(preds, targets))
+    Axon.Losses.categorical_cross_entropy(preds, targets, reduction: :mean)
   end
 
   defn update_d(params, images, targets, step) do

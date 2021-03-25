@@ -15,7 +15,7 @@ defmodule MNIST do
 
   defn loss(params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
-    Nx.mean(Axon.Losses.categorical_cross_entropy(batch_labels, preds))
+    Axon.Losses.categorical_cross_entropy(batch_labels, preds, reduction: :mean)
   end
 
   defn update_with_averages(params, imgs, tar, avg_loss, avg_accuracy, total) do
