@@ -8,13 +8,16 @@ defmodule Axon.Compiler do
 
   @doc false
   def __jit_init__(%Axon{} = graph, caller, [] = args, opts) do
-    {names_and_exprs, _} = to_init_expr(graph, %{}, 0)
+    {names_and_exprs, _} = to_init_fun(graph, %{}, 0)
 
-    param_expr =
-      names_and_exprs
-      |> Map.values()
-      |> Enum.reverse()
-      |> List.to_tuple()
+    fun =
+      fn ->
+        names_and_exprs
+        |> Map.values()
+        |> Enum.reverse()
+        |> Enum.map(& &1.())
+        |> List.to_tuple()
+      end
 
     if Nx.Defn.Compiler.current() do
       if opts != [] do
@@ -22,13 +25,13 @@ defmodule Axon.Compiler do
               "cannot pass execution options to Axon.#{caller} inside defn, got: #{inspect(opts)}"
       end
 
-      param_expr
+      fun.()
     else
-      Nx.Defn.jit(param_expr, args, opts)
+      Nx.Defn.jit(fun, args, opts)
     end
   end
 
-  defp to_init_expr(%Axon{parent: nil, params: params}, names_and_exprs, counter) do
+  defp to_init_fun(%Axon{parent: nil, params: params}, names_and_exprs, counter) do
     Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
                                                          name: name,
                                                          shape: shape,
@@ -39,14 +42,14 @@ defmodule Axon.Compiler do
         Map.put(
           names_and_exprs,
           "#{counter_to_name(counter)}_" <> name,
-          apply(Axon.Initializers, initializer, [[shape: shape]])
+          fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
         ),
         counter + 1
       }
     end)
   end
 
-  defp to_init_expr(%Axon{parent: parent, params: params}, names_and_exprs, counter) do
+  defp to_init_fun(%Axon{parent: parent, params: params}, names_and_exprs, counter) do
     {names_and_exprs, counter} =
       Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
                                                            name: name,
@@ -58,13 +61,13 @@ defmodule Axon.Compiler do
           Map.put(
             names_and_exprs,
             "#{counter_to_name(counter)}_" <> name,
-            apply(Axon.Initializers, initializer, [[shape: shape]])
+            fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
           ),
           counter + 1
         }
       end)
 
-    to_init_expr(parent, names_and_exprs, counter)
+    to_init_fun(parent, names_and_exprs, counter)
   end
 
   ## Model JIT Compilation

@@ -11,8 +11,6 @@ defmodule MNIST do
     |> dense(10, activation: :softmax)
   end
 
-  defn init, do: Axon.init(model())
-
   defn loss(params, batch_images, batch_labels) do
     preds = Axon.predict(model(), params, batch_images)
     Axon.Losses.categorical_cross_entropy(batch_labels, preds, reduction: :mean)
@@ -92,7 +90,7 @@ defmodule MNIST do
     epochs = opts[:epochs] || 5
 
     IO.puts("Initializing parameters...\n")
-    params = init()
+    params = Axon.init(MNIST.model(), compiler: EXLA)
 
     for epoch <- 1..epochs, reduce: params do
       cur_params ->
