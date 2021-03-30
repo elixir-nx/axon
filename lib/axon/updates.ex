@@ -66,19 +66,29 @@ defmodule Axon.Updates do
       >
 
   """
-  defn scale(x, step) do
-    transform({x, step},
+  def scale({init_fn, apply_fn}, step_size) do
+    {_, scale_apply_fn} = scale(step_size)
+    {init_fn, &scale_apply_fn.(apply_fn.(&1, &2))}
+  end
+
+  def scale(step_size) do
+    init_fn = &empty/1
+    apply_fn = &apply_scale(&1, step_size)
+
+    {init_fn, apply_fn}
+  end
+
+  defnp apply_scale({x, state}, step) do
+    updates = transform({x, step},
       fn {updates, step} ->
-        if is_tuple(updates) do
-          updates
-          |> Tuple.to_list()
-          |> Enum.map(&Nx.multiply(&1, step))
-          |> List.to_tuple()
-        else
-          Nx.multiply(updates, step)
-        end
+        updates
+        |> Tuple.to_list()
+        |> Enum.map(&Nx.multiply(&1, step))
+        |> List.to_tuple()
       end
     )
+
+    {updates, state}
   end
 
   @doc """
@@ -98,22 +108,71 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  defn scale_by_adam(x, mu, nu, count, opts \\ []) do
+  def scale_by_adam(opts \\ []) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 1.0e-6
+    eps_root = opts[:eps_root] || 1.0e-5
+
+    init_fn = &init_scale_by_adam(&1)
+    apply_fn = &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root])
+
+    {init_fn, apply_fn}
+  end
+
+  defnp init_scale_by_adam(params) do
+    mus = zeros_like(params)
+    nus = zeros_like(params)
+    count = Nx.tensor(0)
+    {mus, nus, count}
+  end
+
+  defnp apply_scale_by_adam(x, {mu, nu, count}, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-6, eps_root: 1.0e-5)
     b1 = opts[:b1]
     b2 = opts[:b2]
     eps = opts[:eps]
     eps_root = opts[:eps_root]
 
-    mu = update_moment(x, mu, b1, 1)
-    nu = update_moment(x, nu, b2, 2)
+    mu = transform({x, mu, b1}, fn {x, mu, b1} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(mu))
+      |> Enum.map(fn {g, z} -> update_moment(g, z, b1, 1) end)
+      |> List.to_tuple()
+    end)
 
-    mu_hat = bias_correction(mu, b1, count + 1)
-    nu_hat = bias_correction(nu, b2, count + 1)
+    nu = transform({x, nu, b2}, fn {x, nu, b2} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu))
+      |> Enum.map(fn {g, z} -> update_moment(g, z, b2, 2) end)
+      |> List.to_tuple()
+    end)
 
-    x = mu_hat / (Nx.sqrt(nu_hat + eps_root) + eps)
+    mu_hat = transform({mu, b1, count}, fn {mu, b1, count} ->
+      mu
+      |> Tuple.to_list()
+      |> Enum.map(&bias_correction(&1, b1, count + 1))
+      |> List.to_tuple()
+    end)
 
-    {x, mu, nu}
+    nu_hat = transform({nu, b2, count}, fn {nu, b2, count} ->
+      nu
+      |> Tuple.to_list()
+      |> Enum.map(&bias_correction(&1, b2, count + 1))
+      |> List.to_tuple()
+    end)
+
+    x = transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
+      mu_hat
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu_hat))
+      |> Enum.map(fn {z, t} -> z / (Nx.sqrt(t + eps_root) + eps) end)
+      |> List.to_tuple()
+    end)
+
+    {x, {mu, nu, count + 1}}
   end
 
   @doc """
@@ -524,5 +583,9 @@ defmodule Axon.Updates do
     norm = Nx.norm(x)
     x = Nx.select(Nx.less(norm, min_norm), 1, x)
     Nx.select(Nx.less(norm, min_norm), min_norm, Nx.norm(x))
+  end
+
+  defnp empty(_) do
+    {}
   end
 end

@@ -138,6 +138,20 @@ defmodule Axon.Shared do
     end
   end
 
+  @doc """
+  Creates a zeros-like tuple of inputs.
+  """
+  defmacro zeros_like(params) do
+    quote do
+      Nx.Defn.Kernel.transform(unquote(params), fn params ->
+        params
+        |> Tuple.to_list()
+        |> Enum.map(&Axon.Initializers.zeros(shape: Nx.shape(&1)))
+        |> List.to_tuple()
+      end)
+    end
+  end
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else
