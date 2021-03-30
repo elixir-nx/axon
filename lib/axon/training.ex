@@ -7,7 +7,7 @@ defmodule Axon.Training do
   @type state :: Tuple.t(tensor)
 
   @callback loss(model_state :: state, input :: tensor, targets :: tensor) :: state
-  @callback train_step(model_state :: state, inputs :: tensor, targets :: tensor) :: state
+  @callback train_step(model_state :: state, inputs :: tensor, targets :: tensor) :: {state, state}
 
   defmacro __using__(_opts) do
     quote do
@@ -16,19 +16,28 @@ defmodule Axon.Training do
 
       @impl true
       defn train_step(params, input, target) do
-        gradients = grad(params, &__MODULE__.loss(&1, input, target))
+        {batch_loss, gradients} = value_and_grad(params, &__MODULE__.loss(&1, input, target))
         updates = Axon.map(gradients, &Axon.Updates.scale(&1, -0.01))
-        Axon.apply_updates(params, updates)
+        {Axon.apply_updates(params, updates), batch_loss}
       end
 
       def train_epoch(cur_params, inputs, targets, compiler) do
+        total_batches = Enum.count(inputs)
+
         dataset =
           inputs
           |> Enum.zip(targets)
 
-        for {inp, tar} <- dataset, reduce: cur_params do
-          params ->
-            Nx.Defn.jit(&__MODULE__.train_step/3, [params, inp, tar], compiler: compiler)
+        step_fn =
+          fn params, inp, tar, state ->
+            {new_model_state, batch_loss} = __MODULE__.train_step(params, inp, tar)
+            state = Nx.add(Nx.divide(batch_loss, total_batches), state)
+            {new_model_state, state}
+          end
+
+        for {inp, tar} <- dataset, reduce: {cur_params, Nx.tensor(0.0)} do
+          {params, state} ->
+            Nx.Defn.jit(step_fn, [params, inp, tar, state], compiler: compiler)
         end
       end
 
@@ -41,10 +50,16 @@ defmodule Axon.Training do
 
         for epoch <- 1..epochs, reduce: params do
           cur_params ->
-            {time, new_params} =
+            {time, {new_params, avg_loss}} =
               :timer.tc(__MODULE__, :train_epoch, [cur_params, inputs, targets, compiler])
 
+            epoch_avg_loss =
+              avg_loss
+              |> Nx.backend_transfer()
+              |> Nx.to_scalar()
+
             IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
+            IO.puts("Epoch #{epoch} Loss: #{epoch_avg_loss}")
             IO.puts("\n")
             new_params
         end
