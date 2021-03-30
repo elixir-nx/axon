@@ -4,30 +4,35 @@ defmodule Axon.Training do
   """
   require Axon
 
-  def step(objective_fn, _opts \\ []) do
+  def step(objective_fn) do
     fn params, input, target ->
       {batch_loss, gradients} = Nx.Defn.Kernel.value_and_grad(params, &objective_fn.(&1, input, target))
-      updates = Axon.map(gradients, &Axon.Updates.scale(&1, -0.01))
+      updates = Axon.Updates.scale(gradients, -0.01)
       {Axon.apply_updates(params, updates), batch_loss}
     end
   end
 
-  def step(%Axon{} = x, loss, _opts \\ []) when is_atom(loss) do
-    loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
+  def step(%Axon{} = model, loss) when is_function(loss, 2) do
     objective_fn =
       fn params, input, target ->
         preds = Axon.predict(model, params, input)
-        loss_fn.(target, preds)
+        loss.(target, preds)
       end
     step(objective_fn)
   end
 
-  def train_epoch(step_fn, cur_params, inputs, targets, compiler) do
+  def step(%Axon{} = model, loss) when is_atom(loss) do
+    loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
+    step(model, loss_fn)
+  end
+
+  defp train_epoch(step_fn, cur_params, inputs, targets, compiler, epoch) do
     total_batches = Enum.count(inputs)
 
     dataset =
       inputs
       |> Enum.zip(targets)
+      |> Enum.with_index()
 
     step_fn =
       fn params, inp, tar, state ->
@@ -36,13 +41,14 @@ defmodule Axon.Training do
         {new_model_state, state}
       end
 
-    for {inp, tar} <- dataset, reduce: {cur_params, Nx.tensor(0.0)} do
+    for {{inp, tar}, i} <- dataset, reduce: {cur_params, Nx.tensor(0.0)} do
       {params, state} ->
+        IO.write("\rEpoch #{epoch}, batch #{i + 1} of #{total_batches}")
         Nx.Defn.jit(step_fn, [params, inp, tar, state], compiler: compiler)
     end
   end
 
-  def train(model, step_fn, inputs, targets, opts \\ []) do
+  def train(step_fn, model, inputs, targets, opts \\ []) do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
 
@@ -52,13 +58,14 @@ defmodule Axon.Training do
     for epoch <- 1..epochs, reduce: params do
       cur_params ->
         {time, {new_params, avg_loss}} =
-          :timer.tc(__MODULE__, :train_epoch, [step_fn, cur_params, inputs, targets, compiler])
+          :timer.tc(&train_epoch/6, [step_fn, cur_params, inputs, targets, compiler, epoch])
 
         epoch_avg_loss =
           avg_loss
           |> Nx.backend_transfer()
           |> Nx.to_scalar()
 
+        IO.puts("\n")
         IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
         IO.puts("Epoch #{epoch} Loss: #{epoch_avg_loss}")
         IO.puts("\n")

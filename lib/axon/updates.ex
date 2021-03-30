@@ -67,8 +67,18 @@ defmodule Axon.Updates do
 
   """
   defn scale(x, step) do
-    x
-    |> Nx.multiply(step)
+    transform({x, step},
+      fn {updates, step} ->
+        if is_tuple(updates) do
+          updates
+          |> Tuple.to_list()
+          |> Enum.map(&Nx.multiply(&1, step))
+          |> List.to_tuple()
+        else
+          Nx.multiply(updates, step)
+        end
+      end
+    )
   end
 
   @doc """

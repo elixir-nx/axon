@@ -61,8 +61,9 @@ IO.inspect model
 
 {train_images, train_labels} = MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
 
-IO.puts("Training MNIST for 10 epochs...\n\n")
-step = Axon.Training.step(model, :categorical_cross_entropy)
-final_params = Axon.Training.train(model, step, train_images, train_labels, epochs: 10, compiler: EXLA)
+final_params =
+  model
+  |> Axon.Training.step(:categorical_cross_entropy)
+  |> Axon.Training.train(model, train_images, train_labels, epochs: 10, compiler: EXLA)
 
 IO.inspect(Nx.backend_transfer(final_params))
