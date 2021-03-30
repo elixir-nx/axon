@@ -35,16 +35,23 @@ defmodule Axon.Training do
       |> Enum.with_index()
 
     step_fn =
-      fn params, inp, tar, state ->
+      fn params, inp, tar ->
         {new_model_state, batch_loss} = step_fn.(params, inp, tar)
-        state = Nx.add(Nx.divide(batch_loss, total_batches), state)
-        {new_model_state, state}
+        {new_model_state, batch_loss}
       end
 
     for {{inp, tar}, i} <- dataset, reduce: {cur_params, Nx.tensor(0.0)} do
       {params, state} ->
-        IO.write("\rEpoch #{epoch}, batch #{i + 1} of #{total_batches}")
-        Nx.Defn.jit(step_fn, [params, inp, tar, state], compiler: compiler)
+        {new_model_state, batch_loss} = Nx.Defn.jit(step_fn, [params, inp, tar], compiler: compiler)
+        avg_loss =
+          state
+          |> Nx.multiply(i)
+          |> Nx.add(Nx.backend_transfer(batch_loss))
+          |> Nx.divide(i + 1)
+
+        IO.write("\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - Average Loss: #{Nx.to_scalar(avg_loss)}")
+
+        {new_model_state, avg_loss}
     end
   end
 
