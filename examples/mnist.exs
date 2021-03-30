@@ -1,30 +1,4 @@
 defmodule MNIST do
-  use Axon
-
-  @default_defn_compiler {EXLA, keep_on_device: true}
-
-  def model do
-    input({nil, 784})
-    |> dense(128, activation: :relu)
-    |> layer_norm()
-    |> dropout()
-    |> dense(10, activation: :softmax)
-  end
-
-  defn loss(params, batch_images, batch_labels) do
-    preds = Axon.predict(model(), params, batch_images)
-    Axon.Losses.categorical_cross_entropy(batch_labels, preds, reduction: :mean)
-  end
-
-  defn update_with_averages(params, imgs, tar, avg_loss, avg_accuracy, total) do
-    {batch_loss, gradients} = value_and_grad(params, &loss(&1, imgs, tar))
-    batch_accuracy = Axon.Metrics.accuracy(tar, Axon.predict(model(), params, imgs))
-    avg_loss = avg_loss + batch_loss / total
-    avg_accuracy = avg_accuracy + batch_accuracy / total
-    updates = Axon.map(gradients, &Axon.Updates.scale(&1, -0.01))
-    {Axon.apply_updates(params, updates), avg_loss, avg_accuracy}
-  end
-
   defp unzip_cache_or_download(zip) do
     base_url = 'https://storage.googleapis.com/cvdf-datasets/mnist/'
     path = Path.join("tmp", zip)
@@ -74,54 +48,22 @@ defmodule MNIST do
 
     {train_images, train_labels}
   end
-
-  def train_epoch(cur_params, imgs, labels) do
-    total_batches = Enum.count(imgs)
-
-    imgs
-    |> Enum.zip(labels)
-    |> Enum.reduce({cur_params, Nx.tensor(0.0), Nx.tensor(0.0)}, fn
-      {imgs, tar}, {cur_params, avg_loss, avg_accuracy} ->
-        update_with_averages(cur_params, imgs, tar, avg_loss, avg_accuracy, total_batches)
-    end)
-  end
-
-  def train(imgs, labels, opts \\ []) do
-    epochs = opts[:epochs] || 5
-
-    IO.puts("Initializing parameters...\n")
-    params = Axon.init(MNIST.model(), compiler: EXLA)
-
-    for epoch <- 1..epochs, reduce: params do
-      cur_params ->
-        {time, {new_params, epoch_avg_loss, epoch_avg_acc}} =
-          :timer.tc(__MODULE__, :train_epoch, [cur_params, imgs, labels])
-
-        epoch_avg_loss =
-          epoch_avg_loss
-          |> Nx.backend_transfer()
-          |> Nx.to_scalar()
-
-        epoch_avg_acc =
-          epoch_avg_acc
-          |> Nx.backend_transfer()
-          |> Nx.to_scalar()
-
-        IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
-        IO.puts("Epoch #{epoch} average loss: #{inspect(epoch_avg_loss)}")
-        IO.puts("Epoch #{epoch} average accuracy: #{inspect(epoch_avg_acc)}")
-        IO.puts("\n")
-        new_params
-    end
-  end
 end
 
-IO.inspect MNIST.model()
+model =
+  Axon.input({nil, 784})
+  |> Axon.dense(128, activation: :relu)
+  |> Axon.layer_norm()
+  |> Axon.dropout()
+  |> Axon.dense(10, activation: :softmax)
 
-{train_images, train_labels} =
-  MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
+IO.inspect model
 
-IO.puts("Training MNIST for 10 epochs...\n\n")
-final_params = MNIST.train(train_images, train_labels, epochs: 10)
+{train_images, train_labels} = MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
+
+final_params =
+  model
+  |> Axon.Training.step(:categorical_cross_entropy)
+  |> Axon.Training.train(model, train_images, train_labels, epochs: 10, compiler: EXLA)
 
 IO.inspect(Nx.backend_transfer(final_params))

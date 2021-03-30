@@ -123,6 +123,21 @@ defmodule Axon.Shared do
     end
   end
 
+  @doc """
+  Applies fun to arg.
+  """
+  defmacro apply_map(args, fun) do
+    quote do
+      Nx.Defn.Kernel.transform(unquote(args), fn args ->
+        if is_tuple(args) do
+          Nx.Defn.Tree.composite(args, unquote(fun))
+        else
+          unquote(fun).(args)
+        end
+      end)
+    end
+  end
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else
