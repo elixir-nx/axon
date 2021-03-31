@@ -828,7 +828,11 @@ defmodule Axon do
 
       rows
       |> TableRex.Table.new(header, title)
-      |> TableRex.Table.render!(header_separator_symbol: "=", title_separator_symbol: "=", vertical_style: :off)
+      |> TableRex.Table.render!(
+        header_separator_symbol: "=",
+        title_separator_symbol: "=",
+        vertical_style: :off
+      )
       |> string()
     end
 
@@ -837,7 +841,10 @@ defmodule Axon do
       [row | layers]
     end
 
-    defp axon_to_rows(%Axon{op: op, output_shape: shape, parent: x, name: name, params: params}, layers) do
+    defp axon_to_rows(
+           %Axon{op: op, output_shape: shape, parent: x, name: name, params: params},
+           layers
+         ) do
       total_params =
         params
         |> Enum.reduce(0, fn %Axon.Parameter{shape: shape}, acc -> Nx.size(shape) + acc end)
