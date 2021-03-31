@@ -17,8 +17,8 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
-  def scale(transform, step_size) do
-    stateless(transform, &apply_scale(&1, step_size))
+  def scale(combinator, step_size) do
+    stateless(combinator, &apply_scale(&1, step_size))
   end
 
   def scale(step_size) do
@@ -51,13 +51,13 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  def scale_by_adam(transform, opts) do
+  def scale_by_adam(combinator, opts) do
     b1 = opts[:b1] || 0.9
     b2 = opts[:b2] || 0.999
     eps = opts[:eps] || 1.0e-6
     eps_root = opts[:eps_root] || 1.0e-5
 
-    stateful(transform, &init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+    stateful(combinator, &init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
   end
 
   def scale_by_adam(opts) do
