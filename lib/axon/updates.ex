@@ -8,37 +8,6 @@ defmodule Axon.Updates do
   to create more advanced optimization methods such as AdaGrad
   or Adam; however, they can also be applied to model parameters.
 
-  These methods are the building blocks of common gradient descent
-  methods. For example, a basic gradient descent algorithm
-  would look something like:
-
-      g_param = grad(param, loss_fun(...))
-      param - 0.01 * g_param
-
-  With these methods, you can write that as:
-
-      g_param = grad(param, loss_fun(...))
-      param + scale(g_param, step: -0.01)
-
-  The benefits of this module are more easily seen as optimizers
-  get more complex. For example, you can implement the Adam optimizer:
-
-      g_param = grad(param, loss_fun(...))
-      {updates, mu_new, nu_new} =
-        g_param
-        |> scale_by_adam(mu, nu)
-
-      g_param + scale(updates, step: -0.01)
-
-  In the example above, by `mu` and `nu` are the 1st and 2nd moment
-  respectively. Normally, they would be initialized and maintained
-  as optimizer parameters; however, because these are stateless
-  implementations, they are updated along with the input updates.
-
-  All of the functions in this module are implemented as
-  numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` compiler.
-
   """
   import Nx.Defn
   import Axon.Shared
@@ -47,44 +16,28 @@ defmodule Axon.Updates do
   Scales input by a fixed step size.
 
   $$f(x_i) = \alpha x_i$$
-
-  ## Examples
-
-      iex> Axon.Updates.scale(Nx.tensor([-1.0, 0.0, 1.0]), 0.01)
-      #Nx.Tensor<
-        f32[3]
-        [-0.01, 0.0, 0.01]
-      >
-
-      iex> Axon.Updates.scale(Nx.tensor([[-5, 2, 1, 4, 2], [0, 2, 1, 4, 1]]), 0.1)
-      #Nx.Tensor<
-        f32[2][5]
-        [
-          [-0.5, 0.2, 0.1, 0.4, 0.2],
-          [0.0, 0.2, 0.1, 0.4, 0.1]
-        ]
-      >
-
   """
-  defn scale(x, step) do
+  def scale(transform, step_size) do
+    stateless(transform, &apply_scale(&1, step_size))
+  end
+
+  def scale(step_size) do
+    stateless(&apply_scale(&1, step_size))
+  end
+
+  defnp apply_scale(x, step) do
     transform({x, step},
       fn {updates, step} ->
-        if is_tuple(updates) do
-          updates
-          |> Tuple.to_list()
-          |> Enum.map(&Nx.multiply(&1, step))
-          |> List.to_tuple()
-        else
-          Nx.multiply(updates, step)
-        end
+        updates
+        |> Tuple.to_list()
+        |> Enum.map(&Nx.multiply(&1, step))
+        |> List.to_tuple()
       end
     )
   end
 
   @doc """
   Scales input according to Adam algorithm.
-
-  Returns `{scaled_input, updated_mu, update_nu}`.
 
   ## Options
 
@@ -98,7 +51,32 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  defn scale_by_adam(x, mu, nu, count, opts \\ []) do
+  def scale_by_adam(transform, opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 1.0e-6
+    eps_root = opts[:eps_root] || 1.0e-5
+
+    stateful(transform, &init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+  end
+
+  def scale_by_adam(opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 1.0e-6
+    eps_root = opts[:eps_root] || 1.0e-5
+
+    stateful(&init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+  end
+
+  defnp init_scale_by_adam(params) do
+    mus = zeros_like(params)
+    nus = zeros_like(params)
+    count = Nx.tensor(0)
+    {mus, nus, count}
+  end
+
+  defnp apply_scale_by_adam(x, {mu, nu, count}, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-6, eps_root: 1.0e-5)
     b1 = opts[:b1]
     b2 = opts[:b2]
@@ -111,48 +89,85 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x = mu_hat / (Nx.sqrt(nu_hat + eps_root) + eps)
+    x = transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
+      mu_hat
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu_hat))
+      |> Enum.map(fn {z, t} -> z / (Nx.sqrt(t + eps_root) + eps) end)
+      |> List.to_tuple()
+    end)
 
-    {x, mu, nu}
+    {x, {mu, nu, count + 1}}
   end
 
   @doc """
   Scales input by the root of all prior squared inputs.
-
-  Returns `{scaled_input, updated_sum_of_squares}`.
 
   ## Options
 
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  defn scale_by_rss(x, sum_of_squares, opts \\ []) do
+  def scale_by_rss(combinator, opts) do
+    initial_accumulator_value = opts[:initial_accumulator_value] || 0.1
+    eps = opts[:eps] || 1.0e-7
+
+    stateful(combinator, &init_scale_by_rss(&1, initial_accumulator_value), &apply_scale_by_rss(&1, &2, [eps: eps]))
+  end
+
+  def scale_by_rss(opts) do
+    initial_accumulator_value = opts[:initial_accumulator_value] || 0.1
+    eps = opts[:eps] || 1.0e-7
+
+    stateful(&init_scale_by_rss(&1, initial_accumulator_value), &apply_scale_by_rss(&1, &2, [eps: eps]))
+  end
+
+  defnp init_scale_by_rss(params, value) do
+    sum_of_squares = fulls_like(params, value)
+    {sum_of_squares}
+  end
+
+  defnp apply_scale_by_rss(x, {sum_of_squares}, opts \\ []) do
     opts = keyword!(opts, eps: 1.0e-7)
     eps = opts[:eps]
 
-    sum_of_squares =
+    sum_of_squares = transform({x, sum_of_squares}, fn {x, sum_of_squares} ->
       x
-      |> Nx.power(2)
-      |> Nx.add(sum_of_squares)
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(sum_of_squares))
+      |> Enum.map(fn {g, z} -> Nx.power(g, 2) + z end)
+      |> List.to_tuple()
+    end)
 
-    inv_sqrt_squares =
+    inv_sqrt_squares = transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
       sum_of_squares
-      |> Nx.add(eps)
-      |> Nx.rsqrt()
+      |> Tuple.to_list()
+      |> Enum.map(fn z -> Nx.rsqrt(z + eps) end)
+      |> List.to_tuple()
+    end)
 
-    inv_sqrt_x_square = Nx.select(Nx.greater(sum_of_squares, 0), inv_sqrt_squares, 0.0)
+    inv_sqrt_x_square =
+      transform({sum_of_squares, inv_sqrt_squares}, fn {sum_of_squares, inv_sqrt_squares} ->
+        sum_of_squares
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(inv_sqrt_squares))
+        |> Enum.map(fn {z, t} -> Nx.select(Nx.greater(z, 0), t, 0.0) end)
+        |> List.to_tuple()
+      end)
 
-    x =
+    x = transform({x, inv_sqrt_x_square}, fn {x, inv_sqrt_x_square} ->
       x
-      |> Nx.multiply(inv_sqrt_x_square)
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(inv_sqrt_x_square))
+      |> Enum.map(fn {g, t} -> g * t end)
+      |> List.to_tuple()
+    end)
 
-    {x, sum_of_squares}
+    {x, {sum_of_squares}}
   end
 
   @doc """
   Scales input by the root of the EMA of squared inputs.
-
-  Returns `{scaled_input, updated_nu}`
 
   ## Options
 
@@ -164,26 +179,47 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  defn scale_by_rms(x, nu, opts \\ []) do
+  def scale_by_rms(combinator, opts) do
+    decay = opts[:decay] || 0.9
+    eps = opts[:eps] || 1.0e-8
+    initial_scale = opts[:initial_scale] || 0.0
+
+    stateful(combinator, &init_scale_by_rms(&1, initial_scale), &apply_scale_by_rms(&1, &2, [decay: decay, eps: eps]))
+  end
+
+  def scale_by_rms(opts) do
+    decay = opts[:decay] || 0.9
+    eps = opts[:eps] || 1.0e-8
+    initial_scale = opts[:initial_scale] || 0.0
+
+    stateful(&init_scale_by_rms(&1, initial_scale), &apply_scale_by_rms(&1, &2, [decay: decay, eps: eps]))
+  end
+
+  defnp init_scale_by_rms(params, scale) do
+    nu = fulls_like(params, scale)
+    {nu}
+  end
+
+  defnp apply_scale_by_rms(x, {nu}, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
     decay = opts[:decay]
     eps = opts[:eps]
 
     nu = update_moment(x, nu, decay, 2)
 
-    x =
-      nu
-      |> Nx.add(eps)
-      |> Nx.rsqrt()
-      |> Nx.multiply(x)
+    x = transform({x, nu, eps}, fn {x, nu, eps} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu))
+      |> Enum.map(fn {g, t} -> Nx.rsqrt(t + eps) * g end)
+      |> List.to_tuple()
+    end)
 
-    {x, nu}
+    {x, {nu}}
   end
 
   @doc """
   Scales input according to the AdaBelief algorithm.
-
-  Returns `{scaled_input, update_mu, updated_nu}`.
 
   ## Options
 
@@ -197,7 +233,32 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  defn scale_by_belief(x, mu, nu, count, opts \\ []) do
+  def scale_by_belief(combinator, opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 0.0
+    eps_root = opts[:eps_root] || 1.0e-16
+
+    stateful(combinator, &init_scale_by_belief/1, &apply_scale_by_belief(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+  end
+
+  def scale_by_belief(opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 0.0
+    eps_root = opts[:eps_root] || 1.0e-16
+
+    stateful(&init_scale_by_belief/1, &apply_scale_by_belief(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+  end
+
+  defnp init_scale_by_belief(params) do
+    mus = zeros_like(params)
+    nus = zeros_like(params)
+    count = Nx.tensor(0)
+    {mus, nus, count}
+  end
+
+  defnp apply_scale_by_belief(x, {mu, nu, count}, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 0.0, eps_root: 1.0e-16)
     b1 = opts[:b1]
     b2 = opts[:b2]
@@ -205,30 +266,24 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root]
 
     mu = update_moment(x, mu, b1, 1)
-
-    nu =
-      x
-      |> Nx.subtract(mu)
-      |> update_moment(nu, b2, 2)
+    nu = update_moment(x, nu, b2, 2)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x =
-      nu_hat
-      |> Nx.add(eps_root)
-      |> Nx.sqrt()
-      |> Nx.add(eps)
-      |> reciprocal()
-      |> Nx.multiply(mu_hat)
+    x = transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
+      mu_hat
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu_hat))
+      |> Enum.map(fn {z, t} -> (1 / (Nx.sqrt(t + eps_root) + eps)) * z end)
+      |> List.to_tuple()
+    end)
 
-    {x, mu, nu}
+    {x, {mu, nu, count + 1}}
   end
 
   @doc """
   Scales input by the root of the centered EMA of squared inputs.
-
-  Returns `{scaled_input, updated_mu, updated_nu}`
 
   ## Options
 
@@ -240,7 +295,29 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  defn scale_by_stddev(x, mu, nu, opts \\ []) do
+  def scale_by_stddev(combinator, opts) do
+    decay = opts[:decay] || 0.9
+    eps = opts[:eps] || 1.0e-8
+    initial_scale = opts[:initial_scale] || 0.0
+
+    stateful(combinator, &init_scale_by_stddev(&1, initial_scale), &apply_scale_by_stddev(&1, &2, [decay: decay, eps: eps]))
+  end
+
+  def scale_by_stddev(opts) do
+    decay = opts[:decay] || 0.9
+    eps = opts[:eps] || 1.0e-8
+    initial_scale = opts[:initial_scale] || 0.0
+
+    stateful(&init_scale_by_stddev(&1, initial_scale), &apply_scale_by_stddev(&1, &2, [decay: decay, eps: eps]))
+  end
+
+  defnp init_scale_by_stddev(params, value) do
+    mu = zeros_like(params)
+    nu = fulls_like(params, value)
+    {mu, nu}
+  end
+
+  defnp apply_scale_by_stddev(x, {mu, nu}, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
     decay = opts[:decay]
     eps = opts[:eps]
@@ -248,58 +325,42 @@ defmodule Axon.Updates do
     mu = update_moment(x, mu, decay, 1)
     nu = update_moment(x, nu, decay, 2)
 
-    x =
-      mu
-      |> Nx.power(2)
-      |> Nx.negate()
-      |> Nx.add(nu)
-      |> Nx.add(eps)
-      |> Nx.rsqrt()
-      |> Nx.multiply(x)
-
-    {x, mu, nu}
+    x = transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
+      [Tuple.to_list(x), Tuple.to_list(mu), Tuple.to_list(nu)]
+      |> Enum.zip()
+      |> Enum.map(fn {g, z, t} -> g * Nx.rsqrt(-Nx.power(z, 2) + t + eps) end)
+      |> List.to_tuple()
+    end)
+    {x, {mu, nu}}
   end
 
   @doc """
   Scales input using the given schedule function.
   """
-  def scale_by_schedule(x, count, schedule_fn) when is_function(schedule_fn) do
-    step_size = schedule_fn.(count)
-    Nx.multiply(x, step_size)
+  def scale_by_schedule(combinator, schedule_fn) when is_function(schedule_fn) do
+    stateful(combinator, &init_scale_by_schedule/1, &apply_scale_by_schedule(&1, &2, schedule_fn))
   end
 
-  @doc """
-  Scales input by trust ratio.
+  def scale_by_schedule(schedule_fn) when is_function(schedule_fn) do
+    stateful(&init_scale_by_schedule/1, &apply_scale_by_schedule(&1, &2, schedule_fn))
+  end
 
-  Returns `scaled_input`.
+  defnp init_scale_by_schedule(_) do
+    {Nx.tensor(0)}
+  end
 
-  ## Options
-
-      * `:min_norm` - minimum norm for inputs. Defaults to `0.0`
-
-  ## References
-
-      [Large Batch Optimization for Deep Learning: Training BERT in 76 minutes](https://arxiv.org/abs/1904.00962)
-
-  """
-  defn scale_by_trust_ratio(x, g, opts \\ []) do
-    opts = keyword!(opts, min_norm: 0.0)
-    min_norm = opts[:min_norm]
-
-    param_norm = safe_norm(x, min_norm)
-    update_norm = safe_norm(g, min_norm)
-    zero_norm = Nx.logical_or(Nx.equal(param_norm, 0), Nx.equal(update_norm, 0))
-
-    trust_ratio = Nx.divide(param_norm, update_norm)
-    safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
-
-    Nx.multiply(x, safe_trust_ratio)
+  defnp apply_scale_by_schedule(x, {count}, schedule_fn) do
+    step_size = schedule_fn.(count)
+    transform({x, step_size}, fn {x, step_size} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.map(fn x -> x * step_size end)
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
   Scale input according to the Rectified Adam algorithm.
-
-  Returns `{scaled_input, updated_mu, updated_nu}`.
 
   ## Options
 
@@ -314,7 +375,34 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  defn scale_by_radam(x, mu, nu, count, opts \\ []) do
+  def scale_by_radam(combinator, opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 1.0e-8
+    eps_root = opts[:eps_root] || 0.0
+    threshold = opts[:threshold] || 5.0
+
+    stateful(combinator, &init_scale_by_radam/1, &apply_scale_by_radam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root, threshold: threshold]))
+  end
+
+  def scale_by_radam(opts) do
+    b1 = opts[:b1] || 0.9
+    b2 = opts[:b2] || 0.999
+    eps = opts[:eps] || 1.0e-8
+    eps_root = opts[:eps_root] || 0.0
+    threshold = opts[:threshold] || 5.0
+
+    stateful(&init_scale_by_radam/1, &apply_scale_by_radam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root, threshold: threshold]))
+  end
+
+  defnp init_scale_by_radam(params) do
+    mu = zeros_like(params)
+    nu = zeros_like(params)
+    count = Nx.tensor(0)
+    {mu, nu, count}
+  end
+
+  defnp apply_scale_by_radam(x, {mu, nu, count}, opts \\ []) do
     opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 0.0, threshold: 5.0)
     b1 = opts[:b1]
     b2 = opts[:b2]
@@ -353,7 +441,7 @@ defmodule Axon.Updates do
         mu_hat
       end
 
-    {x, mu, nu}
+    {x, {mu, nu, count + 1}}
   end
 
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
@@ -369,17 +457,20 @@ defmodule Axon.Updates do
       |> Nx.multiply(Nx.subtract(ro, 2))
       |> Nx.multiply(ro)
 
-    nu_hat =
+    nu_hat = transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
       nu
-      |> Nx.add(eps_root)
-      |> Nx.sqrt()
-      |> Nx.add(eps)
+      |> Tuple.to_list()
+      |> Enum.map(fn t -> Nx.sqrt(t + eps_root) + eps end)
+      |> List.to_tuple()
+    end)
 
-    top
-    |> Nx.divide(bottom)
-    |> Nx.sqrt()
-    |> Nx.multiply(mu)
-    |> Nx.divide(nu_hat)
+    transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
+      mu
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(nu_hat))
+      |> Enum.map(fn {z, t} -> Nx.sqrt(top / bottom) * (z / t) end)
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
@@ -395,26 +486,52 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  defn trace(x, trace, opts \\ []) do
+  def trace(combinator, opts) do
+    decay = opts[:decay] || 0.9
+    nesterov = opts[:nesterov] || false
+
+    stateful(combinator, &init_trace/1, &apply_trace(&1, &2, [decay: decay, nesterov: nesterov]))
+  end
+
+  def trace(opts) do
+    decay = opts[:decay] || 0.9
+    nesterov = opts[:nesterov] || false
+
+    stateful(&init_trace/1, &apply_trace(&1, &2, [decay: decay, nesterov: nesterov]))
+  end
+
+  defnp init_trace(params) do
+    trace = zeros_like(params)
+    {trace}
+  end
+
+  defnp apply_trace(x, {trace}, opts \\ []) do
     opts = keyword!(opts, decay: 0.9, nesterov: false)
     decay = opts[:decay]
     nesterov? = to_predicate(opts[:nesterov])
 
-    update_trace =
-      trace
-      |> Nx.multiply(decay)
-      |> Nx.add(x)
+    update_trace = transform({x, trace, decay}, fn {x, trace, decay} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(trace))
+      |> Enum.map(fn {g, t} -> t * decay + g end)
+      |> List.to_tuple()
+    end)
 
     x =
       if nesterov? do
-        update_trace
-        |> Nx.multiply(decay)
-        |> Nx.add(x)
+        transform({x, update_trace, decay}, fn {x, trace, decay} ->
+          x
+          |> Tuple.to_list()
+          |> Enum.zip(Tuple.to_list(trace))
+          |> Enum.map(fn {g, t} -> t * decay + g end)
+          |> List.to_tuple()
+        end)
       else
         update_trace
       end
 
-    {x, update_trace}
+    {x, {update_trace}}
   end
 
   @doc """
@@ -424,26 +541,26 @@ defmodule Axon.Updates do
 
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
-
-  ## Examples
-
-      iex> Axon.Updates.clip(Nx.tensor([-3.0, -2.5, 0.0, 2.0, 1.0]))
-      #Nx.Tensor<
-        f32[5]
-        [-2.0, -2.0, 0.0, 2.0, 1.0]
-      >
-
-      iex> Axon.Updates.clip(Nx.tensor([-5, -3, -1, 0, 2, 10, 4]), delta: 2.5)
-      #Nx.Tensor<
-        f32[7]
-        [-2.5, -2.5, -1.0, 0.0, 2.0, 2.5, 2.5]
-      >
-
   """
-  defn clip(x, opts \\ []) do
+  def clip(combinator, opts) do
+    delta = opts[:delta] || 2.0
+    stateless(combinator, &apply_clip(&1, [delta: delta]))
+  end
+
+  def clip(opts) do
+    delta = opts[:delta] || 2.0
+    stateless(&apply_clip(&1, [delta: delta]))
+  end
+
+  defnp apply_clip(x, opts \\ []) do
     opts = keyword!(opts, delta: 2.0)
     delta = opts[:delta]
-    Nx.clip(x, -delta, delta)
+    transform({x, delta}, fn {x, delta} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.map(fn g -> Nx.clip(g, -delta, delta) end)
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
@@ -453,76 +570,118 @@ defmodule Axon.Updates do
 
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
-
-  ## Examples
-
-      iex> Axon.Updates.clip_by_global_norm(Nx.tensor([-3.0, -2.5, 0.0, 2.0, 1.0]))
-      #Nx.Tensor<
-        f32[5]
-        [-0.6666666865348816, -0.5555555820465088, 0.0, 0.4444444477558136, 0.2222222238779068]
-      >
-
   """
-  defn clip_by_global_norm(x, opts \\ []) do
+  def clip_by_global_norm(combinator, opts) do
+    max_norm = opts[:max_norm] || 1.0
+    stateless(combinator, &apply_clip_by_global_norm(&1, [max_norm: max_norm]))
+  end
+
+  def clip_by_global_norm(opts) do
+    max_norm = opts[:max_norm] || 1.0
+    stateless(&apply_clip_by_global_norm(&1, [max_norm: max_norm]))
+  end
+
+  defnp apply_clip_by_global_norm(x, opts \\ []) do
     opts = keyword!(opts, max_norm: 1.0)
     max_norm = opts[:max_norm]
 
-    g_norm =
-      x
-      |> Nx.power(2)
-      |> Nx.sum()
-      |> Nx.sqrt()
+    g_norm = apply_map(x, fn z -> Nx.sqrt(Nx.sum(Nx.power(z, 2))) end)
 
-    x_norm =
+    transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
       x
-      |> Nx.divide(g_norm)
-      |> Nx.multiply(max_norm)
-
-    Nx.select(Nx.less(g_norm, max_norm), x, x_norm)
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(g_norm))
+      |> Enum.map(fn {z, g} -> Nx.select(Nx.less(g, max_norm), z, (z / g) * max_norm) end)
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
   Centralize input.
-
-  ## Examples
-
-    iex> Axon.Updates.centralize(Nx.tensor([2.0, -3.0, 1.0, 2.0, -3.0]))
-    #Nx.Tensor<
-      f32[5]
-      [2.2, -2.8, 1.2, 2.2, -2.8]
-    >
-
-    iex> Axon.Updates.centralize(Nx.tensor([[1.0, -2.0, 5.0, 10.0], [2.0, 3.0, 4.0, 5.0]]))
-    #Nx.Tensor<
-      f32[2][4]
-      [
-        [-2.5, -5.5, 1.5, 6.5],
-        [-1.5, -0.5, 0.5, 1.5]
-      ]
-    >
-
   """
-  defn centralize(x) do
-    x
-    |> Nx.mean()
-    |> Nx.negate()
-    |> Nx.add(x)
+  def centralize(combinator) do
+    stateless(combinator, &apply_centralize/1)
+  end
+
+  def centralize() do
+    stateless(&apply_centralize/1)
+  end
+
+  defnp apply_centralize(x) do
+    apply_map(x, fn z -> -Nx.mean(z) + z end)
   end
 
   ## Helpers
 
+  defp stateless({parent_init_fn, parent_apply_fn}, apply_fn) do
+    apply_fn =
+      fn updates, state ->
+        {updates, state} = parent_apply_fn.(updates, state)
+        {apply_fn.(updates), state}
+      end
+    {parent_init_fn, apply_fn}
+  end
+
+  defp stateless(apply_fn) do
+    init_fn = &empty_state/1
+    apply_fn =
+      fn updates, state ->
+        updates = apply_fn.(updates)
+        {updates, state}
+      end
+
+    {init_fn, apply_fn}
+  end
+
+  defp stateful({parent_init_fn, parent_apply_fn}, init_fn, apply_fn) do
+    init_fn =
+      fn params ->
+        state = parent_init_fn.(params)
+        Tuple.insert_at(state, 0, init_fn.(params))
+      end
+
+    apply_fn =
+      fn updates, state ->
+        this_state = elem(state, 0)
+        other_state = Tuple.delete_at(state, 0)
+        {updates, new_other_state} = parent_apply_fn.(updates, other_state)
+        {updates, new_this_state} = apply_fn.(updates, this_state)
+        {updates, Tuple.insert_at(new_other_state, 0, new_this_state)}
+      end
+
+    {init_fn, apply_fn}
+  end
+
+  defp stateful(init_fn, apply_fn) do
+    init_fn = fn params -> {init_fn.(params)} end
+    apply_fn =
+      fn updates, state ->
+        apply_fn.(updates, elem(state, 0))
+      end
+
+    {init_fn, apply_fn}
+  end
+
   defnp update_moment(x, moment, decay, order) do
-    (1 - decay) * Nx.power(x, order) + Nx.multiply(decay, moment)
+    transform({x, moment, decay, order}, fn {x, moment, decay, order} ->
+      x
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(moment))
+      |> Enum.map(fn {g, z} -> (1 - decay) * Nx.power(g, order) + decay * z end)
+      |> List.to_tuple()
+    end)
   end
 
   defnp bias_correction(moment, decay, count) do
-    correction = 1 - Nx.power(decay, count)
-    Nx.divide(moment, correction)
+    transform({moment, decay, count}, fn {moment, decay, count} ->
+      moment
+      |> Tuple.to_list()
+      |> Enum.map(fn z -> z / (1 - Nx.power(decay, count)) end)
+      |> List.to_tuple()
+    end)
   end
 
-  defnp safe_norm(x, min_norm) do
-    norm = Nx.norm(x)
-    x = Nx.select(Nx.less(norm, min_norm), 1, x)
-    Nx.select(Nx.less(norm, min_norm), min_norm, Nx.norm(x))
+  defnp empty_state(_) do
+    {}
   end
 end
