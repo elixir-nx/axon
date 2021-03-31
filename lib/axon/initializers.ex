@@ -79,6 +79,14 @@ defmodule Axon.Initializers do
   end
 
   @doc """
+  Initializes parameters to value.
+  """
+  defn full(value, opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    Nx.broadcast(Nx.tensor(value, type: opts[:type]), opts[:shape])
+  end
+
+  @doc """
   Initializes parameters to an identity matrix.
 
   ## Examples

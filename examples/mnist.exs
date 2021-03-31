@@ -61,7 +61,7 @@ IO.inspect model
 
 {train_images, train_labels} = MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
 
-{init_optimizer, apply_updates} = Axon.Optimizers.adam(0.01)
+{init_optimizer, apply_updates} = Axon.Optimizers.rmsprop(0.01)
 
 final_params =
   model

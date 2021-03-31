@@ -152,6 +152,20 @@ defmodule Axon.Shared do
     end
   end
 
+  @doc """
+  Creates a fulls-like tuple of inputs.
+  """
+  defmacro fulls_like(params, value) do
+    quote do
+      Nx.Defn.Kernel.transform({unquote(params), unquote(value)}, fn {params, value} ->
+        params
+        |> Tuple.to_list()
+        |> Enum.map(&Axon.Initializers.full(value, shape: Nx.shape(&1)))
+        |> List.to_tuple()
+      end)
+    end
+  end
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else
