@@ -50,23 +50,17 @@ defmodule Axon.Optimizers do
     nesterov? = opts[:nesterov] || false
     momentum = opts[:momentum]
 
-    if centered do
-      combinator =
+    combinator =
+      if centered do
         Updates.scale_by_stddev(opts)
-        |> Updates.scale(-learning_rate)
-
-      if momentum,
-        do: combinator |> Updates.trace(decay: momentum, nesterov: nesterov?),
-        else: combinator
-    else
-      combinator =
+      else
         Updates.scale_by_rms(opts)
-        |> Updates.scale(-learning_rate)
+      end
+      |> Updates.scale(-learning_rate)
 
-      if momentum,
-        do: combinator |> Updates.trace(decay: momentum, nesterov: nesterov?),
-        else: combinator
-    end
+    if momentum,
+      do: Updates.trace(combinator, decay: momentum, nesterov: nesterov?),
+      else: combinator
   end
 
   @doc """
