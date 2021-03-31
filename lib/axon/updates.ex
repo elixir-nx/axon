@@ -476,8 +476,6 @@ defmodule Axon.Updates do
   @doc """
   Trace inputs with past inputs.
 
-  Returns `{traced_inputs, updated_trace}`.
-
   ## Options
 
     * `:decay` - decay rate for tracing past updates. Defaults
