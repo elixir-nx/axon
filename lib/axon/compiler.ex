@@ -8,7 +8,7 @@ defmodule Axon.Compiler do
 
   @doc false
   def __jit_init__(%Axon{} = graph, caller, [] = args, opts) do
-    {names_and_exprs, _} = to_init_fun(graph, %{}, 0)
+    {names_and_exprs, _} = to_init_fun(graph, {%{}, 0})
 
     fun =
       fn ->
@@ -31,43 +31,21 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp to_init_fun(%Axon{parent: nil, params: params}, names_and_exprs, counter) do
-    Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
-                                                         name: name,
-                                                         shape: shape,
-                                                         initializer: initializer
-                                                       },
-                                                       {names_and_exprs, counter} ->
-      {
-        Map.put(
-          names_and_exprs,
-          "#{counter_to_name(counter)}_" <> name,
-          fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
-        ),
-        counter + 1
-      }
-    end)
-  end
-
-  defp to_init_fun(%Axon{parent: parent, params: params}, names_and_exprs, counter) do
-    {names_and_exprs, counter} =
-      Enum.reduce(params, {names_and_exprs, counter}, fn %Axon.Parameter{
-                                                           name: name,
-                                                           shape: shape,
-                                                           initializer: initializer
-                                                         },
-                                                         {names_and_exprs, counter} ->
-        {
-          Map.put(
-            names_and_exprs,
-            "#{counter_to_name(counter)}_" <> name,
-            fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
-          ),
-          counter + 1
-        }
+  defp to_init_fun(%Axon{parent: parent, params: params}, acc) do
+    acc =
+      Enum.reduce(params, acc, fn
+        %Axon.Parameter{} = param, {names_and_exprs, counter} ->
+          %{name: name, shape: shape, initializer: initializer} = param
+          key = "#{counter_to_name(counter)}_" <> name
+          fun = fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
+          {Map.put(names_and_exprs, key, fun), counter + 1}
       end)
 
-    to_init_fun(parent, names_and_exprs, counter)
+    if parent do
+      to_init_fun(parent, acc)
+    else
+      acc
+    end
   end
 
   ## Model JIT Compilation
