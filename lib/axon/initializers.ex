@@ -80,10 +80,21 @@ defmodule Axon.Initializers do
 
   @doc """
   Initializes parameters to value.
+
+  ## Examples
+
+      iex> Axon.Initializers.full(0.01, shape: {2, 2})
+      #Nx.Tensor<
+        f32[2][2]
+        [
+          [0.01, 0.01],
+          [0.01, 0.01]
+        ]
+      >
   """
   defn full(value, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
-    Nx.broadcast(Nx.tensor(value, type: opts[:type]), opts[:shape])
+    Nx.as_type(Nx.broadcast(value, opts[:shape]), opts[:type])
   end
 
   @doc """
