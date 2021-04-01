@@ -539,4 +539,27 @@ defmodule Axon.Shape do
 
     {elem(shape, 0), out_units}
   end
+
+  @doc """
+  Calculates the shape after a concatenate layer, which
+  concatenates inputs along the given dimension.
+
+  ## Examples
+
+      iex> Axon.Shape.concatenate([{nil, 32}, {nil, 12}], 1)
+      {nil, 44}
+
+      iex> Axon.Shape.concatenate([{nil, 24, 32}, {nil, 24, 15}, {nil, 24, 10}], 2)
+      {nil, 24, 57}
+
+  ### Error cases
+
+      iex> Axon.Shape.concatenate([{10, 32}, {5, 32}], 1)
+      ** (ArgumentError) non-concat dims must be equal got 5 and 10 while concatenating on axis 1
+  """
+  def concatenate([s1 | _] = input_shapes, axis) do
+    nil_names = for _ <- 1..length(input_shapes), do: List.duplicate(nil, Nx.rank(s1))
+    {shape, _} = Nx.Shape.concatenate(input_shapes, nil_names, axis)
+    shape
+  end
 end

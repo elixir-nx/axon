@@ -30,6 +30,10 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp to_init_fun(%Axon{parent: parents}, acc) when is_list(parents) do
+    Enum.reduce(parents, acc, fn parent, acc -> to_init_fun(parent, acc) end)
+  end
+
   defp to_init_fun(%Axon{parent: parent, params: params}, acc) do
     acc =
       Enum.reduce(params, acc, fn
@@ -51,7 +55,7 @@ defmodule Axon.Compiler do
 
   @doc false
   def __jit_predict__(%Axon{} = graph, caller, [params, input] = args, opts) do
-    expr = to_predict_expr(graph, Enum.reverse(Tuple.to_list(params)), input)
+    {expr, _} = to_predict_expr(graph, Enum.reverse(Tuple.to_list(params)), input)
 
     if Nx.Defn.Compiler.current() do
       if opts != [] do
@@ -73,15 +77,15 @@ defmodule Axon.Compiler do
 
   defp to_predict_expr(%Axon{op: op, parent: parent}, params, input)
        when op in @activation_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Activations, op, [expr])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Activations, op, [expr]), params}
   end
 
   ## Linear Layers
 
   defp to_predict_expr(%Axon{op: :dense, parent: parent}, [b, w | params], input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :dense, [expr, w, b])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, :dense, [expr, w, b]), params}
   end
 
   ## Pooling Layers
@@ -90,8 +94,8 @@ defmodule Axon.Compiler do
 
   defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
        when op in @pooling_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, op, [expr, opts]), params}
   end
 
   ## Dropout Layers
@@ -100,8 +104,8 @@ defmodule Axon.Compiler do
 
   defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, params, input)
        when op in @dropout_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, op, [expr, opts]), params}
   end
 
   ## Conv Layers
@@ -110,8 +114,8 @@ defmodule Axon.Compiler do
 
   defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, [b, w | params], input)
        when op in @conv_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, w, b, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, op, [expr, w, b, opts]), params}
   end
 
   defp to_predict_expr(
@@ -119,8 +123,8 @@ defmodule Axon.Compiler do
          [b1, w1, b2, w2 | params],
          input
        ) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :separable_conv2d, [expr, w1, b1, w2, b2, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, :separable_conv2d, [expr, w1, b1, w2, b2, opts]), params}
   end
 
   defp to_predict_expr(
@@ -128,8 +132,8 @@ defmodule Axon.Compiler do
          [b1, w1, b2, w2, b3, w3 | params],
          input
        ) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :separable_conv3d, [expr, w1, b1, w2, b2, w3, b3, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, :separable_conv3d, [expr, w1, b1, w2, b2, w3, b3, opts]), params}
   end
 
   ## Normalization Layers
@@ -138,22 +142,48 @@ defmodule Axon.Compiler do
 
   defp to_predict_expr(%Axon{op: op, parent: parent, opts: opts}, [b, w | params], input)
        when op in @normalization_layers do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, op, [expr, w, b, opts])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, op, [expr, w, b, opts]), params}
+  end
+
+  defp to_predict_expr(%Axon{op: :concatenate, parent: parents, opts: [axis: axis]}, params, input) do
+    {exprs, params} =
+      Enum.map_reduce(parents, params, fn node, params ->
+        to_predict_expr(node, params, input)
+      end)
+
+    {apply(Nx, :concatenate, [exprs, [axis: axis]]), params}
+  end
+
+  ## Element-wise layers
+
+  @element_wise_layers [:add, :subtract, :multiply]
+
+  defp to_predict_expr(%Axon{op: op, parent: parents}, params, input) when op in @element_wise_layers do
+    {[expr | rest], _} =
+      Enum.map_reduce(parents, params, fn node, params ->
+        to_predict_expr(node, params, input)
+      end)
+
+    res =
+      rest
+      |> Enum.reduce(expr, fn x, acc -> apply(Nx, op, [acc, x]) end)
+
+    {res, params}
   end
 
   defp to_predict_expr(%Axon{op: :nx, parent: parent, opts: [fun: fun]}, params, input) do
-    expr = to_predict_expr(parent, params, input)
-    fun.(expr)
+    {expr, params} = to_predict_expr(parent, params, input)
+    {fun.(expr), params}
   end
 
   defp to_predict_expr(%Axon{op: :flatten, parent: parent}, params, input) do
-    expr = to_predict_expr(parent, params, input)
-    apply(Axon.Layers, :flatten, [expr])
+    {expr, params} = to_predict_expr(parent, params, input)
+    {apply(Axon.Layers, :flatten, [expr]), params}
   end
 
-  defp to_predict_expr(%Axon{op: :input, parent: nil}, _params, input) do
-    input
+  defp to_predict_expr(%Axon{op: :input, parent: nil}, params, input) do
+    {input, params}
   end
 
   ## Helpers

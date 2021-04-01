@@ -726,6 +726,82 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a concatenate layer to the network.
+
+  This layer will concatenate inputs along the last
+  dimension unless specified otherwise.
+
+  ## Options
+
+    * `axis` - Concatenate axis.
+  """
+  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts) do
+    {id, name} = unique_identifiers(:concatenate, opts[:name])
+    axis = opts[:axis] || Nx.rank(x_shape) - 1
+    output_shape = Axon.Shape.concatenate([x_shape, y_shape], axis)
+
+    %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: [x, y],
+      op: :concatenate,
+      params: [],
+      opts: [axis: axis]
+    }
+  end
+
+  def concatenate([%Axon{output_shape: shape} | _] = inputs, opts) when is_list(inputs) do
+    {id, name} = unique_identifiers(:concatenate, opts[:name])
+    axis = opts[:axis] || Nx.rank(shape) - 1
+    input_shapes = inputs |> Enum.map(fn %Axon{output_shape: shape} -> shape end)
+    output_shape = Axon.Shape.concatenate(input_shapes, axis)
+
+    %Axon{
+      id: id,
+      name: name,
+      output_shape: output_shape,
+      parent: inputs,
+      op: :concatenate,
+      params: [],
+      opts: [axis: axis]
+    }
+  end
+
+  @element_wise_layers [:add, :subtract, :multiply]
+
+  for op <- @element_wise_layers do
+    @doc """
+    Adds an #{op} layer to the network.
+    """
+    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
+      {id, name} = unique_identifiers(unquote(op), opts[:name])
+      %Axon{id: id, name: name, output_shape: shape, parent: [x, y], op: unquote(op), params: []}
+    end
+
+    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts) do
+      {id, name} = unique_identifiers(unquote(op), opts[:name])
+
+      output_shape =
+        rest
+        |> Enum.reduce(shape, fn %Axon{output_shape: shape}, acc ->
+          unless shape == acc do
+            raise ArgumentError, "all input shapes must match"
+          end
+        end)
+
+      %Axon{
+        id: id,
+        name: name,
+        output_shape: output_shape,
+        parent: inputs,
+        op: unquote(op),
+        params: []
+      }
+    end
+  end
+
+  @doc """
   Compiles and runs the given models initialization function.
   """
   defmacro init(model, opts \\ []) do
