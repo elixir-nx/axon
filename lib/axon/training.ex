@@ -9,7 +9,7 @@ defmodule Axon.Training do
   """
   def step({init_model_fn, objective_fn}, {init_update_fn, update_fn})
       when is_function(init_model_fn, 0) and is_function(objective_fn, 3) and
-             is_function(init_update_fn, 1) and is_function(update_fn, 2) do
+             is_function(init_update_fn, 1) and is_function(update_fn, 3) do
     init_fn = fn ->
       params = init_model_fn.()
       optim_params = init_update_fn.(params)
@@ -18,10 +18,11 @@ defmodule Axon.Training do
 
     step_fn = fn model_state, input, target ->
       {params, update_state} = model_state
+
       {batch_loss, gradients} =
         Nx.Defn.Kernel.value_and_grad(params, &objective_fn.(&1, input, target))
 
-      {updates, new_update_state} = update_fn.(gradients, update_state)
+      {updates, new_update_state} = update_fn.(gradients, update_state, params)
       {{Axon.apply_updates(params, updates), new_update_state}, batch_loss}
     end
 
