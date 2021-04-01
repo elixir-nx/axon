@@ -882,6 +882,18 @@ defmodule Axon do
       [row | layers]
     end
 
+    # This is bad
+    defp axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, layers) when is_list(parents) do
+      {names, rows} =
+        Enum.map_reduce(parents, layers, fn %Axon{name: name} = node, acc ->
+          {name, Enum.uniq(axon_to_rows(node, acc))}
+        end)
+
+      row = [name <> "( #{Atom.to_string(op)} #{inspect(names)} )", "#{inspect(shape)}", 0]
+
+      (rows -- layers) ++ [row] ++ layers
+    end
+
     defp axon_to_rows(
            %Axon{op: op, output_shape: shape, parent: x, name: name, params: params},
            layers
