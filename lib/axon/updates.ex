@@ -869,9 +869,10 @@ defmodule Axon.Updates do
     {updates, {mu, nu, count + 1}}
   end
 
-  ## Helpers
-
-  defp stateless({parent_init_fn, parent_apply_fn}, apply_fn) do
+  @doc """
+  Represents a stateless update.
+  """
+  def stateless({parent_init_fn, parent_apply_fn}, apply_fn) do
     apply_fn = fn updates, state, params ->
       {updates, state} = parent_apply_fn.(updates, state, params)
       {apply_fn.(updates, params), state}
@@ -880,7 +881,10 @@ defmodule Axon.Updates do
     {parent_init_fn, apply_fn}
   end
 
-  defp stateless(apply_fn) do
+  @doc """
+  Represents a stateless update.
+  """
+  def stateless(apply_fn) do
     init_fn = &empty_state/1
 
     apply_fn = fn updates, state, params ->
@@ -891,7 +895,10 @@ defmodule Axon.Updates do
     {init_fn, apply_fn}
   end
 
-  defp stateful({parent_init_fn, parent_apply_fn}, init_fn, apply_fn) do
+  @doc """
+  Represents a stateful update.
+  """
+  def stateful({parent_init_fn, parent_apply_fn}, init_fn, apply_fn) do
     init_fn = fn params ->
       state = parent_init_fn.(params)
       Tuple.insert_at(state, 0, init_fn.(params))
@@ -908,7 +915,10 @@ defmodule Axon.Updates do
     {init_fn, apply_fn}
   end
 
-  defp stateful(init_fn, apply_fn) do
+  @doc """
+  Represents a stateful update.
+  """
+  def stateful(init_fn, apply_fn) do
     init_fn = fn params -> {init_fn.(params)} end
 
     apply_fn = fn updates, state, params ->
@@ -917,6 +927,8 @@ defmodule Axon.Updates do
 
     {init_fn, apply_fn}
   end
+
+  ## Helpers
 
   defnp update_moment(x, moment, decay, order) do
     transform({x, moment, decay, order}, fn {x, moment, decay, order} ->
