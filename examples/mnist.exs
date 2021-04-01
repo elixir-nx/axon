@@ -50,18 +50,10 @@ defmodule MNIST do
   end
 end
 
-residual =
-  fn x ->
-    x
-    |> Axon.dense(128)
-    |> Axon.add(x, name: "add")
-  end
-
 model =
   Axon.input({nil, 784})
   |> Axon.dense(128, activation: :relu)
   |> Axon.layer_norm()
-  |> residual.()
   |> Axon.dropout()
   |> Axon.dense(10, activation: :softmax)
 
