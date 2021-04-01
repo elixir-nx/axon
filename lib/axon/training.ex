@@ -8,20 +8,21 @@ defmodule Axon.Training do
   Represents a single training step.
   """
   def step({init_model_fn, objective_fn}, {init_update_fn, update_fn})
-      when is_function(init_model_fn) and is_function(objective_fn) and
-             is_function(init_update_fn) and is_function(update_fn) do
+      when is_function(init_model_fn, 0) and is_function(objective_fn, 3) and
+             is_function(init_update_fn, 1) and is_function(update_fn, 2) do
     init_fn = fn ->
       params = init_model_fn.()
       optim_params = init_update_fn.(params)
       {params, optim_params}
     end
 
-    step_fn = fn params, update_state, input, target ->
+    step_fn = fn model_state, input, target ->
+      {params, update_state} = model_state
       {batch_loss, gradients} =
         Nx.Defn.Kernel.value_and_grad(params, &objective_fn.(&1, input, target))
 
       {updates, new_update_state} = update_fn.(gradients, update_state)
-      {Axon.apply_updates(params, updates), new_update_state, batch_loss}
+      {{Axon.apply_updates(params, updates), new_update_state}, batch_loss}
     end
 
     {init_fn, step_fn}
@@ -60,15 +61,14 @@ defmodule Axon.Training do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
 
-    {params, optim_state} = Nx.Defn.jit(init_fn, [], compiler: compiler)
+    model_state = Nx.Defn.jit(init_fn, [], compiler: compiler)
 
-    for epoch <- 1..epochs, reduce: {params, optim_state} do
-      {cur_params, cur_optim_state} ->
-        {time, {new_params, new_optim_state, avg_loss}} =
-          :timer.tc(&train_epoch/7, [
+    for epoch <- 1..epochs, reduce: model_state do
+      model_state ->
+        {time, {model_state, avg_loss}} =
+          :timer.tc(&train_epoch/6, [
             step_fn,
-            cur_params,
-            cur_optim_state,
+            model_state,
             inputs,
             targets,
             compiler,
@@ -84,13 +84,13 @@ defmodule Axon.Training do
         IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
         IO.puts("Epoch #{epoch} Loss: #{epoch_avg_loss}")
         IO.puts("\n")
-        {new_params, new_optim_state}
+        model_state
     end
   end
 
   ## Helpers
 
-  defp train_epoch(step_fn, cur_params, cur_optim_state, inputs, targets, compiler, epoch) do
+  defp train_epoch(step_fn, model_state, inputs, targets, compiler, epoch) do
     total_batches = Enum.count(inputs)
 
     dataset =
@@ -98,10 +98,10 @@ defmodule Axon.Training do
       |> Enum.zip(targets)
       |> Enum.with_index()
 
-    for {{inp, tar}, i} <- dataset, reduce: {cur_params, cur_optim_state, Nx.tensor(0.0)} do
-      {params, optim_state, state} ->
-        {new_model_state, new_optim_state, batch_loss} =
-          Nx.Defn.jit(step_fn, [params, optim_state, inp, tar], compiler: compiler)
+    for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0)} do
+      {model_state, state} ->
+        {model_state, batch_loss} =
+          Nx.Defn.jit(step_fn, [model_state, inp, tar], compiler: compiler)
 
         avg_loss =
           state
@@ -115,7 +115,7 @@ defmodule Axon.Training do
           }"
         )
 
-        {new_model_state, new_optim_state, avg_loss}
+        {model_state, avg_loss}
     end
   end
 end
