@@ -26,7 +26,8 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale(x, step) do
-    transform({x, step},
+    transform(
+      {x, step},
       fn {updates, step} ->
         updates
         |> Tuple.to_list()
@@ -57,7 +58,11 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-6
     eps_root = opts[:eps_root] || 1.0e-5
 
-    stateful(combinator, &init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+    stateful(
+      combinator,
+      &init_scale_by_adam/1,
+      &apply_scale_by_adam(&1, &2, b1: b1, b2: b2, eps: eps, eps_root: eps_root)
+    )
   end
 
   def scale_by_adam(opts) do
@@ -66,7 +71,10 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-6
     eps_root = opts[:eps_root] || 1.0e-5
 
-    stateful(&init_scale_by_adam/1, &apply_scale_by_adam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+    stateful(
+      &init_scale_by_adam/1,
+      &apply_scale_by_adam(&1, &2, b1: b1, b2: b2, eps: eps, eps_root: eps_root)
+    )
   end
 
   defnp init_scale_by_adam(params) do
@@ -89,13 +97,14 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x = transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-      mu_hat
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(nu_hat))
-      |> Enum.map(fn {z, t} -> z / (Nx.sqrt(t + eps_root) + eps) end)
-      |> List.to_tuple()
-    end)
+    x =
+      transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
+        mu_hat
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(nu_hat))
+        |> Enum.map(fn {z, t} -> z / (Nx.sqrt(t + eps_root) + eps) end)
+        |> List.to_tuple()
+      end)
 
     {x, {mu, nu, count + 1}}
   end
@@ -112,14 +121,21 @@ defmodule Axon.Updates do
     initial_accumulator_value = opts[:initial_accumulator_value] || 0.1
     eps = opts[:eps] || 1.0e-7
 
-    stateful(combinator, &init_scale_by_rss(&1, initial_accumulator_value), &apply_scale_by_rss(&1, &2, [eps: eps]))
+    stateful(
+      combinator,
+      &init_scale_by_rss(&1, initial_accumulator_value),
+      &apply_scale_by_rss(&1, &2, eps: eps)
+    )
   end
 
   def scale_by_rss(opts) do
     initial_accumulator_value = opts[:initial_accumulator_value] || 0.1
     eps = opts[:eps] || 1.0e-7
 
-    stateful(&init_scale_by_rss(&1, initial_accumulator_value), &apply_scale_by_rss(&1, &2, [eps: eps]))
+    stateful(
+      &init_scale_by_rss(&1, initial_accumulator_value),
+      &apply_scale_by_rss(&1, &2, eps: eps)
+    )
   end
 
   defnp init_scale_by_rss(params, value) do
@@ -131,20 +147,22 @@ defmodule Axon.Updates do
     opts = keyword!(opts, eps: 1.0e-7)
     eps = opts[:eps]
 
-    sum_of_squares = transform({x, sum_of_squares}, fn {x, sum_of_squares} ->
-      x
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(sum_of_squares))
-      |> Enum.map(fn {g, z} -> Nx.power(g, 2) + z end)
-      |> List.to_tuple()
-    end)
+    sum_of_squares =
+      transform({x, sum_of_squares}, fn {x, sum_of_squares} ->
+        x
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(sum_of_squares))
+        |> Enum.map(fn {g, z} -> Nx.power(g, 2) + z end)
+        |> List.to_tuple()
+      end)
 
-    inv_sqrt_squares = transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
-      sum_of_squares
-      |> Tuple.to_list()
-      |> Enum.map(fn z -> Nx.rsqrt(z + eps) end)
-      |> List.to_tuple()
-    end)
+    inv_sqrt_squares =
+      transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
+        sum_of_squares
+        |> Tuple.to_list()
+        |> Enum.map(fn z -> Nx.rsqrt(z + eps) end)
+        |> List.to_tuple()
+      end)
 
     inv_sqrt_x_square =
       transform({sum_of_squares, inv_sqrt_squares}, fn {sum_of_squares, inv_sqrt_squares} ->
@@ -155,13 +173,14 @@ defmodule Axon.Updates do
         |> List.to_tuple()
       end)
 
-    x = transform({x, inv_sqrt_x_square}, fn {x, inv_sqrt_x_square} ->
-      x
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(inv_sqrt_x_square))
-      |> Enum.map(fn {g, t} -> g * t end)
-      |> List.to_tuple()
-    end)
+    x =
+      transform({x, inv_sqrt_x_square}, fn {x, inv_sqrt_x_square} ->
+        x
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(inv_sqrt_x_square))
+        |> Enum.map(fn {g, t} -> g * t end)
+        |> List.to_tuple()
+      end)
 
     {x, {sum_of_squares}}
   end
@@ -184,7 +203,11 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-8
     initial_scale = opts[:initial_scale] || 0.0
 
-    stateful(combinator, &init_scale_by_rms(&1, initial_scale), &apply_scale_by_rms(&1, &2, [decay: decay, eps: eps]))
+    stateful(
+      combinator,
+      &init_scale_by_rms(&1, initial_scale),
+      &apply_scale_by_rms(&1, &2, decay: decay, eps: eps)
+    )
   end
 
   def scale_by_rms(opts) do
@@ -192,7 +215,10 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-8
     initial_scale = opts[:initial_scale] || 0.0
 
-    stateful(&init_scale_by_rms(&1, initial_scale), &apply_scale_by_rms(&1, &2, [decay: decay, eps: eps]))
+    stateful(
+      &init_scale_by_rms(&1, initial_scale),
+      &apply_scale_by_rms(&1, &2, decay: decay, eps: eps)
+    )
   end
 
   defnp init_scale_by_rms(params, scale) do
@@ -207,13 +233,14 @@ defmodule Axon.Updates do
 
     nu = update_moment(x, nu, decay, 2)
 
-    x = transform({x, nu, eps}, fn {x, nu, eps} ->
-      x
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(nu))
-      |> Enum.map(fn {g, t} -> Nx.rsqrt(t + eps) * g end)
-      |> List.to_tuple()
-    end)
+    x =
+      transform({x, nu, eps}, fn {x, nu, eps} ->
+        x
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(nu))
+        |> Enum.map(fn {g, t} -> Nx.rsqrt(t + eps) * g end)
+        |> List.to_tuple()
+      end)
 
     {x, {nu}}
   end
@@ -239,7 +266,11 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 0.0
     eps_root = opts[:eps_root] || 1.0e-16
 
-    stateful(combinator, &init_scale_by_belief/1, &apply_scale_by_belief(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+    stateful(
+      combinator,
+      &init_scale_by_belief/1,
+      &apply_scale_by_belief(&1, &2, b1: b1, b2: b2, eps: eps, eps_root: eps_root)
+    )
   end
 
   def scale_by_belief(opts) do
@@ -248,7 +279,10 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 0.0
     eps_root = opts[:eps_root] || 1.0e-16
 
-    stateful(&init_scale_by_belief/1, &apply_scale_by_belief(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root]))
+    stateful(
+      &init_scale_by_belief/1,
+      &apply_scale_by_belief(&1, &2, b1: b1, b2: b2, eps: eps, eps_root: eps_root)
+    )
   end
 
   defnp init_scale_by_belief(params) do
@@ -271,13 +305,14 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x = transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-      mu_hat
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(nu_hat))
-      |> Enum.map(fn {z, t} -> (1 / (Nx.sqrt(t + eps_root) + eps)) * z end)
-      |> List.to_tuple()
-    end)
+    x =
+      transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
+        mu_hat
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(nu_hat))
+        |> Enum.map(fn {z, t} -> 1 / (Nx.sqrt(t + eps_root) + eps) * z end)
+        |> List.to_tuple()
+      end)
 
     {x, {mu, nu, count + 1}}
   end
@@ -300,7 +335,11 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-8
     initial_scale = opts[:initial_scale] || 0.0
 
-    stateful(combinator, &init_scale_by_stddev(&1, initial_scale), &apply_scale_by_stddev(&1, &2, [decay: decay, eps: eps]))
+    stateful(
+      combinator,
+      &init_scale_by_stddev(&1, initial_scale),
+      &apply_scale_by_stddev(&1, &2, decay: decay, eps: eps)
+    )
   end
 
   def scale_by_stddev(opts) do
@@ -308,7 +347,10 @@ defmodule Axon.Updates do
     eps = opts[:eps] || 1.0e-8
     initial_scale = opts[:initial_scale] || 0.0
 
-    stateful(&init_scale_by_stddev(&1, initial_scale), &apply_scale_by_stddev(&1, &2, [decay: decay, eps: eps]))
+    stateful(
+      &init_scale_by_stddev(&1, initial_scale),
+      &apply_scale_by_stddev(&1, &2, decay: decay, eps: eps)
+    )
   end
 
   defnp init_scale_by_stddev(params, value) do
@@ -325,12 +367,14 @@ defmodule Axon.Updates do
     mu = update_moment(x, mu, decay, 1)
     nu = update_moment(x, nu, decay, 2)
 
-    x = transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-      [Tuple.to_list(x), Tuple.to_list(mu), Tuple.to_list(nu)]
-      |> Enum.zip()
-      |> Enum.map(fn {g, z, t} -> g * Nx.rsqrt(-Nx.power(z, 2) + t + eps) end)
-      |> List.to_tuple()
-    end)
+    x =
+      transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
+        [Tuple.to_list(x), Tuple.to_list(mu), Tuple.to_list(nu)]
+        |> Enum.zip()
+        |> Enum.map(fn {g, z, t} -> g * Nx.rsqrt(-Nx.power(z, 2) + t + eps) end)
+        |> List.to_tuple()
+      end)
+
     {x, {mu, nu}}
   end
 
@@ -351,6 +395,7 @@ defmodule Axon.Updates do
 
   defnp apply_scale_by_schedule(x, {count}, schedule_fn) do
     step_size = schedule_fn.(count)
+
     transform({x, step_size}, fn {x, step_size} ->
       x
       |> Tuple.to_list()
@@ -382,7 +427,17 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root] || 0.0
     threshold = opts[:threshold] || 5.0
 
-    stateful(combinator, &init_scale_by_radam/1, &apply_scale_by_radam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root, threshold: threshold]))
+    stateful(
+      combinator,
+      &init_scale_by_radam/1,
+      &apply_scale_by_radam(&1, &2,
+        b1: b1,
+        b2: b2,
+        eps: eps,
+        eps_root: eps_root,
+        threshold: threshold
+      )
+    )
   end
 
   def scale_by_radam(opts) do
@@ -392,7 +447,16 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root] || 0.0
     threshold = opts[:threshold] || 5.0
 
-    stateful(&init_scale_by_radam/1, &apply_scale_by_radam(&1, &2, [b1: b1, b2: b2, eps: eps, eps_root: eps_root, threshold: threshold]))
+    stateful(
+      &init_scale_by_radam/1,
+      &apply_scale_by_radam(&1, &2,
+        b1: b1,
+        b2: b2,
+        eps: eps,
+        eps_root: eps_root,
+        threshold: threshold
+      )
+    )
   end
 
   defnp init_scale_by_radam(params) do
@@ -457,12 +521,13 @@ defmodule Axon.Updates do
       |> Nx.multiply(Nx.subtract(ro, 2))
       |> Nx.multiply(ro)
 
-    nu_hat = transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
-      nu
-      |> Tuple.to_list()
-      |> Enum.map(fn t -> Nx.sqrt(t + eps_root) + eps end)
-      |> List.to_tuple()
-    end)
+    nu_hat =
+      transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
+        nu
+        |> Tuple.to_list()
+        |> Enum.map(fn t -> Nx.sqrt(t + eps_root) + eps end)
+        |> List.to_tuple()
+      end)
 
     transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
       mu
@@ -488,14 +553,14 @@ defmodule Axon.Updates do
     decay = opts[:decay] || 0.9
     nesterov = opts[:nesterov] || false
 
-    stateful(combinator, &init_trace/1, &apply_trace(&1, &2, [decay: decay, nesterov: nesterov]))
+    stateful(combinator, &init_trace/1, &apply_trace(&1, &2, decay: decay, nesterov: nesterov))
   end
 
   def trace(opts) do
     decay = opts[:decay] || 0.9
     nesterov = opts[:nesterov] || false
 
-    stateful(&init_trace/1, &apply_trace(&1, &2, [decay: decay, nesterov: nesterov]))
+    stateful(&init_trace/1, &apply_trace(&1, &2, decay: decay, nesterov: nesterov))
   end
 
   defnp init_trace(params) do
@@ -508,13 +573,14 @@ defmodule Axon.Updates do
     decay = opts[:decay]
     nesterov? = to_predicate(opts[:nesterov])
 
-    update_trace = transform({x, trace, decay}, fn {x, trace, decay} ->
-      x
-      |> Tuple.to_list()
-      |> Enum.zip(Tuple.to_list(trace))
-      |> Enum.map(fn {g, t} -> t * decay + g end)
-      |> List.to_tuple()
-    end)
+    update_trace =
+      transform({x, trace, decay}, fn {x, trace, decay} ->
+        x
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(trace))
+        |> Enum.map(fn {g, t} -> t * decay + g end)
+        |> List.to_tuple()
+      end)
 
     x =
       if nesterov? do
@@ -542,17 +608,18 @@ defmodule Axon.Updates do
   """
   def clip(combinator, opts) do
     delta = opts[:delta] || 2.0
-    stateless(combinator, &apply_clip(&1, [delta: delta]))
+    stateless(combinator, &apply_clip(&1, delta: delta))
   end
 
   def clip(opts) do
     delta = opts[:delta] || 2.0
-    stateless(&apply_clip(&1, [delta: delta]))
+    stateless(&apply_clip(&1, delta: delta))
   end
 
   defnp apply_clip(x, opts \\ []) do
     opts = keyword!(opts, delta: 2.0)
     delta = opts[:delta]
+
     transform({x, delta}, fn {x, delta} ->
       x
       |> Tuple.to_list()
@@ -571,12 +638,12 @@ defmodule Axon.Updates do
   """
   def clip_by_global_norm(combinator, opts) do
     max_norm = opts[:max_norm] || 1.0
-    stateless(combinator, &apply_clip_by_global_norm(&1, [max_norm: max_norm]))
+    stateless(combinator, &apply_clip_by_global_norm(&1, max_norm: max_norm))
   end
 
   def clip_by_global_norm(opts) do
     max_norm = opts[:max_norm] || 1.0
-    stateless(&apply_clip_by_global_norm(&1, [max_norm: max_norm]))
+    stateless(&apply_clip_by_global_norm(&1, max_norm: max_norm))
   end
 
   defnp apply_clip_by_global_norm(x, opts \\ []) do
@@ -589,7 +656,7 @@ defmodule Axon.Updates do
       x
       |> Tuple.to_list()
       |> Enum.zip(Tuple.to_list(g_norm))
-      |> Enum.map(fn {z, g} -> Nx.select(Nx.less(g, max_norm), z, (z / g) * max_norm) end)
+      |> Enum.map(fn {z, g} -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
       |> List.to_tuple()
     end)
   end
@@ -612,50 +679,48 @@ defmodule Axon.Updates do
   ## Helpers
 
   defp stateless({parent_init_fn, parent_apply_fn}, apply_fn) do
-    apply_fn =
-      fn updates, state ->
-        {updates, state} = parent_apply_fn.(updates, state)
-        {apply_fn.(updates), state}
-      end
+    apply_fn = fn updates, state ->
+      {updates, state} = parent_apply_fn.(updates, state)
+      {apply_fn.(updates), state}
+    end
+
     {parent_init_fn, apply_fn}
   end
 
   defp stateless(apply_fn) do
     init_fn = &empty_state/1
-    apply_fn =
-      fn updates, state ->
-        updates = apply_fn.(updates)
-        {updates, state}
-      end
+
+    apply_fn = fn updates, state ->
+      updates = apply_fn.(updates)
+      {updates, state}
+    end
 
     {init_fn, apply_fn}
   end
 
   defp stateful({parent_init_fn, parent_apply_fn}, init_fn, apply_fn) do
-    init_fn =
-      fn params ->
-        state = parent_init_fn.(params)
-        Tuple.insert_at(state, 0, init_fn.(params))
-      end
+    init_fn = fn params ->
+      state = parent_init_fn.(params)
+      Tuple.insert_at(state, 0, init_fn.(params))
+    end
 
-    apply_fn =
-      fn updates, state ->
-        this_state = elem(state, 0)
-        other_state = Tuple.delete_at(state, 0)
-        {updates, new_other_state} = parent_apply_fn.(updates, other_state)
-        {updates, new_this_state} = apply_fn.(updates, this_state)
-        {updates, Tuple.insert_at(new_other_state, 0, new_this_state)}
-      end
+    apply_fn = fn updates, state ->
+      this_state = elem(state, 0)
+      other_state = Tuple.delete_at(state, 0)
+      {updates, new_other_state} = parent_apply_fn.(updates, other_state)
+      {updates, new_this_state} = apply_fn.(updates, this_state)
+      {updates, Tuple.insert_at(new_other_state, 0, new_this_state)}
+    end
 
     {init_fn, apply_fn}
   end
 
   defp stateful(init_fn, apply_fn) do
     init_fn = fn params -> {init_fn.(params)} end
-    apply_fn =
-      fn updates, state ->
-        apply_fn.(updates, elem(state, 0))
-      end
+
+    apply_fn = fn updates, state ->
+      apply_fn.(updates, elem(state, 0))
+    end
 
     {init_fn, apply_fn}
   end

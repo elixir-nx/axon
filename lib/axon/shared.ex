@@ -157,7 +157,7 @@ defmodule Axon.Shared do
   """
   defmacro fulls_like(params, value) do
     quote do
-      Nx.Defn.Kernel.transform({unquote(params), unquote(value)}, fn {params, value} ->
+      Nx.Defn.Kernel.transform({unquote(params), Nx.tensor(unquote(value))}, fn {params, value} ->
         params
         |> Tuple.to_list()
         |> Enum.map(&Axon.Initializers.full(value, shape: Nx.shape(&1)))

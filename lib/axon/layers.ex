@@ -900,7 +900,7 @@ defmodule Axon.Layers do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = transform({Nx.axes(input), opts[:channel_index]}, &batch_norm_axes/1)
     {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
+    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
 
   @doc ~S"""
@@ -927,7 +927,7 @@ defmodule Axon.Layers do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
     axes = opts[:channel_index]
     {mean, var} = mean_and_variance(input, axes: [axes])
-    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
+    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -960,7 +960,10 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
-    group_shape = transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, &group_norm_shape/1)
+
+    group_shape =
+      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, &group_norm_shape/1)
+
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
@@ -996,7 +999,7 @@ defmodule Axon.Layers do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
     axes = transform({Nx.axes(input), opts[:channel_index]}, &instance_norm_axes/1)
     {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, [epsilon: opts[:epsilon]])
+    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
 
   ## Stochastic
@@ -1418,7 +1421,7 @@ defmodule Axon.Layers do
 
   defp batch_norm_axes({axes, channel_index}) do
     axes
-    |> Enum.filter(& &1 != channel_index)
+    |> Enum.filter(&(&1 != channel_index))
   end
 
   defp instance_norm_axes({axes, channel_index}) do

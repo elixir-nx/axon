@@ -467,15 +467,17 @@ defmodule Axon.Shape do
       |> Tuple.delete_at(0)
       |> Tuple.to_list()
       |> Enum.zip(Tuple.to_list(output_size))
-      |> Enum.all?(&elem(&1, 0) >= elem(&1, 1))
+      |> Enum.all?(&(elem(&1, 0) >= elem(&1, 1)))
 
     unless valid_output_size? do
-      raise ArgumentError, "invalid output size for adaptive pool operation for" <>
-                           " input with shape #{inspect(parent_shape)} and output" <>
-                           " size #{inspect(output_size)} each dimension" <>
-                           " of output size must be greater than or equal to spatial" <>
-                           " dimension of input"
+      raise ArgumentError,
+            "invalid output size for adaptive pool operation for" <>
+              " input with shape #{inspect(parent_shape)} and output" <>
+              " size #{inspect(output_size)} each dimension" <>
+              " of output size must be greater than or equal to spatial" <>
+              " dimension of input"
     end
+
     List.to_tuple([elem(parent_shape, 0), elem(parent_shape, 1) | Tuple.to_list(output_size)])
   end
 

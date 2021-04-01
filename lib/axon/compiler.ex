@@ -10,14 +10,13 @@ defmodule Axon.Compiler do
   def __jit_init__(%Axon{} = graph, caller, [] = args, opts) do
     {names_and_exprs, _} = to_init_fun(graph, {%{}, 0})
 
-    fun =
-      fn ->
-        names_and_exprs
-        |> Map.values()
-        |> Enum.reverse()
-        |> Enum.map(& &1.())
-        |> List.to_tuple()
-      end
+    fun = fn ->
+      names_and_exprs
+      |> Map.values()
+      |> Enum.reverse()
+      |> Enum.map(& &1.())
+      |> List.to_tuple()
+    end
 
     if Nx.Defn.Compiler.current() do
       if opts != [] do

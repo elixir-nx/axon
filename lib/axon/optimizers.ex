@@ -10,6 +10,7 @@ defmodule Axon.Optimizers do
   def sgd(learning_rate, opts \\ []) do
     momentum = opts[:momentum]
     nesterov? = opts[:nesterov] || false
+
     if momentum do
       Updates.trace(decay: momentum, nesterov: nesterov?)
       |> Updates.scale(-learning_rate)

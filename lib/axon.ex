@@ -741,13 +741,6 @@ defmodule Axon do
   end
 
   @doc """
-  Returns a list of models parameters.
-  """
-  defmacro get_params(model) do
-    define_get_params(model)
-  end
-
-  @doc """
   Applies updates to params.
   """
   defmacro apply_updates(params, updates) do
@@ -760,34 +753,6 @@ defmodule Axon do
         |> List.to_tuple()
       end)
     end
-  end
-
-  @doc """
-  Maps `fun` over `args`.
-  """
-  defmacro map(args, fun) do
-    quote do
-      Nx.Defn.Kernel.transform(unquote(args), fn args ->
-        Nx.Defn.Tree.composite(args, unquote(fun))
-      end)
-    end
-  end
-
-  defp define_get_params(model) do
-    quote do
-      Nx.Defn.Kernel.transform(:ok, fn :ok ->
-        model = unquote(model)
-        Axon.__params__(model, [])
-      end)
-    end
-  end
-
-  def __params__(%Axon{parent: nil, params: layer_params}, params) do
-    List.flatten([layer_params | params])
-  end
-
-  def __params__(%Axon{parent: x, params: layer_params}, params) do
-    __params__(x, [Enum.reverse(layer_params) | params])
   end
 
   ## Implementation
@@ -828,7 +793,11 @@ defmodule Axon do
 
       rows
       |> TableRex.Table.new(header, title)
-      |> TableRex.Table.render!(header_separator_symbol: "=", title_separator_symbol: "=", vertical_style: :off)
+      |> TableRex.Table.render!(
+        header_separator_symbol: "=",
+        title_separator_symbol: "=",
+        vertical_style: :off
+      )
       |> string()
     end
 
@@ -837,7 +806,10 @@ defmodule Axon do
       [row | layers]
     end
 
-    defp axon_to_rows(%Axon{op: op, output_shape: shape, parent: x, name: name, params: params}, layers) do
+    defp axon_to_rows(
+           %Axon{op: op, output_shape: shape, parent: x, name: name, params: params},
+           layers
+         ) do
       total_params =
         params
         |> Enum.reduce(0, fn %Axon.Parameter{shape: shape}, acc -> Nx.size(shape) + acc end)
