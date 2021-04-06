@@ -146,7 +146,11 @@ defmodule Axon.Compiler do
     {apply(Axon.Layers, op, [expr, w, b, opts]), params}
   end
 
-  defp to_predict_expr(%Axon{op: :concatenate, parent: parents, opts: [axis: axis]}, params, input) do
+  defp to_predict_expr(
+         %Axon{op: :concatenate, parent: parents, opts: [axis: axis]},
+         params,
+         input
+       ) do
     {exprs, params} =
       Enum.map_reduce(parents, params, fn node, params ->
         to_predict_expr(node, params, input)
@@ -159,7 +163,8 @@ defmodule Axon.Compiler do
 
   @element_wise_layers [:add, :subtract, :multiply]
 
-  defp to_predict_expr(%Axon{op: op, parent: parents}, params, input) when op in @element_wise_layers do
+  defp to_predict_expr(%Axon{op: op, parent: parents}, params, input)
+       when op in @element_wise_layers do
     {[expr | rest], _} =
       Enum.map_reduce(parents, params, fn node, params ->
         to_predict_expr(node, params, input)

@@ -307,17 +307,17 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
+      iex> Axon.Activations.leaky_relu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]), alpha: 0.5)
       #Nx.Tensor<
         f32[data: 7]
-        [-0.03, -0.02, -0.01, 0.0, 1.0, 2.0, 3.0]
+        [-1.5, -1.0, -0.5, 0.0, 1.0, 2.0, 3.0]
       >
 
-      iex> Axon.Activations.leaky_relu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], names: [:batch, :data]))
+      iex> Axon.Activations.leaky_relu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], names: [:batch, :data]), alpha: 0.5)
       #Nx.Tensor<
         f32[batch: 2][data: 3]
         [
-          [-0.01, -0.02, -0.03],
+          [-0.5, -1.0, -1.5],
           [1.0, 2.0, 3.0]
         ]
       >

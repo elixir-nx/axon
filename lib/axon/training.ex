@@ -3,6 +3,7 @@ defmodule Axon.Training do
   Abstractions for training and validating machine learning models.
   """
   require Axon
+  require Axon.Updates
 
   @doc """
   Represents a single training step.
@@ -23,7 +24,7 @@ defmodule Axon.Training do
         Nx.Defn.Kernel.value_and_grad(params, &objective_fn.(&1, input, target))
 
       {updates, new_update_state} = update_fn.(gradients, update_state, params)
-      {{Axon.apply_updates(params, updates), new_update_state}, batch_loss}
+      {{Axon.Updates.apply_updates(params, updates), new_update_state}, batch_loss}
     end
 
     {init_fn, step_fn}

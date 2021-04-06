@@ -89,7 +89,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> input = Nx.tensor([[1.0, 0.5, 1.0, 0.5], [1.0, 2.0, 1.0, 2.0]], type: {:f, 32})
+      iex> input = Nx.tensor([[1.0, 0.5, 1.0, 0.5], [0.0, 0.0, 0.0, 0.0]], type: {:f, 32})
       iex> weight = Nx.tensor([[0.2], [0.3], [0.5], [0.8]], type: {:f, 32})
       iex> bias = Nx.tensor([1.0], type: {:f, 32})
       iex> Axon.Layers.dense(input, weight, bias)
@@ -97,7 +97,7 @@ defmodule Axon.Layers do
         f32[2][1]
         [
           [2.25],
-          [3.9]
+          [1.0]
         ]
       >
   """

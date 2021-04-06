@@ -1,7 +1,4 @@
 defmodule Axon.Parameter do
-  @moduledoc """
-  Model parameter.
-  """
-
+  @moduledoc false
   defstruct [:name, :shape, :initializer]
 end

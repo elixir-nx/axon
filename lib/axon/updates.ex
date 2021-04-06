@@ -928,6 +928,21 @@ defmodule Axon.Updates do
     {init_fn, apply_fn}
   end
 
+  @doc """
+  Applies updates to params.
+  """
+  defmacro apply_updates(params, updates) do
+    quote do
+      Nx.Defn.Kernel.transform({unquote(params), unquote(updates)}, fn {params, updates} ->
+        params
+        |> Tuple.to_list()
+        |> Enum.zip(Tuple.to_list(updates))
+        |> Enum.map(fn {x, u} -> Nx.add(x, u) end)
+        |> List.to_tuple()
+      end)
+    end
+  end
+
   ## Helpers
 
   defnp update_moment(x, moment, decay, order) do

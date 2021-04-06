@@ -41,20 +41,6 @@ defmodule Axon.Schedules do
     * `:transition_begin` - step to begin transition. Defaults to `0`
     * `:staircase` - discretize outputs. Defaults to `false`
 
-  ## Examples
-
-      iex> Axon.Schedules.exponential_decay(5)
-      #Nx.Tensor<
-        f32
-        0.009746793657541275
-      >
-
-      iex> Axon.Schedules.exponential_decay(10, staircase: true, transition_steps: 5)
-      #Nx.Tensor<
-        f32
-        0.009025
-      >
-
   """
   defn exponential_decay(step, opts \\ []) do
     opts =
@@ -110,20 +96,6 @@ defmodule Axon.Schedules do
     * `:alpha` - minium value of multiplier adjusting learning rate.
       $\alpha$ in above formulation. Defaults to `0.0`
 
-  ## Examples
-
-      iex> Axon.Schedules.cosine_decay(5)
-      #Nx.Tensor<
-        f32
-        0.005
-      >
-
-      iex> Axon.Schedules.cosine_decay(1, decay_steps: 4)
-      #Nx.Tensor<
-        f32
-        0.008535534143447876
-      >
-
   ## References
 
     * [SGDR: Stochastic Gradient Descent with Warm Restarts](https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx)
@@ -157,20 +129,6 @@ defmodule Axon.Schedules do
     * `:init_value` - initial value. $\gamma_0$ in above formulation.
       Defaults to `1.0e-2`
 
-  ## Examples
-
-      iex> Axon.Schedules.constant(100)
-      #Nx.Tensor<
-        f32
-        0.01
-      >
-
-      iex> Axon.Schedules.constant(5, init_value: 1.0)
-      #Nx.Tensor<
-        f32
-        1.0
-      >
-
   """
   defn constant(_step, opts \\ []) do
     opts = keyword!(opts, init_value: 0.01)
@@ -191,20 +149,6 @@ defmodule Axon.Schedules do
     * `:power` - power of polynomial. $p$ in above formulation. Defaults to `2`
     * `:transition_steps` - number of steps over which annealing takes place.
       $k$ in above formulation. Defaults to `10`
-
-  ## Examples
-
-      iex> Axon.Schedules.polynomial_decay(11)
-      #Nx.Tensor<
-        f32
-        0.001
-      >
-
-      iex> Axon.Schedules.polynomial_decay(2, power: 1.5)
-      #Nx.Tensor<
-        f32
-        0.007439875975251198
-      >
 
   """
   defn polynomial_decay(step, opts \\ []) do

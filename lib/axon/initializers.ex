@@ -83,12 +83,12 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.full(0.01, shape: {2, 2})
+      iex> Axon.Initializers.full(1.00, shape: {2, 2})
       #Nx.Tensor<
         f32[2][2]
         [
-          [0.01, 0.01],
-          [0.01, 0.01]
+          [1.0, 1.0],
+          [1.0, 1.0]
         ]
       >
   """

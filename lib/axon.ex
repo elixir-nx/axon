@@ -816,21 +816,6 @@ defmodule Axon do
     define_predict(model, :predict, [params, input], opts)
   end
 
-  @doc """
-  Applies updates to params.
-  """
-  defmacro apply_updates(params, updates) do
-    quote do
-      Nx.Defn.Kernel.transform({unquote(params), unquote(updates)}, fn {params, updates} ->
-        params
-        |> Tuple.to_list()
-        |> Enum.zip(Tuple.to_list(updates))
-        |> Enum.map(fn {x, u} -> Nx.add(x, u) end)
-        |> List.to_tuple()
-      end)
-    end
-  end
-
   ## Implementation
 
   defp define_init(model, caller, args, opts \\ []) do
@@ -883,7 +868,8 @@ defmodule Axon do
     end
 
     # This is bad
-    defp axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, layers) when is_list(parents) do
+    defp axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, layers)
+         when is_list(parents) do
       {names, rows} =
         Enum.map_reduce(parents, layers, fn %Axon{name: name} = node, acc ->
           {name, Enum.uniq(axon_to_rows(node, acc))}
