@@ -1,6 +1,6 @@
 defmodule Axon.Training do
   @moduledoc """
-  Abstractions for training and validating machine learning models.
+  Abstractions for training machine learning models.
   """
   require Axon
   require Axon.Updates

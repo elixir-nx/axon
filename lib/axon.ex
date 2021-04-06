@@ -8,6 +8,72 @@ defmodule Axon do
   JIT or AOT compiled using any Nx compiler, or even
   transformed into high-level neural network formats
   like TensorFlow Lite and ONNX.
+
+  All Axon models start with an input layer, specifying the
+  expected input shape of the training data:
+
+      input = Axon.input({nil, 784})
+
+  Notice you can specify the batch dimension as `nil`. You can
+  then compose inputs with other layers:
+
+      model =
+        input
+        |> Axon.dense(128, activation: :relu)
+        |> Axon.batch_norm()
+        |> Axon.dropout(rate: 0.8)
+        |> Axon.dense(64)
+        |> Axon.tanh()
+        |> Axon.dense(10)
+        |> Axon.activation(:softmax)
+
+  You can inspect the model for a nice summary:
+
+      IO.inspect model
+
+      -----------------------------------------------------
+                        Model
+      =====================================================
+       Layer                       Shape        Parameters
+      =====================================================
+       input_1 (input)             {nil, 784}   0
+       dense_2 (dense)             {nil, 128}   100480
+       relu_3 (relu)               {nil, 128}   0
+       batch_norm_4 (batch_norm)   {nil, 128}   256
+       dropout_5 (dropout)         {nil, 128}   0
+       dense_6 (dense)             {nil, 64}    8256
+       tanh_7 (tanh)               {nil, 64}    0
+       dense_8 (dense)             {nil, 10}    650
+       softmax_9 (softmax)         {nil, 10}    0
+      -----------------------------------------------------
+
+  Under the hood, Axon models are represented as Elixir structs. You
+  can initialize and apply models using the macros `Axon.init/2` and
+  `Axon.predict/4`:
+
+      params = Axon.init(model, compiler: EXLA)
+
+      Axon.predict(model, params, inputs, compiler: EXLA)
+
+  Both `Axon.init/2` and `Axon.predict/4` can be used from within
+  Nx defn or outside.
+
+  Combining the Axon model creation API with the optimization and training
+  APIs, you can create and train neural networks with ease:
+
+      model =
+        Axon.input({nil, 784})
+        |> Axon.dense(128, activation: :relu)
+        |> Axon.layer_norm()
+        |> Axon.dropout()
+        |> Axon.dense(10, activation: :softmax)
+
+      IO.inspect model
+
+      final_params =
+        model
+        |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+        |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA)
   """
   alias __MODULE__, as: Axon
 
@@ -15,18 +81,10 @@ defmodule Axon do
 
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
-  defmacro __using__(_opts) do
-    quote do
-      require Axon
-      import Axon
-      import Nx.Defn
-    end
-  end
-
   @doc """
   Adds an input layer to the network.
 
-  Input layers specify a models inputs. Input layers are
+  Input layers specify a model's inputs. Input layers are
   always the root layers of the neural network.
 
   ## Options
@@ -291,6 +349,25 @@ defmodule Axon do
   @doc """
   Adds a depthwise separable 2-dimensional convolution to the
   network.
+
+  Depthwise separable convolutions break the kernel into kernels
+  for each dimension of the input and perform a depthwise conv
+  over the input with each kernel.
+
+  Compiles to `Axon.Layers.separable_conv2d/6`.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+    * `kernel_size` - Size of the kernel spatial dimensions.
+    * `strides` - Stride during convolution.
+    * `padding` - Padding to the spatial dimensions of the input.
+    * `input_dilation` - Dilation to apply to input.
+    * `kernel_dilation` - Dilation to apply to kernel.
+
   """
   def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
@@ -376,6 +453,25 @@ defmodule Axon do
   @doc """
   Adds a depthwise separable 3-dimensional convolution to the
   network.
+
+  Depthwise separable convolutions break the kernel into kernels
+  for each dimension of the input and perform a depthwise conv
+  over the input with each kernel.
+
+  Compiles to `Axon.Layers.separable_conv3d/8`.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+    * `kernel_size` - Size of the kernel spatial dimensions.
+    * `strides` - Stride during convolution.
+    * `padding` - Padding to the spatial dimensions of the input.
+    * `input_dilation` - Dilation to apply to input.
+    * `kernel_dilation` - Dilation to apply to kernel.
+
   """
   def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
@@ -509,6 +605,17 @@ defmodule Axon do
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
 
   for dropout <- @dropout_layers do
+    @doc """
+    Adds #{Atom.to_string(dropout)} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(dropout)}` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:rate` - Dropout rate.
+
+    """
     def unquote(dropout)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
       {id, name} = unique_identifiers(unquote(dropout), opts[:name])
 
@@ -535,6 +642,18 @@ defmodule Axon do
   @pooling_layers [:max_pool, :avg_pool, :lp_pool]
 
   for pool <- @pooling_layers do
+    @doc """
+    Adds #{Atom.to_string(pool)} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(pool)}` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:kernel_size` - Pooling kernel size.
+      * `:strides` - Pooling strides.
+
+    """
     def unquote(pool)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
       {id, name} = unique_identifiers(unquote(pool), opts[:name])
 
@@ -577,6 +696,17 @@ defmodule Axon do
   @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool]
 
   for pool <- @adaptive_pooling_layers do
+    @doc """
+    Adds #{Atom.to_string(pool)} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(pool)}` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:output_size` - Layer output size.
+
+    """
     def unquote(pool)(%Axon{output_shape: parent_shape} = x, opts \\ []) do
       {id, name} = unique_identifiers(unquote(pool), opts[:name])
 
@@ -609,9 +739,22 @@ defmodule Axon do
 
   @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
 
-  for op <- @normalization_layers do
-    def unquote(op)(%Axon{output_shape: shape} = x, opts \\ []) do
-      {id, name} = unique_identifiers(unquote(op), opts[:name])
+  for norm <- @normalization_layers do
+    @doc """
+    Adds #{Atom.to_string(norm)} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(norm)}` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:channel_index` - Input feature index used for calculating
+        mean and variance.
+      * `:epsilon` - Numerical stability term.
+
+    """
+    def unquote(norm)(%Axon{output_shape: shape} = x, opts \\ []) do
+      {id, name} = unique_identifiers(unquote(norm), opts[:name])
 
       channel_index = opts[:channel_index] || 1
       epsilon = opts[:epsilon] || 1.0e-5
@@ -627,7 +770,7 @@ defmodule Axon do
         name: name,
         output_shape: shape,
         parent: x,
-        op: unquote(op),
+        op: unquote(norm),
         params: [beta, gamma],
         opts: [
           epsilon: epsilon,
@@ -641,6 +784,16 @@ defmodule Axon do
 
   @doc """
   Adds a group normalization layer to the network.
+
+  See `Axon.Layers.group_norm` for more details.
+
+  ## Options
+
+    * `:name` - Layer name.
+    * `:channel_index` - Input feature index used for calculating
+      mean and variance.
+    * `:epsilon` - Numerical stability term.
+
   """
   def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
       when is_integer(group_size) and group_size >= 1 do
@@ -716,7 +869,7 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
+    * `:name` - Layer name.
 
   """
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
@@ -733,7 +886,9 @@ defmodule Axon do
 
   ## Options
 
-    * `axis` - Concatenate axis.
+    * `:name` - Layer name.
+    * `:axis` - Concatenate axis.
+
   """
   def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts) do
     {id, name} = unique_identifiers(:concatenate, opts[:name])
@@ -772,7 +927,15 @@ defmodule Axon do
 
   for op <- @element_wise_layers do
     @doc """
-    Adds an #{op} layer to the network.
+    Adds a #{op} layer to the network.
+
+    This layer performs an element-wise #{Atom.to_string(op)} operation
+    on input layers. All input layers must be the same shape.
+
+    ## Options
+
+      * `:name` - Layer name.
+
     """
     def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
       {id, name} = unique_identifiers(unquote(op), opts[:name])
@@ -867,7 +1030,7 @@ defmodule Axon do
       [row | layers]
     end
 
-    # This is bad
+    # TODO: This is bad
     defp axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, layers)
          when is_list(parents) do
       {names, rows} =

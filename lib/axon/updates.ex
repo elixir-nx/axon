@@ -4,9 +4,75 @@ defmodule Axon.Updates do
 
   Update methods transform the input tensor in some way,
   usually by scaling or shifting the input with respect
-  to some input state. Update methods are typically composed
+  to some input state. Update methods are composed
   to create more advanced optimization methods such as AdaGrad
-  or Adam; however, they can also be applied to model parameters.
+  or Adam. Each update returns a tuple:
+
+      {init_fn, update_fn}
+
+  Which represent a state initialization and state update
+  function respectively. While each method in the Updates
+  API is a regular Elixir function, the two methods they
+  return are implemented as defn, so they can be accelerated
+  using any Nx backend or compiler.
+
+  Update methods are just combinators that can be arbitrarily
+  composed to create complex optimizers. For example, the Adam
+  optimizer in Axon.Optimizers is implemented as:
+
+      def adam(learning_rate, opts \\ []) do
+        Updates.scale_by_adam(opts)
+        |> Updates.scale(-learning_rate)
+      end
+
+  You can create your own combinators using the Axon.Updates.stateful
+  and Axon.Updates.stateless primitives. Every update method in this
+  module is implemented in terms of one of these two primitives.
+
+  Axon.Updates.stateless represents a stateless update:
+
+      def scale(combinator, step_size) do
+        stateless(combinator, &apply_scale(&1, &2, step_size))
+      end
+
+      def scale(step_size) do
+        stateless(&apply_scale(&1, &2, step_size))
+      end
+
+      defnp apply_scale(x, _params, step) do
+        transform(
+          {x, step},
+          fn {updates, step} ->
+            updates
+            |> Tuple.to_list()
+            |> Enum.map(&Nx.multiply(&1, step))
+            |> List.to_tuple()
+          end
+        )
+      end
+
+  While Axon.Updates.stateful represents a stateful update:
+
+      def my_stateful_update(updates) do
+        Axon.Updates.stateful(updates, &init_my_update/1, &apply_my_update/2)
+      end
+
+      defnp init_my_update(params) do
+        state = zeros_like(params)
+        {state}
+      end
+
+      defnp apply_my_update(updates, {state}) do
+        new_state = apply_map(state, &Nx.add(&1, 0.01))
+        updates = transform({updates, new_state}, fn {updates, state} ->
+          updates
+          |> Tuple.to_list()
+          |> Enum.zip(Tuple.to_list(state))
+          |> Enum.map(fn {g, z} -> Nx.multiply(g, z) end)
+          |> List.to_tuple()
+        end)
+        {updates, {new_state}}
+      end
 
   """
   import Nx.Defn
