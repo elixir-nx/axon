@@ -25,7 +25,7 @@ At the lowest-level, Axon consists of a number of modules with functional implem
 
 All of the methods in the functional API are implemented as numerical definitions (`defn`). That means you can use any Nx compiler or backend to accelerate Axon. Additionally, you can arbitrarily compose methods in the Axon functional API with your own numerical definitions. Axon works entirely on Nx tensors, so any library built on top of Nx is likely to integrate well with Axon.
 
-Because Axon’s high-level APIs build on top of the functional API, the same benefits apply. You can use any Nx compiler or backend to accelerate model training or inference, with the possibility for things like AOT compilation.
+Because Axon’s high-level APIs build on top of the functional API, the same benefits apply. Every neural network can be JIT or AOT compiled using any Nx compiler or backend, or even transformed into high-level neural network formats like TensorFlow Lite and ONNX.
 
 ### Model Creation
 
@@ -66,7 +66,7 @@ params = Axon.init(model, compiler: EXLA)
 Axon.predict(model, params, input, compiler: EXLA)
 ```
 
-Both macros are valid inside `defn`, meaning you can easily integrate model execution with existing numerical definnitions.
+Both macros are valid inside `defn`, meaning you can easily integrate model execution with existing numerical definitions.
 
 Axon currently has support for:
 
