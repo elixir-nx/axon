@@ -48,18 +48,18 @@ defmodule Axon.MixProject do
       source_url: @source_url,
       groups_for_functions: [
         # Axon
-        "Functions: Layers": &(&1[:type] == :layer),
         "Functions: Activation": &(&1[:type] == :activation),
         "Functions: Composition": &(&1[:type] == :composition),
         "Functions: Execution": &(&1[:type] == :execution),
+        "Functions: Layers": &(&1[:type] == :layer),
 
         # Axon.Layers
-        Linear: &(&1[:type] == :linear),
-        Convolutional: &(&1[:type] == :convolutional),
-        Attention: &(&1[:type] == :attention),
-        Pooling: &(&1[:type] == :pooling),
-        Dropout: &(&1[:type] == :dropout),
-        Normalization: &(&1[:type] == :normalization)
+        "Functions: Attention": &(&1[:type] == :attention),
+        "Functions: Convolutional": &(&1[:type] == :convolutional),
+        "Functions: Dropout": &(&1[:type] == :dropout),
+        "Functions: Linear": &(&1[:type] == :linear),
+        "Functions: Normalization": &(&1[:type] == :normalization),
+        "Functions: Pooling": &(&1[:type] == :pooling)
       ],
       before_closing_body_tag: &before_closing_body_tag/1
     ]
