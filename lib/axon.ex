@@ -748,6 +748,8 @@ defmodule Axon do
     ## Options
 
       * `:name` - Layer name.
+      * `:gamma_initializer` - Gamma parameter initializer.
+      * `:beta_initializer` - Beta parameter initializer.
       * `:channel_index` - Input feature index used for calculating
         mean and variance.
       * `:epsilon` - Numerical stability term.
@@ -756,14 +758,17 @@ defmodule Axon do
     def unquote(norm)(%Axon{output_shape: shape} = x, opts \\ []) do
       {id, name} = unique_identifiers(unquote(norm), opts[:name])
 
+      gamma_init = opts[:gamma_initializer] || :glorot_uniform
+      beta_init = opts[:beta_initializer] || :zeros
+
       channel_index = opts[:channel_index] || 1
       epsilon = opts[:epsilon] || 1.0e-5
 
       gamma_shape = Axon.Shape.norm_param(shape, channel_index)
       beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-      gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
-      beta = param(name <> "_beta", beta_shape, :glorot_uniform)
+      gamma = param(name <> "_gamma", gamma_shape, gamma_init)
+      beta = param(name <> "_beta", beta_shape, beta_init)
 
       node = %Axon{
         id: id,
@@ -790,6 +795,8 @@ defmodule Axon do
   ## Options
 
     * `:name` - Layer name.
+    * `:gamma_initializer` - Gamma parameter initializer.
+    * `:beta_initializer` - Beta parameter initializer.
     * `:channel_index` - Input feature index used for calculating
       mean and variance.
     * `:epsilon` - Numerical stability term.
@@ -799,14 +806,17 @@ defmodule Axon do
       when is_integer(group_size) and group_size >= 1 do
     {id, name} = unique_identifiers(:group_norm, opts[:name])
 
+    gamma_init = opts[:gamma_initializer] || :glorot_uniform
+    beta_init = opts[:beta_initializer] || :zeros
+
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma = param(name <> "_gamma", gamma_shape, :glorot_uniform)
-    beta = param(name <> "_beta", beta_shape, :glorot_uniform)
+    gamma = param(name <> "_gamma", gamma_shape, gamma_init)
+    beta = param(name <> "_beta", beta_shape, beta_init)
 
     node = %Axon{
       id: id,
