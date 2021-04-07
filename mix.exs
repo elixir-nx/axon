@@ -8,6 +8,7 @@ defmodule Axon.MixProject do
     [
       app: :axon,
       version: @version,
+      name: "Axon",
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -46,6 +47,13 @@ defmodule Axon.MixProject do
       source_ref: "v#{@version}",
       source_url: @source_url,
       groups_for_functions: [
+        # Axon
+        "Functions: Layers": &(&1[:type] == :layer),
+        "Functions: Activation": &(&1[:type] == :activation),
+        "Functions: Composition": &(&1[:type] == :composition),
+        "Functions: Execution": &(&1[:type] == :execution),
+
+        # Axon.Layers
         Linear: &(&1[:type] == :linear),
         Convolutional: &(&1[:type] == :convolutional),
         Attention: &(&1[:type] == :attention),
