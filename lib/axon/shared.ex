@@ -9,138 +9,101 @@ defmodule Axon.Shared do
   import Nx.Defn
 
   @doc """
-  Inverts the give permutation. Used in certain shape calculations
-  to determine transpose permuation.
-  """
-  defmacro invert_permutation(permutation) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        unquote(permutation),
-        fn perm when is_list(perm) ->
-          perm
-          |> Enum.with_index()
-          |> Enum.map(fn {_, i} -> i end)
-        end
-      )
-    end
-  end
-
-  @doc """
   Asserts `lhs` has same shape as `rhs`.
   """
-  defmacro assert_shape!(lhs, rhs) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        {unquote(lhs), unquote(rhs)},
-        fn {lhs, rhs} ->
-          lhs = Nx.shape(lhs)
-          rhs = Nx.shape(rhs)
+  defn assert_shape!(lhs, rhs) do
+    transform(
+      {lhs, rhs},
+      fn {lhs, rhs} ->
+        lhs = Nx.shape(lhs)
+        rhs = Nx.shape(rhs)
 
-          unless lhs == rhs do
-            raise ArgumentError,
-                  "expected input shapes to be equal," <>
-                    " got #{inspect(lhs)} != #{inspect(rhs)}"
-          end
+        unless lhs == rhs do
+          raise ArgumentError,
+                "expected input shapes to be equal," <>
+                  " got #{inspect(lhs)} != #{inspect(rhs)}"
         end
-      )
-    end
+      end
+    )
   end
 
   @doc """
   Asserts `lhs` has same rank as `rhs`.
   """
-  defmacro assert_equal_rank!(lhs, rhs) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        {unquote(lhs), unquote(rhs)},
-        fn {x, y} ->
-          x = if is_integer(x), do: x, else: Nx.rank(x)
-          y = if is_integer(y), do: y, else: Nx.rank(y)
+  defn assert_equal_rank!(lhs, rhs) do
+    transform(
+      {lhs, rhs},
+      fn {x, y} ->
+        x = if is_integer(x), do: x, else: Nx.rank(x)
+        y = if is_integer(y), do: y, else: Nx.rank(y)
 
-          unless x >= y do
-            raise ArgumentError,
-                  "expected input ranks to be equal," <>
-                    " got #{x} != #{y}"
-          end
+        unless x >= y do
+          raise ArgumentError,
+                "expected input ranks to be equal," <>
+                  " got #{x} != #{y}"
         end
-      )
-    end
+      end
+    )
   end
 
   @doc """
   Asserts `lhs` has at least rank `rhs`.
   """
-  defmacro assert_greater_equal_rank!(lhs, rhs) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        {unquote(lhs), unquote(rhs)},
-        fn {x, y} ->
-          x = if is_integer(x), do: x, else: Nx.rank(x)
-          y = if is_integer(y), do: y, else: Nx.rank(y)
+  defn assert_greater_equal_rank!(lhs, rhs) do
+    transform(
+      {lhs, rhs},
+      fn {x, y} ->
+        x = if is_integer(x), do: x, else: Nx.rank(x)
+        y = if is_integer(y), do: y, else: Nx.rank(y)
 
-          unless x >= y do
-            raise ArgumentError,
-                  "expected input shape to have at least rank #{y}," <>
-                    " got rank #{x}"
-          end
+        unless x >= y do
+          raise ArgumentError,
+                "expected input shape to have at least rank #{y}," <>
+                  " got rank #{x}"
         end
-      )
-    end
+      end
+    )
   end
 
   @doc """
   Transforms the given Elixir value into a scalar predicate.
   """
-  defmacro to_predicate(term) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        unquote(term),
-        fn term -> if term, do: 1, else: 0 end
-      )
-    end
+  defn to_predicate(term) do
+    transform(term, fn term -> if term, do: 1, else: 0 end)
   end
 
   @doc """
   Applies fun to arg.
   """
-  defmacro apply_map(args, fun) do
-    quote do
-      Nx.Defn.Kernel.transform(unquote(args), fn args ->
-        if is_tuple(args) do
-          Nx.Defn.Tree.composite(args, unquote(fun))
-        else
-          unquote(fun).(args)
-        end
-      end)
-    end
+  defn apply_map(args, fun) do
+    transform(
+      {args, fun},
+      fn {args, fun} -> Nx.Defn.Tree.composite(args, fun) end
+    )
   end
 
   @doc """
   Creates a zeros-like tuple of inputs.
   """
-  defmacro zeros_like(params) do
-    quote do
-      Nx.Defn.Kernel.transform(unquote(params), fn params ->
-        params
-        |> Tuple.to_list()
-        |> Enum.map(&Axon.Initializers.zeros(shape: Nx.shape(&1)))
-        |> List.to_tuple()
-      end)
-    end
+  defn zeros_like(params) do
+    transform(params, fn params ->
+      params
+      |> Tuple.to_list()
+      |> Enum.map(&Axon.Initializers.zeros(shape: Nx.shape(&1)))
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
   Creates a fulls-like tuple of inputs.
   """
-  defmacro fulls_like(params, value) do
-    quote do
-      Nx.Defn.Kernel.transform({unquote(params), Nx.tensor(unquote(value))}, fn {params, value} ->
-        params
-        |> Tuple.to_list()
-        |> Enum.map(&Axon.Initializers.full(value, shape: Nx.shape(&1)))
-        |> List.to_tuple()
-      end)
-    end
+  defn fulls_like(params, value) do
+    Nx.Defn.Kernel.transform({params, Nx.tensor(value)}, fn {params, value} ->
+      params
+      |> Tuple.to_list()
+      |> Enum.map(&Axon.Initializers.full(value, shape: Nx.shape(&1)))
+      |> List.to_tuple()
+    end)
   end
 
   ## Numerical Helpers
