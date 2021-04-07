@@ -141,6 +141,16 @@ def deps do
 end
 ```
 
+You'll also likely want to include an `Nx` compiler such as `EXLA` for any practical deep learning workload:
+
+```elixir
+def deps do
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+end
+```
+
 ## License
 
 Copyright (c) 2021 Sean Moriarity
