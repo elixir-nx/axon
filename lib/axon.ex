@@ -922,9 +922,9 @@ defmodule Axon do
 
   """
   @doc type: :composition
-  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts) do
-    {id, name} = unique_identifiers(:concatenate, opts[:name])
-    axis = opts[:axis] || Nx.rank(x_shape) - 1
+  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y) do
+    {id, name} = unique_identifiers(:concatenate, nil)
+    axis = Nx.rank(x_shape) - 1
     output_shape = Axon.Shape.concatenate([x_shape, y_shape], axis)
 
     %Axon{
@@ -939,9 +939,9 @@ defmodule Axon do
   end
 
   @doc type: :composition
-  def concatenate([%Axon{output_shape: shape} | _] = inputs, opts) when is_list(inputs) do
-    {id, name} = unique_identifiers(:concatenate, opts[:name])
-    axis = opts[:axis] || Nx.rank(shape) - 1
+  def concatenate([%Axon{output_shape: shape} | _] = inputs) when is_list(inputs) do
+    {id, name} = unique_identifiers(:concatenate, nil)
+    axis = Nx.rank(shape) - 1
     input_shapes = inputs |> Enum.map(fn %Axon{output_shape: shape} -> shape end)
     output_shape = Axon.Shape.concatenate(input_shapes, axis)
 
