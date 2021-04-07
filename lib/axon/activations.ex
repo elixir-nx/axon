@@ -41,7 +41,6 @@ defmodule Axon.Activations do
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
   any supported `Nx` compiler.
-
   """
 
   import Nx.Defn
