@@ -72,7 +72,7 @@ defmodule Axon.Compiler do
   ## Activation Layers
 
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                       [:leaky_relu, :linear, :log_sigmoid, :log_softmax, :relu, :relu6] ++
+                       [:leaky_relu, :linear, :log_sigmoid, :relu, :relu6] ++
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
 
   defp to_predict_expr(%Axon{op: op, parent: parent}, params, input)
