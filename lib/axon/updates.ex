@@ -83,7 +83,7 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
-  def scale(combinator \\ empty(), step_size) do
+  def scale(combinator \\ identity(), step_size) do
     stateless(combinator, &apply_scale(&1, &2, step_size))
   end
 
@@ -114,7 +114,7 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  def scale_by_adam(combinator \\ empty(), opts) do
+  def scale_by_adam(combinator \\ identity(), opts) do
     stateful(
       combinator,
       &init_scale_by_adam/1,
@@ -162,7 +162,7 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  def scale_by_rss(combinator \\ empty(), opts) do
+  def scale_by_rss(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 0.1)
 
     stateful(
@@ -232,7 +232,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_rms(combinator \\ empty(), opts) do
+  def scale_by_rms(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -281,7 +281,7 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  def scale_by_belief(combinator \\ empty(), opts) do
+  def scale_by_belief(combinator \\ identity(), opts) do
     stateful(
       combinator,
       &init_scale_by_belief/1,
@@ -334,7 +334,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_stddev(combinator \\ empty(), opts) do
+  def scale_by_stddev(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -372,7 +372,7 @@ defmodule Axon.Updates do
   @doc """
   Scales input using the given schedule function.
   """
-  def scale_by_schedule(combinator \\ empty(), schedule_fn) when is_function(schedule_fn) do
+  def scale_by_schedule(combinator \\ identity(), schedule_fn) when is_function(schedule_fn) do
     stateful(
       combinator,
       &init_scale_by_schedule/1,
@@ -414,7 +414,7 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  def scale_by_radam(combinator \\ empty(), opts) do
+  def scale_by_radam(combinator \\ identity(), opts) do
     stateful(
       combinator,
       &init_scale_by_radam/1,
@@ -512,7 +512,7 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  def trace(combinator \\ empty(), opts) do
+  def trace(combinator \\ identity(), opts) do
     stateful(
       combinator,
       &init_trace/1,
@@ -562,7 +562,7 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
-  def clip(combinator \\ empty(), opts) do
+  def clip(combinator \\ identity(), opts) do
     stateless(combinator, &apply_clip(&1, &2, opts))
   end
 
@@ -586,7 +586,7 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
-  def clip_by_global_norm(combinator \\ empty(), opts) do
+  def clip_by_global_norm(combinator \\ identity(), opts) do
     stateless(combinator, &apply_clip_by_global_norm(&1, &2, opts))
   end
 
@@ -608,7 +608,7 @@ defmodule Axon.Updates do
   @doc """
   Centralize input.
   """
-  def centralize(combinator \\ empty()) do
+  def centralize(combinator \\ identity()) do
     stateless(combinator, &apply_centralize/2)
   end
 
@@ -619,7 +619,7 @@ defmodule Axon.Updates do
   @doc """
   Weight decay.
   """
-  def add_decayed_weights(combinator \\ empty(), opts) do
+  def add_decayed_weights(combinator \\ identity(), opts) do
     stateless(combinator, &apply_weight_decay(&1, &2, opts))
   end
 
@@ -639,7 +639,7 @@ defmodule Axon.Updates do
   @doc """
   Scale by trust ratio.
   """
-  def scale_by_trust_ratio(combinator \\ empty(), opts) do
+  def scale_by_trust_ratio(combinator \\ identity(), opts) do
     stateless(combinator, &apply_scale_by_trust_ratio(&1, &2, opts))
   end
 
@@ -679,7 +679,7 @@ defmodule Axon.Updates do
   @doc """
   Add noise.
   """
-  def add_noise(combinator \\ empty(), opts) do
+  def add_noise(combinator \\ identity(), opts) do
     stateful(combinator, &init_add_noise/1, &apply_add_noise(&1, &2, &3, opts))
   end
 
@@ -708,7 +708,7 @@ defmodule Axon.Updates do
   @doc """
   Scale by yogi.
   """
-  def scale_by_yogi(combinator \\ empty(), opts) do
+  def scale_by_yogi(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 1.0e-6)
 
     stateful(
@@ -764,7 +764,7 @@ defmodule Axon.Updates do
   @doc """
   Represents a stateless update.
   """
-  def stateless({parent_init_fn, parent_apply_fn} \\ empty(), apply_fn) do
+  def stateless({parent_init_fn, parent_apply_fn} \\ identity(), apply_fn) do
     apply_fn = fn updates, state, params ->
       {updates, state} = parent_apply_fn.(updates, state, params)
       {apply_fn.(updates, params), state}
@@ -774,18 +774,18 @@ defmodule Axon.Updates do
   end
 
   @doc """
-  Returns an empty update.
+  Returns the identity update.
 
   This is often as the initial update in many functions in this module.
   """
-  def empty() do
+  def identity() do
     {{}, fn updates, state, _params -> {updates, state} end}
   end
 
   @doc """
   Represents a stateful update.
   """
-  def stateful({parent_init_fn, parent_apply_fn} \\ empty(), init_fn, apply_fn) do
+  def stateful({parent_init_fn, parent_apply_fn} \\ identity(), init_fn, apply_fn) do
     init_fn = fn params ->
       state = parent_init_fn.(params)
       Tuple.insert_at(state, 0, init_fn.(params))
