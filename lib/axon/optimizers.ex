@@ -3,14 +3,14 @@ defmodule Axon.Optimizers do
   Implementations of common gradient-based optimization algorithms.
 
   All of the methods in this module are written in terms of
-  the update methods defined in Axon.Updates. Axon treates
+  the update methods defined in `Axon.Updates`. Axon treates
   optimizers as the tuple:
 
       {init_fn, update_fn}
 
-  where init_fn returns an initial optimizer state and update_fn
-  scales input gradients. init_fn accepts a model's parameters
-  to and attaches state to each parameter. update_fn accepts
+  where `init_fn` returns an initial optimizer state and update_fn
+  scales input gradients. `init_fn` accepts a model's parameters
+  to and attaches state to each parameter. `update_fn` accepts
   gradients, optimizer state, and current model parameters and
   returns updated optimizer state and gradients.
 
@@ -19,19 +19,27 @@ defmodule Axon.Optimizers do
   defined elsewhere):
 
       defmodule Learning do
+        @default_defn_compiler EXLA
+
+        defn init(params, init_fn) do
+          init_fn.(params)
+        end
 
         defn update(params, optimizer_state, inputs, targets, update_fn) do
-          {loss, gradient} = value_and_grad(params, objective(&1, inputs, targets))
+          {loss, gradient} = value_and_grad(params, &objective(&1, inputs, targets))
           {new_optimizer_state, scaled_updates} = update_fn.(gradient, optimizer_state, params)
           {Axon.Updates.apply_updates(params, scaled_updates), new_optimizer_state, loss}
         end
+      end
 
       model_params = Nx.random_uniform({784, 10})
-
       {init_fn, update_fn} = Axon.Optimizers.adam(0.005)
-      optimizer_state = Nx.Defn.jit(init_fn, [model_params], compiler: EXLA)
 
-      {new_params, new_optimizer_state, loss} = Learning.update(params, optimizer_state, inputs, targets, update_fn)
+      optimizer_state =
+        Learning.init(params, init_fn)
+
+      {new_params, new_optimizer_state, loss} =
+        Learning.update(params, optimizer_state, inputs, targets, update_fn)
 
   For a simpler approach, you can also use optimizers with the training API:
 
