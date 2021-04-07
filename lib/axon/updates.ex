@@ -779,7 +779,7 @@ defmodule Axon.Updates do
   This is often as the initial update in many functions in this module.
   """
   def identity() do
-    {{}, fn updates, state, _params -> {updates, state} end}
+    {fn _params -> {} end, fn updates, state, _params -> {updates, state} end}
   end
 
   @doc """

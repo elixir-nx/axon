@@ -49,10 +49,10 @@ defmodule Axon.Training do
   anonymous function.
   """
   def step(%Axon{} = model, loss, optimizer) when is_function(loss, 2) do
-    init_fn = fn -> Axon.init(model) end
+    {init_fn, predict_fn} = Axon.compile(model)
 
     objective_fn = fn params, input, target ->
-      preds = Axon.predict(model, params, input)
+      preds = predict_fn.(params, input)
       loss.(target, preds)
     end
 

@@ -427,8 +427,8 @@ defmodule Axon do
       )
 
     k1 = param(name <> "_kernel_1", k1_shape, kernel_init)
-    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
     b1 = param(name <> "_bias_1", b1_shape, bias_init)
+    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
     b2 = param(name <> "_bias_2", b2_shape, bias_init)
 
     node = %Axon{
@@ -536,10 +536,10 @@ defmodule Axon do
       )
 
     k1 = param(name <> "_kernel_1", k1_shape, kernel_init)
-    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
-    k3 = param(name <> "_kernel_3", k3_shape, kernel_init)
     b1 = param(name <> "_bias_1", b1_shape, bias_init)
+    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
     b2 = param(name <> "_bias_2", b2_shape, bias_init)
+    k3 = param(name <> "_kernel_3", k3_shape, kernel_init)
     b3 = param(name <> "_bias_3", b3_shape, bias_init)
 
     node = %Axon{
@@ -999,7 +999,15 @@ defmodule Axon do
   end
 
   @doc """
-  Compiles and runs the given models initialization function.
+  Compiles the given model to `{init_fn, predict_fn}`.
+  """
+  def compile(model) do
+    Axon.Compiler.__compile__(model)
+  end
+
+  @doc """
+  Compiles and runs the given models initialization function
+  with the given compiler options.
   """
   @doc type: :execution
   defmacro init(model, opts \\ []) do
@@ -1049,7 +1057,13 @@ defmodule Axon do
     def inspect(axon, _opts) do
       title = "Model"
       header = ["Layer", "Shape", "Parameters"]
-      rows = axon_to_rows(axon, [])
+      {_, cache} = axon_to_rows(axon, %{})
+
+      rows =
+        cache
+        |> Enum.sort()
+        |> Enum.unzip()
+        |> Kernel.elem(1)
 
       rows
       |> TableRex.Table.new(header, title)
@@ -1061,34 +1075,49 @@ defmodule Axon do
       |> string()
     end
 
-    defp axon_to_rows(%Axon{op: :input, output_shape: shape, parent: nil, name: name}, layers) do
-      row = [name <> " (input)", "#{inspect(shape)}", 0]
-      [row | layers]
+    defp axon_to_rows(%{id: id} = graph, cache) do
+      case cache do
+        %{^id => row} ->
+          {row, cache}
+
+        %{} ->
+          {row, cache} = do_axon_to_rows(graph, cache)
+          cache = Map.put(cache, id, row)
+          {row, cache}
+      end
     end
 
-    # TODO: This is bad
-    defp axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, layers)
+    defp do_axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, cache)
          when is_list(parents) do
-      {names, rows} =
-        Enum.map_reduce(parents, layers, fn %Axon{name: name} = node, acc ->
-          {name, Enum.uniq(axon_to_rows(node, acc))}
+      {names, cache} =
+        Enum.map_reduce(parents, cache, fn %Axon{name: name} = graph, cache ->
+          {_, cache} = axon_to_rows(graph, cache)
+          {name, cache}
         end)
 
-      row = [name <> "( #{Atom.to_string(op)} #{inspect(names)} )", "#{inspect(shape)}", 0]
+      row = [name <> " ( #{Atom.to_string(op)} #{inspect(names)} )", "#{inspect(shape)}", 0]
 
-      (rows -- layers) ++ [row] ++ layers
+      {row, cache}
     end
 
-    defp axon_to_rows(
-           %Axon{op: op, output_shape: shape, parent: x, name: name, params: params},
-           layers
+    defp do_axon_to_rows(
+           %Axon{op: op, params: params, parent: parent, name: name, output_shape: shape},
+           cache
          ) do
-      total_params =
-        params
-        |> Enum.reduce(0, fn %Axon.Parameter{shape: shape}, acc -> Nx.size(shape) + acc end)
+      cache =
+        if parent do
+          {_, cache} = axon_to_rows(parent, cache)
+          cache
+        else
+          cache
+        end
 
-      row = [name <> " (#{Atom.to_string(op)})", "#{inspect(shape)}", "#{total_params}"]
-      axon_to_rows(x, [row | layers])
+      num_params =
+        params
+        |> Enum.reduce(0, fn %Axon.Parameter{shape: shape}, acc -> acc + Nx.size(shape) end)
+
+      row = [name <> " ( #{Atom.to_string(op)} )", "#{inspect(shape)}", "#{num_params}"]
+      {row, cache}
     end
   end
 
@@ -1102,6 +1131,7 @@ defmodule Axon do
   defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
 
   defp param(name, shape, initializer, _opts \\ []) do
-    %Axon.Parameter{name: name, shape: shape, initializer: initializer}
+    id = System.unique_integer([:positive, :monotonic])
+    %Axon.Parameter{id: id, name: name, shape: shape, initializer: initializer}
   end
 end

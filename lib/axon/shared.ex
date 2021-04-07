@@ -106,6 +106,22 @@ defmodule Axon.Shared do
     end)
   end
 
+  @doc """
+  JIT given function with args and opts or apply it inside defn.
+  """
+  def jit_or_apply(caller, fun, args, opts \\ []) do
+    if Nx.Defn.Compiler.current() do
+      if opts != [] do
+        raise ArgumentError,
+              "cannot pass execution options to Axon.#{caller} inside defn, got: #{inspect(opts)}"
+      end
+
+      apply(fun, args)
+    else
+      Nx.Defn.jit(fun, args, opts)
+    end
+  end
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else, like another library
