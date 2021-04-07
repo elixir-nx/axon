@@ -2,11 +2,22 @@ defmodule Axon.Training do
   @moduledoc """
   Abstractions for training machine learning models.
   """
+
   require Axon
   require Axon.Updates
 
   @doc """
   Represents a single training step.
+
+  It expects a pair of 2-element tuples:
+
+    * The first pair contains the model initialization function
+      and the objective function. For a Neural Network, the objective
+      function is the loss function of the Neural Network prediction
+
+    * The second pairs contains the updater initialization function
+      and the update function itself
+
   """
   def step({init_model_fn, objective_fn}, {init_update_fn, update_fn})
       when is_function(init_model_fn, 0) and is_function(objective_fn, 3) and
@@ -31,8 +42,11 @@ defmodule Axon.Training do
   end
 
   @doc """
-  Represents a single training step using an Axon model,
-  loss function, and optimizer.
+  Represents a single training step using an Axon `model`,
+  `loss` function, and `optimizer`.
+
+  The `loss` function is either an atom or a two arity
+  anonymous function.
   """
   def step(%Axon{} = model, loss, optimizer) when is_function(loss, 2) do
     init_fn = fn -> Axon.init(model) end
@@ -52,6 +66,17 @@ defmodule Axon.Training do
 
   @doc """
   Implements a common training loop.
+
+  Its arguments are:
+
+    * A tuple with the initialization function and the step function.
+      Often retrieved from `step/3` but it could also be manually provided.
+
+    * The inputs tensors
+
+    * The targets tensors
+
+    * A list of options
 
   ## Options
 
@@ -112,9 +137,8 @@ defmodule Axon.Training do
           |> Nx.divide(i + 1)
 
         IO.write(
-          "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - Average Loss: #{
-            Nx.to_scalar(avg_loss)
-          }"
+          "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - " <>
+            "Average Loss: #{Nx.to_scalar(avg_loss)}"
         )
 
         {model_state, avg_loss}
