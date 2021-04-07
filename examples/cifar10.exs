@@ -88,7 +88,7 @@ defmodule CIFAR do
 end
 
 model =
-  Axon.input({32, 3, 32, 32})
+  Axon.input({nil, 3, 32, 32})
   |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
   |> Axon.batch_norm()
   |> Axon.max_pool(kernel_size: {2, 2})
