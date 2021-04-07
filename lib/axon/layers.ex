@@ -1160,6 +1160,16 @@ defmodule Axon.Layers do
   @doc """
   Flattens input to shape of `{batch, units}` by folding outer
   dimensions.
+
+  ## Examples
+
+      iex> Axon.Layers.flatten(Nx.iota({1, 2, 2}, type: {:f, 32}))
+      #Nx.Tensor<
+        f32[1][4]
+        [
+          [0.0, 1.0, 2.0, 3.0]
+        ]
+      >
   """
   defn flatten(x) do
     new_shape =
