@@ -9,29 +9,6 @@ defmodule Axon.Shared do
   import Nx.Defn
 
   @doc """
-  Returns the size of the given axis.
-  """
-  defmacro axis_size(shape_or_tensor, axis) do
-    quote do
-      Nx.Defn.Kernel.transform(
-        {unquote(shape_or_tensor), unquote(axis)},
-        fn
-          {x, axis} when is_tuple(x) and is_integer(axis) ->
-            axis = if axis < 0, do: tuple_size(x) - axis, else: axis
-            elem(x, axis)
-
-          {x, axis} when is_integer(axis) ->
-            axis = if axis < 0, do: tuple_size(Nx.shape(x)) - axis, else: axis
-            elem(Nx.shape(x), axis)
-
-          _ ->
-            raise ArgumentError, "input axis must be an integer"
-        end
-      )
-    end
-  end
-
-  @doc """
   Inverts the give permutation. Used in certain shape calculations
   to determine transpose permuation.
   """
@@ -168,7 +145,7 @@ defmodule Axon.Shared do
 
   ## Numerical Helpers
 
-  # TODO: These should be contained somewhere else
+  # TODO: These should be contained somewhere else, like another library
 
   defn logsumexp(x, opts \\ []) do
     opts = keyword!(opts, axes: [], keep_axes: false)
