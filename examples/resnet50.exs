@@ -44,7 +44,7 @@ defmodule ResNet50 do
       |> Axon.conv(64, kernel_size: {7, 7}, strides: [2, 2], padding: [{3, 3}, {3, 3}])
       |> Axon.batch_norm()
       |> Axon.relu()
-      |> Axon.max_pool(kernel_size: {3, 3}, strides: [2, 2], padding: [{0, 0}, {0, 0}, {1, 1}, {1, 1}])
+      |> Axon.max_pool(kernel_size: {3, 3}, strides: [2, 2], padding: [{1, 1}, {1, 1}])
 
     stage2 =
       stage1

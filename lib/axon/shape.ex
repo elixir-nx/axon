@@ -424,6 +424,11 @@ defmodule Axon.Shape do
   def pool(parent_shape, kernel_size, strides, padding) do
     kernel_dilation = List.duplicate(1, Nx.rank(parent_shape))
 
+    padding =
+      if is_list(padding),
+        do: [{0, 0}, {0, 0} | padding],
+        else: padding
+
     kernel_size =
       kernel_size
       |> Tuple.insert_at(0, 1)
