@@ -107,10 +107,8 @@ IO.inspect model
 
 {train_images, train_labels} = CIFAR.download('cifar-10-binary.tar.gz')
 
-{init_optimizer, apply_updates} = Axon.Optimizers.adam(0.005)
-
 model
-|> Axon.Training.step(:categorical_cross_entropy, apply_updates)
-|> Axon.Training.train(model, init_optimizer, train_images, train_labels, epochs: 20, compiler: EXLA)
+|> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+|> Axon.Training.train(train_images, train_labels, epochs: 20, compiler: EXLA)
 |> Nx.backend_transfer()
 |> IO.inspect()

@@ -28,6 +28,10 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp to_init_fun(%Axon{parent: parents}, cache) when is_list(parents) do
+    Enum.reduce(parents, cache, &to_init_fun/2)
+  end
+
   defp to_init_fun(%Axon{parent: parent, params: params}, cache) do
     cache =
       Enum.reduce(params, cache, fn
@@ -59,19 +63,50 @@ defmodule Axon.Compiler do
   end
 
   defp compile_predict(%Axon{} = graph) do
+    {param_map, _} = to_param_map(graph, %{}, 0)
+
     fn params, inputs ->
-      {fun, _} = to_predict_fun(graph, %{})
+      {fun, _} = to_predict_fun(graph, %{}, param_map)
       fun.(params, inputs)
     end
   end
 
-  defp to_predict_fun(%{id: id} = graph, cache) do
+  ## Parameter Ordering
+
+  defp to_param_map(%Axon{parent: parents}, cache, counter) when is_list(parents) do
+    Enum.reduce(parents, {cache, counter}, fn node, {cache, counter} ->
+      to_param_map(node, cache, counter)
+    end)
+  end
+
+  defp to_param_map(%Axon{parent: parent, params: params}, cache, counter) do
+    {cache, counter} =
+      Enum.reduce(params, {cache, counter}, fn
+        %{id: id} = param, {cache, counter} ->
+          case cache do
+            %{^id => _} ->
+              {cache, counter}
+
+            %{} ->
+              %{id: id} = param
+              {Map.put(cache, id, counter), counter + 1}
+          end
+      end)
+
+    if parent do
+      to_param_map(parent, cache, counter)
+    else
+      {cache, counter}
+    end
+  end
+
+  defp to_predict_fun(%{id: id} = graph, cache, param_map) do
     case cache do
       %{^id => fun} ->
         {fun, cache}
 
       %{} ->
-        {fun, cache} = recur_predict_fun(graph, cache)
+        {fun, cache} = recur_predict_fun(graph, cache, param_map)
         cache = Map.put(cache, id, fun)
         {fun, cache}
     end
@@ -83,9 +118,9 @@ defmodule Axon.Compiler do
                        [:leaky_relu, :linear, :log_sigmoid, :relu, :relu6] ++
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent}, cache)
+  defp recur_predict_fun(%Axon{op: op, parent: parent}, cache, param_map)
        when op in @activation_layers do
-    {fun, cache} = to_predict_fun(parent, cache)
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
 
     fun = fn params, inputs ->
       apply(Axon.Activations, op, [fun.(params, inputs)])
@@ -96,18 +131,19 @@ defmodule Axon.Compiler do
 
   ## Linear Layers
 
-  defp recur_predict_fun(%Axon{op: :dense, parent: parent}, cache) do
-    {fun, cache} = to_predict_fun(parent, cache)
+  defp recur_predict_fun(
+         %Axon{op: :dense, parent: parent, params: [%{id: b_id}, %{id: w_id}]},
+         cache,
+         param_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
+
+    w_idx = param_map[w_id]
+    b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params)
-      {w, b} = {elem(params, param_size - 2), elem(params, param_size - 1)}
-
-      params =
-        params
-        |> Tuple.delete_at(param_size - 1)
-        |> Tuple.delete_at(param_size - 2)
-
+      param_size = tuple_size(params) - 1
+      {w, b} = {elem(params, param_size - w_idx), elem(params, param_size - b_idx)}
       apply(Axon.Layers, :dense, [fun.(params, inputs), w, b])
     end
 
@@ -118,9 +154,9 @@ defmodule Axon.Compiler do
 
   @pooling_layers [:max_pool, :avg_pool, :lp_pool, :adaptive_avg_pool, :adaptive_max_pool]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache)
+  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache, param_map)
        when op in @pooling_layers do
-    {fun, cache} = to_predict_fun(parent, cache)
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
 
     fun = fn params, inputs ->
       apply(Axon.Layers, op, [fun.(params, inputs), opts])
@@ -133,9 +169,9 @@ defmodule Axon.Compiler do
 
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache)
+  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache, param_map)
        when op in @dropout_layers do
-    {fun, cache} = to_predict_fun(parent, cache)
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
 
     fun = fn params, inputs ->
       apply(Axon.Layers, op, [fun.(params, inputs), opts])
@@ -148,44 +184,51 @@ defmodule Axon.Compiler do
 
   @conv_layers [:conv, :depthwise_conv]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, opts: opts, params: [%{id: b_id}, %{id: k_id}]},
+         cache,
+         param_map
+       )
        when op in @conv_layers do
-    {fun, cache} = to_predict_fun(parent, cache)
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
+
+    k_idx = param_map[k_id]
+    b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params)
-      {w, b} = {elem(params, param_size - 2), elem(params, param_size - 1)}
-
-      params =
-        params
-        |> Tuple.delete_at(param_size - 1)
-        |> Tuple.delete_at(param_size - 2)
-
+      param_size = tuple_size(params) - 1
+      {w, b} = {elem(params, param_size - k_idx), elem(params, param_size - b_idx)}
       apply(Axon.Layers, op, [fun.(params, inputs), w, b, opts])
     end
 
     {fun, cache}
   end
 
-  defp recur_predict_fun(%Axon{op: :separable_conv2d, parent: parent, opts: opts}, cache) do
-    {fun, cache} = to_predict_fun(parent, cache)
+  defp recur_predict_fun(
+         %Axon{
+           op: :separable_conv2d,
+           parent: parent,
+           opts: opts,
+           params: [%{id: b1_id}, %{id: k1_id}, %{id: b2_id}, %{id: k2_id}]
+         },
+         cache,
+         param_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
+
+    k1_idx = param_map[k1_id]
+    b1_idx = param_map[b1_id]
+    k2_idx = param_map[k2_id]
+    b2_idx = param_map[b2_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params)
-
+      param_size = tuple_size(params) - 1
       {w1, b1, w2, b2} = {
-        elem(params, param_size - 4),
-        elem(params, param_size - 3),
-        elem(params, param_size - 2),
-        elem(params, param_size - 1)
+        elem(params, param_size - k1_idx),
+        elem(params, param_size - b1_idx),
+        elem(params, param_size - k2_idx),
+        elem(params, param_size - b2_idx)
       }
-
-      params =
-        params
-        |> Tuple.delete_at(param_size - 1)
-        |> Tuple.delete_at(param_size - 2)
-        |> Tuple.delete_at(param_size - 3)
-        |> Tuple.delete_at(param_size - 4)
 
       apply(Axon.Layers, :separable_conv2d, [fun.(params, inputs), w1, b1, w2, b2, opts])
     end
@@ -193,27 +236,42 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
-  defp recur_predict_fun(%Axon{op: :separable_conv3d, parent: parent, opts: opts}, cache) do
-    {fun, cache} = to_predict_fun(parent, cache)
+  defp recur_predict_fun(
+         %Axon{
+           op: :separable_conv2d,
+           parent: parent,
+           opts: opts,
+           params: [
+             %{id: b1_id},
+             %{id: k1_id},
+             %{id: b2_id},
+             %{id: k2_id},
+             %{id: b3_id},
+             %{id: k3_id}
+           ]
+         },
+         cache,
+         param_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
+
+    k1_idx = param_map[k1_id]
+    b1_idx = param_map[b1_id]
+    k2_idx = param_map[k2_id]
+    b2_idx = param_map[b2_id]
+    k3_idx = param_map[k3_id]
+    b3_idx = param_map[b3_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params)
-
+      param_size = tuple_size(params) - 1
       {w1, b1, w2, b2, w3, b3} = {
-        elem(params, param_size - 6),
-        elem(params, param_size - 5),
-        elem(params, param_size - 4),
-        elem(params, param_size - 3),
-        elem(params, param_size - 2),
-        elem(params, param_size - 1)
+        elem(params, param_size - k1_idx),
+        elem(params, param_size - b1_idx),
+        elem(params, param_size - k2_idx),
+        elem(params, param_size - b2_idx),
+        elem(params, param_size - k3_idx),
+        elem(params, param_size - b3_idx)
       }
-
-      params =
-        params
-        |> Tuple.delete_at(param_size - 1)
-        |> Tuple.delete_at(param_size - 2)
-        |> Tuple.delete_at(param_size - 3)
-        |> Tuple.delete_at(param_size - 4)
 
       apply(Axon.Layers, :separable_conv3d, [fun.(params, inputs), w1, b1, w2, b2, w3, b3, opts])
     end
@@ -225,20 +283,33 @@ defmodule Axon.Compiler do
 
   @normalization_layers [:batch_norm, :layer_norm, :group_norm, :instance_norm]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache)
+  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts, params: [%{id: b_id}, %{id: g_id}]}, cache, param_map)
        when op in @normalization_layers do
-    {fun, cache} = to_predict_fun(parent, cache)
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
+
+    g_idx = param_map[g_id]
+    b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params)
-      {w, b} = {elem(params, param_size - 2), elem(params, param_size - 1)}
-
-      params =
-        params
-        |> Tuple.delete_at(param_size - 1)
-        |> Tuple.delete_at(param_size - 2)
-
+      param_size = tuple_size(params) - 1
+      {w, b} = {elem(params, param_size - g_idx), elem(params, param_size - b_idx)}
       apply(Axon.Layers, op, [fun.(params, inputs), w, b, opts])
+    end
+
+    {fun, cache}
+  end
+
+  ## Element-wise layers
+
+  @element_wise_layers [:add, :subtract, :multiply]
+
+  defp recur_predict_fun(%Axon{op: op, parent: parents}, cache, param_map) when op in @element_wise_layers do
+    {[fun | funs], cache} = Enum.map_reduce(parents, cache, &recur_predict_fun(&1, &2, param_map))
+
+    fun = fn params, inputs ->
+      Enum.reduce(funs, fun.(params, inputs), fn next_fn, acc ->
+        apply(Nx, op, [acc, next_fn.(params, inputs)])
+      end)
     end
 
     {fun, cache}
@@ -246,8 +317,8 @@ defmodule Axon.Compiler do
 
   ## Shape Layers
 
-  defp recur_predict_fun(%Axon{op: :flatten, parent: parent}, cache) do
-    {fun, cache} = to_predict_fun(parent, cache)
+  defp recur_predict_fun(%Axon{op: :flatten, parent: parent}, cache, param_map) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
 
     fun = fn params, inputs ->
       apply(Axon.Layers, :flatten, [fun.(params, inputs)])
@@ -256,10 +327,21 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
+  defp recur_predict_fun(%Axon{op: :concatenate, parent: parents, opts: [axis: axis]}, cache, param_map) do
+    {funs, cache} = to_predict_fun(parent, cache, param_map)
+
+    fun = fn params, inputs ->
+      inps = Enum.map(funs, & &1.(params, inputs))
+      apply(Nx, :concatenate, [inps, [axis: axis]])
+    end
+
+    {fun, cache}
+  end
+
   ## Special Layers
 
-  defp recur_predict_fun(%Axon{op: :nx, parent: parent, opts: [fun: nx_fun]}, cache) do
-    {fun, cache} = to_predict_fun(parent, cache)
+  defp recur_predict_fun(%Axon{op: :nx, parent: parent, opts: [fun: nx_fun]}, cache, param_map) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map)
 
     fun = fn params, inputs ->
       nx_fun.(fun.(params, inputs))
@@ -268,7 +350,7 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
-  defp recur_predict_fun(%Axon{op: :input}, cache) do
+  defp recur_predict_fun(%Axon{op: :input}, cache, _) do
     fun = fn _, inputs ->
       inputs
     end
