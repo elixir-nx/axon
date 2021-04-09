@@ -80,12 +80,10 @@ sample_image
 
 IO.puts("\nTraining autoencoder...")
 
-train_images = train_images |> Enum.slice(1..10)
-
 {final_params, _optimizer_state} =
   model
   |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adamw(0.005))
-  |> Axon.Training.train(train_images, train_images, epochs: 5)
+  |> Axon.Training.train(train_images, train_images, epochs: 1)
 
 require Axon
 
