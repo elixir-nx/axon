@@ -83,12 +83,12 @@ IO.puts("\nTraining autoencoder...")
 {final_params, _optimizer_state} =
   model
   |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adamw(0.005))
-  |> Axon.Training.train(train_images, train_images, epochs: 5)
+  |> Axon.Training.train(train_images, train_images, epochs: 5, compiler: EXLA)
 
 require Axon
 
 model
-|> Axon.predict(final_params, sample_image)
+|> Axon.predict(final_params, sample_image, compiler: EXLA)
 |> Nx.reshape({28, 28})
 |> Nx.to_heatmap()
 |> IO.inspect()
