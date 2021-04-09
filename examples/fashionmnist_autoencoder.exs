@@ -42,14 +42,14 @@ end
 defmodule Autoencoder do
   def encoder(x) do
     x
-    |> Axon.dense(64, activation: :relu)
-    |> Axon.dense(3, activation: :relu)
+    |> Axon.dense(64, activation: :tanh)
+    |> Axon.dense(3, activation: :tanh)
   end
 
   def decoder(x) do
     x
-    |> Axon.dense(64, activation: :relu)
-    |> Axon.dense(784, activation: :relu)
+    |> Axon.dense(64, activation: :tanh)
+    |> Axon.dense(784, activation: :tanh)
   end
 
   def model() do
@@ -68,18 +68,29 @@ train_images = FashionMNIST.download('train-images-idx3-ubyte.gz')
 
 IO.puts("Sample image:\n")
 
-train_images
-|> Enum.at(0)
-|> (&(&1[:rand.uniform(32)])).()
+sample_image =
+  train_images
+  |> Enum.at(0)
+  |> (&(&1[:rand.uniform(32)])).()
+
+sample_image
 |> Nx.reshape({28, 28})
 |> Nx.to_heatmap()
 |> IO.inspect()
 
 IO.puts("\nTraining autoencoder...")
 
-final_params =
+train_images = train_images |> Enum.slice(1..10)
+
+{final_params, _optimizer_state} =
   model
   |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adamw(0.005))
   |> Axon.Training.train(train_images, train_images, epochs: 5)
 
-IO.inspect(Nx.backend_transfer(final_params))
+require Axon
+
+model
+|> Axon.predict(final_params, sample_image)
+|> Nx.reshape({28, 28})
+|> Nx.to_heatmap()
+|> IO.inspect()
