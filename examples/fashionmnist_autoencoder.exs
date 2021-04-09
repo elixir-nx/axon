@@ -83,7 +83,7 @@ IO.puts("\nTraining autoencoder...")
 {final_params, _optimizer_state} =
   model
   |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adamw(0.005))
-  |> Axon.Training.train(train_images, train_images, epochs: 1)
+  |> Axon.Training.train(train_images, train_images, epochs: 5)
 
 require Axon
 
