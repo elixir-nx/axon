@@ -37,8 +37,8 @@ defmodule Axon.Losses do
 
       defn my_strange_loss(y_true, y_pred) do
         y_true
-        |> Axon.mean_squared_error(y_pred)
-        |> Axon.binary_cross_entropy(y_pred)
+        |> Axon.Losses.mean_squared_error(y_pred)
+        |> Axon.Losses.binary_cross_entropy(y_pred)
         |> Nx.sum()
       end
 
