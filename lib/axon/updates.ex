@@ -1,5 +1,5 @@
 defmodule Axon.Updates do
-  @moduledoc """
+  @moduledoc ~S"""
   Parameter update methods.
 
   Update methods transform the input tensor in some way,
@@ -13,7 +13,7 @@ defmodule Axon.Updates do
   Which represent a state initialization and state update
   function respectively. While each method in the Updates
   API is a regular Elixir function, the two methods they
-  return are implemented as defn, so they can be accelerated
+  return are implemented as `defn`, so they can be accelerated
   using any Nx backend or compiler.
 
   Update methods are just combinators that can be arbitrarily
@@ -25,18 +25,16 @@ defmodule Axon.Updates do
         |> Updates.scale(-learning_rate)
       end
 
-  You can create your own combinators using the Axon.Updates.stateful
-  and Axon.Updates.stateless primitives. Every update method in this
-  module is implemented in terms of one of these two primitives.
+  ## Custom combinators
 
-  Axon.Updates.stateless represents a stateless update:
+  You can create your own combinators using the `stateless/2` and
+  `stateful/3` primitives. Every update method in this module is
+  implemented in terms of one of these two primitives.
 
-      def scale(combinator, step_size) do
+  `stateless/2` represents a stateless update:
+
+      def scale(combinator \\ Axon.Updates.identity(), step_size) do
         stateless(combinator, &apply_scale(&1, &2, step_size))
-      end
-
-      def scale(step_size) do
-        stateless(&apply_scale(&1, &2, step_size))
       end
 
       defnp apply_scale(x, _params, step) do
@@ -51,7 +49,11 @@ defmodule Axon.Updates do
         )
       end
 
-  While Axon.Updates.stateful represents a stateful update:
+  Notice how the function given to `stateless/2` is defined within `defn`.
+  This is what allows the anonymous functions returned by `Axon.Updates`
+  to be used inside `defn`.
+
+  `stateful/3` represents a stateful update and follows the same pattern:
 
       def my_stateful_update(updates) do
         Axon.Updates.stateful(updates, &init_my_update/1, &apply_my_update/2)

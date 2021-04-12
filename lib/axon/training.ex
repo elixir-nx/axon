@@ -80,15 +80,44 @@ defmodule Axon.Training do
 
   ## Options
 
-    * `epochs` - number of epochs to train for. Defaults to `5`.
-    * `compiler` - `defn` compiler to use to run training loop.
+    * `:epochs` - number of epochs to train for. Defaults to `5`.
+    * `:compiler` - `defn` compiler to use to run training loop.
       Defaults to `Nx.Defn.Evaluator`.
+
+  All other options are given to the underlying compiler.
+
+  ## A note on Nx and anonymous functions
+
+  When training, both `init_fn` and `step_fn` are executed within
+  the given Nx `:compiler`. Therefore, it is required that `init_fn`
+  and `step_fn` work on tensor expressions instead of tensor values.
+
+  For example, let's suppose you want to initialize the values with:
+
+      Nx.random_uniform({40, 28}, 0, 1)
+
+  The following won't work:
+
+      params = Nx.random_uniform({40, 28}, 0, 1)
+      init_fn = fn -> params end
+
+  Instead, we want to build the values inside the given compiler.
+  The correct way to build those values is by compuing them inside
+  a defn:
+
+      defn init_values, do: Nx.random_uniform({40, 28}, 0, 1)
+
+  And then:
+
+      init_fn = &init_values/0
+
   """
   def train({init_fn, step_fn}, inputs, targets, opts \\ []) do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
 
-    model_state = Nx.Defn.jit(init_fn, [], compiler: compiler)
+    jit_opts = [compiler: compiler] ++ opts
+    model_state = Nx.Defn.jit(init_fn, [], jit_opts)
 
     for epoch <- 1..epochs, reduce: model_state do
       model_state ->
@@ -99,7 +128,8 @@ defmodule Axon.Training do
             inputs,
             targets,
             compiler,
-            epoch
+            epoch,
+            jit_opts
           ])
 
         epoch_avg_loss =
@@ -117,7 +147,7 @@ defmodule Axon.Training do
 
   ## Helpers
 
-  defp train_epoch(step_fn, model_state, inputs, targets, compiler, epoch) do
+  defp train_epoch(step_fn, model_state, inputs, targets, compiler, epoch, jit_opts) do
     total_batches = Enum.count(inputs)
 
     dataset =
@@ -128,7 +158,7 @@ defmodule Axon.Training do
     for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0)} do
       {model_state, state} ->
         {model_state, batch_loss} =
-          Nx.Defn.jit(step_fn, [model_state, inp, tar], compiler: compiler)
+          Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
 
         avg_loss =
           state

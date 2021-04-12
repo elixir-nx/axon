@@ -14,8 +14,12 @@ defmodule Axon.Optimizers do
   gradients, optimizer state, and current model parameters and
   returns updated optimizer state and gradients.
 
-  As an example, consider the following usage of the Adam optimizer
-  in a basic update function (assuming objective and the dataset are
+  Custom optimizers are often created via the `Axon.Updates` API.
+
+  ## Example
+
+  Consider the following usage of the Adam optimizer in a basic
+  update function (assuming `objective` and the `dataset` are
   defined elsewhere):
 
       defmodule Learning do
