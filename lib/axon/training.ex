@@ -122,7 +122,7 @@ defmodule Axon.Training do
     for epoch <- 1..epochs, reduce: model_state do
       model_state ->
         {time, {model_state, avg_loss}} =
-          :timer.tc(&train_epoch/6, [
+          :timer.tc(&train_epoch/7, [
             step_fn,
             model_state,
             inputs,

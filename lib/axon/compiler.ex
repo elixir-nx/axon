@@ -75,12 +75,9 @@ defmodule Axon.Compiler do
 
   defp to_order_maps(%Axon{parent: parents}, param_map, input_map, param_counter, input_counter)
        when is_list(parents) do
-    Enum.reduce(parents, {param_map, input_map, param_counter, input_counter}, fn node,
-                                                                                  {param_map,
-                                                                                   input_map,
-                                                                                   param_counter,
-                                                                                   input_counter} ->
-      to_order_maps(node, param_map, input_map, param_counter, input_counter)
+    Enum.reduce(parents, {param_map, input_map, param_counter, input_counter}, fn
+      node, {param_map, input_map, param_counter, input_counter} ->
+        to_order_maps(node, param_map, input_map, param_counter, input_counter)
     end)
   end
 

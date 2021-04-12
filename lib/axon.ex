@@ -27,7 +27,7 @@ defmodule Axon do
 
   You can inspect the model for a nice summary:
 
-      IO.inspect model
+      IO.inspect(model)
 
       -----------------------------------------------------
                         Model
