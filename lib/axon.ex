@@ -188,26 +188,12 @@ defmodule Axon do
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    kernel_size =
-      if is_tuple(kernel_size),
-        do: kernel_size,
-        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
-    input_dilation =
-      if is_list(input_dilation),
-        do: input_dilation,
-        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
+    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size)
     bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size)
@@ -289,26 +275,12 @@ defmodule Axon do
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    kernel_size =
-      if is_tuple(kernel_size),
-        do: kernel_size,
-        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
-    input_dilation =
-      if is_list(input_dilation),
-        do: input_dilation,
-        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
+    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     kernel_shape = Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size)
     bias_shape = Axon.Shape.depthwise_conv_bias(parent_shape, channel_multiplier, kernel_size)
@@ -386,26 +358,12 @@ defmodule Axon do
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    kernel_size =
-      if is_tuple(kernel_size),
-        do: kernel_size,
-        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
-    input_dilation =
-      if is_list(input_dilation),
-        do: input_dilation,
-        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
+    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
       Axon.Shape.separable_conv2d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
@@ -491,26 +449,12 @@ defmodule Axon do
     padding = opts[:padding] || :valid
     input_dilation = opts[:input_dilation] || 1
     kernel_dilation = opts[:kernel_dilation] || 1
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    kernel_size =
-      if is_tuple(kernel_size),
-        do: kernel_size,
-        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
-    input_dilation =
-      if is_list(input_dilation),
-        do: input_dilation,
-        else: List.duplicate(input_dilation, Nx.rank(parent_shape) - 2)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, Nx.rank(parent_shape) - 2)
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
+    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
       Axon.Shape.separable_conv3d_kernel(parent_shape, channel_multiplier, kernel_size, 1)
@@ -675,17 +619,10 @@ defmodule Axon do
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
     padding = opts[:padding] || :valid
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    kernel_size =
-      if is_tuple(kernel_size),
-        do: kernel_size,
-        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
-
-    strides =
-      if is_list(strides),
-        do: strides,
-        else: List.duplicate(strides, Nx.rank(parent_shape) - 2)
-
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
     output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
     %Axon{
@@ -727,14 +664,9 @@ defmodule Axon do
 
   defp adaptative_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
     {id, name} = unique_identifiers(pool, opts[:name])
+    inner_rank = Nx.rank(parent_shape) - 2
 
-    output_size = opts[:output_size]
-
-    output_size =
-      if is_tuple(output_size),
-        do: output_size,
-        else: Tuple.duplicate(output_size, Nx.rank(parent_shape) - 2)
-
+    output_size = tuple_or_duplicate(:output_size, opts[:output_size], inner_rank)
     output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
 
     %Axon{
@@ -1122,6 +1054,44 @@ defmodule Axon do
   end
 
   ## Helpers
+
+  defp tuple_or_duplicate(key, tuple_or_integer, rank) do
+    cond do
+      is_tuple(tuple_or_integer) ->
+        if tuple_size(tuple_or_integer) != rank do
+          raise ArgumentError,
+                "expected #{inspect(key)} to be a #{rank}-element tuple, " <>
+                  "got: #{inspect(tuple_or_integer)}"
+        end
+
+      is_integer(tuple_or_integer) ->
+        Tuple.duplicate(tuple_or_integer, rank)
+
+      true ->
+        raise ArgumentError,
+              "expected #{inspect(key)} to be an integer or a tuple, " <>
+                "got: #{inspect(tuple_or_integer)}"
+    end
+  end
+
+  defp list_or_duplicate(key, list_or_integer, rank) do
+    cond do
+      is_list(list_or_integer) ->
+        if length(list_or_integer) != rank do
+          raise ArgumentError,
+                "expected #{inspect(key)} to be a #{rank}-element list, " <>
+                  "got: #{inspect(list_or_integer)}"
+        end
+
+      is_integer(list_or_integer) ->
+        List.duplicate(list_or_integer, rank)
+
+      true ->
+        raise ArgumentError,
+              "expected #{inspect(key)} to be an integer or a list, " <>
+                "got: #{inspect(list_or_integer)}"
+    end
+  end
 
   defp unique_identifiers(type, nil) do
     id = System.unique_integer([:positive, :monotonic])
