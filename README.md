@@ -145,9 +145,11 @@ You'll also likely want to include an `Nx` compiler such as `EXLA` for any pract
 
 ```elixir
 def deps do
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  [
+    {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+    {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
+    {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  ]
 end
 ```
 
