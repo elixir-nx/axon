@@ -122,15 +122,10 @@ defmodule Axon.Training do
     for epoch <- 1..epochs, reduce: model_state do
       model_state ->
         {time, {model_state, avg_loss}} =
-          :timer.tc(&train_epoch/7, [
-            step_fn,
-            model_state,
-            inputs,
-            targets,
-            compiler,
-            epoch,
-            jit_opts
-          ])
+          :timer.tc(
+            &train_epoch/6,
+            [step_fn, model_state, inputs, targets, epoch, jit_opts]
+          )
 
         epoch_avg_loss =
           avg_loss
@@ -147,7 +142,7 @@ defmodule Axon.Training do
 
   ## Helpers
 
-  defp train_epoch(step_fn, model_state, inputs, targets, compiler, epoch, jit_opts) do
+  defp train_epoch(step_fn, model_state, inputs, targets, epoch, jit_opts) do
     total_batches = Enum.count(inputs)
 
     dataset =
