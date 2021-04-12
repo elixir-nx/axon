@@ -542,24 +542,32 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
+      iex> Axon.Activations.softmax(Nx.tensor([[-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]], names: [:batch, :data]))
       #Nx.Tensor<
-        f32[data: 7]
-        [0.0015683004166930914, 0.004263082519173622, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275642096996307, 0.6326975226402283]
+        f32[batch: 1][data: 7]
+        [
+          [0.0015683004166930914, 0.004263082519173622, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275642096996307, 0.6326975226402283]
+        ]
       >
 
       iex> Axon.Activations.softmax(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.011962890625, 0.00439453125, 0.001617431640625],
-          [0.08837890625, 0.240234375, 0.65625]
+          [0.33203125, 0.12158203125, 0.044677734375],
+          [0.044677734375, 0.12158203125, 0.33203125]
         ]
       >
 
   """
   defn softmax(x) do
-    max_val = Nx.reduce_max(x)
+    transform(x, fn x ->
+      if Nx.rank(x) != 2 do
+        raise ArgumentError, "softmax activation expects a tensor of rank 2"
+      end
+    end)
+
+    max_val = Nx.reduce_max(x, axes: [1], keep_axes: true)
 
     stable_exp =
       x
