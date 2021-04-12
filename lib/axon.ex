@@ -293,7 +293,7 @@ defmodule Axon do
     kernel_size =
       if is_tuple(kernel_size),
         do: kernel_size,
-        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
 
     strides =
       if is_list(strides),
@@ -390,7 +390,7 @@ defmodule Axon do
     kernel_size =
       if is_tuple(kernel_size),
         do: kernel_size,
-        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
 
     strides =
       if is_list(strides),
@@ -495,7 +495,7 @@ defmodule Axon do
     kernel_size =
       if is_tuple(kernel_size),
         do: kernel_size,
-        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
 
     strides =
       if is_list(strides),
@@ -679,7 +679,7 @@ defmodule Axon do
     kernel_size =
       if is_tuple(kernel_size),
         do: kernel_size,
-        else: Tuple.to_list(List.duplicate(kernel_size, Nx.rank(parent_shape) - 2))
+        else: Tuple.duplicate(kernel_size, Nx.rank(parent_shape) - 2)
 
     strides =
       if is_list(strides),
@@ -733,7 +733,7 @@ defmodule Axon do
     output_size =
       if is_tuple(output_size),
         do: output_size,
-        else: Tuple.to_list(List.duplicate(output_size, Nx.rank(parent_shape) - 2))
+        else: Tuple.duplicate(output_size, Nx.rank(parent_shape) - 2)
 
     output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
 
