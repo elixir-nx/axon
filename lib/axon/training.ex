@@ -152,8 +152,7 @@ defmodule Axon.Training do
 
     for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0)} do
       {model_state, state} ->
-        {model_state, batch_loss} =
-          Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
+        {model_state, batch_loss} = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
 
         avg_loss =
           state
