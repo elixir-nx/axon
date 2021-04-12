@@ -38,9 +38,7 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless x >= y do
-          raise ArgumentError,
-                "expected input ranks to be equal," <>
-                  " got #{x} != #{y}"
+          raise ArgumentError, "expected input ranks to be equal, got #{x} != #{y}"
         end
       end
     )
@@ -57,9 +55,7 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless x >= y do
-          raise ArgumentError,
-                "expected input shape to have at least rank #{y}," <>
-                  " got rank #{x}"
+          raise ArgumentError, "expected input shape to have at least rank #{y}, got rank #{x}"
         end
       end
     )
