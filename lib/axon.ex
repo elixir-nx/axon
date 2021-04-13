@@ -1064,6 +1064,8 @@ defmodule Axon do
                   "got: #{inspect(tuple_or_integer)}"
         end
 
+        tuple_or_integer
+
       is_integer(tuple_or_integer) ->
         Tuple.duplicate(tuple_or_integer, rank)
 
