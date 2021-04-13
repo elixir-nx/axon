@@ -1084,6 +1084,7 @@ defmodule Axon do
                 "expected #{inspect(key)} to be a #{rank}-element list, " <>
                   "got: #{inspect(list_or_integer)}"
         end
+        list_or_integer
 
       is_integer(list_or_integer) ->
         List.duplicate(list_or_integer, rank)
