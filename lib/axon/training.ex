@@ -152,8 +152,10 @@ defmodule Axon.Training do
       case log_every do
         :epoch ->
           total_batches
+
         x when is_integer(x) ->
           x
+
         :none ->
           total_batches + 1
       end
@@ -173,7 +175,7 @@ defmodule Axon.Training do
           |> Nx.add(Nx.backend_transfer(batch_loss))
           |> Nx.divide(i + 1)
 
-        if rem(i + 1, log_freq) == 0 or i + 1 == total_batches and log_every != :none do
+        if rem(i + 1, log_freq) == 0 or (i + 1 == total_batches and log_every != :none) do
           IO.write(
             "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - " <>
               "Average Loss: #{Nx.to_scalar(avg_loss)}"
