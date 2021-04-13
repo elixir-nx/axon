@@ -115,8 +115,9 @@ defmodule Axon.Training do
   def train({init_fn, step_fn}, inputs, targets, opts \\ []) do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
+    log_every = opts[:log_every] || 50
 
-    jit_opts = [compiler: compiler] ++ opts
+    jit_opts = [compiler: compiler, log_every: log_every] ++ opts
     model_state = Nx.Defn.jit(init_fn, [], jit_opts)
 
     for epoch <- 1..epochs, reduce: model_state do
@@ -142,8 +143,20 @@ defmodule Axon.Training do
 
   ## Helpers
 
-  defp train_epoch(step_fn, model_state, inputs, targets, epoch, jit_opts) do
+  defp train_epoch(step_fn, model_state, inputs, targets, epoch, opts) do
     total_batches = Enum.count(inputs)
+
+    {log_every, jit_opts} = Keyword.pop(opts, :log_every)
+
+    log_freq =
+      case log_every do
+        :epoch ->
+          total_batches
+        x when is_integer(x) ->
+          x
+        :none ->
+          total_batches + 1
+      end
 
     dataset =
       inputs
@@ -160,10 +173,12 @@ defmodule Axon.Training do
           |> Nx.add(Nx.backend_transfer(batch_loss))
           |> Nx.divide(i + 1)
 
-        IO.write(
-          "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - " <>
-            "Average Loss: #{Nx.to_scalar(avg_loss)}"
-        )
+        if rem(i + 1, log_freq) == 0 or i + 1 == total_batches and log_every != :none do
+          IO.write(
+            "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - " <>
+              "Average Loss: #{Nx.to_scalar(avg_loss)}"
+          )
+        end
 
         {model_state, avg_loss}
     end
