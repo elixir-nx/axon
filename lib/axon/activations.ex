@@ -554,8 +554,8 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.33203125, 0.12158203125, 0.044677734375],
-          [0.044677734375, 0.12158203125, 0.33203125]
+          [0.6640625, 0.2431640625, 0.08935546875],
+          [0.08935546875, 0.2431640625, 0.6640625]
         ]
       >
 
@@ -575,7 +575,7 @@ defmodule Axon.Activations do
       |> Nx.exp()
 
     stable_exp
-    |> Nx.sum()
+    |> Nx.sum(axes: [1], keep_axes: true)
     |> reciprocal()
     |> Nx.multiply(stable_exp)
   end
