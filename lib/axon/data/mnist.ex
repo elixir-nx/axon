@@ -36,6 +36,7 @@ defmodule Axon.Data.MNIST do
     batched_labels =
       labels
       |> Nx.from_binary({:u, 8})
+      |> Nx.slice([0], [60000])
       |> Nx.new_axis(-1)
       |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
       |> Nx.to_batched_list(batch_size)
