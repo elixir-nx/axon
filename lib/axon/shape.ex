@@ -8,6 +8,53 @@ defmodule Axon.Shape do
   # `nil` is often used as a stand-in for unknown batch
   # size, so each of these methods must account for that.
 
+  @doc """
+  Calculates the shape of an input layer.
+
+  ## Examples
+
+      iex> Axon.Shape.input({nil, 784})
+      {nil, 784}
+
+      iex> Axon.Shape.input({32, 784})
+      {32, 784}
+
+  ### Error cases
+
+      iex> Axon.Shape.input(5)
+      ** (ArgumentError) invalid input shape 5, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
+
+      iex> Axon.Shape.input({32, nil, 28, 28})
+      ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
+  """
+  def input(input_shape) when is_tuple(input_shape) do
+    first_elem_nil_or_integer = is_integer(elem(input_shape, 0)) or elem(input_shape, 0) == nil
+
+    all_other_elems_integer =
+      input_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
+      |> Enum.filter(&(not is_integer(&1)))
+      |> Enum.count()
+      |> Kernel.==(0)
+
+    unless Nx.rank(input_shape) >= 2 and first_elem_nil_or_integer and all_other_elems_integer do
+      raise ArgumentError,
+            "invalid input shape #{inspect(input_shape)}, input" <>
+              " shape must be a tuple of at least rank 2, with" <>
+              " only the leading dimension as nil, if any"
+    end
+
+    input_shape
+  end
+
+  def input(input_shape) do
+    raise ArgumentError,
+          "invalid input shape #{inspect(input_shape)}, input" <>
+            " shape must be a tuple of at least rank 2, with" <>
+            " only the leading dimension as nil, if any"
+  end
+
   ## Linear
 
   @doc """
@@ -143,7 +190,7 @@ defmodule Axon.Shape do
   input dilation and kernel dilation.
   """
   def conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
-    permutation = [0, 1, 2, 3]
+    permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
@@ -256,7 +303,7 @@ defmodule Axon.Shape do
         input_dilation,
         kernel_dilation
       ) do
-    permutation = [0, 1, 2, 3]
+    permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
@@ -422,6 +469,14 @@ defmodule Axon.Shape do
   padding.
   """
   def pool(parent_shape, kernel_size, strides, padding) do
+    # Account for possibly nil batch dimension
+    parent_shape =
+      if elem(parent_shape, 0) do
+        parent_shape
+      else
+        put_elem(parent_shape, 0, 1)
+      end
+
     kernel_dilation = List.duplicate(1, Nx.rank(parent_shape))
 
     padding =

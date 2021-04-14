@@ -94,7 +94,8 @@ defmodule Axon do
   @doc type: :layer
   def input(input_shape, opts \\ []) do
     {id, name} = unique_identifiers(:input, opts[:name])
-    %Axon{id: id, name: name, output_shape: input_shape, parent: nil, op: :input, params: []}
+    output_shape = Axon.Shape.input(input_shape)
+    %Axon{id: id, name: name, output_shape: output_shape, parent: nil, op: :input, params: []}
   end
 
   @doc """
@@ -124,7 +125,10 @@ defmodule Axon do
     {id, name} = unique_identifiers(:dense, opts[:name])
 
     weight_init = opts[:kernel_initializer] || :glorot_uniform
+    validate_initializer!(weight_init)
     bias_init = opts[:bias_initializer] || :zeros
+    validate_initializer!(bias_init)
+
     activation = opts[:activation]
 
     kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
@@ -180,7 +184,10 @@ defmodule Axon do
     {id, name} = unique_identifiers(:conv, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    validate_initializer!(kernel_init)
     bias_init = opts[:bias_initializer] || :zeros
+    validate_initializer!(bias_init)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -267,7 +274,10 @@ defmodule Axon do
     {id, name} = unique_identifiers(:depthwise_conv, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    validate_initializer!(kernel_init)
     bias_init = opts[:bias_initializer] || :zeros
+    validate_initializer!(bias_init)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -350,7 +360,10 @@ defmodule Axon do
     {id, name} = unique_identifiers(:separable_conv2d, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    validate_initializer!(kernel_init)
     bias_init = opts[:bias_initializer] || :zeros
+    validate_initializer!(bias_init)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -441,7 +454,10 @@ defmodule Axon do
     {id, name} = unique_identifiers(:separable_conv3d, opts[:name])
 
     kernel_init = opts[:kernel_initializer] || :glorot_uniform
+    validate_initializer!(kernel_init)
     bias_init = opts[:bias_initializer] || :zeros
+    validate_initializer!(bias_init)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -509,6 +525,10 @@ defmodule Axon do
     end
   end
 
+  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                       [:leaky_relu, :linear, :log_sigmoid, :relu, :relu6] ++
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+
   @doc """
   Adds an activation layer to the network.
 
@@ -521,18 +541,22 @@ defmodule Axon do
 
   """
   @doc type: :activation
-  def activation(%Axon{output_shape: shape} = x, activation, opts \\ [])
-      when is_atom(activation) do
+  def activation(x, activation, opts \\ [])
+
+  def activation(%Axon{output_shape: shape} = x, activation, opts)
+      when is_atom(activation) and activation in @activation_layers do
     id = System.unique_integer([:positive, :monotonic])
     name = opts[:name] || "#{Atom.to_string(activation)}_#{id}"
     %Axon{id: id, name: name, output_shape: shape, parent: x, op: activation, params: []}
   end
 
-  ## Activation
+  def activation(_, activation, _) do
+    raise ArgumentError,
+          "invalid activation #{inspect(activation)}, activation" <>
+            " must be one of #{inspect(@activation_layers)}"
+  end
 
-  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                       [:leaky_relu, :linear, :log_sigmoid, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+  ## Activation
 
   for activation <- @activation_layers do
     @doc """
@@ -712,7 +736,9 @@ defmodule Axon do
     {id, name} = unique_identifiers(norm, opts[:name])
 
     gamma_init = opts[:gamma_initializer] || :glorot_uniform
+    validate_initializer!(gamma_init)
     beta_init = opts[:beta_initializer] || :zeros
+    validate_initializer!(beta_init)
 
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
@@ -758,7 +784,9 @@ defmodule Axon do
     {id, name} = unique_identifiers(:group_norm, opts[:name])
 
     gamma_init = opts[:gamma_initializer] || :glorot_uniform
+    validate_initializer!(gamma_init)
     beta_init = opts[:beta_initializer] || :zeros
+    validate_initializer!(beta_init)
 
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
@@ -798,19 +826,18 @@ defmodule Axon do
   def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
     {id, name} = unique_identifiers(:nx, opts[:name])
 
+    # Some shape rules will not like nil batch shape
+    batch_size = elem(shape, 0)
+    shape = Tuple.delete_at(shape, 0)
+
     param = Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, 0)
 
-    expr =
-      if Nx.Defn.Compiler.current() do
-        fun.(param)
-      else
-        Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
-      end
+    expr = Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
 
     node = %Axon{
       id: id,
       name: name,
-      output_shape: expr.shape,
+      output_shape: Tuple.insert_at(expr.shape, 0, batch_size),
       parent: x,
       op: :nx,
       params: [],
@@ -917,6 +944,7 @@ defmodule Axon do
           unless shape == acc do
             raise ArgumentError, "all input shapes must match"
           end
+          shape
         end)
 
       %Axon{
@@ -1054,6 +1082,26 @@ defmodule Axon do
   end
 
   ## Helpers
+
+  @valid_initializers [:zeros, :ones, :uniform, :normal, :identity] ++
+                        [:lecun_uniform, :lecun_normal, :he_uniform, :he_normal] ++
+                        [:glorot_uniform, :glorot_normal, :variance_scaling]
+
+  defp validate_initializer!(initializer)
+       when is_atom(initializer) and initializer in @valid_initializers do
+    :ok
+  end
+
+  defp validate_initializer!(initializer) when is_function(initializer, 1) do
+    :ok
+  end
+
+  defp validate_initializer!(initializer) do
+    raise ArgumentError,
+          "initializer must be one of #{inspect(@valid_initializers)}," <>
+            " or an arity-1 function accepting initializer options" <>
+            " got #{inspect(initializer)}"
+  end
 
   defp tuple_or_duplicate(key, tuple_or_integer, rank) do
     cond do
