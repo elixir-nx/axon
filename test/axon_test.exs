@@ -555,23 +555,29 @@ defmodule AxonTest do
 
   describe "flatten" do
     test "works with defaults" do
-      assert %Axon{op: :flatten, output_shape: {nil, 784}} = Axon.input({nil, 1, 28, 28}) |> Axon.flatten()
+      assert %Axon{op: :flatten, output_shape: {nil, 784}} =
+               Axon.input({nil, 1, 28, 28}) |> Axon.flatten()
     end
 
     test "works with names" do
-      assert %Axon{name: "flatten"} = Axon.input({nil, 1, 28, 28}) |> Axon.flatten(name: "flatten")
+      assert %Axon{name: "flatten"} =
+               Axon.input({nil, 1, 28, 28}) |> Axon.flatten(name: "flatten")
     end
   end
 
   describe "concatenate" do
     test "works with 2 inputs" do
       assert %Axon{op: :concatenate, parent: [%Axon{}, %Axon{}]} =
-        Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
+               Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
     end
 
     test "works with many inputs" do
       assert %Axon{op: :concatenate, parent: [%Axon{}, %Axon{}, %Axon{}]} =
-        Axon.concatenate([Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})])
+               Axon.concatenate([
+                 Axon.input({nil, 32}),
+                 Axon.input({nil, 32}),
+                 Axon.input({nil, 32})
+               ])
     end
   end
 
@@ -581,7 +587,8 @@ defmodule AxonTest do
     test "works with 2 inputs" do
       for op <- @element_wise_layers do
         assert %Axon{op: op1, parent: [%Axon{}, %Axon{}]} =
-          apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
+                 apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
+
         assert op1 == op
       end
     end
@@ -589,7 +596,10 @@ defmodule AxonTest do
     test "works with many inputs" do
       for op <- @element_wise_layers do
         assert %Axon{op: op1, parent: [%Axon{}, %Axon{}, %Axon{}]} =
-          apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]])
+                 apply(Axon, op, [
+                   [Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]
+                 ])
+
         assert op1 == op
       end
     end
@@ -605,7 +615,8 @@ defmodule AxonTest do
 
   describe "nx" do
     test "works with defaults" do
-      assert %Axon{output_shape: {nil, 32}} = Axon.input({nil, 32}) |> Axon.nx(fn x -> Nx.erf(x) end)
+      assert %Axon{output_shape: {nil, 32}} =
+               Axon.input({nil, 32}) |> Axon.nx(fn x -> Nx.erf(x) end)
     end
   end
 end

@@ -944,6 +944,7 @@ defmodule Axon do
           unless shape == acc do
             raise ArgumentError, "all input shapes must match"
           end
+
           shape
         end)
 
