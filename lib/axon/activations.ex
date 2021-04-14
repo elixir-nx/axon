@@ -536,9 +536,14 @@ defmodule Axon.Activations do
   end
 
   @doc ~S"""
-  Softmax activation.
+  Softmax activation along an axis.
 
   $$\frac{e^{x_i}}{\sum_i e^{x_i}}$$
+
+  ## Options
+
+    * `:axis` - softmax axis along which to calculate distribution.
+      Defaults to 1.
 
   ## Examples
 
@@ -560,14 +565,16 @@ defmodule Axon.Activations do
       >
 
   """
-  defn softmax(x) do
-    transform(x, fn x ->
-      if Nx.rank(x) != 2 do
-        raise ArgumentError, "softmax activation expects a tensor of rank 2"
+  defn softmax(x, opts \\ []) do
+    opts = keyword!(opts, axis: 1)
+
+    transform({x, opts}, fn {x, opts} ->
+      if Nx.rank(x) <= opts[:axis] do
+        raise ArgumentError, "softmax axis must be within rank of tensor"
       end
     end)
 
-    max_val = Nx.reduce_max(x, axes: [1], keep_axes: true)
+    max_val = Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true)
 
     stable_exp =
       x
@@ -575,7 +582,7 @@ defmodule Axon.Activations do
       |> Nx.exp()
 
     stable_exp
-    |> Nx.sum(axes: [1], keep_axes: true)
+    |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
     |> reciprocal()
     |> Nx.multiply(stable_exp)
   end

@@ -157,7 +157,7 @@ defmodule Axon.Metrics do
 
   ## Examples
 
-      iex> Axon.Metrics.recall(Nx.tensor([0, 1, 1, 1]), Nx.tensor([1, 0, 1, 1]))
+      iex> Axon.Metrics.sensitivity(Nx.tensor([0, 1, 1, 1]), Nx.tensor([1, 0, 1, 1]))
       #Nx.Tensor<
         f32
         0.6666666865348816
@@ -167,7 +167,7 @@ defmodule Axon.Metrics do
   defn sensitivity(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, thresold: 0.5)
+    opts = keyword!(opts, threshold: 0.5)
 
     recall(y_true, y_pred, opts)
   end

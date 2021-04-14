@@ -2,6 +2,8 @@ defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
 
+  import Nx.Defn
+
   describe "input" do
     test "works with defaults" do
       assert %Axon{op: :input, parent: nil} = Axon.input({32, 1, 28, 28})
@@ -617,6 +619,48 @@ defmodule AxonTest do
     test "works with defaults" do
       assert %Axon{output_shape: {nil, 32}} =
                Axon.input({nil, 32}) |> Axon.nx(fn x -> Nx.erf(x) end)
+    end
+  end
+
+  describe "execution" do
+    test "compile returns init and predict" do
+      {init_fn, predict_fn} =
+        Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity) |> Axon.compile()
+
+      assert {kernel, bias} = init_fn.()
+      assert kernel == Nx.eye({6, 6}, type: {:f, 32})
+      assert bias == Axon.Initializers.zeros(shape: {1, 6})
+
+      assert predict_fn.({kernel, bias}, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+    end
+
+    def model do
+      Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity)
+    end
+
+    defn init do
+      Axon.init(model())
+    end
+
+    test "init works inside defn" do
+      assert init() == {Nx.eye({6, 6}, type: {:f, 32}), Axon.Initializers.zeros(shape: {1, 6})}
+    end
+
+    test "init works outside defn" do
+      assert Axon.init(model()) ==
+               {Nx.eye({6, 6}, type: {:f, 32}), Axon.Initializers.zeros(shape: {1, 6})}
+    end
+
+    defn predict(params, input) do
+      Axon.predict(model(), params, input)
+    end
+
+    test "predict works inside defn" do
+      assert predict(init(), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+    end
+
+    test "predict works outside defn" do
+      assert Axon.predict(model(), init(), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
     end
   end
 end

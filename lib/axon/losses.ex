@@ -84,6 +84,22 @@ defmodule Axon.Losses do
         [0.8644828796386719, 0.5150601863861084, 0.4598664939403534]
       >
 
+      iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
+      iex> y_pred = Nx.tensor([[0.6811, 0.5565], [0.6551, 0.4551], [0.5422, 0.2648]])
+      iex> Axon.Losses.binary_cross_entropy(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.6131365299224854
+      >
+
+      iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
+      iex> y_pred = Nx.tensor([[0.6811, 0.5565], [0.6551, 0.4551], [0.5422, 0.2648]])
+      iex> Axon.Losses.binary_cross_entropy(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        1.839409589767456
+      >
+
   """
   defn binary_cross_entropy(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
@@ -125,6 +141,22 @@ defmodule Axon.Losses do
       #Nx.Tensor<
         f32[2]
         [0.051293306052684784, 2.3025851249694824]
+      >
+
+      iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+      iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        1.1769392490386963
+      >
+
+      iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+      iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        2.3538784980773926
       >
 
   """
@@ -172,6 +204,21 @@ defmodule Axon.Losses do
         [1.6334158182144165, 1.2410175800323486]
       >
 
+      iex> y_true = Nx.tensor([[1, 0, 0], [0, 0, 1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05300799, 0.21617081, 0.68642382], [0.3754382 , 0.08494169, 0.13442067]])
+      iex> Axon.Losses.categorical_hinge(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        1.4372167587280273
+      >
+
+      iex> y_true = Nx.tensor([[1, 0, 0], [0, 0, 1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05300799, 0.21617081, 0.68642382], [0.3754382 , 0.08494169, 0.13442067]])
+      iex> Axon.Losses.categorical_hinge(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        2.8744335174560547
+      >
   """
   defn categorical_hinge(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, reduction: :none)
@@ -220,6 +267,21 @@ defmodule Axon.Losses do
         [0.9700339436531067, 0.6437881588935852]
       >
 
+      iex> y_true = Nx.tensor([[ 1,  1, -1], [ 1,  1, -1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.45440044, 0.31470688, 0.67920924], [0.24311459, 0.93466766, 0.10914676]])
+      iex> Axon.Losses.hinge(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.806911051273346
+      >
+
+      iex> y_true = Nx.tensor([[ 1,  1, -1], [ 1,  1, -1]], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.45440044, 0.31470688, 0.67920924], [0.24311459, 0.93466766, 0.10914676]])
+      iex> Axon.Losses.hinge(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        1.613822102546692
+      >
   """
   defn hinge(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
@@ -267,6 +329,22 @@ defmodule Axon.Losses do
       #Nx.Tensor<
         f32[2]
         [0.916289210319519, -3.080907390540233e-6]
+      >
+
+      iex> y_true = Nx.tensor([[0, 1], [0, 0]], type: {:u, 8})
+      iex> y_pred = Nx.tensor([[0.6, 0.4], [0.4, 0.6]])
+      iex> Axon.Losses.kl_divergence(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.45814305543899536
+      >
+
+      iex> y_true = Nx.tensor([[0, 1], [0, 0]], type: {:u, 8})
+      iex> y_pred = Nx.tensor([[0.6, 0.4], [0.4, 0.6]])
+      iex> Axon.Losses.kl_divergence(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        0.9162861108779907
       >
 
   """
@@ -320,6 +398,21 @@ defmodule Axon.Losses do
         [0.2168903946876526, 0.0]
       >
 
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]])
+      iex> Axon.Losses.log_cosh(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.1084451973438263
+      >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]])
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]])
+      iex> Axon.Losses.log_cosh(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        0.2168903946876526
+      >
   """
   defn log_cosh(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
@@ -364,14 +457,31 @@ defmodule Axon.Losses do
       iex> y_true = Nx.tensor([1.0, 1.0, 1.0], type: {:f, 32})
       iex> y_pred1 = Nx.tensor([0.6934, -0.7239,  1.1954], type: {:f, 32})
       iex> y_pred2 = Nx.tensor([-0.4691, 0.2670, -1.7452], type: {:f, 32})
-      iex> Axon.Losses.margin_ranking(y_true, y_pred1, y_pred2)
+      iex> Axon.Losses.margin_ranking(y_true, {y_pred1, y_pred2})
       #Nx.Tensor<
         f32[3]
         [0.0, 0.9909000396728516, 0.0]
       >
 
+      iex> y_true = Nx.tensor([1.0, 1.0, 1.0], type: {:f, 32})
+      iex> y_pred1 = Nx.tensor([0.6934, -0.7239,  1.1954], type: {:f, 32})
+      iex> y_pred2 = Nx.tensor([-0.4691, 0.2670, -1.7452], type: {:f, 32})
+      iex> Axon.Losses.margin_ranking(y_true, {y_pred1, y_pred2}, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.3303000032901764
+      >
+
+      iex> y_true = Nx.tensor([1.0, 1.0, 1.0], type: {:f, 32})
+      iex> y_pred1 = Nx.tensor([0.6934, -0.7239,  1.1954], type: {:f, 32})
+      iex> y_pred2 = Nx.tensor([-0.4691, 0.2670, -1.7452], type: {:f, 32})
+      iex> Axon.Losses.margin_ranking(y_true, {y_pred1, y_pred2}, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        0.9909000396728516
+      >
   """
-  defn margin_ranking(y_true, y_pred1, y_pred2, opts \\ []) do
+  defn margin_ranking(y_true, {y_pred1, y_pred2}, opts \\ []) do
     assert_shape!(y_pred1, y_pred2)
     assert_shape!(y_true, y_pred1)
 
@@ -413,6 +523,22 @@ defmodule Axon.Losses do
       #Nx.Tensor<
         f32[3]
         [0.851658046245575, 0.7822436094284058, 0.3273470401763916]
+      >
+
+      iex> y_true = Nx.tensor([[-1.0, 1.0,  1.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.2953, -0.1709, 0.9486]], type: {:f, 32})
+      iex> Axon.Losses.soft_margin(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.6537495255470276
+      >
+
+      iex> y_true = Nx.tensor([[-1.0, 1.0,  1.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[0.2953, -0.1709, 0.9486]], type: {:f, 32})
+      iex> Axon.Losses.soft_margin(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        1.9612486362457275
       >
   """
   defn soft_margin(y_true, y_pred, opts \\ []) do
@@ -460,6 +586,22 @@ defmodule Axon.Losses do
         f32[2]
         [0.5, 0.5]
       >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.mean_absolute_error(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.mean_absolute_error(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        1.0
+      >
   """
   defn mean_absolute_error(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
@@ -505,6 +647,22 @@ defmodule Axon.Losses do
       #Nx.Tensor<
         f32[2]
         [0.5, 0.5]
+      >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.mean_squared_error(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.mean_squared_error(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        1.0
       >
   """
   defn mean_squared_error(y_true, y_pred, opts \\ []) do
@@ -553,6 +711,21 @@ defmodule Axon.Losses do
         [0.9999999403953552, 0.0]
       >
 
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.poisson(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.4999999701976776
+      >
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> Axon.Losses.poisson(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        0.9999999403953552
+      >
   """
   defn poisson(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
