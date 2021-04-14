@@ -109,45 +109,6 @@ defmodule MNISTGAN do
         {new_g_params, new_g_state, new_d_params, new_d_state}
     end
   end
-
-  defp unzip_cache_or_download(zip) do
-    base_url = 'https://storage.googleapis.com/cvdf-datasets/mnist/'
-    path = Path.join("tmp", zip)
-
-    data =
-      if File.exists?(path) do
-        IO.puts("Using #{zip} from tmp/\n")
-        File.read!(path)
-      else
-        IO.puts("Fetching #{zip} from https://storage.googleapis.com/cvdf-datasets/mnist/\n")
-        :inets.start()
-        :ssl.start()
-
-        {:ok, {_status, _response, data}} = :httpc.request(:get, {base_url ++ zip, []}, [], [])
-        File.mkdir_p!("tmp")
-        File.write!(path, data)
-
-        data
-      end
-
-    :zlib.gunzip(data)
-  end
-
-  def download(images) do
-    <<_::32, n_images::32, n_rows::32, n_cols::32, images::binary>> =
-      unzip_cache_or_download(images)
-
-    train_images =
-      images
-      |> Nx.from_binary({:u, 8})
-      |> Nx.reshape({n_images, n_rows, n_cols})
-      |> Nx.divide(255)
-      |> Nx.to_batched_list(32)
-
-    IO.puts("#{n_images} #{n_rows}x#{n_cols} images\n")
-
-    train_images
-  end
 end
 
 require Axon
@@ -155,7 +116,7 @@ require Axon
 generator = MNISTGAN.generator() |> IO.inspect
 discriminator = MNISTGAN.discriminator() |> IO.inspect
 
-train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
+train_images = Axon.Data.MNIST.download_images()
 
 IO.puts("Initializing parameters...\n")
 
