@@ -1,5 +1,5 @@
 defmodule Axon.Data.FashionMNIST do
-  alias Data.Utils
+  alias Axon.Data.Utils
 
   @default_data_path "tmp/fashionmnist"
   @base_url 'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/'
