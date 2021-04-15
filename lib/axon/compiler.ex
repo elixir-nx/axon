@@ -6,14 +6,27 @@ defmodule Axon.Compiler do
   ## Init JIT Compilation
 
   @doc false
-  def __compile__(%Axon{} = graph) do
+  def __compile__(graph) do
     {compile_init(graph), compile_predict(graph)}
   end
 
   @doc false
-  def __jit_init__(%Axon{} = graph, caller, [] = args, opts) do
+  def __jit_init__(graph, caller, [] = args, opts) do
     fun = compile_init(graph)
     jit_or_apply(caller, fun, args, opts)
+  end
+
+  defp compile_init(graph) when is_tuple(graph) do
+    fn ->
+      graph
+      |> Tuple.to_list()
+      |> Enum.reduce(%{}, &to_init_fun/2)
+      |> Enum.sort()
+      |> Enum.unzip()
+      |> Kernel.elem(1)
+      |> Enum.map(& &1.())
+      |> List.to_tuple()
+    end
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -57,9 +70,28 @@ defmodule Axon.Compiler do
   ## Model JIT Compilation
 
   @doc false
-  def __jit_predict__(%Axon{} = graph, caller, args, opts) do
+  def __jit_predict__(graph, caller, args, opts) do
     fun = compile_predict(graph)
     jit_or_apply(caller, fun, args, opts)
+  end
+
+  defp compile_predict(graph) when is_tuple(graph) do
+    graph = Tuple.to_list(graph)
+
+    {param_map, input_map, _, _} =
+      graph
+      |> Enum.reduce({%{}, %{}, 0, 0},
+          fn x, {param_map, input_map, param_counter, input_counter} ->
+            to_order_maps(x, param_map, input_map, param_counter, input_counter)
+          end)
+
+    fn params, inputs ->
+      {funs, _} = Enum.map_reduce(graph, %{}, &to_predict_fun(&1, &2, param_map, input_map))
+      funs
+      |> Enum.reverse()
+      |> Enum.map(& &1.(params, inputs))
+      |> List.to_tuple()
+    end
   end
 
   defp compile_predict(%Axon{} = graph) do
