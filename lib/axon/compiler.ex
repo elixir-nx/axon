@@ -437,4 +437,82 @@ defmodule Axon.Compiler do
 
     {fun, cache}
   end
+
+  ## Penalty Function Compilation
+
+  @doc false
+  def __jit_penalty__(graph, caller, args, opts) do
+    fun = compile_penalty(graph)
+    jit_or_apply(caller, fun, args, opts)
+  end
+
+  defp compile_penalty(graph) when is_tuple(graph) do
+    graph = Tuple.to_list(graph)
+
+    {penalties, _} =
+      graph
+      |> Enum.reduce({%{}, 0},
+          fn x, {cache, count} ->
+            to_penalty_fun(x, cache, count)
+          end)
+
+    [fun | funs] = Map.values(penalties)
+
+    fn params ->
+      funs
+      |> Enum.reduce(fun.(params), fn penalty, acc -> Nx.add(penalty.(params), acc) end)
+    end
+  end
+
+  defp compile_penalty(%Axon{} = graph) do
+    {penalties, _} = to_penalty_fun(graph, %{}, 0)
+    [fun | funs] = Map.values(penalties)
+
+    fn params ->
+      funs
+      |> Enum.reduce(fun.(params), fn penalty, acc -> Nx.add(penalty.(params), acc) end)
+    end
+  end
+
+  defp to_penalty_fun(%Axon{parent: parents}, cache, count) when is_list(parents) do
+    Enum.reduce(parents, {cache, count}, fn graph, {cache, count} ->
+      to_penalty_fun(graph, cache, count)
+    end)
+  end
+
+  defp to_penalty_fun(%Axon{parent: parent, params: params}, cache, count) do
+    {cache, count} =
+      params
+      |> Enum.reduce({cache, count}, fn param, {cache, count} ->
+          %{id: id, regularizer: regularizer} = param
+          case cache do
+            %{^id => _} ->
+              cache
+
+            %{} ->
+              fun =
+                fn params ->
+                  case regularizer do
+                    :none ->
+                      Nx.tensor(0.0)
+
+                    regularizer when is_atom(regularizer) ->
+                      idx = tuple_size(params) - count - 1
+                      apply(Axon.Regularizers, regularizer, [elem(params, idx)])
+
+                    regularizer when is_function(regularizer) ->
+                      idx = tuple_size(params) - count - 1
+                      apply(regularizer, [elem(params, idx)])
+                  end
+                end
+              {Map.put(cache, id, fun), count + 1}
+          end
+        end)
+
+    if parent do
+      to_penalty_fun(parent, cache, count)
+    else
+      {cache, count}
+    end
+  end
 end

@@ -129,14 +129,19 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     validate_initializer!(bias_init)
 
+    weight_reg = opts[:kernel_regularizer] || :none
+    validate_regularizer!(weight_reg)
+    bias_reg = opts[:bias_regularizer] || :none
+    validate_regularizer!(bias_reg)
+
     activation = opts[:activation]
 
     kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
     bias_shape = Axon.Shape.dense_bias(parent_shape, units)
     output_shape = Axon.Shape.dense(parent_shape, units)
 
-    weight = param(name <> "_weight", kernel_shape, weight_init)
-    bias = param(name <> "_bias", bias_shape, bias_init)
+    weight = param(name <> "_weight", kernel_shape, weight_init, weight_reg)
+    bias = param(name <> "_bias", bias_shape, bias_init, bias_reg)
 
     node = %Axon{
       id: id,
@@ -188,6 +193,11 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     validate_initializer!(bias_init)
 
+    kernel_reg = opts[:kernel_regularizer] || :none
+    validate_regularizer!(kernel_reg)
+    bias_reg = opts[:bias_regularizer] || :none
+    validate_regularizer!(bias_reg)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -215,8 +225,8 @@ defmodule Axon do
         kernel_dilation
       )
 
-    kernel = param(name <> "_kernel", kernel_shape, kernel_init)
-    bias = param(name <> "_bias", bias_shape, bias_init)
+    kernel = param(name <> "_kernel", kernel_shape, kernel_init, kernel_reg)
+    bias = param(name <> "_bias", bias_shape, bias_init, bias_reg)
 
     node = %Axon{
       id: id,
@@ -278,6 +288,11 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     validate_initializer!(bias_init)
 
+    kernel_reg = opts[:kernel_regularizer] || :none
+    validate_regularizer!(kernel_reg)
+    bias_reg = opts[:bias_regularizer] || :none
+    validate_regularizer!(bias_reg)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -305,8 +320,8 @@ defmodule Axon do
         kernel_dilation
       )
 
-    kernel = param(name <> "_kernel", kernel_shape, kernel_init)
-    bias = param(name <> "_bias", bias_shape, bias_init)
+    kernel = param(name <> "_kernel", kernel_shape, kernel_init, kernel_reg)
+    bias = param(name <> "_bias", bias_shape, bias_init, bias_reg)
 
     node = %Axon{
       id: id,
@@ -364,6 +379,11 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     validate_initializer!(bias_init)
 
+    kernel_reg = opts[:kernel_regularizer] || :none
+    validate_regularizer!(kernel_reg)
+    bias_reg = opts[:bias_regularizer] || :none
+    validate_regularizer!(bias_reg)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -397,10 +417,10 @@ defmodule Axon do
         kernel_dilation
       )
 
-    k1 = param(name <> "_kernel_1", k1_shape, kernel_init)
-    b1 = param(name <> "_bias_1", b1_shape, bias_init)
-    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
-    b2 = param(name <> "_bias_2", b2_shape, bias_init)
+    k1 = param(name <> "_kernel_1", k1_shape, kernel_init, kernel_reg)
+    b1 = param(name <> "_bias_1", b1_shape, bias_init, bias_reg)
+    k2 = param(name <> "_kernel_2", k2_shape, kernel_init, kernel_reg)
+    b2 = param(name <> "_bias_2", b2_shape, bias_init, bias_reg)
 
     node = %Axon{
       id: id,
@@ -458,6 +478,11 @@ defmodule Axon do
     bias_init = opts[:bias_initializer] || :zeros
     validate_initializer!(bias_init)
 
+    kernel_reg = opts[:kernel_regularizer] || :none
+    validate_regularizer!(kernel_reg)
+    bias_reg = opts[:bias_regularizer] || :none
+    validate_regularizer!(bias_reg)
+
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -495,12 +520,12 @@ defmodule Axon do
         kernel_dilation
       )
 
-    k1 = param(name <> "_kernel_1", k1_shape, kernel_init)
-    b1 = param(name <> "_bias_1", b1_shape, bias_init)
-    k2 = param(name <> "_kernel_2", k2_shape, kernel_init)
-    b2 = param(name <> "_bias_2", b2_shape, bias_init)
-    k3 = param(name <> "_kernel_3", k3_shape, kernel_init)
-    b3 = param(name <> "_bias_3", b3_shape, bias_init)
+    k1 = param(name <> "_kernel_1", k1_shape, kernel_init, kernel_reg)
+    b1 = param(name <> "_bias_1", b1_shape, bias_init, bias_reg)
+    k2 = param(name <> "_kernel_2", k2_shape, kernel_init, kernel_reg)
+    b2 = param(name <> "_bias_2", b2_shape, bias_init, bias_reg)
+    k3 = param(name <> "_kernel_3", k3_shape, kernel_init, kernel_reg)
+    b3 = param(name <> "_bias_3", b3_shape, bias_init, bias_reg)
 
     node = %Axon{
       id: id,
@@ -740,14 +765,19 @@ defmodule Axon do
     beta_init = opts[:beta_initializer] || :zeros
     validate_initializer!(beta_init)
 
+    gamma_reg = opts[:gamma_regularizer] || :none
+    validate_regularizer!(gamma_reg)
+    beta_reg = opts[:beta_regularizer] || :none
+    validate_regularizer!(beta_reg)
+
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma = param(name <> "_gamma", gamma_shape, gamma_init)
-    beta = param(name <> "_beta", beta_shape, beta_init)
+    gamma = param(name <> "_gamma", gamma_shape, gamma_init, gamma_reg)
+    beta = param(name <> "_beta", beta_shape, beta_init, beta_reg)
 
     %Axon{
       id: id,
@@ -788,14 +818,19 @@ defmodule Axon do
     beta_init = opts[:beta_initializer] || :zeros
     validate_initializer!(beta_init)
 
+    gamma_reg = opts[:gamma_regularizer] || :none
+    validate_regularizer!(gamma_reg)
+    beta_reg = opts[:beta_regularizer] || :none
+    validate_regularizer!(beta_reg)
+
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma = param(name <> "_gamma", gamma_shape, gamma_init)
-    beta = param(name <> "_beta", beta_shape, beta_init)
+    gamma = param(name <> "_gamma", gamma_shape, gamma_init, gamma_reg)
+    beta = param(name <> "_beta", beta_shape, beta_init, beta_reg)
 
     node = %Axon{
       id: id,
@@ -990,6 +1025,15 @@ defmodule Axon do
     define_predict(model, :predict, [params, input], opts)
   end
 
+  @doc """
+  Compiles and runs the given Axon model's penalty function
+  on `params` with the given compiler options.
+  """
+  @doc type: :execution
+  defmacro penalty(model, params, opts \\ []) do
+    define_penalty(model, :penalty, [params], opts)
+  end
+
   ## Implementation
 
   defp define_init(model, caller, args, opts \\ []) do
@@ -1012,6 +1056,18 @@ defmodule Axon do
         caller = unquote(caller)
 
         Axon.Compiler.__jit_predict__(model, caller, args, opts)
+      end)
+    end
+  end
+
+  defp define_penalty(model, caller, args, opts \\ []) do
+    quote do
+      Nx.Defn.Kernel.transform(unquote(args), fn args ->
+        model = unquote(model)
+        opts = unquote(opts)
+        caller = unquote(caller)
+
+        Axon.Compiler.__jit_penalty__(model, caller, args, opts)
       end)
     end
   end
@@ -1110,6 +1166,24 @@ defmodule Axon do
             " got #{inspect(initializer)}"
   end
 
+  @valid_regularizers [:l1, :l2, :l1l2, :none]
+
+  defp validate_regularizer!(regularizer)
+       when is_atom(regularizer) and regularizer in @valid_regularizers do
+    :ok
+  end
+
+  defp validate_regularizer!(regularizer) when is_function(regularizer) do
+    :ok
+  end
+
+  defp validate_regularizer!(regularizer) do
+    raise ArgumentError,
+          "regularizer must be one of #{inspect(@valid_regularizers)}," <>
+            " or a function accepting a parameter to regularize," <>
+            " got #{inspect(regularizer)}"
+  end
+
   defp tuple_or_duplicate(key, tuple_or_integer, rank) do
     cond do
       is_tuple(tuple_or_integer) ->
@@ -1159,8 +1233,8 @@ defmodule Axon do
 
   defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
 
-  defp param(name, shape, initializer, _opts \\ []) do
+  defp param(name, shape, initializer, regularizer, _opts \\ []) do
     id = System.unique_integer([:positive, :monotonic])
-    %Axon.Parameter{id: id, name: name, shape: shape, initializer: initializer}
+    %Axon.Parameter{id: id, name: name, shape: shape, initializer: initializer, regularizer: regularizer}
   end
 end

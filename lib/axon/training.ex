@@ -53,7 +53,7 @@ defmodule Axon.Training do
 
     objective_fn = fn params, input, target ->
       preds = predict_fn.(params, input)
-      loss.(target, preds)
+      Nx.add(loss.(target, preds), Axon.penalty(model, params))
     end
 
     step({init_fn, objective_fn}, optimizer)
