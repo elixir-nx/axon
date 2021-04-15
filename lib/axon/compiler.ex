@@ -80,13 +80,16 @@ defmodule Axon.Compiler do
 
     {param_map, input_map, _, _} =
       graph
-      |> Enum.reduce({%{}, %{}, 0, 0},
-          fn x, {param_map, input_map, param_counter, input_counter} ->
-            to_order_maps(x, param_map, input_map, param_counter, input_counter)
-          end)
+      |> Enum.reduce(
+        {%{}, %{}, 0, 0},
+        fn x, {param_map, input_map, param_counter, input_counter} ->
+          to_order_maps(x, param_map, input_map, param_counter, input_counter)
+        end
+      )
 
     fn params, inputs ->
       {funs, _} = Enum.map_reduce(graph, %{}, &to_predict_fun(&1, &2, param_map, input_map))
+
       funs
       |> Enum.reverse()
       |> Enum.map(& &1.(params, inputs))
@@ -451,10 +454,12 @@ defmodule Axon.Compiler do
 
     {penalties, _} =
       graph
-      |> Enum.reduce({%{}, 0},
-          fn x, {cache, count} ->
-            to_penalty_fun(x, cache, count)
-          end)
+      |> Enum.reduce(
+        {%{}, 0},
+        fn x, {cache, count} ->
+          to_penalty_fun(x, cache, count)
+        end
+      )
 
     [fun | funs] = Map.values(penalties)
 
@@ -484,30 +489,31 @@ defmodule Axon.Compiler do
     {cache, count} =
       params
       |> Enum.reduce({cache, count}, fn param, {cache, count} ->
-          %{id: id, regularizer: regularizer} = param
-          case cache do
-            %{^id => _} ->
-              cache
+        %{id: id, regularizer: regularizer} = param
 
-            %{} ->
-              fun =
-                fn params ->
-                  case regularizer do
-                    :none ->
-                      Nx.tensor(0.0)
+        case cache do
+          %{^id => _} ->
+            cache
 
-                    regularizer when is_atom(regularizer) ->
-                      idx = tuple_size(params) - count - 1
-                      apply(Axon.Regularizers, regularizer, [elem(params, idx)])
+          %{} ->
+            fun = fn params ->
+              case regularizer do
+                :none ->
+                  Nx.tensor(0.0)
 
-                    regularizer when is_function(regularizer) ->
-                      idx = tuple_size(params) - count - 1
-                      apply(regularizer, [elem(params, idx)])
-                  end
-                end
-              {Map.put(cache, id, fun), count + 1}
-          end
-        end)
+                regularizer when is_atom(regularizer) ->
+                  idx = tuple_size(params) - count - 1
+                  apply(Axon.Regularizers, regularizer, [elem(params, idx)])
+
+                regularizer when is_function(regularizer) ->
+                  idx = tuple_size(params) - count - 1
+                  apply(regularizer, [elem(params, idx)])
+              end
+            end
+
+            {Map.put(cache, id, fun), count + 1}
+        end
+      end)
 
     if parent do
       to_penalty_fun(parent, cache, count)

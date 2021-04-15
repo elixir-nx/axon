@@ -971,7 +971,8 @@ defmodule Axon do
     end
 
     @doc type: :layer
-    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts) when is_list(inputs) and is_list(opts) do
+    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts)
+        when is_list(inputs) and is_list(opts) do
       {id, name} = unique_identifiers(unquote(op), opts[:name])
 
       output_shape =
@@ -1235,6 +1236,13 @@ defmodule Axon do
 
   defp param(name, shape, initializer, regularizer, _opts \\ []) do
     id = System.unique_integer([:positive, :monotonic])
-    %Axon.Parameter{id: id, name: name, shape: shape, initializer: initializer, regularizer: regularizer}
+
+    %Axon.Parameter{
+      id: id,
+      name: name,
+      shape: shape,
+      initializer: initializer,
+      regularizer: regularizer
+    }
   end
 end

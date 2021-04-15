@@ -673,26 +673,25 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-      -----------------------------------------------
-                           Model
-      ===============================================
-       Layer                 Shape        Parameters
-      ===============================================
-       input ( input )       {nil, 784}   0
-       dense1 ( dense )      {nil, 128}   100480
-       dense2 ( dense )      {nil, 10}    1290
-       softmax ( softmax )   {nil, 10}    0
-      -----------------------------------------------
-      """
+             -----------------------------------------------
+                                  Model
+             ===============================================
+              Layer                 Shape        Parameters
+             ===============================================
+              input ( input )       {nil, 784}   0
+              dense1 ( dense )      {nil, 128}   100480
+              dense2 ( dense )      {nil, 10}    1290
+              softmax ( softmax )   {nil, 10}    0
+             -----------------------------------------------
+             """
     end
 
     test "works with complex model" do
-      residual =
-        fn x ->
-          x
-          |> Axon.dense(128, name: "residual_dense")
-          |> Axon.add(x, name: "residual_add")
-        end
+      residual = fn x ->
+        x
+        |> Axon.dense(128, name: "residual_dense")
+        |> Axon.add(x, name: "residual_add")
+      end
 
       model =
         Axon.input({nil, 784}, name: "input")
@@ -702,19 +701,19 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-      ----------------------------------------------------------------------------
-                                         Model
-      ============================================================================
-       Layer                                              Shape        Parameters
-      ============================================================================
-       input ( input )                                    {nil, 784}   0
-       dense ( dense )                                    {nil, 128}   100480
-       residual_dense ( dense )                           {nil, 128}   16512
-       residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   0
-       dense2 ( dense )                                   {nil, 10}    1290
-       softmax ( softmax )                                {nil, 10}    0
-      ----------------------------------------------------------------------------
-      """
+             ----------------------------------------------------------------------------
+                                                Model
+             ============================================================================
+              Layer                                              Shape        Parameters
+             ============================================================================
+              input ( input )                                    {nil, 784}   0
+              dense ( dense )                                    {nil, 128}   100480
+              residual_dense ( dense )                           {nil, 128}   16512
+              residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   0
+              dense2 ( dense )                                   {nil, 10}    1290
+              softmax ( softmax )                                {nil, 10}    0
+             ----------------------------------------------------------------------------
+             """
     end
   end
 end
