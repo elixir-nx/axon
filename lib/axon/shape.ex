@@ -188,13 +188,24 @@ defmodule Axon.Shape do
   Calculates the shape after a convolution layer with
   the given parent shape, kernel shape, strides, padding,
   input dilation and kernel dilation.
+
+  ## Examples
+
+      iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
+      {nil, 64, 75, 75}
+
+      iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
+      {32, 64, 31, 62}
+
+      iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2])
+      {nil, 32, 30}
   """
   def conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
-    parent_shape =
+    input_shape =
       if elem(parent_shape, 0) do
         parent_shape
       else
@@ -203,7 +214,7 @@ defmodule Axon.Shape do
 
     {shape, _, _} =
       Nx.Shape.conv(
-        parent_shape,
+        input_shape,
         names,
         kernel_shape,
         names,
@@ -218,7 +229,7 @@ defmodule Axon.Shape do
         permutation
       )
 
-    shape
+    put_elem(shape, 0, elem(parent_shape, 0))
   end
 
   @doc """
@@ -294,6 +305,17 @@ defmodule Axon.Shape do
   Calculates the shape after a depthwise convolution layer with
   the given parent shape, kernel shape, strides, padding, input
   dilation, and kernel dilation.
+
+  ## Examples
+
+      iex> Axon.Shape.depthwise_conv({nil, 3, 224, 224}, {9, 1, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
+      {nil, 9, 75, 75}
+
+      iex> Axon.Shape.depthwise_conv({32, 3, 32, 32}, {9, 1, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
+      {32, 9, 31, 62}
+
+      iex> Axon.Shape.depthwise_conv({nil, 3, 32}, {9, 1, 2}, [1], :valid, [1], [2])
+      {nil, 9, 30}
   """
   def depthwise_conv(
         parent_shape,
@@ -307,7 +329,7 @@ defmodule Axon.Shape do
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
-    parent_shape =
+    input_shape =
       if elem(parent_shape, 0) do
         parent_shape
       else
@@ -318,7 +340,7 @@ defmodule Axon.Shape do
 
     {shape, _, _} =
       Nx.Shape.conv(
-        parent_shape,
+        input_shape,
         names,
         kernel_shape,
         names,
@@ -333,7 +355,7 @@ defmodule Axon.Shape do
         permutation
       )
 
-    shape
+    put_elem(shape, 0, elem(parent_shape, 0))
   end
 
   @doc """
@@ -356,6 +378,9 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
+
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3)
+      ** (ArgumentError) invalid kernel number
   """
   def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
@@ -427,7 +452,7 @@ defmodule Axon.Shape do
 
   ### Error cases
 
-      iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28, 3}, 2, {2})
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 1, 28, 28, 3}, 3, {2}, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (3)
   """
   def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num) do
@@ -452,6 +477,22 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a depthwise separable convolution
   bias.
+
+  ## Examples
+
+      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2})
+      {1, 9, 1, 1, 1}
+
+      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2})
+      {1, 6, 1, 1, 1}
+
+      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1})
+      {1, 5, 1, 1, 1}
+
+  ### Error cases
+
+      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 2, {2, 2})
+      ** (ArgumentError) kernel size must have same rank (2) as number of spatial dimensions in the input (3)
   """
   def separable_conv3d_bias(input_shape, channel_multiplier, kernel_size) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
@@ -467,10 +508,18 @@ defmodule Axon.Shape do
   Calculates the output shape after a pooling operation
   with the given parent shape, kernel size, strides, and
   padding.
+
+  ## Examples
+
+      iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid)
+      {nil, 3, 31, 16}
+
+      iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same)
+      {32, 1, 28, 28}
   """
   def pool(parent_shape, kernel_size, strides, padding) do
     # Account for possibly nil batch dimension
-    parent_shape =
+    input_shape =
       if elem(parent_shape, 0) do
         parent_shape
       else
@@ -493,14 +542,14 @@ defmodule Axon.Shape do
 
     {shape, _} =
       Nx.Shape.pool(
-        parent_shape,
+        input_shape,
         kernel_size,
         strides,
         padding,
         kernel_dilation
       )
 
-    shape
+    put_elem(shape, 0, elem(parent_shape, 0))
   end
 
   @doc """
@@ -571,8 +620,8 @@ defmodule Axon.Shape do
       iex> Axon.Shape.flatten({nil, 1, 28, 28})
       {nil, 784}
 
-      iex> Axon.Shape.flatten({nil, 128})
-      {nil, 128}
+      iex> Axon.Shape.flatten({32, 128})
+      {32, 128}
 
       iex> Axon.Shape.flatten({nil, 10, 10})
       {nil, 100}

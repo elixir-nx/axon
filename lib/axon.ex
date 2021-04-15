@@ -930,14 +930,14 @@ defmodule Axon do
 
     """
     @doc type: :layer
-    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y) do
-      {id, name} = unique_identifiers(unquote(op), nil)
+    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
+      {id, name} = unique_identifiers(unquote(op), opts[:name])
       %Axon{id: id, name: name, output_shape: shape, parent: [x, y], op: unquote(op), params: []}
     end
 
     @doc type: :layer
-    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs) do
-      {id, name} = unique_identifiers(unquote(op), nil)
+    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts) when is_list(inputs) and is_list(opts) do
+      {id, name} = unique_identifiers(unquote(op), opts[:name])
 
       output_shape =
         Enum.reduce(rest, shape, fn %Axon{output_shape: shape}, acc ->
@@ -957,6 +957,12 @@ defmodule Axon do
         params: []
       }
     end
+
+    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y) do
+      unquote(op)(x, y, [])
+    end
+
+    def unquote(op)([%Axon{} | _] = inputs), do: unquote(op)(inputs, [])
   end
 
   @doc """

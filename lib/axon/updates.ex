@@ -784,6 +784,10 @@ defmodule Axon.Updates do
     {fn _params -> {} end, fn updates, state, _params -> {updates, state} end}
   end
 
+  def identity(combinator) do
+    combinator
+  end
+
   @doc """
   Represents a stateful update.
   """

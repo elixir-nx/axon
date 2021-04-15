@@ -506,6 +506,12 @@ defmodule Axon.Initializers do
       iex> Nx.type(t)
       {:bf, 16}
 
+      iex> t = Axon.Initializers.variance_scaling(shape: {64, 3, 32, 32}, mode: :fan_out, distribution: :normal)
+      iex> Nx.shape(t)
+      {64, 3, 32, 32}
+      iex> Nx.type(t)
+      {:f, 32}
+
   ### Error cases
 
       iex> Axon.Initializers.variance_scaling(shape: {2})
