@@ -615,7 +615,19 @@ defmodule Axon.Updates do
   end
 
   defnp apply_centralize(x, _params) do
-    apply_map(x, fn z -> -Nx.mean(z) + z end)
+    transform(x, fn x ->
+      x
+      |> Tuple.to_list()
+      |> Enum.map(fn z ->
+        if Nx.rank(z) > 1 do
+          axes = tl(Nx.axes(z))
+          z - Nx.mean(z, axes: axes, keep_axes: true)
+        else
+          z
+        end
+      end)
+      |> List.to_tuple()
+    end)
   end
 
   @doc """
