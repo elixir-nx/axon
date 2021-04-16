@@ -78,14 +78,28 @@ defmodule Axon.Compiler do
   defp compile_predict(graph) when is_tuple(graph) do
     graph = Tuple.to_list(graph)
 
-    {param_map, input_map, _, _} =
+    {param_ids, input_ids} =
       graph
       |> Enum.reduce(
-        {%{}, %{}, 0, 0},
-        fn x, {param_map, input_map, param_counter, input_counter} ->
-          to_order_maps(x, param_map, input_map, param_counter, input_counter)
+        {[], []},
+        fn x, {param_ids, input_ids} ->
+          get_params_and_inputs(x, param_ids, input_ids)
         end
       )
+
+    param_map =
+      param_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
+
+    input_map =
+      input_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
 
     fn params, inputs ->
       {funs, _} = Enum.map_reduce(graph, %{}, &to_predict_fun(&1, &2, param_map, input_map))
@@ -98,7 +112,21 @@ defmodule Axon.Compiler do
   end
 
   defp compile_predict(%Axon{} = graph) do
-    {param_map, input_map, _, _} = to_order_maps(graph, %{}, %{}, 0, 0)
+    {param_ids, input_ids} = get_params_and_inputs(graph, [], [])
+
+    param_map =
+      param_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
+
+    input_map =
+      input_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
 
     fn params, inputs ->
       {fun, _} = to_predict_fun(graph, %{}, param_map, input_map)
@@ -108,51 +136,19 @@ defmodule Axon.Compiler do
 
   ## Parameter Ordering
 
-  defp to_order_maps(%Axon{parent: parents}, param_map, input_map, param_counter, input_counter)
-       when is_list(parents) do
-    Enum.reduce(parents, {param_map, input_map, param_counter, input_counter}, fn
-      node, {param_map, input_map, param_counter, input_counter} ->
-        to_order_maps(node, param_map, input_map, param_counter, input_counter)
+  defp get_params_and_inputs(%Axon{id: id, op: :input}, param_ids, input_ids) do
+    {param_ids, [id | input_ids]}
+  end
+
+  defp get_params_and_inputs(%Axon{parent: parents}, param_ids, input_ids) when is_list(parents) do
+    Enum.reduce(parents, {param_ids, input_ids}, fn graph, {param_ids, input_ids} ->
+      get_params_and_inputs(graph, param_ids, input_ids)
     end)
   end
 
-  defp to_order_maps(
-         %Axon{id: id, op: :input},
-         param_map,
-         input_map,
-         param_counter,
-         input_counter
-       ) do
-    case input_map do
-      %{^id => _} ->
-        {param_map, input_map, param_counter, input_counter}
-
-      %{} ->
-        {param_map, Map.put(input_map, id, input_counter), param_counter, input_counter + 1}
-    end
-  end
-
-  defp to_order_maps(
-         %Axon{parent: parent, params: params},
-         param_map,
-         input_map,
-         param_counter,
-         input_counter
-       ) do
-    {param_map, input_map, param_counter, input_counter} =
-      Enum.reduce(params, {param_map, input_map, param_counter, input_counter}, fn
-        %{id: id} = param, {param_map, input_map, param_counter, input_counter} ->
-          case param_map do
-            %{^id => _} ->
-              {param_map, input_map, param_counter, input_counter}
-
-            %{} ->
-              %{id: id} = param
-              {Map.put(param_map, id, param_counter), input_map, param_counter + 1, input_counter}
-          end
-      end)
-
-    to_order_maps(parent, param_map, input_map, param_counter, input_counter)
+  defp get_params_and_inputs(%Axon{parent: parent, params: params}, param_ids, input_ids) do
+    param_ids = Enum.reduce(params, param_ids, fn %{id: id}, param_ids -> [id | param_ids] end)
+    get_params_and_inputs(parent, param_ids, input_ids)
   end
 
   defp to_predict_fun(%{id: id} = graph, cache, param_map, input_map) do
@@ -198,8 +194,7 @@ defmodule Axon.Compiler do
     b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params) - 1
-      {w, b} = {elem(params, param_size - w_idx), elem(params, param_size - b_idx)}
+      {w, b} = {elem(params, w_idx), elem(params, b_idx)}
       apply(Axon.Layers, :dense, [fun.(params, inputs), w, b])
     end
 
@@ -253,8 +248,7 @@ defmodule Axon.Compiler do
     b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params) - 1
-      {w, b} = {elem(params, param_size - k_idx), elem(params, param_size - b_idx)}
+      {w, b} = {elem(params, k_idx), elem(params, b_idx)}
       apply(Axon.Layers, op, [fun.(params, inputs), w, b, opts])
     end
 
@@ -280,13 +274,11 @@ defmodule Axon.Compiler do
     b2_idx = param_map[b2_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params) - 1
-
       {w1, b1, w2, b2} = {
-        elem(params, param_size - k1_idx),
-        elem(params, param_size - b1_idx),
-        elem(params, param_size - k2_idx),
-        elem(params, param_size - b2_idx)
+        elem(params, k1_idx),
+        elem(params, b1_idx),
+        elem(params, k2_idx),
+        elem(params, b2_idx)
       }
 
       apply(Axon.Layers, :separable_conv2d, [fun.(params, inputs), w1, b1, w2, b2, opts])
@@ -323,15 +315,13 @@ defmodule Axon.Compiler do
     b3_idx = param_map[b3_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params) - 1
-
       {w1, b1, w2, b2, w3, b3} = {
-        elem(params, param_size - k1_idx),
-        elem(params, param_size - b1_idx),
-        elem(params, param_size - k2_idx),
-        elem(params, param_size - b2_idx),
-        elem(params, param_size - k3_idx),
-        elem(params, param_size - b3_idx)
+        elem(params, k1_idx),
+        elem(params, b1_idx),
+        elem(params, k2_idx),
+        elem(params, b2_idx),
+        elem(params, k3_idx),
+        elem(params, b3_idx)
       }
 
       apply(Axon.Layers, :separable_conv3d, [fun.(params, inputs), w1, b1, w2, b2, w3, b3, opts])
@@ -357,8 +347,7 @@ defmodule Axon.Compiler do
     b_idx = param_map[b_id]
 
     fun = fn params, inputs ->
-      param_size = tuple_size(params) - 1
-      {w, b} = {elem(params, param_size - g_idx), elem(params, param_size - b_idx)}
+      {w, b} = {elem(params, g_idx), elem(params, b_idx)}
       apply(Axon.Layers, op, [fun.(params, inputs), w, b, opts])
     end
 
@@ -452,12 +441,24 @@ defmodule Axon.Compiler do
   defp compile_penalty(graph) when is_tuple(graph) do
     graph = Tuple.to_list(graph)
 
-    {penalties, _} =
+    {param_ids, _} =
+      Enum.reduce(graph, {[], []}, fn x, {param_ids, input_ids} ->
+        get_params_and_inputs(x, param_ids, input_ids)
+      end)
+
+    param_map =
+      param_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
+
+    penalties =
       graph
       |> Enum.reduce(
-        {%{}, 0},
-        fn x, {cache, count} ->
-          to_penalty_fun(x, cache, count)
+        %{},
+        fn x, cache->
+          to_penalty_fun(x, cache, param_map)
         end
       )
 
@@ -470,7 +471,16 @@ defmodule Axon.Compiler do
   end
 
   defp compile_penalty(%Axon{} = graph) do
-    {penalties, _} = to_penalty_fun(graph, %{}, 0)
+    {param_ids, _} = get_params_and_inputs(graph, [], [])
+
+    param_map =
+      param_ids
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.with_index()
+      |> Enum.into(%{})
+
+    penalties = to_penalty_fun(graph, %{}, param_map)
     [fun | funs] = Map.values(penalties)
 
     fn params ->
@@ -479,16 +489,16 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp to_penalty_fun(%Axon{parent: parents}, cache, count) when is_list(parents) do
-    Enum.reduce(parents, {cache, count}, fn graph, {cache, count} ->
-      to_penalty_fun(graph, cache, count)
+  defp to_penalty_fun(%Axon{parent: parents}, cache, param_map) when is_list(parents) do
+    Enum.reduce(parents, cache, fn graph, cache ->
+      to_penalty_fun(graph, cache, param_map)
     end)
   end
 
-  defp to_penalty_fun(%Axon{parent: parent, params: params}, cache, count) do
-    {cache, count} =
+  defp to_penalty_fun(%Axon{parent: parent, params: params}, cache, param_map) do
+    cache =
       params
-      |> Enum.reduce({cache, count}, fn param, {cache, count} ->
+      |> Enum.reduce(cache, fn param, cache ->
         %{id: id, regularizer: regularizer} = param
 
         case cache do
@@ -502,23 +512,23 @@ defmodule Axon.Compiler do
                   Nx.tensor(0.0)
 
                 regularizer when is_atom(regularizer) ->
-                  idx = tuple_size(params) - count - 1
+                  idx = param_map[id]
                   apply(Axon.Regularizers, regularizer, [elem(params, idx)])
 
                 regularizer when is_function(regularizer) ->
-                  idx = tuple_size(params) - count - 1
+                  idx = param_map[id]
                   apply(regularizer, [elem(params, idx)])
               end
             end
 
-            {Map.put(cache, id, fun), count + 1}
+            Map.put(cache, id, fun)
         end
       end)
 
     if parent do
-      to_penalty_fun(parent, cache, count)
+      to_penalty_fun(parent, cache, param_map)
     else
-      {cache, count}
+      cache
     end
   end
 end
