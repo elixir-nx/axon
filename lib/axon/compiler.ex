@@ -140,7 +140,8 @@ defmodule Axon.Compiler do
     {param_ids, [id | input_ids]}
   end
 
-  defp get_params_and_inputs(%Axon{parent: parents}, param_ids, input_ids) when is_list(parents) do
+  defp get_params_and_inputs(%Axon{parent: parents}, param_ids, input_ids)
+       when is_list(parents) do
     Enum.reduce(parents, {param_ids, input_ids}, fn graph, {param_ids, input_ids} ->
       get_params_and_inputs(graph, param_ids, input_ids)
     end)
@@ -457,7 +458,7 @@ defmodule Axon.Compiler do
       graph
       |> Enum.reduce(
         %{},
-        fn x, cache->
+        fn x, cache ->
           to_penalty_fun(x, cache, param_map)
         end
       )
