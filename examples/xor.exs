@@ -2,13 +2,18 @@
 # multi input models as just using `input` many times
 require Axon
 
-inp1 = Axon.input({nil, 1})
-inp2 = Axon.input({nil, 1})
+inp1 = Axon.input({32, 1})
+inp2 = Axon.input({32, 1})
+
+atan2_layer = fn x ->
+  Axon.layer(x, &Nx.atan2/2, x.output_shape, [Axon.param("atan2_weight", x.output_shape)], name: "atan2")
+end
 
 model =
   inp1
   |> Axon.concatenate(inp2)
   |> Axon.dense(8, activation: :tanh)
+  |> atan2_layer.()
   |> Axon.dense(1, activation: :sigmoid)
 
 data =
@@ -26,6 +31,6 @@ targets =
 {params, _} =
   model
   |> Axon.Training.step(:binary_cross_entropy, Axon.Optimizers.sgd(0.01))
-  |> Axon.Training.train(data, targets, epochs: 10, compiler: EXLA)
+  |> Axon.Training.train(data, targets, epochs: 10)
 
 IO.inspect Axon.predict(model, params, {Nx.tensor([[0]]), Nx.tensor([[1]])})

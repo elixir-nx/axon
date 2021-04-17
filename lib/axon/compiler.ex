@@ -164,6 +164,28 @@ defmodule Axon.Compiler do
     end
   end
 
+  ## Custom Layers
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, params: layer_params, opts: opts},
+         cache,
+         param_map,
+         input_map
+       )
+       when is_function(op) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+    param_indices = Enum.map(layer_params, fn %{id: id} -> param_map[id] end)
+
+    fun = fn params, input ->
+      inp_params =
+        param_indices
+        |> Enum.map(&elem(params, &1))
+
+      apply(op, [fun.(params, input) | inp_params ++ opts])
+    end
+
+    {fun, cache}
+  end
+
   ## Activation Layers
 
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
@@ -184,7 +206,7 @@ defmodule Axon.Compiler do
   ## Linear Layers
 
   defp recur_predict_fun(
-         %Axon{op: :dense, parent: parent, params: [%{id: b_id}, %{id: w_id}]},
+         %Axon{op: :dense, parent: parent, params: [%{id: w_id}, %{id: b_id}]},
          cache,
          param_map,
          input_map
@@ -237,7 +259,7 @@ defmodule Axon.Compiler do
   @conv_layers [:conv, :depthwise_conv]
 
   defp recur_predict_fun(
-         %Axon{op: op, parent: parent, opts: opts, params: [%{id: b_id}, %{id: k_id}]},
+         %Axon{op: op, parent: parent, opts: opts, params: [%{id: k_id}, %{id: b_id}]},
          cache,
          param_map,
          input_map
@@ -261,7 +283,7 @@ defmodule Axon.Compiler do
            op: :separable_conv2d,
            parent: parent,
            opts: opts,
-           params: [%{id: b1_id}, %{id: k1_id}, %{id: b2_id}, %{id: k2_id}]
+           params: [%{id: k1_id}, %{id: b1_id}, %{id: k2_id}, %{id: b2_id}]
          },
          cache,
          param_map,
@@ -294,12 +316,12 @@ defmodule Axon.Compiler do
            parent: parent,
            opts: opts,
            params: [
-             %{id: b1_id},
              %{id: k1_id},
-             %{id: b2_id},
+             %{id: b1_id},
              %{id: k2_id},
-             %{id: b3_id},
-             %{id: k3_id}
+             %{id: b2_id},
+             %{id: k3_id},
+             %{id: b3_id}
            ]
          },
          cache,
@@ -336,7 +358,7 @@ defmodule Axon.Compiler do
   @normalization_layers [:batch_norm, :layer_norm, :group_norm, :instance_norm]
 
   defp recur_predict_fun(
-         %Axon{op: op, parent: parent, opts: opts, params: [%{id: b_id}, %{id: g_id}]},
+         %Axon{op: op, parent: parent, opts: opts, params: [%{id: g_id}, %{id: b_id}]},
          cache,
          param_map,
          input_map
