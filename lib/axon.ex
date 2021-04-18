@@ -900,7 +900,15 @@ defmodule Axon do
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
     {id, name} = unique_identifiers(:flatten, opts[:name])
     new_shape = Axon.Shape.flatten(shape)
-    %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
+
+    %Axon{
+      id: id,
+      name: name,
+      output_shape: new_shape,
+      parent: x,
+      op: :flatten,
+      params: []
+    }
   end
 
   @doc """
