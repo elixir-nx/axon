@@ -2,8 +2,8 @@
 # multi input models as just using `input` many times
 require Axon
 
-inp1 = Axon.input({nil, 1})
-inp2 = Axon.input({nil, 1})
+inp1 = Axon.input({32, 1})
+inp2 = Axon.input({32, 1})
 
 model =
   inp1
@@ -26,6 +26,6 @@ targets =
 {params, _} =
   model
   |> Axon.Training.step(:binary_cross_entropy, Axon.Optimizers.sgd(0.01))
-  |> Axon.Training.train(data, targets, epochs: 10, compiler: EXLA)
+  |> Axon.Training.train(data, targets, epochs: 10)
 
 IO.inspect Axon.predict(model, params, {Nx.tensor([[0]]), Nx.tensor([[1]])})
