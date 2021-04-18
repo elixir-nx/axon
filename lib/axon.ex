@@ -81,13 +81,18 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
   A custom Axon layer.
   """
   def layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])
       when is_atom(op) or is_function(op) do
-    op = if is_atom(op), do: op, else: :layer
+    op_name = if is_atom(op), do: op, else: :layer
 
-    {id, name} = unique_identifiers(op, name)
+    {id, name} = unique_identifiers(op_name, name)
 
     parameters =
       parameters
@@ -125,6 +130,10 @@ defmodule Axon do
   end
 
   @doc """
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
   Adds an input layer to the network.
 
   Input layers specify a model's inputs. Input layers are
