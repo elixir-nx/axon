@@ -83,9 +83,15 @@ defmodule Axon do
   @doc """
   A custom Axon layer.
   """
-  def layer(parent, op, output_shape, parameters, opts \\ []) do
-    {name, opts} = Keyword.pop(opts, :name)
+  def layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])
+      when is_atom(op) or is_function(op) do
+    op = if is_atom(op), do: op, else: :layer
+
     {id, name} = unique_identifiers(op, name)
+
+    parameters =
+      parameters
+      |> Enum.map(fn %{name: p_name} = param -> %{param | name: name <> "_" <> p_name} end)
 
     %Axon{
       id: id,
@@ -95,6 +101,26 @@ defmodule Axon do
       op: op,
       params: parameters,
       opts: opts
+    }
+  end
+
+  @doc """
+  A trainable Axon parameter.
+  """
+  def param(name, shape, opts \\ []) do
+    initializer = opts[:initializer] || :glorot_uniform
+    validate_initializer!(initializer)
+    regularizer = opts[:regularizer] || :none
+    validate_regularizer!(regularizer)
+
+    id = System.unique_integer([:positive, :monotonic])
+
+    %Axon.Parameter{
+      id: id,
+      name: name,
+      shape: shape,
+      initializer: initializer,
+      regularizer: regularizer
     }
   end
 
@@ -112,7 +138,7 @@ defmodule Axon do
   @doc type: :layer
   def input(input_shape, opts \\ []) do
     output_shape = Axon.Shape.input(input_shape)
-    Axon.layer(nil, :input, output_shape, [], opts)
+    Axon.layer(nil, :input, output_shape, [], opts[:name], opts)
   end
 
   @doc """
@@ -139,17 +165,26 @@ defmodule Axon do
   @doc type: :layer
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
-    {_, name} = unique_identifiers(:dense, opts[:name])
     activation = opts[:activation]
 
     kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
     bias_shape = Axon.Shape.dense_bias(parent_shape, units)
     output_shape = Axon.Shape.dense(parent_shape, units)
 
-    weight = param(name <> "_weight", kernel_shape, opts)
-    bias = param(name <> "_bias", bias_shape, opts)
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
 
-    node = Axon.layer(x, :dense, output_shape, [weight, bias])
+    kernel =
+      param("kernel", kernel_shape,
+        initializer: kernel_initializer,
+        regularizer: kernel_regularizer
+      )
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+    node = Axon.layer(x, :dense, output_shape, [kernel, bias], opts[:name])
 
     if activation do
       node
@@ -184,8 +219,6 @@ defmodule Axon do
   @doc type: :layer
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
-    {_, name} = unique_identifiers(:conv, opts[:name])
-
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -213,11 +246,21 @@ defmodule Axon do
         kernel_dilation
       )
 
-    kernel = param(name <> "_kernel", kernel_shape, opts)
-    bias = param(name <> "_bias", bias_shape, opts)
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    kernel =
+      param("kernel", kernel_shape,
+        initializer: kernel_initializer,
+        regularizer: kernel_regularizer
+      )
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
 
     node =
-      Axon.layer(x, :conv, output_shape, [kernel, bias],
+      Axon.layer(x, :conv, output_shape, [kernel, bias], opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -262,8 +305,6 @@ defmodule Axon do
   @doc type: :layer
   def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    {_, name} = unique_identifiers(:depthwise_conv, opts[:name])
-
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -291,11 +332,21 @@ defmodule Axon do
         kernel_dilation
       )
 
-    kernel = param(name <> "_kernel", kernel_shape, opts)
-    bias = param(name <> "_bias", bias_shape, opts)
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    kernel =
+      param("weight", kernel_shape,
+        initializer: kernel_initializer,
+        regularizer: kernel_regularizer
+      )
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
 
     node =
-      Axon.layer(x, :depthwise_conv, output_shape, [kernel, bias],
+      Axon.layer(x, :depthwise_conv, output_shape, [kernel, bias], opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -336,8 +387,6 @@ defmodule Axon do
   @doc type: :layer
   def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    {_, name} = unique_identifiers(:separable_conv2d, opts[:name])
-
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -371,13 +420,22 @@ defmodule Axon do
         kernel_dilation
       )
 
-    k1 = param(name <> "_kernel_1", k1_shape, opts)
-    b1 = param(name <> "_bias_1", b1_shape, opts)
-    k2 = param(name <> "_kernel_2", k2_shape, opts)
-    b2 = param(name <> "_bias_2", b2_shape, opts)
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    k1 =
+      param("kernel_1", k1_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
+
+    k2 =
+      param("kernel_2", k2_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    b1 = param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    b2 = param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
 
     node =
-      Axon.layer(x, :separable_conv2d, output_shape, [k1, b1, k2, b2],
+      Axon.layer(x, :separable_conv2d, output_shape, [k1, b1, k2, b2], opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -418,8 +476,6 @@ defmodule Axon do
   @doc type: :layer
   def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    {_, name} = unique_identifiers(:separable_conv3d, opts[:name])
-
     activation = opts[:activation]
 
     kernel_size = opts[:kernel_size] || 1
@@ -457,15 +513,26 @@ defmodule Axon do
         kernel_dilation
       )
 
-    k1 = param(name <> "_kernel_1", k1_shape, opts)
-    b1 = param(name <> "_bias_1", b1_shape, opts)
-    k2 = param(name <> "_kernel_2", k2_shape, opts)
-    b2 = param(name <> "_bias_2", b2_shape, opts)
-    k3 = param(name <> "_kernel_3", k3_shape, opts)
-    b3 = param(name <> "_bias_3", b3_shape, opts)
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    k1 =
+      param("kernel_1", k1_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
+
+    k2 =
+      param("kernel_2", k2_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
+
+    k3 =
+      param("kernel_3", k3_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    b1 = param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    b2 = param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    b3 = param("bias_3", b3_shape, initializer: bias_initializer, regularizer: bias_regularizer)
 
     node =
-      Axon.layer(x, :separable_conv3d, output_shape, [k1, b1, k2, b2, k3, b3],
+      Axon.layer(x, :separable_conv3d, output_shape, [k1, b1, k2, b2, k3, b3], opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -500,7 +567,7 @@ defmodule Axon do
 
   def activation(%Axon{output_shape: shape} = x, activation, opts)
       when is_atom(activation) and activation in @activation_layers do
-    Axon.layer(x, activation, shape, [], opts)
+    Axon.layer(x, activation, shape, [], opts[:name], opts)
   end
 
   def activation(_, activation, _) do
@@ -552,7 +619,7 @@ defmodule Axon do
 
   defp dropout(%Axon{output_shape: parent_shape} = x, dropout, opts) do
     rate = opts[:rate] || 0.5
-    Axon.layer(x, dropout, parent_shape, [], rate: rate)
+    Axon.layer(x, dropout, parent_shape, [], opts[:name], rate: rate)
   end
 
   ## Pooling
@@ -588,7 +655,7 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
-    Axon.layer(x, pool, output_shape, [],
+    Axon.layer(x, pool, output_shape, [], opts[:name],
       kernel_size: kernel_size,
       strides: strides,
       padding: padding
@@ -623,7 +690,7 @@ defmodule Axon do
     output_size = tuple_or_duplicate(:output_size, opts[:output_size], inner_rank)
     output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
 
-    Axon.layer(x, pool, output_shape, [], output_size: output_size)
+    Axon.layer(x, pool, output_shape, [], opts[:name], output_size: output_size)
   end
 
   ## Normalization
@@ -653,18 +720,26 @@ defmodule Axon do
   end
 
   defp norm(%Axon{output_shape: shape} = x, norm, opts) do
-    {_, name} = unique_identifiers(norm, opts[:name])
-
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma = param(name <> "_gamma", gamma_shape, opts)
-    beta = param(name <> "_beta", beta_shape, opts)
+    gamma_initializer = opts[:gamma_initializer]
+    gamma_regularizer = opts[:gamma_regularizer]
 
-    Axon.layer(x, norm, shape, [gamma, beta], epsilon: epsilon, channel_index: channel_index)
+    gamma =
+      param("gamma", gamma_shape, initializer: gamma_initializer, regularizer: gamma_regularizer)
+
+    beta_initializer = opts[:beta_initializer] || :zeros
+    beta_regularizer = opts[:beta_regularizer]
+    beta = param("beta", beta_shape, initializer: beta_initializer, regularizer: beta_regularizer)
+
+    Axon.layer(x, norm, shape, [gamma, beta], opts[:name],
+      epsilon: epsilon,
+      channel_index: channel_index
+    )
   end
 
   @doc """
@@ -685,18 +760,23 @@ defmodule Axon do
   @doc type: :layer
   def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
       when is_integer(group_size) and group_size >= 1 do
-    {_, name} = unique_identifiers(:group_norm, opts[:name])
-
     channel_index = opts[:channel_index] || 1
     epsilon = opts[:epsilon] || 1.0e-5
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma = param(name <> "_gamma", gamma_shape, opts)
-    beta = param(name <> "_beta", beta_shape, opts)
+    gamma_initializer = opts[:gamma_initializer]
+    gamma_regularizer = opts[:gamma_regularizer]
 
-    Axon.layer(x, :group_norm, shape, [gamma, beta],
+    gamma =
+      param("gamma", gamma_shape, initializer: gamma_initializer, regularizer: gamma_regularizer)
+
+    beta_initializer = opts[:beta_initializer] || :zeros
+    beta_regularizer = opts[:beta_regularizer]
+    beta = param("beta", beta_shape, initializer: beta_initializer, regularizer: beta_regularizer)
+
+    Axon.layer(x, :group_norm, shape, [gamma, beta], opts[:name],
       epsilon: epsilon,
       channel_index: channel_index,
       group_size: group_size
@@ -713,8 +793,6 @@ defmodule Axon do
   """
   @doc type: :composition
   def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
-    {id, name} = unique_identifiers(:nx, opts[:name])
-
     # Some shape rules will not like nil batch shape
     batch_size = elem(shape, 0)
     shape = Tuple.delete_at(shape, 0)
@@ -722,20 +800,9 @@ defmodule Axon do
     param = Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, 0)
 
     expr = Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
+    output_shape = Tuple.insert_at(expr.shape, 0, batch_size)
 
-    node = %Axon{
-      id: id,
-      name: name,
-      output_shape: Tuple.insert_at(expr.shape, 0, batch_size),
-      parent: x,
-      op: :nx,
-      params: [],
-      opts: [
-        fun: fun
-      ]
-    }
-
-    node
+    Axon.layer(x, fun, output_shape, [], opts[:name])
   end
 
   @doc """
@@ -752,9 +819,8 @@ defmodule Axon do
   """
   @doc type: :composition
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
-    {id, name} = unique_identifiers(:flatten, opts[:name])
-    new_shape = Axon.Shape.flatten(shape)
-    %Axon{id: id, name: name, output_shape: new_shape, parent: x, op: :flatten, params: []}
+    output_shape = Axon.Shape.flatten(shape)
+    Axon.layer(x, :flatten, output_shape, [], opts[:name])
   end
 
   @doc """
@@ -770,39 +836,29 @@ defmodule Axon do
 
   """
   @doc type: :composition
-  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y) do
-    {id, name} = unique_identifiers(:concatenate, nil)
-    axis = Nx.rank(x_shape) - 1
+  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts)
+      when is_list(opts) do
+    axis = opts[:axis] || Nx.rank(x_shape) - 1
     output_shape = Axon.Shape.concatenate([x_shape, y_shape], axis)
 
-    %Axon{
-      id: id,
-      name: name,
-      output_shape: output_shape,
-      parent: [x, y],
-      op: :concatenate,
-      params: [],
-      opts: [axis: axis]
-    }
+    Axon.layer([x, y], :concatenate, output_shape, [], opts[:name], axis: axis)
   end
 
   @doc type: :composition
-  def concatenate([%Axon{output_shape: shape} | _] = inputs) when is_list(inputs) do
-    {id, name} = unique_identifiers(:concatenate, nil)
-    axis = Nx.rank(shape) - 1
+  def concatenate([%Axon{output_shape: shape} | _] = inputs, opts)
+      when is_list(inputs) and is_list(opts) do
+    axis = opts[:axis] || Nx.rank(shape) - 1
     input_shapes = inputs |> Enum.map(fn %Axon{output_shape: shape} -> shape end)
     output_shape = Axon.Shape.concatenate(input_shapes, axis)
 
-    %Axon{
-      id: id,
-      name: name,
-      output_shape: output_shape,
-      parent: inputs,
-      op: :concatenate,
-      params: [],
-      opts: [axis: axis]
-    }
+    Axon.layer(inputs, :concatenate, output_shape, [], opts[:name], axis: axis)
   end
+
+  @doc false
+  def concatenate(%Axon{} = x, %Axon{} = y), do: concatenate(x, y, [])
+
+  @doc false
+  def concatenate(inputs) when is_list(inputs), do: concatenate(inputs, [])
 
   @element_wise_layers [:add, :subtract, :multiply]
 
@@ -820,15 +876,12 @@ defmodule Axon do
     """
     @doc type: :layer
     def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
-      {id, name} = unique_identifiers(unquote(op), opts[:name])
-      %Axon{id: id, name: name, output_shape: shape, parent: [x, y], op: unquote(op), params: []}
+      Axon.layer([x, y], unquote(op), shape, [], opts[:name])
     end
 
     @doc type: :layer
     def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts)
         when is_list(inputs) and is_list(opts) do
-      {id, name} = unique_identifiers(unquote(op), opts[:name])
-
       output_shape =
         Enum.reduce(rest, shape, fn %Axon{output_shape: shape}, acc ->
           unless shape == acc do
@@ -838,14 +891,7 @@ defmodule Axon do
           shape
         end)
 
-      %Axon{
-        id: id,
-        name: name,
-        output_shape: output_shape,
-        parent: inputs,
-        op: unquote(op),
-        params: []
-      }
+      Axon.layer(inputs, unquote(op), output_shape, [], opts[:name])
     end
 
     def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y) do
@@ -1087,21 +1133,4 @@ defmodule Axon do
   end
 
   defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
-
-  def param(name, shape, opts \\ []) do
-    initializer = opts[:initializer] || :glorot_uniform
-    validate_initializer!(initializer)
-    regularizer = opts[:regularizer] || :none
-    validate_regularizer!(regularizer)
-
-    id = System.unique_integer([:positive, :monotonic])
-
-    %Axon.Parameter{
-      id: id,
-      name: name,
-      shape: shape,
-      initializer: initializer,
-      regularizer: regularizer
-    }
-  end
 end
