@@ -118,7 +118,7 @@ defmodule Axon do
     regularizer = opts[:regularizer] || :none
     validate_regularizer!(regularizer)
 
-    id = System.unique_integer([:positive, :monotonic])
+    id = unique_id([:positive, :monotonic])
 
     %Axon.Parameter{
       id: id,
@@ -1136,10 +1136,12 @@ defmodule Axon do
     end
   end
 
+  defp unique_id(modifiers) when is_list(modifiers), do: System.unique_integer(modifiers)
+
   defp unique_identifiers(type, nil) do
-    id = System.unique_integer([:positive, :monotonic])
+    id = unique_id([:positive, :monotonic])
     {id, Atom.to_string(type) <> "_#{id}"}
   end
 
-  defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
+  defp unique_identifiers(_type, name), do: {unique_id([:positive, :monotonic]), name}
 end
