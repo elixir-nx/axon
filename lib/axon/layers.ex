@@ -328,7 +328,6 @@ defmodule Axon.Layers do
       keyword!(opts,
         strides: 1,
         padding: :valid,
-        input_dilation: 1,
         kernel_dilation: 1
       )
 
@@ -352,14 +351,15 @@ defmodule Axon.Layers do
     padding =
       transform(
         {Nx.shape(weight), opts[:kernel_dilation], strides, opts[:padding]},
-        &conv_transpose_padding/1
+        fn {shape, k_dilation, strides, padding} ->
+          Axon.Shape.conv_transpose_padding(shape, k_dilation, strides, padding)
+        end
       )
 
     input
     |> Nx.conv(weight,
       strides: opts[:strides],
       padding: padding,
-      input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation]
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
@@ -1306,56 +1306,6 @@ defmodule Axon.Layers do
   defp spatial_dropout_noise_shape(input_shape) do
     :erlang.setelement(2, input_shape, 1)
   end
-
-  # Fractionally strided convolution (transposed convolution)
-  # by padding the input
-  defp conv_transpose_padding({kernel_shape, kernel_dilation, strides, padding})
-       when padding in [:valid, :same] do
-    kernel_spatial_dims =
-      kernel_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-
-    kernel_dilation =
-      if is_list(kernel_dilation),
-        do: kernel_dilation,
-        else: List.duplicate(kernel_dilation, tuple_size(kernel_spatial_dims))
-
-    effective_kernel_size =
-      kernel_spatial_dims
-      |> Tuple.to_list()
-      |> Enum.zip(kernel_dilation)
-      |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
-
-    case padding do
-      :valid ->
-        effective_kernel_size
-        |> Enum.zip(strides)
-        |> Enum.map(fn {k, s} ->
-          pad_len = k + s - 2 + max(k - s, 0)
-          pad_a = k - 1
-          {pad_a, pad_len - pad_a}
-        end)
-
-      :same ->
-        effective_kernel_size
-        |> Enum.zip(strides)
-        |> Enum.map(fn {k, s} ->
-          pad_len = k + s - 2
-
-          pad_a =
-            if s > k - 1 do
-              k - 1
-            else
-              ceil(pad_len / 2)
-            end
-
-          {pad_a, pad_len - pad_a}
-        end)
-    end
-  end
-
-  defp conv_transpose_padding({_, _, _, padding}), do: padding
 
   defp batch_norm_axes({axes, channel_index}) do
     axes

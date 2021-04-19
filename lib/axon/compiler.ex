@@ -256,7 +256,7 @@ defmodule Axon.Compiler do
 
   ## Conv Layers
 
-  @conv_layers [:conv, :depthwise_conv]
+  @conv_layers [:conv, :conv_transpose, :depthwise_conv]
 
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, opts: opts, params: [%{id: k_id}, %{id: b_id}]},
@@ -435,6 +435,22 @@ defmodule Axon.Compiler do
     fun = fn params, inputs ->
       permutation = [0 | Enum.map(permutation, &(&1 + 1))]
       apply(Nx, :transpose, [fun.(params, inputs), [axes: permutation]])
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{op: :pad, parent: parent, opts: [padding_config: config, value: value]},
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    fun = fn params, inputs ->
+      config = [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
+      apply(Nx, :pad, [fun.(params, inputs), value, config])
     end
 
     {fun, cache}

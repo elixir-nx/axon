@@ -233,6 +233,101 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the shape after a transposed convolution layer
+  with the given parent shape, kernel shape, strides, padding,
+  and kernel dilation.
+
+  ## Examples
+
+      iex> Axon.Shape.conv_transpose({nil, 3, 3}, {6, 3, 2}, [1], :valid, [1])
+      {nil, 6, 4}
+  """
+  def conv_transpose(parent_shape, kernel_shape, strides, padding, kernel_dilation) do
+    permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
+    names = List.duplicate(nil, Nx.rank(parent_shape))
+    input_dilation = List.duplicate(1, Nx.rank(parent_shape) - 2)
+
+    padding = conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding)
+
+    input_shape =
+      if elem(parent_shape, 0) do
+        parent_shape
+      else
+        put_elem(parent_shape, 0, 1)
+      end
+
+    {shape, _, _} =
+      Nx.Shape.conv(
+        input_shape,
+        names,
+        kernel_shape,
+        names,
+        strides,
+        padding,
+        1,
+        1,
+        input_dilation,
+        kernel_dilation,
+        permutation,
+        permutation,
+        permutation
+      )
+
+    put_elem(shape, 0, elem(parent_shape, 0))
+  end
+
+  @doc """
+  Calculates the padding needed for a transposed convolution.
+  """
+  def conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding)
+      when padding in [:valid, :same] do
+    kernel_spatial_dims =
+      kernel_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+
+    kernel_dilation =
+      if is_list(kernel_dilation),
+        do: kernel_dilation,
+        else: List.duplicate(kernel_dilation, tuple_size(kernel_spatial_dims))
+
+    effective_kernel_size =
+      kernel_spatial_dims
+      |> Tuple.to_list()
+      |> Enum.zip(kernel_dilation)
+      |> Enum.map(fn {k, r} -> (k - 1) * r + 1 end)
+
+    case padding do
+      :valid ->
+        effective_kernel_size
+        |> Enum.zip(strides)
+        |> Enum.map(fn {k, s} ->
+          pad_len = k + s - 2 + max(k - s, 0)
+          pad_a = k - 1
+          {pad_a, pad_len - pad_a}
+        end)
+
+      :same ->
+        effective_kernel_size
+        |> Enum.zip(strides)
+        |> Enum.map(fn {k, s} ->
+          pad_len = k + s - 2
+
+          pad_a =
+            if s > k - 1 do
+              k - 1
+            else
+              ceil(pad_len / 2)
+            end
+
+          {pad_a, pad_len - pad_a}
+        end)
+    end
+  end
+
+  def conv_transpose_padding(_, _, _, padding), do: padding
+
+  @doc """
   Calculates the shape of a depthwise convolution kernel given the
   input shape, output filters, and kernel size.
 
@@ -724,5 +819,45 @@ defmodule Axon.Shape do
     {transposed_shape, _} = Nx.Shape.transpose(non_batch_shape, permutation, nil_names)
 
     Tuple.insert_at(transposed_shape, 0, batch_size)
+  end
+
+  @doc """
+  Calculates the shape after a pad layer, which pads
+  the spatial dimensions of an input.
+
+  ## Examples
+
+      iex> Axon.Shape.pad({nil, 3, 28, 28}, [{0, 1}, {1, 1}])
+      {nil, 3, 29, 30}
+
+      iex> Axon.Shape.pad({nil, 3, 30, 30}, [{2, -1}, {1, 1}])
+      {nil, 3, 31, 32}
+
+  ### Error cases
+
+      iex> Axon.Shape.pad({nil, 784}, [{0, 1}])
+      ** (ArgumentError) invalid padding configuration [{0, 1}], length of padding configuration must be equal to the rank of the spatial dimensions of the input
+  """
+  def pad(shape, config) do
+    unless length(config) == Nx.rank(shape) - 2 do
+      raise ArgumentError,
+            "invalid padding configuration #{inspect(config)}," <>
+              " length of padding configuration must be equal" <>
+              " to the rank of the spatial dimensions of the" <>
+              " input"
+    end
+
+    inp_shape =
+      if elem(shape, 0) == nil do
+        put_elem(shape, 0, 1)
+      else
+        shape
+      end
+
+    padding_config = [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
+
+    output_shape = Nx.Shape.pad(inp_shape, padding_config)
+
+    put_elem(output_shape, 0, elem(shape, 0))
   end
 end

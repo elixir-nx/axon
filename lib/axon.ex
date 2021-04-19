@@ -276,6 +276,73 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a transposed convolution layer to the network.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+    * `kernel_size` - Size of the kernel spatial dimensions.
+    * `strides` - Stride during convolution.
+    * `padding` - Padding to the spatial dimensions of the input.
+    * `kernel_dilation` - Dilation to apply to kernel.
+  """
+  def conv_transpose(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
+    activation = opts[:activation]
+
+    kernel_size = opts[:kernel_size] || 1
+    strides = opts[:strides] || 1
+    padding = opts[:padding] || :valid
+    kernel_dilation = opts[:kernel_dilation] || 1
+    inner_rank = Nx.rank(parent_shape) - 2
+
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
+
+    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size)
+    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size)
+
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    kernel =
+      param("kernel", kernel_shape,
+        initializer: kernel_initializer,
+        regularizer: kernel_regularizer
+      )
+
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias_regularizer = opts[:bias_regularizer]
+    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+    output_shape =
+      Axon.Shape.conv_transpose(
+        parent_shape,
+        kernel_shape,
+        strides,
+        padding,
+        kernel_dilation
+      )
+
+    node =
+      Axon.layer(x, :conv_transpose, output_shape, [kernel, bias], opts[:name],
+        strides: strides,
+        padding: padding,
+        kernel_dilation: kernel_dilation
+      )
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
   Adds a depthwise convolution layer to the network.
 
   The depthwise convolution layer implements a general
@@ -852,6 +919,24 @@ defmodule Axon do
   def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
     output_shape = Axon.Shape.transpose(shape, permutation)
     Axon.layer(x, :transpose, output_shape, [], opts[:name], permutation: permutation)
+  end
+
+  @doc """
+  Adds a pad layer to the network.
+
+  This layer will pad the spatial dimensions of the input.
+  Padding configuration is a list of tuples for each spatial
+  dimension.
+
+  ## Options
+
+    * `:name` - Layer name.
+  """
+  @doc type: :composition
+  def pad(%Axon{output_shape: shape} = x, config, value \\ 0.0, opts \\ [])
+      when is_list(config) and is_number(value) do
+    output_shape = Axon.Shape.pad(shape, config)
+    Axon.layer(x, :pad, output_shape, [], opts[:name], padding_config: config, value: value)
   end
 
   @doc """
