@@ -81,11 +81,6 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
   A custom Axon layer.
   """
   def layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])
@@ -130,10 +125,6 @@ defmodule Axon do
   end
 
   @doc """
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
   Adds an input layer to the network.
 
   Input layers specify a model's inputs. Input layers are
