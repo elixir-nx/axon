@@ -408,6 +408,39 @@ defmodule Axon.Compiler do
   end
 
   defp recur_predict_fun(
+         %Axon{op: :reshape, parent: parent, output_shape: output_shape},
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    fun = fn params, inputs ->
+      inp = fun.(params, inputs)
+      reshape_shape = put_elem(output_shape, 0, elem(Nx.shape(inp), 0))
+      apply(Nx, :reshape, [inp, reshape_shape])
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{op: :transpose, parent: parent, opts: [permutation: permutation]},
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    fun = fn params, inputs ->
+      permutation = [0 | Enum.map(permutation, &(&1 + 1))]
+      apply(Nx, :transpose, [fun.(params, inputs), [axes: permutation]])
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
          %Axon{op: :concatenate, parent: parents, opts: [axis: axis]},
          cache,
          param_map,

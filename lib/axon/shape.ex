@@ -671,4 +671,58 @@ defmodule Axon.Shape do
     {shape, _} = Nx.Shape.concatenate(input_shapes, nil_names, axis)
     shape
   end
+
+  @doc """
+  Calculates the shape after a reshape layer, which
+  reshapes non-batch dimensions.
+
+  ## Examples
+
+      iex> Axon.Shape.reshape({nil, 8}, {4, 2})
+      {nil, 4, 2}
+
+      iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4})
+      {32, 4, 4, 4}
+
+  ### Error cases
+
+      iex> Axon.Shape.reshape({nil, 4, 2}, {9})
+      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as batch dimensions of old shape
+  """
+  def reshape(shape, new_shape) do
+    batch_size = elem(shape, 0)
+    non_batch_shape = Tuple.delete_at(shape, 0)
+
+    unless Nx.size(non_batch_shape) == Nx.size(new_shape) do
+      raise ArgumentError,
+            "new shape invalid for reshape operation," <>
+              " layer shape #{inspect(shape)} is incompatible" <>
+              " with new shape #{inspect(new_shape)}, new shape" <>
+              " must have same size as batch dimensions of old shape"
+    end
+
+    Tuple.insert_at(new_shape, 0, batch_size)
+  end
+
+  @doc """
+  Calculates the shape after a transpose layer, which
+  transposes non-batch dimensions.
+
+  ## Examples
+
+      iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0])
+      {nil, 10, 64}
+
+      iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2])
+      {nil, 224, 3, 224}
+  """
+  def transpose(shape, permutation) do
+    batch_size = elem(shape, 0)
+    non_batch_shape = Tuple.delete_at(shape, 0)
+
+    nil_names = List.duplicate(nil, Nx.rank(non_batch_shape))
+    {transposed_shape, _} = Nx.Shape.transpose(non_batch_shape, permutation, nil_names)
+
+    Tuple.insert_at(transposed_shape, 0, batch_size)
+  end
 end

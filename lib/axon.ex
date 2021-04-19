@@ -81,11 +81,6 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
   A custom Axon layer.
   """
   def layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])
@@ -130,10 +125,10 @@ defmodule Axon do
   end
 
   @doc """
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
->>>>>>> Stashed changes
+  <<<<<<< Updated upstream
+  =======
+  >>>>>>> Stashed changes
+  >>>>>>> Stashed changes
   Adds an input layer to the network.
 
   Input layers specify a model's inputs. Input layers are
@@ -830,6 +825,37 @@ defmodule Axon do
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
     output_shape = Axon.Shape.flatten(shape)
     Axon.layer(x, :flatten, output_shape, [], opts[:name])
+  end
+
+  @doc """
+  Adds a reshape layer to the network.
+
+  This layer will reshape non-batch dimensions of the input.
+  New shape must be compatible with old shape.
+
+  ## Options
+
+    * `:name` - Layer name.
+  """
+  @doc type: :composition
+  def reshape(%Axon{output_shape: shape} = x, new_shape, opts \\ []) do
+    output_shape = Axon.Shape.reshape(shape, new_shape)
+    Axon.layer(x, :reshape, output_shape, [], opts[:name])
+  end
+
+  @doc """
+  Adds a transpose layer to the network.
+
+  This layer will transpose non-batch dimensions of the input.
+
+  ## Options
+
+    * `:name` - Layer name.
+  """
+  @doc type: :composition
+  def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
+    output_shape = Axon.Shape.transpose(shape, permutation)
+    Axon.layer(x, :transpose, output_shape, [], opts[:name], permutation: permutation)
   end
 
   @doc """
