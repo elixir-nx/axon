@@ -233,6 +233,29 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the reshape needed to broadcast convolution bias
+  over the given input shape.
+
+  In order to effectively broadcast, we need to expand
+  the dimensions of the bias term in convolutions - if
+  the input bias shape is a vector, otherwise we'll just
+  attempt to let it broadcast itself.
+  """
+  def conv_bias_reshape(input_shape, spatial_rank) do
+    case input_shape do
+      {} ->
+        {}
+
+      {shape} ->
+        spatial_dims = List.duplicate(1, spatial_rank)
+        List.to_tuple([1, shape | spatial_dims])
+
+      shape when is_tuple(shape) ->
+        shape
+    end
+  end
+
+  @doc """
   Calculates the shape after a transposed convolution layer
   with the given parent shape, kernel shape, strides, padding,
   and kernel dilation.
@@ -648,6 +671,33 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the window size of a pooling operation based on given
+  kernel size and spatial rank of the input.
+
+  `window_x` functions expect a window which matches the
+  rank of the input shape. For basic pooling we don't pool
+  across batch or channel dimensions, so we just specify
+  a size of `1` for each of those.
+  """
+  def pool_window_size(window, spatial_rank) do
+    spatial_dims =
+      case window do
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected pool window to be tuple or integer" <>
+                  " , got #{inspect(x)}"
+      end
+
+    List.to_tuple([1, 1 | spatial_dims])
+  end
+
+  @doc """
   Calculates the output shape after an adaptive pooling operation
   with the given parent shape and output size.
 
@@ -686,6 +736,90 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates strides needed for an adaptive pooling operation
+  with the given input shape, output spatial shape, and spatial
+  rank.
+
+  Adaptive pooling functions adapt the strides of the window
+  according to:
+
+      stride = div(input, output)
+
+  This preserves the size of the channel/batch dimension.
+  """
+  def adaptive_pool_window_strides(input_shape, output_spatial, spatial_rank) do
+    input_spatial =
+      input_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
+
+    output_spatial =
+      case output_spatial do
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected output spatial dimensions to be tuple" <>
+                  " or integer, got #{inspect(x)}"
+      end
+
+    strides =
+      output_spatial
+      |> Enum.zip(input_spatial)
+      |> Enum.map(fn {input, output} -> div(input, output) end)
+
+    [1, 1 | strides]
+  end
+
+  @doc """
+  Calculates the window size for an adaptive pooling operation
+  given input shape, strides, output spatial dimensions, and spatial
+  rank.
+
+  Adaptive pooling functions adopt the size of the window
+  according to:
+
+      size = input_size - (output_size - 1) * stride
+
+  This preserves the size of the channel/batch dimension.
+  """
+  def adaptive_pool_window_size(input_shape, [_, _ | stride], output_spatial, spatial_rank) do
+    input_spatial =
+      input_shape
+      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(0)
+      |> Tuple.to_list()
+
+    output_spatial =
+      case output_spatial do
+        x when is_integer(x) ->
+          List.duplicate(x, spatial_rank)
+
+        x when is_tuple(x) ->
+          Tuple.to_list(x)
+
+        x ->
+          raise ArgumentError,
+                "expected output spatial dimensions to be tuple" <>
+                  " or integer, got #{inspect(x)}"
+      end
+
+    zip_all = [input_spatial, output_spatial, stride]
+
+    output_size =
+      zip_all
+      |> Enum.zip()
+      |> Enum.map(fn {input, output, s} -> input - (output - 1) * s end)
+
+    List.to_tuple([1, 1 | output_size])
+  end
+
+  @doc """
   Calculates the gamma/beta shape of a normalization layer
   given the input shape and channel index.
 
@@ -703,6 +837,46 @@ defmodule Axon.Shape do
     |> Enum.with_index()
     |> Enum.map(fn {x, i} -> if i == channel_index, do: x, else: 1 end)
     |> List.to_tuple()
+  end
+
+  @doc """
+  Calculates the reduction axes for batch normalization.
+  """
+  def batch_norm_axes(axes, channel_index) do
+    axes
+    |> Enum.filter(&(&1 != channel_index))
+  end
+
+  @doc """
+  Calculates the reduction axes for instance normalization.
+  """
+  def instance_norm_axes(axes, channel_index) do
+    reduction_axes = axes -- [0, channel_index]
+
+    if reduction_axes == [] do
+      raise ArgumentError, "rank of input shape must be at least 3"
+    else
+      reduction_axes
+    end
+  end
+
+  @doc """
+  Calculates the reduction axes for group normalization.
+  """
+  def group_norm_axes(rank) do
+    for(i <- 1..(rank - 2), do: i) ++ [rank - 1]
+  end
+
+  @doc """
+  Calculates the reshape for group normalization.
+  """
+  def group_norm_shape(shape, group_size, channel_index) do
+    channels = :erlang.element(channel_index + 1, shape)
+    num_groups = div(channels, group_size)
+
+    Tuple.delete_at(shape, channel_index)
+    |> Tuple.insert_at(channel_index, num_groups)
+    |> Tuple.insert_at(channel_index + 1, group_size)
   end
 
   @doc """
@@ -859,5 +1033,17 @@ defmodule Axon.Shape do
     output_shape = Nx.Shape.pad(inp_shape, padding_config)
 
     put_elem(output_shape, 0, elem(shape, 0))
+  end
+
+  @doc """
+  Calculates the noise shape from a spatial dropout operation
+  based on the input shape.
+
+  Spatial dropout shapes are broadcasted across feature
+  channels, so we set the channel size to 1 and preserve
+  the spatial dimensions.
+  """
+  def spatial_dropout_noise_shape(input_shape) do
+    :erlang.setelement(2, input_shape, 1)
   end
 end

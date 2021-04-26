@@ -240,12 +240,9 @@ defmodule Axon.Layers do
       )
 
     bias_reshape =
-      transform(
-        {Nx.shape(bias), Nx.rank(input)},
-        fn {bias_shape, rank} ->
-          conv_bias_reshape(bias_shape, rank - 2)
-        end
-      )
+      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
+        Axon.Shape.conv_bias_reshape(bias_shape, rank)
+      end)
 
     input
     |> Nx.conv(weight,
@@ -332,12 +329,9 @@ defmodule Axon.Layers do
       )
 
     bias_reshape =
-      transform(
-        {Nx.shape(bias), Nx.rank(input)},
-        fn {bias_shape, rank} ->
-          conv_bias_reshape(bias_shape, rank - 2)
-        end
-      )
+      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
+        Axon.Shape.conv_bias_reshape(bias_shape, rank)
+      end)
 
     strides =
       transform(
@@ -428,7 +422,11 @@ defmodule Axon.Layers do
       )
 
     num_groups = transform(Nx.shape(input), &elem(&1, 1))
-    bias_reshape = transform(Nx.shape(bias), &conv_bias_reshape(&1, 1))
+
+    bias_reshape =
+      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
+        Axon.Shape.conv_bias_reshape(bias_shape, rank)
+      end)
 
     input
     |> Nx.conv(weight,
@@ -601,7 +599,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.rank(input), opts[:kernel_size]},
         fn {rank, kernel_size} ->
-          pool_window_size(kernel_size, rank - 2)
+          Axon.Shape.pool_window_size(kernel_size, rank - 2)
         end
       )
 
@@ -665,7 +663,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.rank(input), opts[:kernel_size]},
         fn {rank, kernel_size} ->
-          pool_window_size(kernel_size, rank - 2)
+          Axon.Shape.pool_window_size(kernel_size, rank - 2)
         end
       )
 
@@ -749,7 +747,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.rank(input), opts[:kernel_size]},
         fn {rank, kernel_size} ->
-          pool_window_size(kernel_size, rank - 2)
+          Axon.Shape.pool_window_size(kernel_size, rank - 2)
         end
       )
 
@@ -808,7 +806,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.shape(input), Nx.rank(input), opts[:output_size]},
         fn {shape, rank, output_size} ->
-          adaptive_pool_window_strides({shape, output_size}, rank - 2)
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
         end
       )
 
@@ -816,7 +814,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
         fn {shape, rank, strides, output_size} ->
-          adaptive_pool_window_strides({shape, strides, output_size}, rank - 2)
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
         end
       )
 
@@ -853,7 +851,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.shape(input), Nx.rank(input), opts[:output_size]},
         fn {shape, rank, output_size} ->
-          adaptive_pool_window_strides({shape, output_size}, rank - 2)
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
         end
       )
 
@@ -861,7 +859,7 @@ defmodule Axon.Layers do
       transform(
         {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
         fn {shape, rank, strides, output_size} ->
-          adaptive_pool_window_size({shape, strides, output_size}, rank - 2)
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
         end
       )
 
@@ -898,7 +896,12 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn batch_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
-    axes = transform({Nx.axes(input), opts[:channel_index]}, &batch_norm_axes/1)
+
+    axes =
+      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
+        Axon.Shape.batch_norm_axes(axes, channel)
+      end)
+
     {mean, var} = mean_and_variance(input, axes: axes)
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -962,10 +965,13 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
 
     group_shape =
-      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, &group_norm_shape/1)
+      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups,
+                                                                                channel} ->
+        Axon.Shape.group_norm_shape(shape, groups, channel)
+      end)
 
     x = Nx.reshape(input, group_shape)
-    axes = transform(Nx.rank(x), &group_norm_axes/1)
+    axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
     x = normalize(x, mean, var, gamma, bias)
     Nx.reshape(x, Nx.shape(input)) * gamma + bias
@@ -997,7 +1003,12 @@ defmodule Axon.Layers do
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
-    axes = transform({Nx.axes(input), opts[:channel_index]}, &instance_norm_axes/1)
+
+    axes =
+      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
+        Axon.Shape.instance_norm_axes(axes, channel)
+      end)
+
     {mean, var} = mean_and_variance(input, axes: axes)
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -1075,7 +1086,7 @@ defmodule Axon.Layers do
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
     opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
+    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
@@ -1138,7 +1149,7 @@ defmodule Axon.Layers do
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
     opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &spatial_dropout_noise_shape/1)
+    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
 
@@ -1172,166 +1183,7 @@ defmodule Axon.Layers do
       >
   """
   defn flatten(x) do
-    new_shape =
-      transform(
-        Nx.shape(x),
-        fn shape ->
-          batch_size = elem(shape, 0)
-
-          new_units =
-            shape
-            |> Tuple.delete_at(0)
-            |> Nx.size()
-
-          {batch_size, new_units}
-        end
-      )
-
+    new_shape = transform(Nx.shape(x), &Axon.Shape.flatten/1)
     Nx.reshape(x, new_shape)
-  end
-
-  ## Helpers
-
-  # `window_x` functions expect a window which matches the
-  # rank of the input shape. For basic pooling we don't pool
-  # across batch or channel dimensions, so we just specify
-  # a size of `1` for each of those
-  defp pool_window_size(w, spatial_rank) do
-    spatial_dims =
-      case w do
-        x when is_integer(x) ->
-          List.duplicate(x, spatial_rank)
-
-        x when is_tuple(x) ->
-          Tuple.to_list(x)
-
-        x ->
-          raise ArgumentError,
-                "expected pool window to be tuple or integer" <>
-                  " , got #{inspect(x)}"
-      end
-
-    List.to_tuple([1, 1 | spatial_dims])
-  end
-
-  # Adaptive pooling functions adapt the strides of the window
-  # according to:
-  # stride = div(input, output)
-  # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_strides({input_shape, output_spatial}, spatial_rank) do
-    input_spatial =
-      input_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-      |> Tuple.to_list()
-
-    output_spatial =
-      case output_spatial do
-        x when is_integer(x) ->
-          List.duplicate(x, spatial_rank)
-
-        x when is_tuple(x) ->
-          Tuple.to_list(x)
-
-        x ->
-          raise ArgumentError,
-                "expected output spatial dimensions to be tuple" <>
-                  " or integer, got #{inspect(x)}"
-      end
-
-    strides =
-      output_spatial
-      |> Enum.zip(input_spatial)
-      |> Enum.map(fn {input, output} -> div(input, output) end)
-
-    [1, 1 | strides]
-  end
-
-  # Adaptive pooling functions adopt the size of the window
-  # according to:
-  # size = input_size - (output_size - 1) * stride
-  # This preserves the size of the channel/batch dimension
-  defp adaptive_pool_window_size({input_shape, [_, _ | stride], output_spatial}, spatial_rank) do
-    input_spatial =
-      input_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
-      |> Tuple.to_list()
-
-    output_spatial =
-      case output_spatial do
-        x when is_integer(x) ->
-          List.duplicate(x, spatial_rank)
-
-        x when is_tuple(x) ->
-          Tuple.to_list(x)
-
-        x ->
-          raise ArgumentError,
-                "expected output spatial dimensions to be tuple" <>
-                  " or integer, got #{inspect(x)}"
-      end
-
-    zip_all = [input_spatial, output_spatial, stride]
-
-    output_size =
-      zip_all
-      |> Enum.zip()
-      |> Enum.map(fn {input, output, s} -> input - (output - 1) * s end)
-
-    List.to_tuple([1, 1 | output_size])
-  end
-
-  # In order to effectively broadcast, we need to expand
-  # the dimensions of the bias term in convolutions - if
-  # the input bias shape is a vector, otherwise we'll just
-  # attempt to let it broadcast itself
-  defp conv_bias_reshape(input_shape, spatial_rank) do
-    case input_shape do
-      {} ->
-        {}
-
-      {shape} ->
-        spatial_dims = List.duplicate(1, spatial_rank)
-        List.to_tuple([1, shape | spatial_dims])
-
-      shape when is_tuple(shape) ->
-        shape
-    end
-  end
-
-  # Spatial dropout shapes are broadcasted across feature
-  # channels, so we set the channel size to 1 and preserve
-  # the spatial dimensions
-  defp spatial_dropout_noise_shape(input_shape) do
-    :erlang.setelement(2, input_shape, 1)
-  end
-
-  defp batch_norm_axes({axes, channel_index}) do
-    axes
-    |> Enum.filter(&(&1 != channel_index))
-  end
-
-  defp instance_norm_axes({axes, channel_index}) do
-    reduction_axes = axes -- [0, channel_index]
-
-    if reduction_axes == [] do
-      raise ArgumentError, "rank of input shape must be at least 3"
-    else
-      reduction_axes
-    end
-  end
-
-  defp group_norm_axes(rank) do
-    for(i <- 1..(rank - 2), do: i) ++ [rank - 1]
-  end
-
-  defp group_norm_shape({shape, group_size, channel_index}) do
-    channels = :erlang.element(channel_index + 1, shape)
-    num_groups = div(channels, group_size)
-
-    Tuple.delete_at(shape, channel_index)
-    |> Tuple.insert_at(channel_index, num_groups)
-    |> Tuple.insert_at(channel_index + 1, group_size)
   end
 end
