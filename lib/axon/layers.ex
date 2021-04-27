@@ -108,6 +108,49 @@ defmodule Axon.Layers do
     |> Nx.add(bias)
   end
 
+  @doc ~S"""
+  Functional implementation of a bilinear layer.
+
+  Bilinear transformation of the input such that:
+
+  $$y = x_1^{T}Ax_2 + b$$
+
+  ## Parameter Shapes
+
+    * `input1` - `{batch_size, ..., input1_features}`
+    * `input2` - `{batch_size, ..., input2_features}`
+    * `weight` - `{out_features, input1_features, input2_features}`
+
+  ## Output Shape
+
+    `{batch_size, output_features}`
+
+  ## Examples
+
+      iex> inp1 = Nx.iota({3, 2}, type: {:f, 32})
+      iex> inp2 = Nx.iota({3, 4}, type: {:f, 32})
+      iex> weight = Nx.iota({1, 2, 4}, type: {:f, 32})
+      iex> bias = Nx.tensor(1.0)
+      iex> Axon.Layers.bilinear(inp1, inp2, weight, bias)
+      #Nx.Tensor<
+        f32[3][1]
+        [
+          [39.0],
+          [455.0],
+          [1319.0]
+        ]
+      >
+  """
+  @doc type: :linear
+  defn bilinear(input1, input2, weight, bias) do
+    inp1_axes = transform(Nx.rank(input1), fn rank -> [rank - 1] end)
+    inp2_axes = transform(Nx.rank(input2), fn rank -> [rank - 1] end)
+    input1
+    |> Nx.dot(inp1_axes, [], weight, [1], [])
+    |> Nx.dot([2], [0], input2, inp2_axes, [0])
+    |> Nx.add(bias)
+  end
+
   ## Convolutional
 
   @doc """
