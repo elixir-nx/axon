@@ -83,6 +83,9 @@ defmodule Axon.Training do
     * `:epochs` - number of epochs to train for. Defaults to `5`.
     * `:compiler` - `defn` compiler to use to run training loop.
       Defaults to `Nx.Defn.Evaluator`.
+    * `:log_every` - frequency with which to log training loss.
+      Accepts an integer referring to number of batches, `:epoch`,
+      or `:none`. Defaults to `:epoch`.
 
   All other options are given to the underlying compiler.
 
@@ -146,13 +149,6 @@ defmodule Axon.Training do
   defp train_epoch(step_fn, model_state, inputs, targets, epoch, opts) do
     {log_every, jit_opts} = Keyword.pop(opts, :log_every)
 
-    log_freq =
-      if is_integer(log_every) do
-        log_every
-      else
-        -1
-      end
-
     dataset =
       inputs
       |> Stream.zip(targets)
@@ -169,23 +165,31 @@ defmodule Axon.Training do
             |> Nx.add(Nx.backend_transfer(batch_loss))
             |> Nx.divide(i + 1)
 
-          if rem(i + 1, log_freq) == 0 do
-            IO.write(
-              "\rEpoch #{epoch}, batch #{i + 1} - " <>
-                "Average Loss: #{Nx.to_scalar(avg_loss)}"
-            )
+          if is_integer(log_every) and rem(i + 1, log_every) == 0 do
+            log_batch(epoch, i + 1, avg_loss)
           end
 
           {model_state, avg_loss, i + 1}
       end
 
     if log_every != :none do
-      IO.write(
-        "\rEpoch #{epoch}, batch #{total_batches} of #{total_batches} - " <>
-          "Average Loss: #{Nx.to_scalar(avg_loss)}"
-      )
+      log_batch(epoch, total_batches, total_batches, avg_loss)
     end
 
     {model_state, avg_loss}
   end
+
+  defp log_batch(epoch, batch_num, total_batches, avg_loss),
+    do:
+      IO.write(
+        "\rEpoch #{epoch}, batch #{batch_num} of #{total_batches} - " <>
+          "Average Loss: #{Nx.to_scalar(avg_loss)}"
+      )
+
+  defp log_batch(epoch, batch_num, avg_loss),
+    do:
+      IO.write(
+        "\rEpoch #{epoch}, batch #{batch_num} - " <>
+          "Average Loss: #{Nx.to_scalar(avg_loss)}"
+      )
 end
