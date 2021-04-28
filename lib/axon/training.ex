@@ -144,45 +144,48 @@ defmodule Axon.Training do
   ## Helpers
 
   defp train_epoch(step_fn, model_state, inputs, targets, epoch, opts) do
-    total_batches = Enum.count(inputs)
-
     {log_every, jit_opts} = Keyword.pop(opts, :log_every)
 
     log_freq =
-      case log_every do
-        :epoch ->
-          total_batches
-
-        x when is_integer(x) ->
-          x
-
-        :none ->
-          total_batches + 1
+      if is_integer(log_every) do
+        log_every
+      else
+        -1
       end
 
     dataset =
       inputs
-      |> Enum.zip(targets)
-      |> Enum.with_index()
+      |> Stream.zip(targets)
+      |> Stream.with_index()
 
-    for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0)} do
-      {model_state, state} ->
-        {model_state, batch_loss} = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
+    {model_state, avg_loss, total_batches} =
+      for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0), 0} do
+        {model_state, state, _batch_count} ->
+          {model_state, batch_loss} = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
 
-        avg_loss =
-          state
-          |> Nx.multiply(i)
-          |> Nx.add(Nx.backend_transfer(batch_loss))
-          |> Nx.divide(i + 1)
+          avg_loss =
+            state
+            |> Nx.multiply(i)
+            |> Nx.add(Nx.backend_transfer(batch_loss))
+            |> Nx.divide(i + 1)
 
-        if rem(i + 1, log_freq) == 0 or (i + 1 == total_batches and log_every != :none) do
-          IO.write(
-            "\rEpoch #{epoch}, batch #{i + 1} of #{total_batches} - " <>
-              "Average Loss: #{Nx.to_scalar(avg_loss)}"
-          )
-        end
+          if rem(i + 1, log_freq) == 0 do
+            IO.write(
+              "\rEpoch #{epoch}, batch #{i + 1} - " <>
+                "Average Loss: #{Nx.to_scalar(avg_loss)}"
+            )
+          end
 
-        {model_state, avg_loss}
+          {model_state, avg_loss, i + 1}
+      end
+
+    if log_every != :none do
+      IO.write(
+        "\rEpoch #{epoch}, batch #{total_batches} of #{total_batches} - " <>
+          "Average Loss: #{Nx.to_scalar(avg_loss)}"
+      )
     end
+
+    {model_state, avg_loss}
   end
 end
