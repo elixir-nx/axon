@@ -1046,4 +1046,69 @@ defmodule Axon.Shape do
   def spatial_dropout_noise_shape(input_shape) do
     :erlang.setelement(2, input_shape, 1)
   end
+
+  @doc """
+  Calculates output shape of RNN.
+  """
+  def rnn(shape, units, type) do
+    unless Nx.rank(shape) == 3 do
+      raise ArgumentError,
+            "#{inspect(type)} input shape must be rank 3 {batch_size, sequence_length, sequence_features}" <>
+              " got #{inspect(shape)}"
+    end
+
+    {elem(shape, 0), elem(shape, 1), units}
+  end
+
+  @doc """
+  Calculates the shape of RNN input kernel.
+  """
+  def rnn_input_kernel(shape, units, type) do
+    unless Nx.rank(shape) == 3 do
+      raise ArgumentError,
+            "#{inspect(type)} input shape must be rank 3 {batch_size, sequence_length, sequence_features}" <>
+              " got #{inspect(shape)}"
+    end
+
+    {elem(shape, 2), units}
+  end
+
+  @doc """
+  Calculates the shape of RNN hidden kernel.
+  """
+  def rnn_hidden_kernel(shape, units, type) do
+    unless Nx.rank(shape) == 3 do
+      raise ArgumentError,
+            "#{inspect(type)} input shape must be rank 3 {batch_size, sequence_length, sequence_features}" <>
+              " got #{inspect(shape)}"
+    end
+
+    {units, units}
+  end
+
+  @doc """
+  Calculates the shape of RNN bias.
+  """
+  def rnn_bias(shape, units, type) do
+    unless Nx.rank(shape) == 3 do
+      raise ArgumentError,
+            "#{inspect(type)} input shape must be rank 3 {batch_size, sequence_length, sequence_features}" <>
+              " got #{inspect(shape)}"
+    end
+
+    {1, 1, units}
+  end
+
+  @doc """
+  Calculates the shape of RNN hidden state.
+  """
+  def rnn_hidden_state(shape, units, type) do
+    unless Nx.rank(shape) == 3 do
+      raise ArgumentError,
+            "#{inspect(type)} input shape must be rank 3 {batch_size, sequence_length, sequence_features}" <>
+              " got #{inspect(shape)}"
+    end
+
+    {elem(shape, 0), 1, units}
+  end
 end

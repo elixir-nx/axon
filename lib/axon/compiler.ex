@@ -45,7 +45,18 @@ defmodule Axon.Compiler do
     Enum.reduce(parents, cache, &to_init_fun/2)
   end
 
-  defp to_init_fun(%Axon{parent: parent, params: params}, cache) do
+  defp to_init_fun(%Axon{parent: parent, params: params, opts: opts}, cache) do
+    cache =
+      case opts[:hidden_state] do
+        state when is_tuple(state) ->
+          state
+          |> Tuple.to_list()
+          |> Enum.reduce(cache, &to_init_fun/2)
+
+        nil ->
+          cache
+      end
+
     cache =
       Enum.reduce(params, cache, fn
         %{id: id} = param, cache ->
@@ -147,7 +158,24 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp get_params_and_inputs(%Axon{parent: parent, params: params}, param_ids, input_ids) do
+  defp get_params_and_inputs(
+         %Axon{parent: parent, params: params, opts: opts},
+         param_ids,
+         input_ids
+       ) do
+    {param_ids, input_ids} =
+      case opts[:hidden_state] do
+        state when is_tuple(state) ->
+          state
+          |> Tuple.to_list()
+          |> Enum.reduce({param_ids, input_ids}, fn graph, {param_ids, input_ids} ->
+            get_params_and_inputs(graph, param_ids, input_ids)
+          end)
+
+        nil ->
+          {param_ids, input_ids}
+      end
+
     param_ids = Enum.reduce(params, param_ids, fn %{id: id}, param_ids -> [id | param_ids] end)
     get_params_and_inputs(parent, param_ids, input_ids)
   end
@@ -377,6 +405,278 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
+  ## Recurrent Layers
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :lstm,
+           parent: parent,
+           params: [
+             %{id: wii_id},
+             %{id: wif_id},
+             %{id: wig_id},
+             %{id: wio_id},
+             %{id: whi_id},
+             %{id: whf_id},
+             %{id: whg_id},
+             %{id: who_id},
+             %{id: bi_id},
+             %{id: bf_id},
+             %{id: bg_id},
+             %{id: bo_id}
+           ],
+           opts: [
+             activation: activation,
+             gate: gate,
+             hidden_state: hidden_state,
+             hidden_state_shape: hidden_state_shape,
+             recurrent_initializer: recurrent_initializer
+           ]
+         },
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    wii_idx = param_map[wii_id]
+    wif_idx = param_map[wif_id]
+    wig_idx = param_map[wig_id]
+    wio_idx = param_map[wio_id]
+    whi_idx = param_map[whi_id]
+    whf_idx = param_map[whf_id]
+    whg_idx = param_map[whg_id]
+    who_idx = param_map[who_id]
+    bi_idx = param_map[bi_id]
+    bf_idx = param_map[bf_id]
+    bg_idx = param_map[bg_id]
+    bo_idx = param_map[bo_id]
+
+    fun = fn params, input ->
+      input = fun.(params, input)
+
+      hidden_state_fun =
+        case hidden_state do
+          {%Axon{} = c, %Axon{} = h} ->
+            {c_fun, cache} = to_predict_fun(c, cache, param_map, input_map)
+            {h_fun, _} = to_predict_fun(h, cache, param_map, input_map)
+
+            fn params, inputs ->
+              {c_fun.(params, inputs), h_fun.(params, inputs)}
+            end
+
+          %Axon{} = x ->
+            {hidden_fun, _} = to_predict_fun(x, cache, param_map, input_map)
+            hidden_fun
+
+          nil ->
+            shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
+
+            fn _, _ ->
+              {
+                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]]),
+                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
+              }
+            end
+        end
+
+      input_kernel =
+        {elem(params, wii_idx), elem(params, wif_idx), elem(params, wig_idx),
+         elem(params, wio_idx)}
+
+      hidden_kernel =
+        {elem(params, whi_idx), elem(params, whf_idx), elem(params, whg_idx),
+         elem(params, who_idx)}
+
+      bias =
+        {elem(params, bi_idx), elem(params, bf_idx), elem(params, bg_idx), elem(params, bo_idx)}
+
+      carry = hidden_state_fun.(params, input)
+
+      gate_fn = &apply(Axon.Activations, gate, [&1])
+      activation_fn = &apply(Axon.Activations, activation, [&1])
+
+      Axon.Recurrent.static_unroll(
+        &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+        fun.(params, input),
+        carry,
+        input_kernel,
+        hidden_kernel,
+        bias
+      )
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :conv_lstm,
+           parent: parent,
+           params: [
+             %{id: wi_id},
+             %{id: wh_id},
+             %{id: b_id}
+           ],
+           opts: [
+             hidden_state: hidden_state,
+             strides: strides,
+             padding: padding,
+             hidden_state_shape: hidden_state_shape,
+             recurrent_initializer: recurrent_initializer
+           ]
+         },
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    wi_idx = param_map[wi_id]
+    wh_idx = param_map[wh_id]
+    b_idx = param_map[b_id]
+
+    fun = fn params, input ->
+      input = fun.(params, input)
+
+      hidden_state_fun =
+        case hidden_state do
+          {%Axon{} = c, %Axon{} = h} ->
+            {c_fun, cache} = to_predict_fun(c, cache, param_map, input_map)
+            {h_fun, _} = to_predict_fun(h, cache, param_map, input_map)
+
+            fn params, inputs ->
+              {c_fun.(params, inputs), h_fun.(params, inputs)}
+            end
+
+          %Axon{} = x ->
+            {hidden_fun, _} = to_predict_fun(x, cache, param_map, input_map)
+            hidden_fun
+
+          nil ->
+            shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
+
+            fn _, _ ->
+              {
+                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]]),
+                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
+              }
+            end
+        end
+
+      input_kernel = {elem(params, wi_idx)}
+
+      hidden_kernel = {elem(params, wh_idx)}
+
+      bias = {elem(params, b_idx)}
+
+      carry = hidden_state_fun.(params, input)
+
+      Axon.Recurrent.static_unroll(
+        &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
+        fun.(params, input),
+        carry,
+        input_kernel,
+        hidden_kernel,
+        bias
+      )
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :gru,
+           parent: parent,
+           params: [
+             %{id: wir_id},
+             %{id: wiz_id},
+             %{id: win_id},
+             %{id: whr_id},
+             %{id: whz_id},
+             %{id: whn_id},
+             %{id: br_id},
+             %{id: bz_id},
+             %{id: bin_id},
+             %{id: bhn_id}
+           ],
+           opts: [
+             activation: activation,
+             gate: gate,
+             hidden_state: hidden_state,
+             hidden_state_shape: hidden_state_shape,
+             recurrent_initializer: recurrent_initializer
+           ]
+         },
+         cache,
+         param_map,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, param_map, input_map)
+
+    wir_idx = param_map[wir_id]
+    wiz_idx = param_map[wiz_id]
+    win_idx = param_map[win_id]
+    whr_idx = param_map[whr_id]
+    whz_idx = param_map[whz_id]
+    whn_idx = param_map[whn_id]
+    br_idx = param_map[br_id]
+    bz_idx = param_map[bz_id]
+    bin_idx = param_map[bin_id]
+    bhn_idx = param_map[bhn_id]
+
+    fun = fn params, input ->
+      input = fun.(params, input)
+
+      hidden_state_fun =
+        case hidden_state do
+          {%Axon{} = c} ->
+            {h_fun, _} = to_predict_fun(c, cache, param_map, input_map)
+
+            fn params, inputs ->
+              {h_fun.(params, inputs)}
+            end
+
+          %Axon{} = x ->
+            {hidden_fun, _} = to_predict_fun(x, cache, param_map, input_map)
+            hidden_fun
+
+          nil ->
+            shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
+
+            fn _, _ ->
+              {
+                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
+              }
+            end
+        end
+
+      input_kernel = {elem(params, wir_idx), elem(params, wiz_idx), elem(params, win_idx)}
+
+      hidden_kernel = {elem(params, whr_idx), elem(params, whz_idx), elem(params, whn_idx)}
+
+      bias =
+        {elem(params, br_idx), elem(params, bz_idx), elem(params, bin_idx), elem(params, bhn_idx)}
+
+      carry = hidden_state_fun.(params, input)
+
+      gate_fn = &apply(Axon.Activations, gate, [&1])
+      activation_fn = &apply(Axon.Activations, activation, [&1])
+
+      Axon.Recurrent.static_unroll(
+        &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+        fun.(params, input),
+        carry,
+        input_kernel,
+        hidden_kernel,
+        bias
+      )
+    end
+
+    {fun, cache}
+  end
+
   ## Element-wise layers
 
   @element_wise_layers [:add, :subtract, :multiply]
@@ -500,6 +800,11 @@ defmodule Axon.Compiler do
     end
 
     {fun, cache}
+  end
+
+  defp recur_predict_fun(x, _, _, _) do
+    IO.inspect(x.op)
+    IO.inspect(x.opts)
   end
 
   ## Penalty Function Compilation

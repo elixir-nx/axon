@@ -1,9 +1,32 @@
 defmodule Axon.Recurrent do
   @moduledoc """
-  Implementation of routines for creating Recurrent Neural Networks.
+  Functional implementations of common recurrent neural network
+  routines.
+
+  Recurrent Neural Networks are commonly used for working with
+  sequences of data where there is some level of dependence between
+  outputs at different timesteps.
+
+  This module contains 3 RNN Cell functions and methods to "unroll"
+  cells over an entire sequence. Each cell function returns a tuple:
+
+      {new_carry, output}
+
+  Where `new_carry` is an updated carry state and `output` is the output
+  for a singular timestep. In order to apply an RNN across multiple timesteps,
+  you need to use either `static_unroll` or `dynamic_unroll` (coming soon).
+
+  Unrolling an RNN is equivalent to a `map_reduce` or `scan` starting
+  from an initial carry state and ending with a final carry state and
+  an output sequence.
+
+  All of the functions in this module are implemented as
+  numerical functions and can be JIT or AOT compiled with
+  any supported `Nx` compiler.
   """
   import Nx.Defn
   import Axon.Layers
+  import Axon.Activations
 
   @doc """
   GRU Cell.
@@ -12,18 +35,19 @@ defmodule Axon.Recurrent do
          input,
          carry,
          input_kernel,
-         recurrent_kernel,
+         hidden_kernel,
          bias,
-         gate_fn \\ &Axon.Activations.sigmoid/1,
-         activation_fn \\ &Axon.Activations.tanh/1
+         gate_fn \\ &sigmoid/1,
+         activation_fn \\ &tanh/1
        ) do
     {hidden} = carry
     {wir, wiz, win} = input_kernel
-    {hir, hiz, hin} = recurrent_kernel
+    {whr, whz, whn} = hidden_kernel
+    {br, bz, bin, bhn} = bias
 
-    r = gate_fn.(dense(input, wir, bias) + dense(hidden, hir, 0))
-    z = gate_fn.(dense(input, wiz, bias) + dense(hidden, hiz, 0))
-    n = activation_fn.(dense(input, win, bias) + r * dense(hidden, hin, bias))
+    r = gate_fn.(dense(input, wir, br) + dense(hidden, whr, 0))
+    z = gate_fn.(dense(input, wiz, bz) + dense(hidden, whz, 0))
+    n = activation_fn.(dense(input, win, bin) + r * dense(hidden, whn, bhn))
 
     new_h = (1.0 - z) * n + z * hidden
 
@@ -37,19 +61,20 @@ defmodule Axon.Recurrent do
          input,
          carry,
          input_kernel,
-         recurrent_kernel,
+         hidden_kernel,
          bias,
-         gate_fn \\ &Axon.Activations.sigmoid/1,
-         activation_fn \\ &Axon.Activations.tanh/1
+         gate_fn \\ &sigmoid/1,
+         activation_fn \\ &tanh/1
        ) do
     {cell, hidden} = carry
     {wii, wif, wig, wio} = input_kernel
-    {whi, whf, whg, who} = recurrent_kernel
+    {whi, whf, whg, who} = hidden_kernel
+    {bi, bf, bg, bo} = bias
 
-    i = gate_fn.(dense(input, wii, bias) + dense(hidden, whi, 0))
-    f = gate_fn.(dense(input, wif, bias) + dense(hidden, whf, 0))
-    g = activation_fn.(dense(input, wig, bias) + dense(hidden, whg, 0))
-    o = gate_fn.(dense(input, wio, bias) + dense(hidden, who, 0))
+    i = gate_fn.(dense(input, wii, bi) + dense(hidden, whi, 0))
+    f = gate_fn.(dense(input, wif, bf) + dense(hidden, whf, 0))
+    g = activation_fn.(dense(input, wig, bg) + dense(hidden, whg, 0))
+    o = gate_fn.(dense(input, wio, bo) + dense(hidden, who, 0))
 
     new_c = f * cell + i * g
     new_h = o * activation_fn.(new_c)
@@ -60,22 +85,23 @@ defmodule Axon.Recurrent do
   @doc """
   ConvLSTM Cell.
   """
-  defn conv_lstm_cell(input, carry, input_kernel, recurrent_kernel, bias, opts \\ []) do
+  defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
     {cell, hidden} = carry
     {ih} = input_kernel
-    {hh} = recurrent_kernel
+    {hh} = hidden_kernel
+    {bi} = bias
 
     gates =
-      conv(input, ih, bias, strides: opts[:strides], padding: opts[:padding]) +
+      conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]) +
         conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
 
     {i, g, f, o} = split_gates(gates)
 
-    f = Axon.Activations.sigmoid(f + 1)
-    new_c = f * cell + Axon.Activations.sigmoid(i) * Axon.Activations.tanh(g)
-    new_h = Axon.Activations.sigmoid(o) * Axon.Activations.tanh(new_c)
+    f = sigmoid(f + 1)
+    new_c = f * cell + sigmoid(i) * tanh(g)
+    new_h = sigmoid(o) * tanh(new_c)
 
     {{new_c, new_h}, new_h}
   end
@@ -113,7 +139,6 @@ defmodule Axon.Recurrent do
               {carry, [output | outputs]}
           end
 
-        # TODO: This should be a stack along the time axis
         {carry, Nx.concatenate(Enum.reverse(outputs), axis: 1)}
       end
     )
