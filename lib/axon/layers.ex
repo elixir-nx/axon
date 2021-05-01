@@ -145,6 +145,7 @@ defmodule Axon.Layers do
   defn bilinear(input1, input2, weight, bias) do
     inp1_axes = transform(Nx.rank(input1), fn rank -> [rank - 1] end)
     inp2_axes = transform(Nx.rank(input2), fn rank -> [rank - 1] end)
+
     input1
     |> Nx.dot(inp1_axes, [], weight, [1], [])
     |> Nx.dot([2], [0], input2, inp2_axes, [0])
