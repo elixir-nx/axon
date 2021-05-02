@@ -65,6 +65,37 @@ defmodule Axon.Training do
   end
 
   @doc """
+  Represents a single training step using an Axon `model`,
+  initial state `model_state`, `loss` function and `optimizer.
+
+  The `loss` function is either an atom or a two arity anonymous
+  function.
+  """
+  def step(%Axon{} = model, model_state, loss, optimizer) when is_function(loss, 2) do
+    # TODO: I don't think we should do this, but it seems
+    # to be the workaround with the fewest implications
+    # that I'm aware of
+    init_fn = fn ->
+      model_state
+      |> Tuple.to_list()
+      |> Enum.map(&Nx.Defn.Expr.tensor/1)
+      |> List.to_tuple()
+    end
+
+    objective_fn = fn params, input, target ->
+      preds = Axon.predict(model, params, input)
+      Nx.add(loss.(target, preds), Axon.penalty(model, params))
+    end
+
+    step({init_fn, objective_fn}, optimizer)
+  end
+
+  def step(%Axon{} = model, model_state, loss, optimizer) when is_atom(loss) do
+    loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
+    step(model, model_state, loss_fn, optimizer)
+  end
+
+  @doc """
   Implements a common training loop.
 
   Its arguments are:
