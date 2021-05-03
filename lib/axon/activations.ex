@@ -378,6 +378,32 @@ defmodule Axon.Activations do
   defn log_sigmoid(x), do: -softplus(-x)
 
   @doc ~S"""
+  Mish activation.
+
+  $$f(x_i) = x_i* \tanh(\log(1 + e^x_i))$$
+
+  ## Examples
+
+      iex> Axon.Activations.mish(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
+      #Nx.Tensor<
+        f32[data: 7]
+        [-0.14564745128154755, -0.2525014877319336, -0.30340147018432617, 0.0, 0.8650984168052673, 1.9439589977264404, 2.98653507232666]
+      >
+
+      iex> Axon.Activations.mish(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
+      #Nx.Tensor<
+        bf16[batch: 2][data: 3]
+        [
+          [-0.30078125, -0.25, -0.1435546875],
+          [0.86328125, 1.9375, 2.96875]
+        ]
+      >
+  """
+  defn mish(x) do
+    x * tanh(softplus(x))
+  end
+
+  @doc ~S"""
   Rectified linear unit activation.
 
   $$f(x_i) = \max_i(x, 0)$$
