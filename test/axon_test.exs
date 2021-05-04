@@ -377,12 +377,6 @@ defmodule AxonTest do
                  apply(Axon, act, [Axon.input({nil, 32}), [name: "activation"]])
       end
     end
-
-    test "fails on bad activation" do
-      assert_raise ArgumentError, ~r/invalid activation/, fn ->
-        Axon.input({nil, 32}) |> Axon.activation(:foo)
-      end
-    end
   end
 
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]

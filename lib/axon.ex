@@ -81,8 +81,29 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
 
   @doc """
-  A custom Axon layer.
+  Custom Axon layer with given parent.
+
+  Applies `op` on `parent` with parameters `parameters`. `parameters`
+  is a list of trainable `parameters` created using `Axon.param`. Assumes
+  `op` is a function of the following form:
+
+      op = fn input, w1, w2, ... wn -> ... end
+
+  If `opts` is not empty, it is treated as input options to the layer
+  method:
+
+      op = fn input, w1, w2, ... wn, opts -> ... end
+
+  Parameters *must* be declared in the order of their usage:
+
+      w1 = Axon.param("weight", {})
+      b1 = Axon.param("bias", {})
+
+      op = fn input, w1, b1 -> w1 * input + b1 end
+
+      Axon.layer(parent, op, {}, [w1, b1])
   """
+  @doc type: :special
   def layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])
       when is_atom(op) or is_function(op) do
     op_name = if is_atom(op), do: op, else: :layer
@@ -105,7 +126,19 @@ defmodule Axon do
   end
 
   @doc """
-  A trainable Axon parameter.
+  Trainable Axon parameter used to create custom layers.
+
+  Parameters are specified in usages of `Axon.layer` and will
+  be automatically initialized and used in subsequent applications
+  of Axon models.
+
+  Parameters *must* be specified in order of their usage.
+
+  ## Options
+
+    * `initializer` - parameter initializer. Defaults to `:glorot_uniform`.
+    * `:regularizer` - parameter regularizer. Defaults to `:none`.
+
   """
   def param(name, shape, opts \\ []) do
     initializer = opts[:initializer] || :glorot_uniform
@@ -135,7 +168,7 @@ defmodule Axon do
     * `name` - Layer name.
 
   """
-  @doc type: :layer
+  @doc type: :special
   def input(input_shape, opts \\ []) do
     output_shape = Axon.Shape.input(input_shape)
     layer(nil, :input, output_shape, [], opts[:name], opts)
@@ -162,7 +195,7 @@ defmodule Axon do
     * `activation` - Element-wise activation function.
 
   """
-  @doc type: :layer
+  @doc type: :linear
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation]
@@ -216,7 +249,7 @@ defmodule Axon do
     * `kernel_dilation` - Dilation to apply to kernel.
 
   """
-  @doc type: :layer
+  @doc type: :convolution
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation]
@@ -278,6 +311,11 @@ defmodule Axon do
   @doc """
   Adds a transposed convolution layer to the network.
 
+  The tranposed convolution layer is sometimes referred to as a
+  fractionally strided convolution or (incorrectly) as a deconvolution.
+
+  Compiles to `Axon.Layers.conv_transpose/4`.
+
   ## Options
 
     * `name` - Layer name.
@@ -289,6 +327,7 @@ defmodule Axon do
     * `padding` - Padding to the spatial dimensions of the input.
     * `kernel_dilation` - Dilation to apply to kernel.
   """
+  @doc type: :convolution
   def conv_transpose(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     activation = opts[:activation]
 
@@ -369,7 +408,7 @@ defmodule Axon do
     * `kernel_dilation` - Dilation to apply to kernel.
 
   """
-  @doc type: :layer
+  @doc type: :convolution
   def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
@@ -451,7 +490,7 @@ defmodule Axon do
     * `kernel_dilation` - Dilation to apply to kernel.
 
   """
-  @doc type: :layer
+  @doc type: :convolution
   def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
@@ -540,7 +579,7 @@ defmodule Axon do
     * `kernel_dilation` - Dilation to apply to kernel.
 
   """
-  @doc type: :layer
+  @doc type: :convolution
   def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
@@ -614,9 +653,28 @@ defmodule Axon do
     end
   end
 
-  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                       [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+  @activation_layers [
+    {:celu, "Continuously-differentiable exponential linear unit", "a"},
+    {:elu, "Exponential linear unit", "an"},
+    {:exp, "Exponential", "an"},
+    {:gelu, "Gaussian error linear unit", "a"},
+    {:hard_sigmoid, "Hard sigmoid", "a"},
+    {:hard_silu, "Hard sigmoid weighted linear unit", "a"},
+    {:hard_tanh, "Hard hyperbolic tangent", "a"},
+    {:leaky_relu, "Leaky rectified linear unit", "a"},
+    {:linear, "Linear", "a"},
+    {:log_sigmoid, "Log-sigmoid", "a"},
+    {:mish, "Mish", "a"},
+    {:relu, "Rectified linear unit", "a"},
+    {:relu6, "Rectified linear unit 6", "a"},
+    {:sigmoid, "Sigmoid", "a"},
+    {:silu, "Sigmoid weighted linear unit", "a"},
+    {:selu, "Scaled exponential linear unit", "a"},
+    {:softmax, "Softmax", "a"},
+    {:softplus, "Softplus", "a"},
+    {:softsign, "Softsign", "a"},
+    {:tanh, "Hyperbolic tangent", "a"}
+  ]
 
   @doc """
   Adds an activation layer to the network.
@@ -632,22 +690,20 @@ defmodule Axon do
   @doc type: :activation
   def activation(x, activation, opts \\ [])
 
-  def activation(%Axon{output_shape: shape} = x, activation, opts)
-      when is_atom(activation) and activation in @activation_layers do
+  def activation(%Axon{output_shape: shape} = x, activation, opts) when is_atom(activation) do
     layer(x, activation, shape, [], opts[:name], opts)
   end
 
-  def activation(_, activation, _) do
-    raise ArgumentError,
-          "invalid activation #{inspect(activation)}, activation" <>
-            " must be one of #{inspect(@activation_layers)}"
+  def activation(%Axon{output_shape: shape} = x, activation, opts)
+      when is_function(activation, 1) do
+    layer(x, activation, shape, [], opts[:name], opts)
   end
 
   ## Activation
 
-  for activation <- @activation_layers do
+  for {activation, name, a_or_an} <- @activation_layers do
     @doc """
-    Adds #{Atom.to_string(activation)} activation layer to the network.
+    Adds #{a_or_an} #{name} activation layer to the network.
 
     See `Axon.Activations.#{Atom.to_string(activation)}/1` for more details.
 
@@ -664,13 +720,18 @@ defmodule Axon do
 
   ## Dropout
 
-  @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
+  @dropout_layers [
+    {:dropout, "Dropout", "a"},
+    {:feature_alpha_dropout, "Feature alpha dropout", "a"},
+    {:spatial_dropout, "Spatial dropout", "a"},
+    {:alpha_dropout, "Alpha dropout", "an"}
+  ]
 
-  for dropout <- @dropout_layers do
+  for {dropout, name, a_or_an} <- @dropout_layers do
     @doc """
-    Adds #{Atom.to_string(dropout)} layer to the network.
+    Adds #{a_or_an} #{name} layer to the network.
 
-    See `Axon.Layers.#{Atom.to_string(dropout)}` for more details.
+    See `Axon.Layers.#{Atom.to_string(dropout)}/2` for more details.
 
     ## Options
 
@@ -678,7 +739,7 @@ defmodule Axon do
       * `:rate` - Dropout rate.
 
     """
-    @doc type: :layer
+    @doc type: :dropout
     def unquote(dropout)(%Axon{} = x, opts \\ []) do
       dropout(x, unquote(dropout), opts)
     end
@@ -691,13 +752,17 @@ defmodule Axon do
 
   ## Pooling
 
-  @pooling_layers [:max_pool, :avg_pool, :lp_pool]
+  @pooling_layers [
+    {:max_pool, "Max pooling", "a"},
+    {:avg_pool, "Average pooling", "an"},
+    {:lp_pool, "Power average pooling", "a"}
+  ]
 
-  for pool <- @pooling_layers do
+  for {pool, name, a_or_an} <- @pooling_layers do
     @doc """
-    Adds #{Atom.to_string(pool)} layer to the network.
+    Adds #{a_or_an} #{name} layer to the network.
 
-    See `Axon.Layers.#{Atom.to_string(pool)}` for more details.
+    See `Axon.Layers.#{Atom.to_string(pool)}/2` for more details.
 
     ## Options
 
@@ -706,7 +771,7 @@ defmodule Axon do
       * `:strides` - Pooling strides.
 
     """
-    @doc type: :layer
+    @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
       pool(x, unquote(pool), opts)
     end
@@ -731,13 +796,16 @@ defmodule Axon do
 
   ## Adaptive Pooling
 
-  @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool]
+  @adaptive_pooling_layers [
+    {:adaptive_avg_pool, "Adaptive average pooling", "an"},
+    {:adaptive_max_pool, "Adaptive max pooling", "an"}
+  ]
 
-  for pool <- @adaptive_pooling_layers do
+  for {pool, name, a_or_an} <- @adaptive_pooling_layers do
     @doc """
-    Adds #{Atom.to_string(pool)} layer to the network.
+    Adds #{a_or_an} #{name} layer to the network.
 
-    See `Axon.Layers.#{Atom.to_string(pool)}` for more details.
+    See `Axon.Layers.#{Atom.to_string(pool)}/2` for more details.
 
     ## Options
 
@@ -745,7 +813,7 @@ defmodule Axon do
       * `:output_size` - Layer output size.
 
     """
-    @doc type: :layer
+    @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
       adaptative_pool(x, unquote(pool), opts)
     end
@@ -762,13 +830,17 @@ defmodule Axon do
 
   ## Normalization
 
-  @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
+  @normalization_layers [
+    {:batch_norm, "Batch normalization", "a"},
+    {:layer_norm, "Layer normalization", "a"},
+    {:instance_norm, "Instance normalization", "an"}
+  ]
 
-  for norm <- @normalization_layers do
+  for {norm, name, a_or_an} <- @normalization_layers do
     @doc """
-    Adds #{Atom.to_string(norm)} layer to the network.
+    Adds #{a_or_an} #{name} layer to the network.
 
-    See `Axon.Layers.#{Atom.to_string(norm)}` for more details.
+    See `Axon.Layers.#{Atom.to_string(norm)}/4` for more details.
 
     ## Options
 
@@ -780,7 +852,7 @@ defmodule Axon do
       * `:epsilon` - Numerical stability term.
 
     """
-    @doc type: :layer
+    @doc type: :normalization
     def unquote(norm)(%Axon{} = x, opts \\ []) do
       norm(x, unquote(norm), opts)
     end
@@ -812,7 +884,7 @@ defmodule Axon do
   @doc """
   Adds a group normalization layer to the network.
 
-  See `Axon.Layers.group_norm` for more details.
+  See `Axon.Layers.group_norm/4` for more details.
 
   ## Options
 
@@ -824,7 +896,7 @@ defmodule Axon do
     * `:epsilon` - Numerical stability term.
 
   """
-  @doc type: :layer
+  @doc type: :normalization
   def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
       when is_integer(group_size) and group_size >= 1 do
     channel_index = opts[:channel_index] || 1
@@ -858,7 +930,7 @@ defmodule Axon do
     * `name` - Layer name.
 
   """
-  @doc type: :composition
+  @doc type: :special
   def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
     # Some shape rules will not like nil batch shape
     batch_size = elem(shape, 0)
@@ -884,7 +956,7 @@ defmodule Axon do
     * `:name` - Layer name.
 
   """
-  @doc type: :composition
+  @doc type: :shape
   def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
     output_shape = Axon.Shape.flatten(shape)
     layer(x, :flatten, output_shape, [], opts[:name])
@@ -900,7 +972,7 @@ defmodule Axon do
 
     * `:name` - Layer name.
   """
-  @doc type: :composition
+  @doc type: :shape
   def reshape(%Axon{output_shape: shape} = x, new_shape, opts \\ []) do
     output_shape = Axon.Shape.reshape(shape, new_shape)
     layer(x, :reshape, output_shape, [], opts[:name])
@@ -915,7 +987,7 @@ defmodule Axon do
 
     * `:name` - Layer name.
   """
-  @doc type: :composition
+  @doc type: :shape
   def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
     output_shape = Axon.Shape.transpose(shape, permutation)
     layer(x, :transpose, output_shape, [], opts[:name], permutation: permutation)
@@ -932,7 +1004,7 @@ defmodule Axon do
 
     * `:name` - Layer name.
   """
-  @doc type: :composition
+  @doc type: :shape
   def pad(%Axon{output_shape: shape} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
     output_shape = Axon.Shape.pad(shape, config)
@@ -990,12 +1062,23 @@ defmodule Axon do
       * `:name` - Layer name.
 
     """
-    @doc type: :layer
+    @doc type: :composition
     def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
       Axon.layer([x, y], unquote(op), shape, [], opts[:name])
     end
 
-    @doc type: :layer
+    @doc """
+    Adds a #{op} layer to the network.
+
+    This layer performs an element-wise #{Atom.to_string(op)} operation
+    on all input layers. All input layers must be the same shape.
+
+    ## Options
+
+      * `:name` - Layer name.
+
+    """
+    @doc type: :composition
     def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts)
         when is_list(inputs) and is_list(opts) do
       output_shape =
@@ -1010,16 +1093,34 @@ defmodule Axon do
       layer(inputs, unquote(op), output_shape, [], [], opts[:name])
     end
 
+    @doc false
     def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y) do
       unquote(op)(x, y, [])
     end
 
+    @doc false
     def unquote(op)([%Axon{} | _] = inputs), do: unquote(op)(inputs, [])
   end
 
   @doc """
-  LSTM Layer.
+  Adds a long short-term memory (LSTM) layer to the network.
+
+  LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  LSTM layer with the `:hidden_state` option.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+
   """
+  @doc type: :recurrent
   def lstm(%Axon{output_shape: shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation] || :tanh
@@ -1074,8 +1175,24 @@ defmodule Axon do
   end
 
   @doc """
-  GRU Layer.
+  Adds a gated recurrent unit (GRU) layer to the network.
+
+  GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
+  sequence and return:
+
+      {{new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  LSTM layer with the `:hidden_state` option.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+
   """
+  @doc type: :recurrent
   def gru(%Axon{output_shape: shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation] || :tanh
@@ -1124,8 +1241,25 @@ defmodule Axon do
   end
 
   @doc """
-  ConvLSTM Layer.
+  Adds a convolutional long short-term memory (LSTM) layer to the network.
+
+  ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  LSTM layer with the `:hidden_state` option.
+
+  ## Options
+
+    * `:padding` - convolutional padding. Defaults to `:same`.
+    * `:kernel_size` - convolutional kernel size. Defaults to `1`.
+    * `:strides` - convolutional strides. Defaults to `1`.
+    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+
   """
+  @doc type: :recurrent
   def conv_lstm(%Axon{output_shape: shape} = x, units, opts \\ []) do
     padding = opts[:padding] || :same
     kernel_size = opts[:kernel_size] || 1
@@ -1174,6 +1308,7 @@ defmodule Axon do
   @doc """
   Compiles the given model to `{init_fn, predict_fn}`.
   """
+  @doc type: :compilation
   def compile(model) do
     Axon.Compiler.__compile__(model)
   end

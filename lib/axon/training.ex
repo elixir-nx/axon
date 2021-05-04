@@ -66,7 +66,7 @@ defmodule Axon.Training do
 
   @doc """
   Represents a single training step using an Axon `model`,
-  initial state `model_state`, `loss` function and `optimizer.
+  initial state `model_state`, `loss` function and `optimizer`.
 
   The `loss` function is either an atom or a two arity anonymous
   function.

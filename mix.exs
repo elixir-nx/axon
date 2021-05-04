@@ -47,10 +47,18 @@ defmodule Axon.MixProject do
       source_url: @source_url,
       groups_for_functions: [
         # Axon
-        "Functions: Activation": &(&1[:type] == :activation),
-        "Functions: Composition": &(&1[:type] == :composition),
-        "Functions: Execution": &(&1[:type] == :execution),
-        "Functions: Layers": &(&1[:type] == :layer),
+        "Layers: Special": &(&1[:type] == :special),
+        "Layers: Activation": &(&1[:type] == :activation),
+        "Layers: Linear": &(&1[:type] == :linear),
+        "Layers: Convolution": &(&1[:type] == :convolution),
+        "Layers: Dropout": &(&1[:type] == :dropout),
+        "Layers: Pooling": &(&1[:type] == :pooling),
+        "Layers: Normalization": &(&1[:type] == :normalization),
+        "Layers: Recurrent": &(&1[:type] == :recurrent),
+        "Layers: Composition": &(&1[:type] == :composition),
+        "Layers: Shape": &(&1[:type] == :shape),
+        "Model: Compilation": &(&1[:type] == :compilation),
+        "Model: Execution": &(&1[:type] == :execution),
 
         # Axon.Layers
         "Functions: Attention": &(&1[:type] == :attention),
