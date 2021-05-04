@@ -1210,6 +1210,82 @@ defmodule Axon.Layers do
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
   end
 
+  ## Attention
+  @doc """
+  Functional implementation of dot-product attention layer.
+  """
+  @doc type: :attention
+  defn dot_product_attention(query, key, value, bias, opts \\ []) do
+    opts = keyword!(opts, [:axis, rate: 0.5])
+
+    axis = opts[:axis]
+    rate = opts[:rate]
+
+    depth = transform(query, fn q -> elem(Nx.shape(query), Nx.rank(query) - 1) end)
+    n = Nx.rank(query)
+
+    batch_dims =
+      transform({n, axis}, fn {n, axis} -> Enum.to_list(0..(n - 1)) -- [n - 1 | axis] end)
+
+    qk_perm =
+      transform({batch_dims, axis, n}, fn {batch_dims, axis, n} ->
+        batch_dims ++ axis ++ [n - 1]
+      end)
+
+    v_perm =
+      transform({batch_dims, axis, n}, fn {batch_dims, axis, n} ->
+        batch_dims ++ [n - 1] ++ axis
+      end)
+
+    key = Nx.transpose(key, axes: qk_perm)
+    query = Nx.transpose(query, axes: qk_perm)
+    value = Nx.transpose(value, axes: v_perm)
+
+    query = query / Nx.sqrt(depth)
+
+    attn_weights = Nx.dot(query, [n - 1], batch_dims, key, [n - 1], batch_dims) + bias
+
+    norm_dims =
+      transform({Nx.rank(attn_weights), axis}, fn {n_dims, axis} ->
+        Enum.to_list((n_dims - length(axis))..(n_dims - 1))
+      end)
+
+    attn_weights =
+      attn_weights
+      |> Nx.exp()
+      |> Nx.sum(axes: norm_dims, keep_axes: true)
+      |> Nx.log()
+      |> Nx.negate()
+      |> Nx.add(attn_weights)
+      |> Nx.exp()
+
+    attn_weights = dropout(attn_weights, rate: rate)
+
+    {w_contracting_dims, v_contracting_dims} =
+      transform({norm_dims, Nx.rank(value), axis}, fn {n, v, a} ->
+        {norm_dims, Enum.to_list((v - length(a))..(v - 1))}
+      end)
+
+    y =
+      Nx.dot(
+        attn_weights,
+        w_contracting_dims,
+        batch_dims,
+        value,
+        v_contracting_dims,
+        batch_dims
+      )
+
+    perm_inv =
+      transform(qk_perm, fn perm ->
+        perm
+        |> Enum.with_index()
+        |> Enum.map(fn {_, i} -> i end)
+      end)
+
+    Nx.transpose(y, axes: perm_inv)
+  end
+
   ## Shape
 
   @doc """
