@@ -130,15 +130,17 @@ defmodule Axon.Recurrent do
 
     feature_dims = transform(Nx.rank(input_sequence), &List.duplicate(0, &1 - 2))
 
-    initial_shape = transform({Nx.shape(input_sequence), Nx.shape(elem(input_kernel, 0))}, fn {shape, kernel} ->
-      put_elem(shape, 2, elem(kernel, 1))
-    end)
+    initial_shape =
+      transform({Nx.shape(input_sequence), Nx.shape(elem(input_kernel, 0))}, fn {shape, kernel} ->
+        put_elem(shape, 2, elem(kernel, 1))
+      end)
 
     init_sequence = Nx.broadcast(0.0, initial_shape)
     i = Nx.tensor(0)
 
     {_, carry, output, _, _, _, _} =
-      while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias}, Nx.less(i, time_steps) do
+      while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias},
+            Nx.less(i, time_steps) do
         sequence = Nx.slice_axis(input_sequence, i, 1, 1)
         indices = transform({feature_dims, i}, fn {feature_dims, i} -> [0, i] ++ feature_dims end)
         {carry, output} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
