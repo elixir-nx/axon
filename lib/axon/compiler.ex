@@ -430,7 +430,8 @@ defmodule Axon.Compiler do
              gate: gate,
              hidden_state: hidden_state,
              hidden_state_shape: hidden_state_shape,
-             recurrent_initializer: recurrent_initializer
+             recurrent_initializer: recurrent_initializer,
+             unroll: unroll
            ]
          },
          cache,
@@ -496,14 +497,27 @@ defmodule Axon.Compiler do
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
-      Axon.Recurrent.static_unroll(
-        &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-        fun.(params, input),
-        carry,
-        input_kernel,
-        hidden_kernel,
-        bias
-      )
+      case unroll do
+        :static ->
+          Axon.Recurrent.static_unroll(
+            &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        :dynamic ->
+          Axon.Recurrent.dynamic_unroll(
+            &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+      end
     end
 
     {fun, cache}
@@ -523,7 +537,8 @@ defmodule Axon.Compiler do
              strides: strides,
              padding: padding,
              hidden_state_shape: hidden_state_shape,
-             recurrent_initializer: recurrent_initializer
+             recurrent_initializer: recurrent_initializer,
+             unroll: unroll
            ]
          },
          cache,
@@ -572,14 +587,27 @@ defmodule Axon.Compiler do
 
       carry = hidden_state_fun.(params, input)
 
-      Axon.Recurrent.static_unroll(
-        &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
-        fun.(params, input),
-        carry,
-        input_kernel,
-        hidden_kernel,
-        bias
-      )
+      case unroll do
+        :static ->
+          Axon.Recurrent.static_unroll(
+            &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        :dynamic ->
+          Axon.Recurrent.dynamic_unroll(
+            &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+      end
     end
 
     {fun, cache}
@@ -606,7 +634,8 @@ defmodule Axon.Compiler do
              gate: gate,
              hidden_state: hidden_state,
              hidden_state_shape: hidden_state_shape,
-             recurrent_initializer: recurrent_initializer
+             recurrent_initializer: recurrent_initializer,
+             unroll: unroll
            ]
          },
          cache,
@@ -664,14 +693,27 @@ defmodule Axon.Compiler do
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
-      Axon.Recurrent.static_unroll(
-        &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-        fun.(params, input),
-        carry,
-        input_kernel,
-        hidden_kernel,
-        bias
-      )
+      case unroll do
+        :static ->
+          Axon.Recurrent.static_unroll(
+            &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        :dynamic ->
+          Axon.Recurrent.dynamic_unroll(
+            &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+            fun.(params, input),
+            carry,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+      end
     end
 
     {fun, cache}

@@ -1118,6 +1118,8 @@ defmodule Axon do
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
     * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
 
   """
   @doc type: :recurrent
@@ -1126,6 +1128,7 @@ defmodule Axon do
     activation = opts[:activation] || :tanh
     gate = opts[:gate] || :sigmoid
     hidden_state = opts[:hidden_state]
+    unroll = opts[:unroll] || :dynamic
 
     output_shape = Axon.Shape.rnn(shape, units, "LSTM")
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, "LSTM")
@@ -1164,7 +1167,8 @@ defmodule Axon do
         gate: gate,
         hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer
+        recurrent_initializer: recurrent_initializer,
+        unroll: unroll
       )
 
     new_c = layer(output, fn x -> elem(elem(x, 0), 0) end, hidden_state_shape, [])
@@ -1190,6 +1194,8 @@ defmodule Axon do
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
     * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
 
   """
   @doc type: :recurrent
@@ -1198,6 +1204,7 @@ defmodule Axon do
     activation = opts[:activation] || :tanh
     gate = opts[:gate] || :sigmoid
     hidden_state = opts[:hidden_state]
+    unroll = opts[:unroll] || :dynamic
 
     output_shape = Axon.Shape.rnn(shape, units, "GRU")
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, "GRU")
@@ -1231,7 +1238,8 @@ defmodule Axon do
         gate: gate,
         hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer
+        recurrent_initializer: recurrent_initializer,
+        unroll: unroll
       )
 
     new_h = layer(output, fn x -> elem(elem(x, 0), 0) end, hidden_state_shape, [])
@@ -1257,6 +1265,8 @@ defmodule Axon do
     * `:kernel_size` - convolutional kernel size. Defaults to `1`.
     * `:strides` - convolutional strides. Defaults to `1`.
     * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
 
   """
   @doc type: :recurrent
@@ -1265,6 +1275,7 @@ defmodule Axon do
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
     hidden_state = opts[:hidden_state]
+    unroll = opts[:unroll] || :dynamic
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, 1)
     strides = list_or_duplicate(:strides, strides, 1)
@@ -1291,11 +1302,12 @@ defmodule Axon do
         {{hidden_state_shape, hidden_state_shape}, output_shape},
         [wi, wh, b],
         opts[:name],
-        hidden_state: hidden_state,
         strides: strides,
         padding: padding,
+        hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer
+        recurrent_initializer: recurrent_initializer,
+        unroll: unroll
       )
 
     new_c = layer(output, fn x -> elem(elem(x, 0), 0) end, hidden_state_shape, [])
