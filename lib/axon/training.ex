@@ -9,33 +9,96 @@ defmodule Axon.Training do
   @doc """
   Represents a single training step.
 
-  It expects a pair of 2-element tuples:
+  It expects a pair of tuples:
 
-    * The first pair contains the model initialization function
-      and the objective function. For a Neural Network, the objective
-      function is the loss function of the Neural Network prediction
+    * The first tuples contains the model initialization function,
+      the model predict function, and the objective function. For a
+      Neural Network, the objective function is the loss function of
+      the Neural Network prediction
 
     * The second pairs contains the updater initialization function
       and the update function itself
 
   """
-  def step({init_model_fn, objective_fn}, {init_update_fn, update_fn})
+  def step({init_model_fn, predict_fn, objective_fn}, {init_update_fn, update_fn}, opts)
       when is_function(init_model_fn, 0) and is_function(objective_fn, 3) and
-             is_function(init_update_fn, 1) and is_function(update_fn, 3) do
+             is_function(init_update_fn, 1) and is_function(update_fn, 3) and is_list(opts) do
+    metrics = opts[:metrics] || []
+
+    update_metrics_fn = fn old_metrics, step, y_true, y_pred ->
+      metrics
+      |> Enum.map(fn
+        {key, fun} ->
+          batch_metric = fun.(y_true, y_pred)
+
+          avg_metric =
+            old_metrics[key]
+            |> Nx.multiply(step)
+            |> Nx.add(batch_metric)
+            |> Nx.divide(Nx.add(step, 1))
+
+          {key, avg_metric}
+
+        key ->
+          batch_metric = apply(Axon.Metrics, key, [y_true, y_pred])
+
+          avg_metric =
+            old_metrics[key]
+            |> Nx.multiply(step)
+            |> Nx.add(batch_metric)
+            |> Nx.divide(Nx.add(step, 1))
+
+          {key, avg_metric}
+      end)
+      |> Map.new()
+    end
+
     init_fn = fn ->
       params = init_model_fn.()
       optim_params = init_update_fn.(params)
-      {params, optim_params}
+      init_metrics = Enum.map(metrics, fn k -> {k, Nx.Defn.Expr.tensor(0.0)} end) |> Map.new()
+
+      %{
+        epoch: Nx.Defn.Expr.tensor(0),
+        epoch_step: Nx.Defn.Expr.tensor(0),
+        epoch_loss: Nx.Defn.Expr.tensor(0.0),
+        params: params,
+        optimizer_state: optim_params,
+        metrics: init_metrics
+      }
     end
 
     step_fn = fn model_state, input, target ->
-      {params, update_state} = model_state
-
       {batch_loss, gradients} =
-        Nx.Defn.Kernel.value_and_grad(params, &objective_fn.(&1, input, target))
+        Nx.Defn.Kernel.value_and_grad(model_state[:params], &objective_fn.(&1, input, target))
 
-      {updates, new_update_state} = update_fn.(gradients, update_state, params)
-      {{Axon.Updates.apply_updates(params, updates), new_update_state}, batch_loss}
+      new_metrics =
+        case metrics do
+          [] ->
+            %{}
+
+          _ ->
+            preds = predict_fn.(model_state[:params], input)
+            update_metrics_fn.(model_state[:metrics], model_state[:epoch_step], target, preds)
+        end
+
+      epoch_avg_loss =
+        model_state[:epoch_loss]
+        |> Nx.multiply(model_state[:epoch_step])
+        |> Nx.add(batch_loss)
+        |> Nx.divide(Nx.add(model_state[:epoch_step], 1))
+
+      {updates, new_update_state} =
+        update_fn.(gradients, model_state[:optimizer_state], model_state[:params])
+
+      %{
+        epoch: model_state[:epoch],
+        epoch_step: Nx.add(model_state[:epoch_step], 1),
+        epoch_loss: epoch_avg_loss,
+        params: Axon.Updates.apply_updates(model_state[:params], updates),
+        optimizer_state: new_update_state,
+        metrics: new_metrics
+      }
     end
 
     {init_fn, step_fn}
@@ -48,7 +111,8 @@ defmodule Axon.Training do
   The `loss` function is either an atom or a two arity
   anonymous function.
   """
-  def step(%Axon{} = model, loss, optimizer) when is_function(loss, 2) do
+  def step(%Axon{} = model, loss, optimizer, opts)
+      when is_function(loss, 2) and is_list(opts) do
     {init_fn, predict_fn} = Axon.compile(model)
 
     objective_fn = fn params, input, target ->
@@ -56,12 +120,12 @@ defmodule Axon.Training do
       Nx.add(loss.(target, preds), Axon.penalty(model, params))
     end
 
-    step({init_fn, objective_fn}, optimizer)
+    step({init_fn, predict_fn, objective_fn}, optimizer, opts)
   end
 
-  def step(%Axon{} = model, loss, optimizer) when is_atom(loss) do
+  def step(%Axon{} = model, loss, optimizer, opts) when is_atom(loss) and is_list(opts) do
     loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
-    step(model, loss_fn, optimizer)
+    step(model, loss_fn, optimizer, opts)
   end
 
   @doc """
@@ -71,7 +135,8 @@ defmodule Axon.Training do
   The `loss` function is either an atom or a two arity anonymous
   function.
   """
-  def step(%Axon{} = model, model_state, loss, optimizer) when is_function(loss, 2) do
+  def step(%Axon{} = model, model_state, loss, optimizer, opts)
+      when is_function(loss, 2) and is_list(opts) do
     # TODO: I don't think we should do this, but it seems
     # to be the workaround with the fewest implications
     # that I'm aware of
@@ -87,12 +152,13 @@ defmodule Axon.Training do
       Nx.add(loss.(target, preds), Axon.penalty(model, params))
     end
 
-    step({init_fn, objective_fn}, optimizer)
+    step({init_fn, objective_fn}, optimizer, opts)
   end
 
-  def step(%Axon{} = model, model_state, loss, optimizer) when is_atom(loss) do
+  def step(%Axon{} = model, model_state, loss, optimizer, opts)
+      when is_atom(loss) and is_list(opts) do
     loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
-    step(model, model_state, loss_fn, optimizer)
+    step(model, model_state, loss_fn, optimizer, opts)
   end
 
   @doc """
@@ -156,22 +222,29 @@ defmodule Axon.Training do
 
     for epoch <- 1..epochs, reduce: model_state do
       model_state ->
-        {time, {model_state, avg_loss}} =
+        {time, model_state} =
           :timer.tc(
             &train_epoch/6,
             [step_fn, model_state, inputs, targets, epoch, jit_opts]
           )
 
         epoch_avg_loss =
-          avg_loss
-          |> Nx.backend_transfer()
+          model_state[:epoch_loss]
           |> Nx.to_scalar()
 
+        zero_metrics =
+          model_state[:metrics]
+          |> Enum.map(fn {k, _} -> {k, 0.0} end)
+          |> Map.new()
+
         IO.puts("\n")
-        IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
-        IO.puts("Epoch #{epoch} Loss: #{epoch_avg_loss}")
+        IO.puts("Epoch #{epoch} time: #{time / 1_000_000}s")
+        IO.puts("Epoch #{epoch} loss: #{:io_lib.format("~.5f", [epoch_avg_loss])}")
+        model_state[:metrics]
+        |> Enum.each(fn {k, v} -> IO.puts("Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}") end)
         IO.puts("\n")
-        model_state
+
+        %{model_state | metrics: zero_metrics, epoch: epoch + 1, epoch_step: 0, epoch_loss: 0.0}
     end
   end
 
@@ -183,44 +256,35 @@ defmodule Axon.Training do
     dataset =
       inputs
       |> Stream.zip(targets)
-      |> Stream.with_index()
 
-    {model_state, avg_loss, total_batches} =
-      for {{inp, tar}, i} <- dataset, reduce: {model_state, Nx.tensor(0.0), 0} do
-        {model_state, state, _batch_count} ->
-          {model_state, batch_loss} = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
+    model_state =
+      for {inp, tar} <- dataset, reduce: model_state do
+        model_state ->
+          model_state = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
 
-          avg_loss =
-            state
-            |> Nx.multiply(i)
-            |> Nx.add(Nx.backend_transfer(batch_loss))
-            |> Nx.divide(i + 1)
-
-          if is_integer(log_every) and rem(i + 1, log_every) == 0 do
-            log_batch(epoch, i + 1, avg_loss)
+          if is_integer(log_every) and Nx.remainder(model_state[:epoch_step], log_every) == Nx.tensor(0) do
+            log_batch(epoch, model_state)
           end
 
-          {model_state, avg_loss, i + 1}
+          model_state
       end
 
-    if log_every != :none do
-      log_batch(epoch, total_batches, total_batches, avg_loss)
-    end
-
-    {model_state, avg_loss}
+    model_state
   end
 
-  defp log_batch(epoch, batch_num, total_batches, avg_loss),
-    do:
-      IO.write(
-        "\rEpoch #{epoch}, batch #{batch_num} of #{total_batches} - " <>
-          "Average Loss: #{Nx.to_scalar(avg_loss)}"
-      )
+  defp log_batch(epoch, model_state) do
+    batch_num = model_state[:epoch_step]
+    avg_loss = model_state[:epoch_loss]
 
-  defp log_batch(epoch, batch_num, avg_loss),
-    do:
-      IO.write(
-        "\rEpoch #{epoch}, batch #{batch_num} - " <>
-          "Average Loss: #{Nx.to_scalar(avg_loss)}"
-      )
+    metrics =
+      model_state[:metrics]
+      |> Enum.map(fn {k, v} -> "Average #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}" end)
+
+    metrics = Enum.join(["Average Loss: #{:io_lib.format("~.5f", [Nx.to_scalar(avg_loss)])}" | metrics], " - ")
+
+    IO.write(
+      "\rEpoch #{epoch}, batch #{Nx.to_scalar(batch_num)} - " <>
+        "#{metrics}"
+    )
+  end
 end

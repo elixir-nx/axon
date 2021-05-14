@@ -61,9 +61,9 @@ IO.inspect model
 
 {train_images, train_labels} = MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
 
-{final_params, _optimizer_state} =
+final_training_state =
   model
-  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005), metrics: [:accuracy])
   |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA, log_every: 100)
 
-IO.inspect(Nx.backend_transfer(final_params))
+IO.inspect final_training_state[:params]
