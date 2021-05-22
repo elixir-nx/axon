@@ -585,8 +585,6 @@ defmodule Axon.Initializers do
     * `:shape` - output shape. Must be at least rank `2`
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
-    * `:mode` - compute fan mode. One of `:fan_in`, `:fan_out`, or `:fan_avg`.
-      Defaults to `:fan_in`
     * `:distribution` - output distribution. One of `:normal`, `:truncated_normal`,
       or `:uniform`. Defaults to `:normal`
 
