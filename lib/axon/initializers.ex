@@ -573,6 +573,49 @@ defmodule Axon.Initializers do
     )
   end
 
+  @doc """
+  Initializes a tensor with an orthogonal distribution.
+
+  For 2-D tensors, the initialization is generated through the QR decomposition of a random distribution
+  For tensors with more than 2 dimensions, a 2-D tensor with shape `{shape[0] * shape[1] * ... shape[n-2], shape[n-1]}`
+  is initialized and then reshaped accordingly.
+
+  ## Options
+
+    * `:shape` - output shape. Must be at least rank `2`
+    * `:type` - output type. Defaults to `{:f, 32}`
+    * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
+    * `:mode` - compute fan mode. One of `:fan_in`, `:fan_out`, or `:fan_avg`.
+      Defaults to `:fan_in`
+    * `:distribution` - output distribution. One of `:normal`, `:truncated_normal`,
+      or `:uniform`. Defaults to `:normal`
+
+  ## Examples
+
+      iex> t = Axon.Initializers.orthogonal(shape: {3, 3})
+      iex> Nx.type(t)
+      {:f, 32}
+      iex> Nx.shape(t)
+      {3, 3}
+      iex> identity = t |> Nx.transpose() |> Nx.dot(t)
+      iex> Nx.all_close?(identity, Nx.eye(t), atol: 1.0e-3, rtol: 1.0e-3)
+      #Nx.Tensor<
+        u8
+        1
+      >
+  """
+  defn orthogonal(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}, distribution: :normal])
+
+    assert_greater_equal_rank!(opts[:shape], 2)
+
+    random_seed = Nx.random_normal(opts[:shape])
+
+    {q, _r} = Nx.LinAlg.qr(random_seed)
+
+    q
+  end
+
   # Variance scaling branches
 
   defnp var_normal(variance, opts \\ []) do
