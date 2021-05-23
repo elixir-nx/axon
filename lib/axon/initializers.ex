@@ -573,6 +573,77 @@ defmodule Axon.Initializers do
     )
   end
 
+  @doc """
+  Initializes a tensor with an orthogonal distribution.
+
+  For 2-D tensors, the initialization is generated through the QR decomposition of a random distribution
+  For tensors with more than 2 dimensions, a 2-D tensor with shape `{shape[0] * shape[1] * ... * shape[n-2], shape[n-1]}`
+  is initialized and then reshaped accordingly.
+
+  ## Options
+
+    * `:shape` - output shape. Must be at least rank `2`
+    * `:type` - random seed's type. Defaults to `{:f, 32}`
+    * `:distribution` - output distribution. One of [`:normal`, `:uniform`]. Defaults to `:normal`
+
+  ## Examples
+
+      iex> t = Axon.Initializers.orthogonal(shape: {3, 3})
+      iex> Nx.type(t)
+      {:f, 32}
+      iex> Nx.shape(t)
+      {3, 3}
+
+      iex> t = Axon.Initializers.orthogonal(shape: {1, 2, 3, 4}, type: {:f, 64})
+      iex> Nx.type(t)
+      {:f, 64}
+      iex> Nx.shape(t)
+      {1, 2, 3, 4}
+  """
+  defn orthogonal(opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}, distribution: :normal])
+
+    shape = opts[:shape]
+    distribution = opts[:distribution]
+    type = opts[:type]
+
+    assert_greater_equal_rank!(shape, 2)
+
+    {{m, n}, random_seed} =
+      transform({shape, distribution, type}, fn {shape, distribution, type} ->
+        flat_shape =
+          if tuple_size(shape) > 2 do
+            tuple_list = shape |> Tuple.to_list() |> Enum.reverse()
+            n = hd(tuple_list)
+            m = Enum.reduce(tl(tuple_list), 1, &(&1 * &2))
+            {m, n}
+          else
+            shape
+          end
+
+        random_seed =
+          case distribution do
+            :uniform ->
+              Nx.random_uniform(flat_shape, type: type, backend: Nx.Defn.Expr)
+
+            :normal ->
+              Nx.random_normal(flat_shape, type: type, backend: Nx.Defn.Expr)
+
+            dist ->
+              raise ArgumentError,
+                    "invalid distribution #{inspect(dist)} passed to orthogonal/1"
+          end
+
+        {flat_shape, random_seed}
+      end)
+
+    {q, _r} = Nx.LinAlg.qr(random_seed, mode: :complete)
+
+    q
+    |> Nx.slice([0, 0], [m, n])
+    |> Nx.reshape(shape)
+  end
+
   # Variance scaling branches
 
   defnp var_normal(variance, opts \\ []) do
