@@ -624,10 +624,10 @@ defmodule Axon.Initializers do
         random_seed =
           case distribution do
             :uniform ->
-              orthogonal_random_uniform(flat_shape, type)
+              Nx.random_uniform(flat_shape, type: type, backend: Nx.Defn.Expr)
 
             :normal ->
-              orthogonal_random_normal(flat_shape, type)
+              Nx.random_normal(flat_shape, type: type, backend: Nx.Defn.Expr)
 
             dist ->
               raise ArgumentError,
@@ -642,14 +642,6 @@ defmodule Axon.Initializers do
     q
     |> Nx.slice([0, 0], [m, n])
     |> Nx.reshape(shape)
-  end
-
-  defnp orthogonal_random_normal(shape, type) do
-    Nx.random_normal(shape, type: type)
-  end
-
-  defnp orthogonal_random_uniform(shape, type) do
-    Nx.random_uniform(shape, type: type)
   end
 
   # Variance scaling branches
