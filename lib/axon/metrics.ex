@@ -235,7 +235,7 @@ defmodule Axon.Metrics do
       iex> Axon.Metrics.mean_absolute_error(y_true, y_pred)
       #Nx.Tensor<
         f32
-        1.0
+        0.5
       >
   """
   defn mean_absolute_error(y_true, y_pred) do

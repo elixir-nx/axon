@@ -64,7 +64,9 @@ defmodule Axon.Training do
     init_fn = fn ->
       params = init_model_fn.()
       optim_params = init_update_fn.(params)
-      init_metrics = Enum.map(metrics, fn k -> {k, Nx.tensor(0.0, backend: Nx.Defn.Expr)} end) |> Map.new()
+
+      init_metrics =
+        Enum.map(metrics, fn k -> {k, Nx.tensor(0.0, backend: Nx.Defn.Expr)} end) |> Map.new()
 
       %{
         epoch: Nx.tensor(0, backend: Nx.Defn.Expr),
@@ -78,7 +80,11 @@ defmodule Axon.Training do
 
     step_fn = fn model_state, input, target ->
       {{preds, batch_loss}, gradients} =
-        Nx.Defn.Kernel.value_and_grad(model_state[:params], &objective_fn.(&1, input, target), fn x -> elem(x, 1) end)
+        Nx.Defn.Kernel.value_and_grad(
+          model_state[:params],
+          &objective_fn.(&1, input, target),
+          fn x -> elem(x, 1) end
+        )
 
       new_metrics =
         case metrics do
@@ -141,8 +147,9 @@ defmodule Axon.Training do
   end
 
   @doc false
-  def step(%Axon{} = model, model_state, loss, {_, _} = optimizer) when is_function(loss, 2) or is_atom(loss),
-    do: step(model, model_state, loss, optimizer, [])
+  def step(%Axon{} = model, model_state, loss, {_, _} = optimizer)
+      when is_function(loss, 2) or is_atom(loss),
+      do: step(model, model_state, loss, optimizer, [])
 
   @doc """
   Represents a single training step using an Axon `model`,
@@ -256,8 +263,14 @@ defmodule Axon.Training do
         IO.puts("\n")
         IO.puts("Epoch #{epoch} time: #{time / 1_000_000}s")
         IO.puts("Epoch #{epoch} loss: #{:io_lib.format("~.5f", [epoch_avg_loss])}")
+
         model_state[:metrics]
-        |> Enum.each(fn {k, v} -> IO.puts("Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}") end)
+        |> Enum.each(fn {k, v} ->
+          IO.puts(
+            "Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
+          )
+        end)
+
         IO.puts("\n")
 
         %{model_state | metrics: zero_metrics, epoch: epoch + 1, epoch_step: 0, epoch_loss: 0.0}
@@ -278,7 +291,8 @@ defmodule Axon.Training do
         model_state ->
           model_state = Nx.Defn.jit(step_fn, [model_state, inp, tar], jit_opts)
 
-          if is_integer(log_every) and Nx.remainder(model_state[:epoch_step], log_every) == Nx.tensor(0) do
+          if is_integer(log_every) and
+               Nx.remainder(model_state[:epoch_step], log_every) == Nx.tensor(0) do
             log_batch(epoch, model_state)
           end
 
@@ -294,9 +308,15 @@ defmodule Axon.Training do
 
     metrics =
       model_state[:metrics]
-      |> Enum.map(fn {k, v} -> "Average #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}" end)
+      |> Enum.map(fn {k, v} ->
+        "Average #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
+      end)
 
-    metrics = Enum.join(["Average Loss: #{:io_lib.format("~.5f", [Nx.to_scalar(avg_loss)])}" | metrics], " - ")
+    metrics =
+      Enum.join(
+        ["Average Loss: #{:io_lib.format("~.5f", [Nx.to_scalar(avg_loss)])}" | metrics],
+        " - "
+      )
 
     IO.write(
       "\rEpoch #{epoch}, batch #{Nx.to_scalar(batch_num)} - " <>
