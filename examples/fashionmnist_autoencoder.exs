@@ -1,94 +1,57 @@
-defmodule FashionMNIST do
-  defp unzip_cache_or_download(zip) do
-    base_url = 'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/'
-    path = Path.join("tmp/fashionmnist", zip)
-
-    data =
-      if File.exists?(path) do
-        IO.puts("Using #{zip} from tmp/fashionmnist\n")
-        File.read!(path)
-      else
-        IO.puts("Fetching #{zip} from #{base_url}\n")
-        :inets.start()
-        :ssl.start()
-
-        {:ok, {_status, _response, data}} = :httpc.request(:get, {base_url ++ zip, []}, [], [])
-        File.mkdir_p!("tmp/fashionmnist")
-        File.write!(path, data)
-
-        data
-      end
-
-    :zlib.gunzip(data)
-  end
-
-  def download(images) do
-    <<_::32, n_images::32, n_rows::32, n_cols::32, images::binary>> =
-      unzip_cache_or_download(images)
-
-    train_images =
-      images
-      |> Nx.from_binary({:u, 8})
-      |> Nx.reshape({n_images, n_rows * n_cols})
-      |> Nx.divide(255)
-      |> Nx.to_batched_list(32)
-
-    IO.puts("#{n_images} #{n_rows}x#{n_cols} images\n")
-
-    train_images
-  end
-end
-
 defmodule Autoencoder do
-  def encoder(x) do
+  def encoder(x, latent_dim) do
     x
-    |> Axon.dense(64, activation: :tanh)
-    |> Axon.dense(3, activation: :tanh)
+    |> Axon.flatten()
+    |> Axon.dense(latent_dim, activation: :relu)
   end
 
   def decoder(x) do
     x
-    |> Axon.dense(64, activation: :tanh)
-    |> Axon.dense(784, activation: :tanh)
+    |> Axon.dense(784, activation: :sigmoid)
+    |> Axon.reshape({1, 28, 28})
   end
 
-  def model() do
-    Axon.input({nil, 784})
-    |> encoder()
+  def model(latent_dim) do
+    Axon.input({nil, 1, 28, 28})
+    |> encoder(latent_dim)
     |> decoder()
   end
 end
 
-model = Autoencoder.model()
+require Axon
 
-IO.inspect model
+transform_images =
+  fn {bin, type, shape} ->
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
+  end
 
-# Labels are located at train-labels-idx1-ubyte.gz
-train_images = FashionMNIST.download('train-images-idx3-ubyte.gz')
-
-IO.puts("Sample image:\n")
+{train_images, _} = Scidata.FashionMNIST.download(transform_images: transform_images)
 
 sample_image =
   train_images
-  |> Enum.at(0)
-  |> (&(&1[:rand.uniform(32)])).()
+  |> hd()
+  |> Nx.slice_axis(0, 1, 0)
+  |> Nx.reshape({1, 28, 28})
 
-sample_image
-|> Nx.reshape({28, 28})
-|> Nx.to_heatmap()
-|> IO.inspect()
+sample_image |> Nx.to_heatmap() |> IO.inspect
 
-IO.puts("\nTraining autoencoder...")
+model = Autoencoder.model(64)
 
-{final_params, _optimizer_state} =
+IO.inspect model
+
+final_training_state =
   model
-  |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adamw(0.005))
+  |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adam(0.01), metrics: [:mean_absolute_error])
   |> Axon.Training.train(train_images, train_images, epochs: 5, compiler: EXLA)
 
 require Axon
 
 model
-|> Axon.predict(final_params, sample_image, compiler: EXLA)
-|> Nx.reshape({28, 28})
+|> Axon.predict(final_training_state[:params], sample_image, compiler: EXLA)
+|> Nx.reshape({1, 28, 28})
 |> Nx.to_heatmap()
 |> IO.inspect()

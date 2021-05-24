@@ -12,8 +12,8 @@ jobs:
       - name: Install Erlang & Elixir
         uses: erlef/setup-elixir@v1
         with:
-          otp-version: '23.2'
-          elixir-version: '1.11.3'
+          otp-version: '24.0'
+          elixir-version: '1.12.0'
       - name: Install mix dependencies
         run: mix deps.get
       - name: Check formatting
