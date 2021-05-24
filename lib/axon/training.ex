@@ -101,14 +101,26 @@ defmodule Axon.Training do
         |> Nx.add(batch_loss)
         |> Nx.divide(Nx.add(model_state[:epoch_step], 1))
 
+      # TODO: For now, we can just get the keys / values from params
+      # however, it's definitely a better design choice to also handle
+      # maps in Axon.Updates
+      param_keys = Map.keys(model_state[:params])
+      old_param_values = Map.values(model_state[:params]) |> List.to_tuple()
+      gradients = gradients |> Map.values() |> List.to_tuple()
+
       {updates, new_update_state} =
-        update_fn.(gradients, model_state[:optimizer_state], model_state[:params])
+        update_fn.(gradients, model_state[:optimizer_state], old_param_values)
+
+      new_params =
+        param_keys
+        |> Enum.zip(Tuple.to_list(Axon.Updates.apply_updates(old_param_values, updates)))
+        |> Map.new()
 
       %{
         epoch: model_state[:epoch],
         epoch_step: Nx.add(model_state[:epoch_step], 1),
         epoch_loss: epoch_avg_loss,
-        params: Axon.Updates.apply_updates(model_state[:params], updates),
+        params: new_params,
         optimizer_state: new_update_state,
         metrics: new_metrics
       }
@@ -160,13 +172,10 @@ defmodule Axon.Training do
   """
   def step(%Axon{} = model, model_state, loss, optimizer, opts)
       when is_function(loss, 2) and is_list(opts) do
-    # TODO: I don't think we should do this, but it seems
-    # to be the workaround with the fewest implications
-    # that I'm aware of
     init_fn = fn ->
       model_state
       |> Tuple.to_list()
-      |> Enum.map(&Nx.Defn.Expr.tensor/1)
+      |> Enum.map(&Nx.tensor(&1, backend: Nx.Defn.Expr))
       |> List.to_tuple()
     end
 
