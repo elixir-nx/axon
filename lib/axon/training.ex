@@ -6,21 +6,29 @@ defmodule Axon.Training do
   require Axon
   require Axon.Updates
 
+  @doc false
+  def step({_, _} = model, {_, _} = update), do: step(model, update, [])
+
   @doc """
   Represents a single training step.
 
-  It expects a pair of tuples:
+  The first two arguments are tuples:
 
-    * The first tuples contains the model initialization function,
-      the model predict function, and the objective function. For a
-      Neural Network, the objective function is the loss function of
-      the Neural Network prediction
+    * The first tuple contains the model initialization function
+      and the objective function. For a Neural Network, the objective
+      function is the loss function of the Neural Network prediction
 
     * The second pairs contains the updater initialization function
       and the update function itself
 
+  ## Options
+
+    * `:metrics` - metrics to track during each training step. Can be an
+      atom representing a function in `Axon.Metrics`, or a 2-arity function
+      taking `y_true` and `y_pred` as args.
+
   """
-  def step({init_model_fn, predict_fn, objective_fn}, {init_update_fn, update_fn}, opts)
+  def step({init_model_fn, objective_fn}, {init_update_fn, update_fn}, opts)
       when is_function(init_model_fn, 0) and is_function(objective_fn, 3) and
              is_function(init_update_fn, 1) and is_function(update_fn, 3) and is_list(opts) do
     metrics = opts[:metrics] || []
@@ -56,12 +64,12 @@ defmodule Axon.Training do
     init_fn = fn ->
       params = init_model_fn.()
       optim_params = init_update_fn.(params)
-      init_metrics = Enum.map(metrics, fn k -> {k, Nx.Defn.Expr.tensor(0.0)} end) |> Map.new()
+      init_metrics = Enum.map(metrics, fn k -> {k, Nx.tensor(0.0, backend: Nx.Defn.Expr)} end) |> Map.new()
 
       %{
-        epoch: Nx.Defn.Expr.tensor(0),
-        epoch_step: Nx.Defn.Expr.tensor(0),
-        epoch_loss: Nx.Defn.Expr.tensor(0.0),
+        epoch: Nx.tensor(0, backend: Nx.Defn.Expr),
+        epoch_step: Nx.tensor(0, backend: Nx.Defn.Expr),
+        epoch_loss: Nx.tensor(0.0, backend: Nx.Defn.Expr),
         params: params,
         optimizer_state: optim_params,
         metrics: init_metrics
@@ -69,8 +77,8 @@ defmodule Axon.Training do
     end
 
     step_fn = fn model_state, input, target ->
-      {batch_loss, gradients} =
-        Nx.Defn.Kernel.value_and_grad(model_state[:params], &objective_fn.(&1, input, target))
+      {{preds, batch_loss}, gradients} =
+        Nx.Defn.Kernel.value_and_grad(model_state[:params], &objective_fn.(&1, input, target), fn x -> elem(x, 1) end)
 
       new_metrics =
         case metrics do
@@ -78,7 +86,6 @@ defmodule Axon.Training do
             %{}
 
           _ ->
-            preds = predict_fn.(model_state[:params], input)
             update_metrics_fn.(model_state[:metrics], model_state[:epoch_step], target, preds)
         end
 
@@ -104,6 +111,10 @@ defmodule Axon.Training do
     {init_fn, step_fn}
   end
 
+  @doc false
+  def step(%Axon{} = model, loss, {_, _} = optimizer) when is_function(loss, 2) or is_atom(loss),
+    do: step(model, loss, optimizer, [])
+
   @doc """
   Represents a single training step using an Axon `model`,
   `loss` function, and `optimizer`.
@@ -117,16 +128,21 @@ defmodule Axon.Training do
 
     objective_fn = fn params, input, target ->
       preds = predict_fn.(params, input)
-      Nx.add(loss.(target, preds), Axon.penalty(model, params))
+      loss = Nx.add(loss.(target, preds), Axon.penalty(model, params))
+      {preds, loss}
     end
 
-    step({init_fn, predict_fn, objective_fn}, optimizer, opts)
+    step({init_fn, objective_fn}, optimizer, opts)
   end
 
   def step(%Axon{} = model, loss, optimizer, opts) when is_atom(loss) and is_list(opts) do
     loss_fn = &apply(Axon.Losses, loss, [&1, &2, [reduction: :mean]])
     step(model, loss_fn, optimizer, opts)
   end
+
+  @doc false
+  def step(%Axon{} = model, model_state, loss, {_, _} = optimizer) when is_function(loss, 2) or is_atom(loss),
+    do: step(model, model_state, loss, optimizer, [])
 
   @doc """
   Represents a single training step using an Axon `model`,

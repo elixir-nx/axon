@@ -216,4 +216,34 @@ defmodule Axon.Metrics do
 
     Nx.divide(true_negatives, false_positives + true_negatives + 1.0e-16)
   end
+
+  @doc ~S"""
+  Calculates the mean absolute error of predictions
+  with respect to targets.
+
+  $$l_i = \sum_i |\hat{y_i} - y_i|$$
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[0.0, 1.0], [0.0, 0.0]], type: {:f, 32})
+      iex> y_pred = Nx.tensor([[1.0, 1.0], [1.0, 0.0]], type: {:f, 32})
+      iex> Axon.Metrics.mean_absolute_error(y_true, y_pred)
+      #Nx.Tensor<
+        f32
+        1.0
+      >
+  """
+  defn mean_absolute_error(y_true, y_pred) do
+    assert_shape!(y_true, y_pred)
+
+    y_true
+    |> Nx.subtract(y_pred)
+    |> Nx.abs()
+    |> Nx.mean()
+  end
 end

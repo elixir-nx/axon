@@ -1,54 +1,26 @@
-defmodule MNIST do
-  defp unzip_cache_or_download(zip) do
-    base_url = 'https://storage.googleapis.com/cvdf-datasets/mnist/'
-    path = Path.join("tmp", zip)
+require Axon
 
-    data =
-      if File.exists?(path) do
-        IO.puts("Using #{zip} from tmp/\n")
-        File.read!(path)
-      else
-        IO.puts("Fetching #{zip} from https://storage.googleapis.com/cvdf-datasets/mnist/\n")
-        :inets.start()
-        :ssl.start()
-
-        {:ok, {_status, _response, data}} = :httpc.request(base_url ++ zip)
-        File.mkdir_p!("tmp")
-        File.write!(path, data)
-
-        data
-      end
-
-    :zlib.gunzip(data)
+transform_images =
+  fn {bin, type, shape} ->
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 784})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
   end
 
-  def download(images, labels) do
-    <<_::32, n_images::32, n_rows::32, n_cols::32, images::binary>> =
-      unzip_cache_or_download(images)
-
-    train_images =
-      images
-      |> Nx.from_binary({:u, 8})
-      |> Nx.reshape({n_images, n_rows * n_cols})
-      |> Nx.divide(255)
-      |> Nx.to_batched_list(32)
-
-    IO.puts("#{n_images} #{n_rows}x#{n_cols} images\n")
-
-    <<_::32, n_labels::32, labels::binary>> = unzip_cache_or_download(labels)
-
-    train_labels =
-      labels
-      |> Nx.from_binary({:u, 8})
-      |> Nx.new_axis(-1)
-      |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-      |> Nx.to_batched_list(32)
-
-    IO.puts("#{n_labels} labels\n")
-
-    {train_images, train_labels}
+transform_labels =
+  fn {bin, type, _} ->
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.new_axis(-1)
+    |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
+    |> Nx.to_batched_list(32)
   end
-end
+
+{train_images, train_labels} = Scidata.MNIST.download(transform_images: transform_images, transform_labels: transform_labels)
+
+IO.inspect train_images |> hd() |> Nx.slice_axis(0, 1, 0) |> Nx.reshape({1, 28, 28}) |> Nx.to_heatmap()
 
 model =
   Axon.input({nil, 784})
@@ -59,11 +31,18 @@ model =
 
 IO.inspect model
 
-{train_images, train_labels} = MNIST.download('train-images-idx3-ubyte.gz', 'train-labels-idx1-ubyte.gz')
-
 final_training_state =
   model
   |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005), metrics: [:accuracy])
   |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA, log_every: 100)
 
-IO.inspect final_training_state[:params]
+test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
+
+IO.inspect test_images |> Nx.reshape({3, 28, 28}) |> Nx.to_heatmap()
+
+prediction =
+  model
+  |> Axon.predict(final_training_state[:params], test_images)
+  |> Nx.argmax(axis: -1)
+
+prediction
