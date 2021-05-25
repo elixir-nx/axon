@@ -48,7 +48,7 @@ IO.inspect model
 
 final_training_state =
   model
-  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adam(0.01), metrics: [:accuracy])
+  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.sgd(0.01), metrics: [:accuracy])
   |> Axon.Training.train(train_images, train_labels, epochs: 20, compiler: EXLA)
   |> Nx.backend_transfer()
   |> IO.inspect()
