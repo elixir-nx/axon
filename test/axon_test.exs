@@ -17,7 +17,8 @@ defmodule AxonTest do
 
   describe "dense" do
     test "works with defaults" do
-      assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} = Axon.input({nil, 784}) |> Axon.dense(128)
+      assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} =
+               Axon.input({nil, 784}) |> Axon.dense(128)
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = weight
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -197,8 +198,11 @@ defmodule AxonTest do
 
   describe "separable_conv2d" do
     test "works with defaults" do
-      assert %Axon{op: :separable_conv2d, params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2}, opts: opts} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
+      assert %Axon{
+               op: :separable_conv2d,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2},
+               opts: opts
+             } = Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
 
       assert opts[:padding] == :valid
       assert opts[:strides] == [1, 1]
@@ -222,7 +226,11 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :separable_conv2d, opts: opts, params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2}} =
+      assert %Axon{
+               op: :separable_conv2d,
+               opts: opts,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2}
+             } =
                Axon.input({nil, 1, 28, 28})
                |> Axon.separable_conv2d(3, padding: :same, strides: [2, 1], kernel_size: 2)
 
@@ -272,8 +280,11 @@ defmodule AxonTest do
 
   describe "separable_conv3d" do
     test "works with defaults" do
-      assert %Axon{op: :separable_conv3d, params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3}, opts: opts} =
-               Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
+      assert %Axon{
+               op: :separable_conv3d,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3},
+               opts: opts
+             } = Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
 
       assert opts[:padding] == :valid
       assert opts[:strides] == [1, 1, 1]
@@ -300,7 +311,11 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :separable_conv3d, opts: opts, params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3}} =
+      assert %Axon{
+               op: :separable_conv3d,
+               opts: opts,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3}
+             } =
                Axon.input({nil, 1, 28, 28, 3})
                |> Axon.separable_conv3d(3,
                  padding: :same,
@@ -619,7 +634,9 @@ defmodule AxonTest do
   describe "execution" do
     test "compile returns init and predict" do
       {init_fn, predict_fn} =
-        Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity, name: "dense") |> Axon.compile()
+        Axon.input({nil, 6})
+        |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
+        |> Axon.compile()
 
       assert %{"dense_kernel" => kernel, "dense_bias" => bias} = params = init_fn.()
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
@@ -638,16 +655,16 @@ defmodule AxonTest do
 
     test "init works inside defn" do
       assert init() == %{
-        "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-        "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
-      }
+               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+             }
     end
 
     test "init works outside defn" do
       assert Axon.init(model()) == %{
-        "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-        "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
-      }
+               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+             }
     end
 
     defn predict(params, input) do
