@@ -1358,10 +1358,43 @@ defmodule Axon do
   @doc """
   Freezes parameters returned from `fun` in the given
   model. `fun` takes the model's parameter list and returns
-  the list of parameters it wishes to freeze.
+  the list of parameters it wishes to freeze. `fun` defaults
+  to the identity function, freezing all of the parameters in
+  `model`.
+
+  Freezing parameters is useful when performing transfer learning
+  to leverage features learned from another problem in a new problem.
+  For example, it's common to combine the convolutional base from
+  larger models trained on ImageNet with fresh fully-connected classifiers.
+  The combined model is then trained on fresh data, with the convolutional
+  base frozen so as not to lose information. You can see this example in code
+  here:
+
+      cnn_base = get_pretrained_cnn_base()
+      model =
+        cnn_base
+        |> Axon.freeze()
+        |> Axon.flatten()
+        |> Axon.dense(1024, activation: :relu)
+        |> Axon.dropout()
+        |> Axon.dense(1000, activation: :softmax)
+
+      model
+      |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
+      |> Axon.Training.train(input, targets, epochs: 10)
+
+  When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
+  which zeros out the gradient with respect to the frozen parameter. Gradients
+  of frozen parameters will return `0.0`, meaning they won't be changed during
+  the update process.
+
   """
-  def freeze(%Axon{} = model, fun) when is_function(fun, 1) do
-    parameters = get_params(model, [])
+  def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
+    parameters =
+      model
+      |> get_params([])
+      |> Enum.uniq()
+
     parameters_to_freeze = fun.(parameters)
     do_freeze(model, parameters_to_freeze)
   end
@@ -1378,7 +1411,18 @@ defmodule Axon do
     Enum.reduce(x, acc, &get_params/2)
   end
 
-  defp get_params(%Axon{parent: x, params: params}, acc) do
+  defp get_params(%Axon{parent: x, params: params, opts: opts}, acc) do
+    acc =
+      case opts[:hidden_state] do
+        state when is_tuple(state) ->
+          state
+          |> Tuple.to_list()
+          |> Enum.reduce(acc, &get_params/2)
+
+        nil ->
+          acc
+      end
+
     get_params(x, Enum.reduce(Map.values(params), acc, fn x, ls -> [x | ls] end))
   end
 
