@@ -201,7 +201,7 @@ defmodule Axon.Compiler do
          %Axon{
            op: :dense,
            parent: parent,
-           params: %{"kernel" => %{name: w}, "bias" => %{name: b}}
+           params: %{"kernel" => %{name: w, frozen: w_frz}, "bias" => %{name: b, frozen: b_frz}}
          },
          cache,
          input_map
@@ -209,7 +209,9 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, :dense, [fun.(params, inputs), params[w], params[b]])
+      w = maybe_freeze(params[w], w_frz)
+      b = maybe_freeze(params[b], b_frz)
+      apply(Axon.Layers, :dense, [fun.(params, inputs), w, b])
     end
 
     {fun, cache}
@@ -748,6 +750,9 @@ defmodule Axon.Compiler do
 
     {fun, cache}
   end
+
+  defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
+  defp maybe_freeze(param, false), do: param
 
   ## Penalty Function Compilation
 

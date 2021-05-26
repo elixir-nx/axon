@@ -1356,6 +1356,62 @@ defmodule Axon do
   end
 
   @doc """
+  Freezes parameters returned from `fun` in the given
+  model. `fun` takes the model's parameter list and returns
+  the list of parameters it wishes to freeze.
+  """
+  def freeze(%Axon{} = model, fun) when is_function(fun, 1) do
+    parameters = get_params(model, [])
+    parameters_to_freeze = fun.(parameters)
+    do_freeze(model, parameters_to_freeze)
+  end
+
+  defp get_params(model, acc) when is_tuple(model) do
+    model
+    |> Tuple.to_list()
+    |> Enum.reduce(acc, &get_params/2)
+  end
+
+  defp get_params(%Axon{op: :input}, acc), do: acc
+
+  defp get_params(%Axon{parent: x}, acc) when is_list(x) do
+    Enum.reduce(x, acc, &get_params/2)
+  end
+
+  defp get_params(%Axon{parent: x, params: params}, acc) do
+    get_params(x, Enum.reduce(Map.values(params), acc, fn x, ls -> [x | ls] end))
+  end
+
+  defp do_freeze(%Axon{op: :input} = x, _), do: x
+
+  defp do_freeze(%Axon{parent: parent} = x, parameters_to_freeze) when is_list(parent) do
+    parent = Enum.map(parent, &do_freeze(&1, parameters_to_freeze))
+    %{x | parent: parent}
+  end
+
+  defp do_freeze(%Axon{parent: parent, params: params} = x, parameters_to_freeze) do
+    parent = do_freeze(parent, parameters_to_freeze)
+
+    params =
+      params
+      |> Map.new(fn {k, %{name: param_name} = v} ->
+        if Enum.any?(parameters_to_freeze, fn %{name: name} -> name == param_name end) do
+          {k, %{v | frozen: true}}
+        else
+          {k, v}
+        end
+      end)
+
+    %{x | parent: parent, params: params}
+  end
+
+  defp do_freeze(x, parameters_to_freeze) when is_tuple(x) do
+    x
+    |> Tuple.to_list()
+    |> Enum.map(&do_freeze(&1, parameters_to_freeze))
+  end
+
+  @doc """
   Compiles the given model to `{init_fn, predict_fn}`.
   """
   @doc type: :compilation
