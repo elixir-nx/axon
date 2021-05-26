@@ -23,9 +23,9 @@ targets =
     Nx.logical_xor(x1, x2)
   end
 
-{params, _} =
+final_training_state =
   model
   |> Axon.Training.step(:binary_cross_entropy, Axon.Optimizers.sgd(0.01))
   |> Axon.Training.train(data, targets, epochs: 10)
 
-IO.inspect Axon.predict(model, params, {Nx.tensor([[0]]), Nx.tensor([[1]])})
+IO.inspect Axon.predict(model, final_training_state[:params], {Nx.tensor([[0]]), Nx.tensor([[1]])})

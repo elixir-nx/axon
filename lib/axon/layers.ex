@@ -1221,7 +1221,7 @@ defmodule Axon.Layers do
     axis = opts[:axis]
     rate = opts[:rate]
 
-    depth = transform(query, fn q -> elem(Nx.shape(query), Nx.rank(query) - 1) end)
+    depth = transform(query, fn q -> elem(Nx.shape(q), Nx.rank(q) - 1) end)
     n = Nx.rank(query)
 
     batch_dims =
@@ -1263,7 +1263,7 @@ defmodule Axon.Layers do
 
     {w_contracting_dims, v_contracting_dims} =
       transform({norm_dims, Nx.rank(value), axis}, fn {n, v, a} ->
-        {norm_dims, Enum.to_list((v - length(a))..(v - 1))}
+        {n, Enum.to_list((v - length(a))..(v - 1))}
       end)
 
     y =

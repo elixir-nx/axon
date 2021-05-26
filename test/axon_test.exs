@@ -17,7 +17,8 @@ defmodule AxonTest do
 
   describe "dense" do
     test "works with defaults" do
-      assert %Axon{op: :dense, params: [weight, bias]} = Axon.input({nil, 784}) |> Axon.dense(128)
+      assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} =
+               Axon.input({nil, 784}) |> Axon.dense(128)
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = weight
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -29,7 +30,7 @@ defmodule AxonTest do
     end
 
     test "works with parameter initializer" do
-      assert %Axon{op: :dense, params: [weight, bias]} =
+      assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} =
                Axon.input({nil, 784})
                |> Axon.dense(128, kernel_initializer: :lecun_normal, bias_initializer: :ones)
 
@@ -55,7 +56,7 @@ defmodule AxonTest do
 
   describe "conv" do
     test "works with defaults" do
-      assert %Axon{op: :conv, params: [kernel, bias], opts: opts} =
+      assert %Axon{op: :conv, params: %{"kernel" => kernel, "bias" => bias}, opts: opts} =
                Axon.input({nil, 1, 28, 28}) |> Axon.conv(64)
 
       assert opts[:padding] == :valid
@@ -78,7 +79,7 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :conv, opts: opts, params: [kernel, bias]} =
+      assert %Axon{op: :conv, opts: opts, params: %{"kernel" => kernel, "bias" => bias}} =
                Axon.input({nil, 1, 28, 28})
                |> Axon.conv(64, padding: :same, strides: [2, 1], kernel_size: 2)
 
@@ -126,7 +127,7 @@ defmodule AxonTest do
 
   describe "depthwise_conv" do
     test "works with defaults" do
-      assert %Axon{op: :depthwise_conv, params: [kernel, bias], opts: opts} =
+      assert %Axon{op: :depthwise_conv, params: %{"kernel" => kernel, "bias" => bias}, opts: opts} =
                Axon.input({nil, 1, 28, 28}) |> Axon.depthwise_conv(3)
 
       assert opts[:padding] == :valid
@@ -149,7 +150,7 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :depthwise_conv, opts: opts, params: [kernel, bias]} =
+      assert %Axon{op: :depthwise_conv, opts: opts, params: %{"kernel" => kernel, "bias" => bias}} =
                Axon.input({nil, 1, 28, 28})
                |> Axon.depthwise_conv(3, padding: :same, strides: [2, 1], kernel_size: 2)
 
@@ -197,8 +198,11 @@ defmodule AxonTest do
 
   describe "separable_conv2d" do
     test "works with defaults" do
-      assert %Axon{op: :separable_conv2d, params: [k1, b1, k2, b2], opts: opts} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
+      assert %Axon{
+               op: :separable_conv2d,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2},
+               opts: opts
+             } = Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
 
       assert opts[:padding] == :valid
       assert opts[:strides] == [1, 1]
@@ -222,7 +226,11 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :separable_conv2d, opts: opts, params: [k1, b1, k2, b2]} =
+      assert %Axon{
+               op: :separable_conv2d,
+               opts: opts,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2}
+             } =
                Axon.input({nil, 1, 28, 28})
                |> Axon.separable_conv2d(3, padding: :same, strides: [2, 1], kernel_size: 2)
 
@@ -272,8 +280,11 @@ defmodule AxonTest do
 
   describe "separable_conv3d" do
     test "works with defaults" do
-      assert %Axon{op: :separable_conv3d, params: [k1, b1, k2, b2, k3, b3], opts: opts} =
-               Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
+      assert %Axon{
+               op: :separable_conv3d,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3},
+               opts: opts
+             } = Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
 
       assert opts[:padding] == :valid
       assert opts[:strides] == [1, 1, 1]
@@ -300,7 +311,11 @@ defmodule AxonTest do
     end
 
     test "works with options" do
-      assert %Axon{op: :separable_conv3d, opts: opts, params: [k1, b1, k2, b2, k3, b3]} =
+      assert %Axon{
+               op: :separable_conv3d,
+               opts: opts,
+               params: %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3}
+             } =
                Axon.input({nil, 1, 28, 28, 3})
                |> Axon.separable_conv3d(3,
                  padding: :same,
@@ -467,7 +482,7 @@ defmodule AxonTest do
   describe "normalization" do
     test "works with defaults" do
       for norm <- @normalization_layers do
-        assert %Axon{op: norm1, opts: opts, params: [gamma, beta]} =
+        assert %Axon{op: norm1, opts: opts, params: %{"gamma" => gamma, "beta" => beta}} =
                  apply(Axon, norm, [Axon.input({nil, 784})])
 
         assert norm1 == norm
@@ -488,7 +503,7 @@ defmodule AxonTest do
 
     test "works with parameter initializer" do
       for norm <- @normalization_layers do
-        assert %Axon{params: [gamma, beta]} =
+        assert %Axon{params: %{"gamma" => gamma, "beta" => beta}} =
                  apply(Axon, norm, [
                    Axon.input({nil, 784}),
                    [gamma_initializer: :lecun_normal, beta_initializer: :ones]
@@ -514,7 +529,7 @@ defmodule AxonTest do
 
   describe "group normalization" do
     test "works with defaults" do
-      assert %Axon{op: :group_norm, params: [gamma, beta], opts: opts} =
+      assert %Axon{op: :group_norm, params: %{"gamma" => gamma, "beta" => beta}, opts: opts} =
                Axon.input({nil, 3, 28, 28}) |> Axon.group_norm(3)
 
       assert opts[:channel_index] == 1
@@ -530,7 +545,7 @@ defmodule AxonTest do
     end
 
     test "works with parameter initializer" do
-      assert %Axon{params: [gamma, beta]} =
+      assert %Axon{params: %{"gamma" => gamma, "beta" => beta}} =
                Axon.input({nil, 3, 28, 28})
                |> Axon.group_norm(3, gamma_initializer: :lecun_normal, beta_initializer: :ones)
 
@@ -619,17 +634,19 @@ defmodule AxonTest do
   describe "execution" do
     test "compile returns init and predict" do
       {init_fn, predict_fn} =
-        Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity) |> Axon.compile()
+        Axon.input({nil, 6})
+        |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
+        |> Axon.compile()
 
-      assert {kernel, bias} = init_fn.()
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = params = init_fn.()
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == Axon.Initializers.zeros(shape: {1, 6})
 
-      assert predict_fn.({kernel, bias}, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+      assert predict_fn.(params, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
     end
 
     def model do
-      Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity)
+      Axon.input({nil, 6}) |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
     end
 
     defn init do
@@ -637,12 +654,17 @@ defmodule AxonTest do
     end
 
     test "init works inside defn" do
-      assert init() == {Nx.eye({6, 6}, type: {:f, 32}), Axon.Initializers.zeros(shape: {1, 6})}
+      assert init() == %{
+               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+             }
     end
 
     test "init works outside defn" do
-      assert Axon.init(model()) ==
-               {Nx.eye({6, 6}, type: {:f, 32}), Axon.Initializers.zeros(shape: {1, 6})}
+      assert Axon.init(model()) == %{
+               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+             }
     end
 
     defn predict(params, input) do

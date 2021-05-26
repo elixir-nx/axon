@@ -25,7 +25,6 @@ IO.inspect train_images |> hd() |> Nx.slice_axis(0, 1, 0) |> Nx.reshape({1, 28, 
 model =
   Axon.input({nil, 784})
   |> Axon.dense(128, activation: :relu)
-  |> Axon.layer_norm()
   |> Axon.dropout()
   |> Axon.dense(10, activation: :softmax)
 
