@@ -119,7 +119,7 @@ defmodule Axon.Compiler do
     end
   end
 
-  ## Parameter Ordering
+  ## Input Ordering
 
   defp get_inputs(%Axon{id: id, op: :input}, input_ids) do
     [id | input_ids]
@@ -171,7 +171,11 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, input ->
-      inp_params = Map.new(layer_params, fn {k, %{name: v}} -> {k, params[v]} end)
+      inp_params =
+        Map.new(layer_params, fn {k, %{name: v, frozen: frz}} ->
+          {k, maybe_freeze(params[v], frz)}
+        end)
+
       apply(op, [fun.(params, input) | [inp_params] ++ opts])
     end
 
@@ -201,7 +205,7 @@ defmodule Axon.Compiler do
          %Axon{
            op: :dense,
            parent: parent,
-           params: %{"kernel" => %{name: w}, "bias" => %{name: b}}
+           params: %{"kernel" => %{name: w, frozen: w_frz}, "bias" => %{name: b, frozen: b_frz}}
          },
          cache,
          input_map
@@ -209,7 +213,9 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, :dense, [fun.(params, inputs), params[w], params[b]])
+      w = maybe_freeze(params[w], w_frz)
+      b = maybe_freeze(params[b], b_frz)
+      apply(Axon.Layers, :dense, [fun.(params, inputs), w, b])
     end
 
     {fun, cache}
@@ -254,7 +260,7 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"kernel" => %{name: k}, "bias" => %{name: b}}
+           params: %{"kernel" => %{name: k, frozen: k_frz}, "bias" => %{name: b, frozen: b_frz}}
          },
          cache,
          input_map
@@ -263,7 +269,9 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, op, [fun.(params, inputs), params[k], params[b], opts])
+      k = maybe_freeze(params[k], k_frz)
+      b = maybe_freeze(params[b], b_frz)
+      apply(Axon.Layers, op, [fun.(params, inputs), k, b, opts])
     end
 
     {fun, cache}
@@ -275,10 +283,10 @@ defmodule Axon.Compiler do
            parent: parent,
            opts: opts,
            params: %{
-             "k1" => %{name: k1},
-             "b1" => %{name: b1},
-             "k2" => %{name: k2},
-             "b2" => %{name: b2}
+             "k1" => %{name: k1, frozen: k1_frz},
+             "b1" => %{name: b1, frozen: b1_frz},
+             "k2" => %{name: k2, frozen: k2_frz},
+             "b2" => %{name: b2, frozen: b2_frz}
            }
          },
          cache,
@@ -287,14 +295,11 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, :separable_conv2d, [
-        fun.(params, inputs),
-        params[k1],
-        params[b1],
-        params[k2],
-        params[b2],
-        opts
-      ])
+      k1 = maybe_freeze(params[k1], k1_frz)
+      b1 = maybe_freeze(params[b1], b1_frz)
+      k2 = maybe_freeze(params[k2], k2_frz)
+      b2 = maybe_freeze(params[b2], b2_frz)
+      apply(Axon.Layers, :separable_conv2d, [fun.(params, inputs), k1, b1, k2, b2, opts])
     end
 
     {fun, cache}
@@ -306,12 +311,12 @@ defmodule Axon.Compiler do
            parent: parent,
            opts: opts,
            params: %{
-             "k1" => %{name: k1},
-             "b1" => %{name: b1},
-             "k2" => %{name: k2},
-             "b2" => %{name: b2},
-             "k3" => %{name: k3},
-             "b3" => %{name: b3}
+             "k1" => %{name: k1, frozen: k1_frz},
+             "b1" => %{name: b1, frozen: b1_frz},
+             "k2" => %{name: k2, frozen: k2_frz},
+             "b2" => %{name: b2, frozen: b2_frz},
+             "k3" => %{name: k3, frozen: k3_frz},
+             "b3" => %{name: b3, frozen: b3_frz}
            }
          },
          cache,
@@ -320,16 +325,13 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, :separable_conv3d, [
-        fun.(params, inputs),
-        params[k1],
-        params[b1],
-        params[k2],
-        params[b2],
-        params[k3],
-        params[b3],
-        opts
-      ])
+      k1 = maybe_freeze(params[k1], k1_frz)
+      b1 = maybe_freeze(params[b1], b1_frz)
+      k2 = maybe_freeze(params[k2], k2_frz)
+      b2 = maybe_freeze(params[b2], b2_frz)
+      k3 = maybe_freeze(params[k3], k3_frz)
+      b3 = maybe_freeze(params[b3], b3_frz)
+      apply(Axon.Layers, :separable_conv3d, [fun.(params, inputs), k1, b1, k2, b2, k3, b3, opts])
     end
 
     {fun, cache}
@@ -344,7 +346,7 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"gamma" => %{name: g}, "beta" => %{name: b}}
+           params: %{"gamma" => %{name: g, frozen: g_frz}, "beta" => %{name: b, frozen: b_frz}}
          },
          cache,
          input_map
@@ -353,7 +355,9 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, op, [fun.(params, inputs), params[g], params[b], opts])
+      g = maybe_freeze(params[g], g_frz)
+      b = maybe_freeze(params[b], b_frz)
+      apply(Axon.Layers, op, [fun.(params, inputs), g, b, opts])
     end
 
     {fun, cache}
@@ -366,18 +370,18 @@ defmodule Axon.Compiler do
            op: :lstm,
            parent: parent,
            params: %{
-             "wii" => %{name: wii},
-             "wif" => %{name: wif},
-             "wig" => %{name: wig},
-             "wio" => %{name: wio},
-             "whi" => %{name: whi},
-             "whf" => %{name: whf},
-             "whg" => %{name: whg},
-             "who" => %{name: who},
-             "bi" => %{name: bi},
-             "bf" => %{name: bf},
-             "bg" => %{name: bg},
-             "bo" => %{name: bo}
+             "wii" => %{name: wii, frozen: wii_frz},
+             "wif" => %{name: wif, frozen: wif_frz},
+             "wig" => %{name: wig, frozen: wig_frz},
+             "wio" => %{name: wio, frozen: wio_frz},
+             "whi" => %{name: whi, frozen: whi_frz},
+             "whf" => %{name: whf, frozen: whf_frz},
+             "whg" => %{name: whg, frozen: whg_frz},
+             "who" => %{name: who, frozen: who_frz},
+             "bi" => %{name: bi, frozen: bi_frz},
+             "bf" => %{name: bf, frozen: bf_frz},
+             "bg" => %{name: bg, frozen: bg_frz},
+             "bo" => %{name: bo, frozen: bo_frz}
            },
            opts: [
              activation: activation,
@@ -421,9 +425,17 @@ defmodule Axon.Compiler do
             end
         end
 
-      input_kernel = {params[wii], params[wif], params[wig], params[wio]}
-      hidden_kernel = {params[whi], params[whf], params[whg], params[who]}
-      bias = {params[bi], params[bf], params[bg], params[bo]}
+      input_kernel =
+        {maybe_freeze(params[wii], wii_frz), maybe_freeze(params[wif], wif_frz),
+         maybe_freeze(params[wig], wig_frz), maybe_freeze(params[wio], wio_frz)}
+
+      hidden_kernel =
+        {maybe_freeze(params[whi], whi_frz), maybe_freeze(params[whf], whf_frz),
+         maybe_freeze(params[whg], whg_frz), maybe_freeze(params[who], who_frz)}
+
+      bias =
+        {maybe_freeze(params[bi], bi_frz), maybe_freeze(params[bf], bf_frz),
+         maybe_freeze(params[bg], bg_frz), maybe_freeze(params[bo], bo_frz)}
 
       carry = hidden_state_fun.(params, input)
 
@@ -461,9 +473,9 @@ defmodule Axon.Compiler do
            op: :conv_lstm,
            parent: parent,
            params: %{
-             "wi" => %{name: wi},
-             "wh" => %{name: wh},
-             "b" => %{name: b}
+             "wi" => %{name: wi, frozen: wi_frz},
+             "wh" => %{name: wh, frozen: wh_frz},
+             "b" => %{name: b, frozen: b_frz}
            },
            opts: [
              hidden_state: hidden_state,
@@ -507,9 +519,9 @@ defmodule Axon.Compiler do
             end
         end
 
-      input_kernel = {params[wi]}
-      hidden_kernel = {params[wh]}
-      bias = {params[b]}
+      input_kernel = {maybe_freeze(params[wi], wi_frz)}
+      hidden_kernel = {maybe_freeze(params[wh], wh_frz)}
+      bias = {maybe_freeze(params[b], b_frz)}
 
       carry = hidden_state_fun.(params, input)
 
@@ -544,16 +556,16 @@ defmodule Axon.Compiler do
            op: :gru,
            parent: parent,
            params: %{
-             "wir" => %{name: wir},
-             "wiz" => %{name: wiz},
-             "win" => %{name: win},
-             "whr" => %{name: whr},
-             "whz" => %{name: whz},
-             "whn" => %{name: whn},
-             "br" => %{name: br},
-             "bz" => %{name: bz},
-             "bin" => %{name: bin},
-             "bhn" => %{name: bhn}
+             "wir" => %{name: wir, frozen: wir_frz},
+             "wiz" => %{name: wiz, frozen: wiz_frz},
+             "win" => %{name: win, frozen: win_frz},
+             "whr" => %{name: whr, frozen: whr_frz},
+             "whz" => %{name: whz, frozen: whz_frz},
+             "whn" => %{name: whn, frozen: whn_frz},
+             "br" => %{name: br, frozen: br_frz},
+             "bz" => %{name: bz, frozen: bz_frz},
+             "bin" => %{name: bin, frozen: bin_frz},
+             "bhn" => %{name: bhn, frozen: bhn_frz}
            },
            opts: [
              activation: activation,
@@ -595,9 +607,17 @@ defmodule Axon.Compiler do
             end
         end
 
-      input_kernel = {params[wir], params[wiz], params[win]}
-      hidden_kernel = {params[whr], params[whz], params[whn]}
-      bias = {params[br], params[bz], params[bin], params[bhn]}
+      input_kernel =
+        {maybe_freeze(params[wir], wir_frz), maybe_freeze(params[wiz], wiz_frz),
+         maybe_freeze(params[win], win_frz)}
+
+      hidden_kernel =
+        {maybe_freeze(params[whr], whr_frz), maybe_freeze(params[whz], whz_frz),
+         maybe_freeze(params[whn], whn_frz)}
+
+      bias =
+        {maybe_freeze(params[br], br_frz), maybe_freeze(params[bz], bz_frz),
+         maybe_freeze(params[bin], bin_frz), maybe_freeze(params[bhn], bhn_frz)}
 
       carry = hidden_state_fun.(params, input)
 
@@ -748,6 +768,9 @@ defmodule Axon.Compiler do
 
     {fun, cache}
   end
+
+  defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
+  defp maybe_freeze(param, false), do: param
 
   ## Penalty Function Compilation
 

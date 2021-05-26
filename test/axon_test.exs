@@ -680,6 +680,36 @@ defmodule AxonTest do
     end
   end
 
+  describe "model freezing" do
+    test "sets metadata correctly" do
+      model =
+        Axon.input({nil, 784})
+        |> Axon.dense(128)
+        |> Axon.freeze()
+
+      assert %Axon{params: %{"kernel" => %{frozen: true}, "bias" => %{frozen: true}}} = model
+
+      assert %Axon{params: %{"kernel" => %{frozen: false}, "bias" => %{frozen: false}}} =
+               model |> Axon.dense(10)
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      model =
+        Axon.input({nil, 784})
+        |> Axon.dense(128)
+        |> Axon.freeze()
+
+      {init_fn, predict_fn} = Axon.compile(model)
+
+      backward = fn params, input ->
+        Nx.Defn.Kernel.grad(params, &Nx.mean(predict_fn.(&1, input)))
+      end
+
+      gradients = Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 784})])
+      assert Map.values(gradients) == [Nx.broadcast(0.0, {1, 128}), Nx.broadcast(0.0, {784, 128})]
+    end
+  end
+
   describe "inspection" do
     test "works with basic model" do
       model =
