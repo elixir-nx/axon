@@ -19,4 +19,4 @@ jobs:
       - name: Check formatting
         run: mix format --check-formatted
       - name: Run tests
-        run: mix test --warnings-as-errors
+        run: mix do compile --warnings-as-errors, test
