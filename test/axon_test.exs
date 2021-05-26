@@ -687,8 +687,10 @@ defmodule AxonTest do
         |> Axon.dense(128)
         |> Axon.freeze()
 
-        assert %Axon{params: %{"kernel" => %{frozen: true}, "bias" => %{frozen: true}}} = model
-        assert %Axon{params: %{"kernel" => %{frozen: false}, "bias" => %{frozen: false}}} = model |> Axon.dense(10)
+      assert %Axon{params: %{"kernel" => %{frozen: true}, "bias" => %{frozen: true}}} = model
+
+      assert %Axon{params: %{"kernel" => %{frozen: false}, "bias" => %{frozen: false}}} =
+               model |> Axon.dense(10)
     end
 
     test "returns zero gradient for frozen parameters" do
@@ -703,7 +705,7 @@ defmodule AxonTest do
         Nx.Defn.Kernel.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
-      gradients = Nx.Defn.jit backward, [init_fn.(), Nx.random_uniform({1, 784})]
+      gradients = Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 784})])
       assert Map.values(gradients) == [Nx.broadcast(0.0, {1, 128}), Nx.broadcast(0.0, {784, 128})]
     end
   end
