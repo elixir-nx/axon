@@ -251,7 +251,6 @@ defmodule Axon.Training do
 
         zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
 
-
         IO.puts("\n")
         IO.puts("Epoch #{epoch} time: #{time / 1_000_000}s")
         IO.puts("Epoch #{epoch} loss: #{:io_lib.format("~.5f", [epoch_avg_loss])}")
