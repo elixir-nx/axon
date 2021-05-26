@@ -84,8 +84,8 @@ defmodule Axon.Shared do
   defn zeros_like(params) do
     transform(params, fn params ->
       params
-      |> Enum.map(fn {_, v} -> Axon.Initializers.zeros(shape: Nx.shape(v)) end)
-      |> List.to_tuple()
+      |> Enum.map(fn {k, v} -> {k, Axon.Initializers.zeros(shape: Nx.shape(v))} end)
+      |> Map.new()
     end)
   end
 
@@ -95,8 +95,8 @@ defmodule Axon.Shared do
   defn fulls_like(params, value) do
     transform({params, Nx.tensor(value)}, fn {params, value} ->
       params
-      |> Enum.map(fn {_, v} -> Axon.Initializers.full(value, shape: Nx.shape(v)) end)
-      |> List.to_tuple()
+      |> Enum.map(fn {k, v} -> {k, Axon.Initializers.full(value, shape: Nx.shape(v))} end)
+      |> Map.new()
     end)
   end
 
