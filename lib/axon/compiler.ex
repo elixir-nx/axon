@@ -21,8 +21,7 @@ defmodule Axon.Compiler do
       graph
       |> Tuple.to_list()
       |> Enum.reduce(%{}, &to_init_fun/2)
-      |> Enum.map(fn {k, v} -> {k, v.()} end)
-      |> Map.new()
+      |> Map.new(fn {k, v} -> {k, v.()} end)
     end
   end
 
@@ -30,8 +29,7 @@ defmodule Axon.Compiler do
     fn ->
       graph
       |> to_init_fun(%{})
-      |> Enum.map(fn {k, v} -> {k, v.()} end)
-      |> Map.new()
+      |> Map.new(fn {k, v} -> {k, v.()} end)
     end
   end
 
@@ -173,11 +171,7 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, input ->
-      inp_params =
-        layer_params
-        |> Enum.map(fn {k, %{name: v}} -> {k, params[v]} end)
-        |> Map.new()
-
+      inp_params = Map.new(layer_params, fn {k, %{name: v}} -> {k, params[v]} end)
       apply(op, [fun.(params, input) | [inp_params] ++ opts])
     end
 
