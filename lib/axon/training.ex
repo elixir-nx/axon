@@ -253,9 +253,16 @@ defmodule Axon.Training do
 
         zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
 
-        train_state = apply_callback(callbacks, Map.put(train_state, :time, time), jit_opts, :after_epoch)
+        train_state =
+          apply_callback(callbacks, Map.put(train_state, :time, time), jit_opts, :after_epoch)
 
-        %{Map.delete(train_state, :time) | metrics: zero_metrics, epoch: epoch, epoch_step: 0, epoch_loss: 0.0}
+        %{
+          Map.delete(train_state, :time)
+          | metrics: zero_metrics,
+            epoch: epoch,
+            epoch_step: 0,
+            epoch_loss: 0.0
+        }
     end
 
     apply_callback(callbacks, train_state, jit_opts, :after_train)
@@ -301,8 +308,11 @@ defmodule Axon.Training do
       {callback, run_on}, train_state when is_function(callback) and is_atom(run_on) ->
         if run_on == event, do: apply(callback, [train_state, train_opts]), else: train_state
 
-      {callback, run_on, opts}, train_state when is_function(callback) and is_atom(run_on) and is_list(opts) ->
-        if run_on == event, do: apply(callback, [train_state, train_opts ++ opts]), else: train_state
+      {callback, run_on, opts}, train_state
+      when is_function(callback) and is_atom(run_on) and is_list(opts) ->
+        if run_on == event,
+          do: apply(callback, [train_state, train_opts ++ opts]),
+          else: train_state
 
       # Default case
       _, train_state ->
