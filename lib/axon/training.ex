@@ -233,46 +233,37 @@ defmodule Axon.Training do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
     log_every = opts[:log_every] || 50
+    callbacks = opts[:callbacks] || []
+    callbacks = [Axon.Training.StandardLogger | callbacks]
 
     jit_opts = [compiler: compiler, log_every: log_every] ++ opts
     train_state = Nx.Defn.jit(init_fn, [], jit_opts)
 
+    train_state = apply_callback(callbacks, train_state, jit_opts, :before_train)
+
     for epoch <- 1..epochs, reduce: train_state do
       train_state ->
+        train_state = apply_callback(callbacks, train_state, jit_opts, :before_epoch)
+
         {time, train_state} =
           :timer.tc(
             &train_epoch/6,
-            [step_fn, train_state, inputs, targets, epoch, jit_opts]
+            [step_fn, train_state, inputs, targets, callbacks, jit_opts]
           )
-
-        epoch_avg_loss =
-          train_state[:epoch_loss]
-          |> Nx.to_scalar()
 
         zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
 
-        IO.puts("\n")
-        IO.puts("Epoch #{epoch} time: #{time / 1_000_000}s")
-        IO.puts("Epoch #{epoch} loss: #{:io_lib.format("~.5f", [epoch_avg_loss])}")
+        train_state = apply_callback(callbacks, Map.put(train_state, :time, time), jit_opts, :after_epoch)
 
-        train_state[:metrics]
-        |> Enum.each(fn {k, v} ->
-          IO.puts(
-            "Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
-          )
-        end)
-
-        IO.puts("\n")
-
-        %{train_state | metrics: zero_metrics, epoch: epoch + 1, epoch_step: 0, epoch_loss: 0.0}
+        %{Map.delete(train_state, :time) | metrics: zero_metrics, epoch: epoch, epoch_step: 0, epoch_loss: 0.0}
     end
+
+    apply_callback(callbacks, train_state, jit_opts, :after_train)
   end
 
   ## Helpers
 
-  defp train_epoch(step_fn, train_state, inputs, targets, epoch, opts) do
-    {log_every, jit_opts} = Keyword.pop(opts, :log_every)
-
+  defp train_epoch(step_fn, train_state, inputs, targets, callbacks, opts) do
     dataset =
       inputs
       |> Stream.zip(targets)
@@ -280,38 +271,42 @@ defmodule Axon.Training do
     train_state =
       for {inp, tar} <- dataset, reduce: train_state do
         train_state ->
-          train_state = Nx.Defn.jit(step_fn, [train_state, inp, tar], jit_opts)
-
-          if is_integer(log_every) and
-               Nx.remainder(train_state[:epoch_step], log_every) == Nx.tensor(0) do
-            log_batch(epoch, train_state)
-          end
-
-          train_state
+          train_state = apply_callback(callbacks, train_state, opts, :before_batch)
+          train_state = Nx.Defn.jit(step_fn, [train_state, inp, tar], opts)
+          apply_callback(callbacks, train_state, opts, :after_batch)
       end
 
     train_state
   end
 
-  defp log_batch(epoch, train_state) do
-    batch_num = train_state[:epoch_step]
-    avg_loss = train_state[:epoch_loss]
+  defp apply_callback([], train_state, _, _), do: train_state
 
-    metrics =
-      train_state[:metrics]
-      |> Enum.map(fn {k, v} ->
-        "Average #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
-      end)
+  defp apply_callback(callbacks, train_state, train_opts, event) do
+    Enum.reduce(callbacks, train_state, fn
+      # Module callbacks
+      callback, train_state when is_atom(callback) ->
+        apply(callback, event, [train_state, train_opts])
 
-    metrics =
-      Enum.join(
-        ["Average Loss: #{:io_lib.format("~.5f", [Nx.to_scalar(avg_loss)])}" | metrics],
-        " - "
-      )
+      {callback, opts}, train_state when is_atom(callback) and is_list(opts) ->
+        apply(callback, event, [train_state, train_opts ++ opts])
 
-    IO.write(
-      "\rEpoch #{epoch}, batch #{Nx.to_scalar(batch_num)} - " <>
-        "#{metrics}"
-    )
+      # Function callbacks that run on every event
+      callback, train_state when is_function(callback) ->
+        apply(callback, [train_state, train_opts])
+
+      {callback, opts}, train_state when is_function(callback) and is_list(opts) ->
+        apply(callback, [train_state, train_opts ++ opts])
+
+      # Function callbacks that run on specific events
+      {callback, run_on}, train_state when is_function(callback) and is_atom(run_on) ->
+        if run_on == event, do: apply(callback, [train_state, train_opts]), else: train_state
+
+      {callback, run_on, opts}, train_state when is_function(callback) and is_atom(run_on) and is_list(opts) ->
+        if run_on == event, do: apply(callback, [train_state, train_opts ++ opts]), else: train_state
+
+      # Default case
+      _, train_state ->
+        train_state
+    end)
   end
 end
