@@ -1594,13 +1594,13 @@ defmodule Axon do
       num_params =
         params
         |> Enum.reduce(0, fn {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape) end)
-        
-      op_inspect = 
+
+      op_inspect =
         case op do
           op when is_atom(op) -> Atom.to_string(op)
           _ -> "custom"
-         end
-         
+        end
+
       row = [name <> " ( #{op_inspect} )", "#{inspect(shape)}", "#{num_params}"]
       {row, cache}
     end
