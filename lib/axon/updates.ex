@@ -1,46 +1,46 @@
 defmodule Axon.Updates do
   @moduledoc ~S"""
   Parameter update methods.
-  
+
   Update methods transform the input tensor in some way,
   usually by scaling or shifting the input with respect
   to some input state. Update methods are composed
   to create more advanced optimization methods such as AdaGrad
   or Adam. Each update returns a tuple:
-  
+
       {init_fn, update_fn}
-  
+
   Which represent a state initialization and state update
   function respectively. While each method in the Updates
   API is a regular Elixir function, the two methods they
   return are implemented as `defn`, so they can be accelerated
   using any Nx backend or compiler.
-  
+
   Update methods are just combinators that can be arbitrarily
   composed to create complex optimizers. For example, the Adam
   optimizer in Axon.Optimizers is implemented as:
-  
+
       def adam(learning_rate, opts \\ []) do
         Updates.scale_by_adam(opts)
         |> Updates.scale(-learning_rate)
       end
-  
+
   Updates are maps of updates, often assosciated with parameters of
   the same names. Using `Axon.Updates.apply_updates/2` will merge updates
   and parameters by adding assosciated parameters and updates.
-  
+
   ## Custom combinators
-  
+
   You can create your own combinators using the `stateless/2` and
   `stateful/3` primitives. Every update method in this module is
   implemented in terms of one of these two primitives.
-  
+
   `stateless/2` represents a stateless update:
-  
+
       def scale(combinator \\ Axon.Updates.identity(), step_size) do
         stateless(combinator, &apply_scale(&1, &2, step_size))
       end
-  
+
       defnp apply_scale(x, _params, step) do
         transform(
           {x, step},
@@ -49,22 +49,22 @@ defmodule Axon.Updates do
           end
         )
       end
-  
+
   Notice how the function given to `stateless/2` is defined within `defn`.
   This is what allows the anonymous functions returned by `Axon.Updates`
   to be used inside `defn`.
-  
+
   `stateful/3` represents a stateful update and follows the same pattern:
-  
+
       def my_stateful_update(updates) do
         Axon.Updates.stateful(updates, &init_my_update/1, &apply_my_update/2)
       end
-  
+
       defnp init_my_update(params) do
         state = zeros_like(params)
         %{state: state}
       end
-  
+
       defnp apply_my_update(updates, {state}) do
         new_state = apply_map(state, &Nx.add(&1, 0.01))
         updates = transform({updates, new_state}, fn {updates, state} ->
@@ -72,12 +72,12 @@ defmodule Axon.Updates do
         end)
         {updates, %{state: new_state}}
       end
-  
+
   State assosciated with individual parameters should have keys that match the
   keys of the parameter. For example, if you have parameters `%{kernel: kernel}`
   with assosciated states `mu` and `nu` representing the first and second moments,
   your state should look something like:
-  
+
       %{
         mu: %{kernel: kernel_mu}
         nu: %{kernel: kernel_nu}
@@ -88,7 +88,7 @@ defmodule Axon.Updates do
 
   @doc ~S"""
   Scales input by a fixed step size.
-  
+
   $$f(x_i) = \alpha x_i$$
   """
   def scale(combinator \\ identity(), step_size) do
@@ -106,18 +106,18 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input according to Adam algorithm.
-  
+
   ## Options
-  
+
       * `:b1` - first moment decay. Defaults to `0.9`
       * `:b2` - second moment decay. Defaults to `0.999`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
       * `:eps_root` - numerical stability term. Defaults to `0.0`
-  
+
   ## References
-  
+
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
-  
+
   """
   def scale_by_adam(combinator \\ identity(), opts) do
     stateful(
@@ -157,11 +157,11 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input by the root of all prior squared inputs.
-  
+
   ## Options
-  
+
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
-  
+
   """
   def scale_by_rss(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 0.1)
@@ -209,16 +209,16 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input by the root of the EMA of squared inputs.
-  
+
   ## Options
-  
+
       * `:decay` - EMA decay rate. Defaults to `0.9`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
-  
+
   ## References
-  
+
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
-  
+
   """
   def scale_by_rms(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
@@ -252,18 +252,18 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input according to the AdaBelief algorithm.
-  
+
   ## Options
-  
+
       * `:b1` - first moment decay. Defaults to `0.9`
       * `:b2` - second moment decay. Defaults to `0.999`
       * `:eps` - numerical stability term. Defaults to `0.0`
       * `:eps_root` - numerical stability term. Defaults to `1.0e-16`
-  
+
   ## References
-  
+
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
-  
+
   """
   def scale_by_belief(combinator \\ identity(), opts) do
     stateful(
@@ -303,16 +303,16 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input by the root of the centered EMA of squared inputs.
-  
+
   ## Options
-  
+
       * `:decay` - EMA decay rate. Defaults to `0.9`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
-  
+
   ## References
-  
+
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
-  
+
   """
   def scale_by_stddev(combinator \\ identity(), opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
@@ -374,19 +374,19 @@ defmodule Axon.Updates do
 
   @doc """
   Scale input according to the Rectified Adam algorithm.
-  
+
   ## Options
-  
+
       * `:b1` - first moment decay. Defaults to `0.9`
       * `:b2` - second moment decay. Defaults to `0.999`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
       * `:eps_root` - numerical stability term. Defaults to `0.0`
       * `:threshold` - threshold for variance. Defaults to `5.0`
-  
+
   ## References
-  
+
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
-  
+
   """
   def scale_by_radam(combinator \\ identity(), opts) do
     stateful(
@@ -470,14 +470,14 @@ defmodule Axon.Updates do
 
   @doc """
   Trace inputs with past inputs.
-  
+
   ## Options
-  
+
     * `:decay` - decay rate for tracing past updates. Defaults
       to `0.9`
     * `:nesterov` - whether to use Nesterov momentum. Defaults
       to `false`
-  
+
   """
   def trace(combinator \\ identity(), opts) do
     stateful(
@@ -515,9 +515,9 @@ defmodule Axon.Updates do
 
   @doc """
   Clips input between -delta and delta.
-  
+
   ## Options
-  
+
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
@@ -536,9 +536,9 @@ defmodule Axon.Updates do
 
   @doc """
   Clips input using input global norm.
-  
+
   ## Options
-  
+
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
@@ -717,7 +717,7 @@ defmodule Axon.Updates do
 
   @doc """
   Returns the identity update.
-  
+
   This is often as the initial update in many functions in this module.
   """
   def identity() do

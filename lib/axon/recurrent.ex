@@ -2,24 +2,24 @@ defmodule Axon.Recurrent do
   @moduledoc """
   Functional implementations of common recurrent neural network
   routines.
-  
+
   Recurrent Neural Networks are commonly used for working with
   sequences of data where there is some level of dependence between
   outputs at different timesteps.
-  
+
   This module contains 3 RNN Cell functions and methods to "unroll"
   cells over an entire sequence. Each cell function returns a tuple:
-  
+
       {new_carry, output}
-  
+
   Where `new_carry` is an updated carry state and `output` is the output
   for a singular timestep. In order to apply an RNN across multiple timesteps,
   you need to use either `static_unroll` or `dynamic_unroll` (coming soon).
-  
+
   Unrolling an RNN is equivalent to a `map_reduce` or `scan` starting
   from an initial carry state and ending with a final carry state and
   an output sequence.
-  
+
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
   any supported `Nx` compiler.

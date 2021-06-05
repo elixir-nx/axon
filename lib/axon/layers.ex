@@ -2,7 +2,7 @@ defmodule Axon.Layers do
   @moduledoc ~S"""
   Functional implementations of common neural network layer
   operations.
-  
+
   Layers are the building blocks of neural networks. These
   functional implementations can be used to express higher-level
   constructs using fundamental building blocks. Neural network
@@ -10,50 +10,50 @@ defmodule Axon.Layers do
   These implementations do not assume the responsibility of
   managing state - instead opting to delegate this responsibility
   to the caller.
-  
+
   Basic neural networks can be seen as a composition of functions:
-  
+
       input
       |> dense(w1, b1)
       |> relu()
       |> dense(w2, b2)
       |> softmax()
-  
+
   These kinds of models are often referred to as deep feedforward networks
   or multilayer perceptrons (MLPs) because information flows forward
   through the network with no feedback connections. Mathematically,
   a feedforward network can be represented as:
-  
+
     $$f(x) = f^{(3)}(f^{(2)}(f^{(1)}(x)))$$
-  
+
   You can see a similar pattern emerge if we condense the call stack
   in the previous example:
-  
+
       softmax(dense(relu(dense(input, w1, b1)), w2, b2))
-  
+
   The chain structure shown here is the most common structure used
   in neural networks. You can consider each function $f^{(n)}$ as a
   *layer* in the neural network - for example $f^{(2)} is the 2nd
   layer in the network. The number of function calls in the
   structure is the *depth* of the network. This is where the term
   *deep learning* comes from.
-  
+
   Neural networks are often written as the mapping:
-  
+
     $$y = f(x; \theta)$$
-  
+
   Where $x$ is the input to the neural network and $\theta$ are the
   set of learned parameters. In Elixir, you would write this:
-  
+
       y = model(input, params)
-  
+
   From the previous example, `params` would represent the collection:
-  
+
       {w1, b1, w2, b2}
-  
+
   where `w1` and `w2` are layer *weights*, and `b1` and `b2` are layer
   *biases*.
-  
+
   """
 
   import Nx.Defn
@@ -63,32 +63,32 @@ defmodule Axon.Layers do
 
   @doc ~S"""
   Functional implementation of a dense layer.
-  
+
   Linear transformation of the input such that:
-  
+
   $$y = xW^T + b$$
-  
+
   A dense layer or fully connected layer transforms
   the input using the given weight matrix and bias
   to compute:
-  
+
       Nx.dot(input, weight) + bias
-  
+
   Typically, both `weight` and `bias` are learnable
   parameters trained using gradient-based optimzation.
-  
+
   ## Parameter Shapes
-  
+
     * `input` - `{batch_size, ..., input_features}`
     * `weight` - `{input_features, output_features}`
     * `bias` - `{output_features}`
-  
+
   ## Output Shape
-  
+
     `{batch_size, output_features}`
-  
+
   ## Examples
-  
+
       iex> input = Nx.tensor([[1.0, 0.5, 1.0, 0.5], [0.0, 0.0, 0.0, 0.0]], type: {:f, 32})
       iex> weight = Nx.tensor([[0.2], [0.3], [0.5], [0.8]], type: {:f, 32})
       iex> bias = Nx.tensor([1.0], type: {:f, 32})
@@ -110,23 +110,23 @@ defmodule Axon.Layers do
 
   @doc ~S"""
   Functional implementation of a bilinear layer.
-  
+
   Bilinear transformation of the input such that:
-  
+
   $$y = x_1^{T}Ax_2 + b$$
-  
+
   ## Parameter Shapes
-  
+
     * `input1` - `{batch_size, ..., input1_features}`
     * `input2` - `{batch_size, ..., input2_features}`
     * `weight` - `{out_features, input1_features, input2_features}`
-  
+
   ## Output Shape
-  
+
     `{batch_size, output_features}`
-  
+
   ## Examples
-  
+
       iex> inp1 = Nx.iota({3, 2}, type: {:f, 32})
       iex> inp2 = Nx.iota({3, 4}, type: {:f, 32})
       iex> weight = Nx.iota({1, 2, 4}, type: {:f, 32})
@@ -157,46 +157,46 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a general dimensional convolutional
   layer.
-  
+
   Convolutional layers can be described as applying a convolution
   over an input signal composed of several input planes. Intuitively,
   the input kernel slides `output_channels` number of filters over
   the input tensor to extract features from the input tensor.
-  
+
   Convolutional layers are most commonly used in computer vision,
   but can also be useful when working with sequences and other input signals.
-  
+
   ## Parameter Shapes
-  
+
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
     * `weight` - `{output_channels, input_channels, kernel_spatial0, ..., kernel_spatialN}`
     * `bias` - `{output_channels}` or `{}`
-  
+
   ## Options
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:input_dilation` - input dilation factor. Equivalent
       to applying interior padding on the input. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
     * `:kernel_dilation` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
   ## Examples
-  
+
   ### One-dimensional convolution
-  
+
       iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
       iex> weight = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
       iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
@@ -216,9 +216,9 @@ defmodule Axon.Layers do
           ]
         ]
       >
-  
+
   ### Two-dimensional convolution
-  
+
       iex> input = Nx.tensor([[[[-1.0476, -0.5041], [-0.9336, 1.5907]]]], type: {:f, 32})
       iex> weight = Nx.tensor([
       ...>  [[[0.7514, 0.7356], [1.3909,  0.6800]]],
@@ -243,9 +243,9 @@ defmodule Axon.Layers do
           ]
         ]
       >
-  
+
     ### Three-dimensional convolution
-  
+
     iex> input = Nx.tensor([[[[[-0.6497], [1.0939]], [[-2.5465], [0.7801]]]]], type: {:f, 32})
     iex> weight = Nx.tensor([
     ...>  [[[[ 0.7390], [-0.0927]], [[-0.8675], [-0.9209]]]],
@@ -303,41 +303,41 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a general dimensional transposed
   convolutional layer.
-  
+
   *Note: This layer is currently implemented as a fractionally strided
   convolution by padding the input tensor. Please open an issue if you'd
   like this behavior changed.*
-  
+
   Transposed convolutions are sometimes (incorrectly) referred to as
   deconvolutions because it "reverses" the spatial dimensions
   of a normal convolution. Transposed convolutions are a form of upsampling -
   they produce larger spatial dimensions than the input tensor. They
   can be thought of as a convolution in reverse - and are sometimes
   implemented as the backward pass of a normal convolution.
-  
+
   ## Options
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:input_dilation` - input dilation factor. Equivalent
       to applying interior padding on the input. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
     * `:kernel_dilation` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
   ## Examples
-  
+
       iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
       iex> kernel = Nx.iota({6, 3, 2}, type: {:f, 32})
       iex> bias = Nx.tensor(1.0, type: {:f, 32})
@@ -355,9 +355,9 @@ defmodule Axon.Layers do
           ]
         ]
       >
-  
+
   ## References
-  
+
     * [A guide to convolution arithmethic for deep learning](https://arxiv.org/abs/1603.07285v1)
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
@@ -406,43 +406,43 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a general dimensional depthwise
   convolution.
-  
+
   Depthwise convolutions apply a single convolutional filter to
   each input channel. This is done by setting `feature_group_size`
   equal to the number of input channels. This will split the
   output_channels into `input_channels` number of groups and
   convolve the grouped kernel channels over the corresponding input
   channel.
-  
+
   ## Parameter Shapes
-  
+
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
     * `weight` - `{output_channels, 1, kernel_spatial0, ..., kernel_spatialN}`
     * `bias` - `{output_channels}` or `{}`
-  
+
     `output_channels` must be a multiple of the input channels.
-  
+
   ## Options
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:input_dilation` - input dilation factor. Equivalent
       to applying interior padding on the input. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
     * `:kernel_dilation` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
   """
   @doc type: :convolutional
   defn depthwise_conv(input, weight, bias, opts \\ []) do
@@ -486,43 +486,43 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 2-dimensional separable depthwise
   convolution.
-  
+
   The 2-d depthwise separable convolution performs 2 depthwise convolutions
   each over 1 spatial dimension of the input.
-  
+
   ## Parameter Shapes
-  
+
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
     * `k1` - `{output_channels, 1, kernel_spatial0, 1}`
     * `b1` - `{output_channels}` or `{}`
     * `k2` - `{output_channels, 1, 1, kernel_spatial1}`
     * `b2` - `{output_channels}` or `{}`
-  
+
     `output_channels` must be a multiple of the input channels.
-  
+
   ## Options
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:input_dilation` - input dilation factor. Equivalent
       to applying interior padding on the input. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
     * `:kernel_dilation` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
   ## References
-  
+
     * [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
   """
   @doc type: :convolutional
@@ -535,12 +535,12 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of a 3-dimensional separable depthwise
   convolution.
-  
+
   The 3-d depthwise separable convolution performs 3 depthwise convolutions
   each over 1 spatial dimension of the input.
-  
+
   ## Parameter Shapes
-  
+
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
     * `k1` - `{output_channels, 1, kernel_spatial0, 1, 1}`
     * `b1` - `{output_channels}` or `{}`
@@ -548,32 +548,32 @@ defmodule Axon.Layers do
     * `b2` - `{output_channels}` or `{}`
     * `k3` - `{output_channels, 1, 1, 1, 1, kernel_spatial2}`
     * `b3` - `{output_channels}` or `{}`
-  
+
     `output_channels` must be a multiple of the input channels.
-  
+
   ## Options
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:input_dilation` - input dilation factor. Equivalent
       to applying interior padding on the input. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
     * `:kernel_dilation` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
-  
+
   ## References
-  
+
     * [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
   """
   @doc type: :convolutional
@@ -586,35 +586,35 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of a general dimensional max pooling layer.
-  
+
   Pooling is applied to the spatial dimension of the input tensor.
   Max pooling returns the maximum element in each valid window of
   the input tensor. It is often used after convolutional layers
   to downsample the input even further.
-  
+
   ## Options
-  
+
     * `kernel_size` - window size. Rank must match spatial dimension
       of the input tensor. Required.
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:window_dilations` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Can be scalar or list who's length matches the number of
       spatial dimensions in the input tensor. Defaults to `1` or no
       dilation.
-  
+
   ## Examples
-  
+
       iex> t = Nx.tensor([[
       ...> [0.051500000059604645, -0.7042999863624573, -0.32899999618530273],
       ...> [-0.37130001187324524, 1.6191999912261963, -0.11829999834299088],
@@ -668,26 +668,26 @@ defmodule Axon.Layers do
 
   @doc """
   A general dimensional functional average pooling layer.
-  
+
   Pooling is applied to the spatial dimension of the input tensor.
   Average pooling returns the average of all elements in valid
   windows in the input tensor. It is often used after convolutional
   layers to downsample the input even further.
-  
+
   ## Options
-  
+
     * `kernel_size` - window size. Rank must match spatial dimension
       of the input tensor. Required.
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:window_dilations` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
@@ -733,39 +733,39 @@ defmodule Axon.Layers do
   @doc ~S"""
   Functional implementation of a general dimensional power average
   pooling layer.
-  
+
   Pooling is applied to the spatial dimension of the input tensor.
   Power average pooling computes the following function on each
   valid window of the input tensor:
-  
+
   $$f(X) = \sqrt[p]{\sum_{x \in X} x^{p}}$$
-  
+
   Where $p$ is given by the keyword argument `:norm`. As $p$ approaches
   infinity, it becomes equivalent to max pooling.
-  
+
   ## Options
-  
+
     * `kernel_size` - window size. Rank must match spatial dimension
       of the input tensor. Required.
-  
+
     * `:strides` - kernel strides. Can be a scalar or a list
       who's length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
-  
+
     * `:padding` - zero padding on the input. Can be one of
       `:valid`, `:same` or a general padding configuration
       without interior padding for each spatial dimension
       of the input.
-  
+
     * `:window_dilations` - kernel dilation factor. Equivalent
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Can be scalar or list who's length matches the number of
       spatial dimensions in the input tensor. Defaults to `1` or no
       dilation.
-  
+
   ## Examples
-  
+
       iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
       iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2)
       #Nx.Tensor<
@@ -824,20 +824,20 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of general dimensional adaptive average
   pooling.
-  
+
   Adaptive pooling allows you to specify the desired output size
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size. It
   will then perform average pooling using the calculated window
   size and strides.
-  
+
   Adaptive pooling can be useful when working on multiple inputs with
   different spatial input shapes. You can guarantee the output of
   an adaptive pooling operation is always the same size regardless
   of input shape.
-  
+
   ## Options
-  
+
     * `:output_size` - spatial output size. Must be a tuple with
       size equal to the spatial dimensions in the input tensor.
       Required.
@@ -869,20 +869,20 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of general dimensional adaptive max
   pooling.
-  
+
   Adaptive pooling allows you to specify the desired output size
   of the transformed input. This will automatically adapt the
   window size and strides to obtain the desired output size. It
   will then perform max pooling using the calculated window
   size and strides.
-  
+
   Adaptive pooling can be useful when working on multiple inputs with
   different spatial input shapes. You can guarantee the output of
   an adaptive pooling operation is always the same size regardless
   of input shape.
-  
+
   ## Options
-  
+
     * `:output_size` - spatial output size. Must be a tuple with
       size equal to the spatial dimensions in the input tensor.
       Required.
@@ -915,26 +915,26 @@ defmodule Axon.Layers do
 
   @doc ~S"""
   Functional implementation of batch normalization.
-  
+
   Normalizes the input by calculating mean and variance of the
   input tensor along every dimension but the given `:channel_index`,
   and then scaling according to:
-  
+
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
-  
+
   `gamma` and `beta` are often trainable parameters. This method does
   not maintain an EMA of mean and variance.
-  
+
   ## Options
-  
+
     * `:epsilon` - numerical stability term. $epsilon$ in the above
       formulation.
-  
+
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
-  
+
   ## References
-  
+
     * [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
   """
   @doc type: :normalization
@@ -952,20 +952,20 @@ defmodule Axon.Layers do
 
   @doc ~S"""
   Functional implementation of layer normalization.
-  
+
   Normalizes the input by calculating mean and variance of the
   input tensor along the given feature dimension `:channel_index`.
-  
+
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
-  
+
   `gamma` and `beta` are often trainable parameters. This method does
   not maintain an EMA of mean and variance.
-  
+
   ## Options
-  
+
     * `:epsilon` - numerical stability term. $epsilon$ in the above
       formulation.
-  
+
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
   """
@@ -979,29 +979,29 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of group normalization.
-  
+
   Normalizes the input by reshaping input into groups of given
   `:group_size` and then calculating the mean and variance along
   every dimension but the input batch dimension.
-  
+
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
-  
+
   `gamma` and `beta` are often trainable parameters. This method does
   not maintain an EMA of mean and variance.
-  
+
   ## Options
-  
+
     * `:group_size` - channel group size. Size of each group to split
       input channels into.
-  
+
     * `:epsilon` - numerical stability term. $epsilon$ in the above
       formulation.
-  
+
     * `:channel_index` - channel index used to determine reduction
       axes and group shape for mean and variance calculation.
-  
+
   ## References
-  
+
     * [Group Normalization](https://arxiv.org/abs/1803.08494v3)
   """
   @doc type: :normalization
@@ -1023,25 +1023,25 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of instance normalization.
-  
+
   Normalizes the input by calculating mean and variance of the
   input tensor along the spatial dimensions of the input.
-  
+
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
-  
+
   `gamma` and `beta` are often trainable parameters. This method does
   not maintain an EMA of mean and variance.
-  
+
   ## Options
-  
+
     * `:epsilon` - numerical stability term. $epsilon$ in the above
       formulation.
-  
+
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
-  
+
   ## References
-  
+
     * [Instance Normalization: The Missing Ingredient for Fast Stylization](https://arxiv.org/abs/1607.08022v3)
   """
   @doc type: :normalization
@@ -1063,26 +1063,26 @@ defmodule Axon.Layers do
 
   @doc ~S"""
   Functional implementation of a dropout layer.
-  
+
   Applies a mask to some elements of the input tensor with probability
   `rate` and scales the input tensor by a factor of $\frac{1}{1 - rate}$.
-  
+
   Dropout is a form of regularization that helps prevent overfitting
   by preventing models from becoming too reliant on certain connections.
   Dropout can somewhat be thought of as learning an ensemble of models
   with random connections masked.
-  
+
   ## Options
-  
+
     * `:rate` - dropout rate. Used to determine probability a connection
       will be dropped. Required.
-  
+
     # `:noise_shape` - input noise shape. Shape of `mask` which can be useful
       for broadcasting `mask` across feature channels or other dimensions.
       Defaults to shape of input tensor.
-  
+
   ## References
-  
+
     * [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](https://jmlr.org/papers/v15/srivastava14a.html)
   """
   @doc type: :dropout
@@ -1107,24 +1107,24 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of an n-dimensional spatial
   dropout layer.
-  
+
   Applies a mask to entire feature maps instead of individual
   elements. This is done by calculating a mask shape equal to
   the spatial dimensions of the input tensor with 1 channel,
   and then broadcasting the mask across the feature dimension
   of the input tensor.
-  
+
   ## Options
-  
+
     * `:rate` - dropout rate. Used to determine probability a connection
       will be dropped. Required.
-  
+
     # `:noise_shape` - input noise shape. Shape of `mask` which can be useful
       for broadcasting `mask` across feature channels or other dimensions.
       Defaults to shape of input tensor.
-  
+
   ## References
-  
+
     * [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
   """
   @doc type: :dropout
@@ -1136,22 +1136,22 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of an alpha dropout layer.
-  
+
   Alpha dropout is a type of dropout that forces the input
   to have zero mean and unit standard deviation. Randomly
   masks some elements and scales to enforce self-normalization.
-  
+
   ## Options
-  
+
     * `:rate` - dropout rate. Used to determine probability a connection
       will be dropped. Required.
-  
+
     # `:noise_shape` - input noise shape. Shape of `mask` which can be useful
       for broadcasting `mask` across feature channels or other dimensions.
       Defaults to shape of input tensor.
-  
+
   ## References
-  
+
     * [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
   """
   @doc type: :dropout
@@ -1175,17 +1175,17 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of a feature alpha dropout layer.
-  
+
   Feature alpha dropout applies dropout in the same manner as
   spatial dropout; however, it also enforces self-normalization
   by masking inputs with the SELU activation function and scaling
   unmasked inputs.
-  
+
   ## Options
-  
+
     * `:rate` - dropout rate. Used to determine probability a connection
       will be dropped. Required.
-  
+
     # `:noise_shape` - input noise shape. Shape of `mask` which can be useful
       for broadcasting `mask` across feature channels or other dimensions.
       Defaults to shape of input tensor.
@@ -1291,9 +1291,9 @@ defmodule Axon.Layers do
   @doc """
   Flattens input to shape of `{batch, units}` by folding outer
   dimensions.
-  
+
   ## Examples
-  
+
       iex> Axon.Layers.flatten(Nx.iota({1, 2, 2}, type: {:f, 32}))
       #Nx.Tensor<
         f32[1][4]
