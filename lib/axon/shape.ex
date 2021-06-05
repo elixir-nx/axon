@@ -10,20 +10,20 @@ defmodule Axon.Shape do
 
   @doc """
   Calculates the shape of an input layer.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.input({nil, 784})
       {nil, 784}
-
+  
       iex> Axon.Shape.input({32, 784})
       {32, 784}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.input(5)
       ** (ArgumentError) invalid input shape 5, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
-
+  
       iex> Axon.Shape.input({32, nil, 28, 28})
       ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
   """
@@ -60,15 +60,15 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a dense kernel given the input
   shape and output units.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.dense_kernel({nil, 784}, 128)
       {784, 128}
-
+  
       iex> Axon.Shape.dense_kernel({nil, 128}, 256)
       {128, 256}
-
+  
       iex> Axon.Shape.dense_kernel({nil, 3, 256, 256}, 128)
       {256, 128}
   """
@@ -79,15 +79,15 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a dense bias given the input
   shape and output units.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.dense_bias({nil, 784}, 128)
       {1, 128}
-
+  
       iex> Axon.Shape.dense_bias({nil, 128}, 256)
       {1, 256}
-
+  
       iex> Axon.Shape.dense_bias({nil, 3, 256, 256}, 128)
       {1, 128}
   """
@@ -98,15 +98,15 @@ defmodule Axon.Shape do
   @doc """
   Calculates the output shape of a dense layer given the
   input shape and output units.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.dense({nil, 784}, 128)
       {nil, 128}
-
+  
       iex> Axon.Shape.dense({nil, 256}, 512)
       {nil, 512}
-
+  
       iex> Axon.Shape.dense({nil, 128}, 128)
       {nil, 128}
   """
@@ -119,23 +119,23 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a convolution kernel given the
   input shape, output filters, and kernel size.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3})
       {32, 3, 3, 3}
-
+  
       iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2})
       {64, 3, 2}
-
+  
       iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
       {32, 1, 2, 1, 3}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2})
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
@@ -153,23 +153,23 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a convolution bias given the
   input shape, output filters, and kernel size.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3})
       {1, 32, 1, 1}
-
+  
       iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2})
       {1, 64, 1}
-
+  
       iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
       {1, 32, 1, 1, 1}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2})
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
@@ -188,15 +188,15 @@ defmodule Axon.Shape do
   Calculates the shape after a convolution layer with
   the given parent shape, kernel shape, strides, padding,
   input dilation and kernel dilation.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
       {nil, 64, 75, 75}
-
+  
       iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
       {32, 64, 31, 62}
-
+  
       iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2])
       {nil, 32, 30}
   """
@@ -235,7 +235,7 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reshape needed to broadcast convolution bias
   over the given input shape.
-
+  
   In order to effectively broadcast, we need to expand
   the dimensions of the bias term in convolutions - if
   the input bias shape is a vector, otherwise we'll just
@@ -259,9 +259,9 @@ defmodule Axon.Shape do
   Calculates the shape after a transposed convolution layer
   with the given parent shape, kernel shape, strides, padding,
   and kernel dilation.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.conv_transpose({nil, 3, 3}, {6, 3, 2}, [1], :valid, [1])
       {nil, 6, 4}
   """
@@ -353,23 +353,23 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a depthwise convolution kernel given the
   input shape, output filters, and kernel size.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 224, 224}, 3, {3, 3})
       {9, 1, 3, 3}
-
+  
       iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 28}, 2, {2})
       {6, 1, 2}
-
+  
       iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
       {1, 1, 2, 1, 3}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 28, 28}, 32, {2})
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
@@ -387,23 +387,23 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a convolution bias given the
   input shape, channel multiplier, and kernel size.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3})
       {1, 9, 1, 1}
-
+  
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2})
       {1, 6, 1}
-
+  
       iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
       {1, 1, 1, 1, 1}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.depthwise_conv_bias({nil, 1, 28, 28}, 2, {2})
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
@@ -423,15 +423,15 @@ defmodule Axon.Shape do
   Calculates the shape after a depthwise convolution layer with
   the given parent shape, kernel shape, strides, padding, input
   dilation, and kernel dilation.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.depthwise_conv({nil, 3, 224, 224}, {9, 1, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
       {nil, 9, 75, 75}
-
+  
       iex> Axon.Shape.depthwise_conv({32, 3, 32, 32}, {9, 1, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
       {32, 9, 31, 62}
-
+  
       iex> Axon.Shape.depthwise_conv({nil, 3, 32}, {9, 1, 2}, [1], :valid, [1], [2])
       {nil, 9, 30}
   """
@@ -480,23 +480,23 @@ defmodule Axon.Shape do
   Calculates the shape of a 2d depthwise separable convolution
   kernel given the input shape, channel multiplier, kernel size
   and parameter number.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 1)
       {9, 1, 3, 1}
-
+  
       iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 2)
       {9, 1, 1, 3}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
-
+  
       iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3)
       ** (ArgumentError) invalid kernel number
   """
@@ -522,20 +522,20 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a depthwise separable convolution
   bias given the input shape, channel multiplier and kernel size.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3})
       {1, 9, 1, 1}
-
+  
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3})
       {1, 12, 1, 1}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28}, 2, {2})
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
@@ -553,23 +553,23 @@ defmodule Axon.Shape do
   Calculates the shape of a 3-d depthwise separable convolution
   kernel given the input shape, channel multiplier, kernel size,
   and parameter number.
-
+  
   Kernel size must match the number of spatial dimensions
   in the input (input rank - 2).
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 3, {3, 3, 3}, 1)
       {9, 1, 3, 1, 1}
-
+  
       iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 2)
       {12, 1, 1, 3, 1}
-
+  
       iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 3)
       {12, 1, 1, 1, 3}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.separable_conv3d_kernel({nil, 1, 28, 28, 3}, 3, {2}, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (3)
   """
@@ -595,20 +595,20 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of a depthwise separable convolution
   bias.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2})
       {1, 9, 1, 1, 1}
-
+  
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2})
       {1, 6, 1, 1, 1}
-
+  
       iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1})
       {1, 5, 1, 1, 1}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 2, {2, 2})
       ** (ArgumentError) kernel size must have same rank (2) as number of spatial dimensions in the input (3)
   """
@@ -626,12 +626,12 @@ defmodule Axon.Shape do
   Calculates the output shape after a pooling operation
   with the given parent shape, kernel size, strides, and
   padding.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid)
       {nil, 3, 31, 16}
-
+  
       iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same)
       {32, 1, 28, 28}
   """
@@ -673,7 +673,7 @@ defmodule Axon.Shape do
   @doc """
   Calculates the window size of a pooling operation based on given
   kernel size and spatial rank of the input.
-
+  
   `window_x` functions expect a window which matches the
   rank of the input shape. For basic pooling we don't pool
   across batch or channel dimensions, so we just specify
@@ -700,17 +700,17 @@ defmodule Axon.Shape do
   @doc """
   Calculates the output shape after an adaptive pooling operation
   with the given parent shape and output size.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.adaptive_pool({nil, 3, 32, 32}, {27, 27})
       {nil, 3, 27, 27}
-
+  
       iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {25, 25})
       {nil, 1, 25, 25}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {30, 30})
       ** (ArgumentError) invalid output size for adaptive pool operation for input with shape {nil, 1, 28, 28} and output size {30, 30} each dimension of output size must be greater than or equal to spatial dimension of input
   """
@@ -739,12 +739,12 @@ defmodule Axon.Shape do
   Calculates strides needed for an adaptive pooling operation
   with the given input shape, output spatial shape, and spatial
   rank.
-
+  
   Adaptive pooling functions adapt the strides of the window
   according to:
-
+  
       stride = div(input, output)
-
+  
   This preserves the size of the channel/batch dimension.
   """
   def adaptive_pool_window_strides(input_shape, output_spatial, spatial_rank) do
@@ -780,12 +780,12 @@ defmodule Axon.Shape do
   Calculates the window size for an adaptive pooling operation
   given input shape, strides, output spatial dimensions, and spatial
   rank.
-
+  
   Adaptive pooling functions adopt the size of the window
   according to:
-
+  
       size = input_size - (output_size - 1) * stride
-
+  
   This preserves the size of the channel/batch dimension.
   """
   def adaptive_pool_window_size(input_shape, [_, _ | stride], output_spatial, spatial_rank) do
@@ -822,12 +822,12 @@ defmodule Axon.Shape do
   @doc """
   Calculates the gamma/beta shape of a normalization layer
   given the input shape and channel index.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.norm_param({nil, 3, 28, 28}, 1)
       {1, 3, 1, 1}
-
+  
       iex> Axon.Shape.norm_param({nil, 28, 28, 3}, 3)
       {1, 1, 1, 3}
   """
@@ -883,20 +883,20 @@ defmodule Axon.Shape do
   Calculates the shape after a flatten layer, which
   flattens the non-minibatch dimensions into a single
   dimension.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.flatten({nil, 1, 28, 28})
       {nil, 784}
-
+  
       iex> Axon.Shape.flatten({32, 128})
       {32, 128}
-
+  
       iex> Axon.Shape.flatten({nil, 10, 10})
       {nil, 100}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.flatten({nil})
       ** (ArgumentError) expected flatten input shape to have at least rank 2, got {nil} with rank 1
   """
@@ -921,17 +921,17 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape after a concatenate layer, which
   concatenates inputs along the given dimension.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.concatenate([{nil, 32}, {nil, 12}], 1)
       {nil, 44}
-
+  
       iex> Axon.Shape.concatenate([{nil, 24, 32}, {nil, 24, 15}, {nil, 24, 10}], 2)
       {nil, 24, 57}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.concatenate([{10, 32}, {5, 32}], 1)
       ** (ArgumentError) non-concat dims must be equal got 5 and 10 while concatenating on axis 1
   """
@@ -944,17 +944,17 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape after a reshape layer, which
   reshapes non-batch dimensions.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.reshape({nil, 8}, {4, 2})
       {nil, 4, 2}
-
+  
       iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4})
       {32, 4, 4, 4}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.reshape({nil, 4, 2}, {9})
       ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as batch dimensions of old shape
   """
@@ -976,12 +976,12 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape after a transpose layer, which
   transposes non-batch dimensions.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0])
       {nil, 10, 64}
-
+  
       iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2])
       {nil, 224, 3, 224}
   """
@@ -998,17 +998,17 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape after a pad layer, which pads
   the spatial dimensions of an input.
-
+  
   ## Examples
-
+  
       iex> Axon.Shape.pad({nil, 3, 28, 28}, [{0, 1}, {1, 1}])
       {nil, 3, 29, 30}
-
+  
       iex> Axon.Shape.pad({nil, 3, 30, 30}, [{2, -1}, {1, 1}])
       {nil, 3, 31, 32}
-
+  
   ### Error cases
-
+  
       iex> Axon.Shape.pad({nil, 784}, [{0, 1}])
       ** (ArgumentError) invalid padding configuration [{0, 1}], length of padding configuration must be equal to the rank of the spatial dimensions of the input
   """
@@ -1038,7 +1038,7 @@ defmodule Axon.Shape do
   @doc """
   Calculates the noise shape from a spatial dropout operation
   based on the input shape.
-
+  
   Spatial dropout shapes are broadcasted across feature
   channels, so we set the channel size to 1 and preserve
   the spatial dimensions.

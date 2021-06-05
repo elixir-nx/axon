@@ -2,9 +2,10 @@ defmodule Axon.Training do
   @moduledoc """
   Abstractions for training machine learning models.
   """
-
   require Axon
   require Axon.Updates
+
+  alias Axon.Training.Step
 
   @doc false
   def step({_, _} = model, {_, _} = update), do: step(model, update, [])
@@ -111,7 +112,7 @@ defmodule Axon.Training do
       }
     end
 
-    {init_fn, step_fn}
+    %Step{init: init_fn, step: step_fn, callbacks: []}
   end
 
   @doc false
@@ -178,6 +179,65 @@ defmodule Axon.Training do
     step(model, train_state, loss_fn, optimizer, opts)
   end
 
+  @valid_callbacks [:early_stopping]
+
+  @doc false
+  def callback(%Step{} = step, callback) when callback in @valid_callbacks do
+    callback(step, callback, [])
+  end
+
+  @doc """
+  Adds a callback from `Axon.Training.Callbacks` to the training step.
+  """
+  def callback(%Step{} = step, callback, opts) when callback in @valid_callbacks do
+    fun = &apply(Axon.Training.Callbacks, callback, [&1, &2, &3])
+    callback(step, fun, :all, opts)
+  end
+
+  @doc """
+  Adds a callback function to the training step.
+
+  Callback functions instrument specific points in the training loop.
+  You can specify an `event` which is one of:
+
+    - `:before_{train, epoch, batch}`
+    - `:after_{train, epoch, batch}`
+
+  The default `event` is `:all`, meaning the callback will run at every
+  callback point.
+
+  Callback functions have the following signature:
+
+      callback_fn(train_state :: map, event :: atom, opts :: keyword) ::
+        {:cont, train_state} | {:halt, train_state}
+
+  You can trigger event-specific behavior using pattern matching:
+
+      def my_callback(train_state, :before_epoch, _opts) do
+        {:cont, %{train_state | my_metadata: 0}}
+      end
+
+      def my_callback(train_state, :after_epoch, _opts) do
+        {:cont, %{train_state | my_metadata: train_state[:metadata] + 1}}
+      end
+
+      def my_callback(train_state, _event, _opts), do: {:cont, train_state}
+
+  Returning `{:halt, train_state}` will immediately terminate the training loop:
+
+      def early_stopping(train_state, :after_epoch, opts) do
+        if stop?(train_state, opts) do
+          {:halt, train_state}
+        else
+          {:cont, train_state}
+        end
+      end
+  """
+  def callback(%Step{callbacks: callbacks} = step, function, event \\ :all, opts \\ [])
+      when is_function(function, 3) and is_atom(event) and is_list(opts) do
+    %{step | callbacks: [{function, event, opts} | callbacks]}
+  end
+
   @doc """
   Implements a common training loop.
 
@@ -229,94 +289,130 @@ defmodule Axon.Training do
       init_fn = &init_values/0
 
   """
-  def train({init_fn, step_fn}, inputs, targets, opts \\ []) do
+  def train(
+        %Step{init: init_fn, step: step_fn, callbacks: callbacks},
+        inputs,
+        targets,
+        opts \\ []
+      ) do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
     log_every = opts[:log_every] || 50
-    callbacks = opts[:callbacks] || []
-    callbacks = [Axon.Training.StandardLogger | callbacks]
 
-    jit_opts = [compiler: compiler, log_every: log_every] ++ opts
+    callbacks = [
+      {&Axon.Training.Callbacks.standard_io_logger(&1, &2, &3), :all, log_every: log_every}
+      | Enum.reverse(callbacks)
+    ]
+
+    jit_opts = [compiler: compiler] ++ opts
     train_state = Nx.Defn.jit(init_fn, [], jit_opts)
 
-    train_state = apply_callback(callbacks, train_state, jit_opts, :before_train)
+    train_state =
+      case apply_callback(callbacks, train_state, jit_opts, :before_train) do
+        {:cont, train_state} ->
+          Enum.reduce_while(1..epochs, train_state, fn epoch, train_state ->
+            case apply_callback(callbacks, train_state, jit_opts, :before_epoch) do
+              {:cont, train_state} ->
+                {time, train_state} =
+                  :timer.tc(&train_epoch/6, [
+                    step_fn,
+                    train_state,
+                    inputs,
+                    targets,
+                    callbacks,
+                    jit_opts
+                  ])
 
-    for epoch <- 1..epochs, reduce: train_state do
-      train_state ->
-        train_state = apply_callback(callbacks, train_state, jit_opts, :before_epoch)
+                zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
 
-        {time, train_state} =
-          :timer.tc(
-            &train_epoch/6,
-            [step_fn, train_state, inputs, targets, callbacks, jit_opts]
-          )
+                case apply_callback(
+                       callbacks,
+                       Map.put(train_state, :time, time),
+                       jit_opts,
+                       :after_epoch
+                     ) do
+                  {:cont, train_state} ->
+                    train_state = %{
+                      Map.delete(train_state, :time)
+                      | metrics: zero_metrics,
+                        epoch: epoch,
+                        epoch_step: 0,
+                        epoch_loss: 0.0
+                    }
 
-        zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
+                    {:cont, train_state}
 
-        train_state =
-          apply_callback(callbacks, Map.put(train_state, :time, time), jit_opts, :after_epoch)
+                  {:halt, train_state} ->
+                    {:halt, train_state}
+                end
 
-        %{
-          Map.delete(train_state, :time)
-          | metrics: zero_metrics,
-            epoch: epoch,
-            epoch_step: 0,
-            epoch_loss: 0.0
-        }
-    end
+              {:halt, train_state} ->
+                {:halt, train_state}
+            end
+          end)
 
-    apply_callback(callbacks, train_state, jit_opts, :after_train)
+        {:halt, train_state} ->
+          train_state
+      end
+
+    {_, train_state} = apply_callback(callbacks, train_state, jit_opts, :after_train)
+
+    train_state
   end
 
   ## Helpers
 
   defp train_epoch(step_fn, train_state, inputs, targets, callbacks, opts) do
-    dataset =
-      inputs
-      |> Stream.zip(targets)
+    dataset = Stream.zip(inputs, targets)
 
-    train_state =
-      for {inp, tar} <- dataset, reduce: train_state do
-        train_state ->
-          train_state = apply_callback(callbacks, train_state, opts, :before_batch)
+    Enum.reduce_while(dataset, train_state, fn {inp, tar}, train_state ->
+      case apply_callback(callbacks, train_state, opts, :before_batch) do
+        {:cont, train_state} ->
           train_state = Nx.Defn.jit(step_fn, [train_state, inp, tar], opts)
           apply_callback(callbacks, train_state, opts, :after_batch)
-      end
 
-    train_state
+        {:halt, train_state} ->
+          {:halt, train_state}
+      end
+    end)
   end
 
-  defp apply_callback([], train_state, _, _), do: train_state
+  defp apply_callback([], train_state, _, _), do: {:cont, train_state}
 
   defp apply_callback(callbacks, train_state, train_opts, event) do
-    Enum.reduce(callbacks, train_state, fn
-      # Module callbacks
-      callback, train_state when is_atom(callback) ->
-        apply(callback, event, [train_state, train_opts])
+    result =
+      Enum.reduce_while(callbacks, train_state, fn
+        {callback, :all, opts}, train_state ->
+          case apply(callback, [train_state, event, opts ++ train_opts]) do
+            {:halt, acc} ->
+              {:halt, {:stopped, acc}}
 
-      {callback, opts}, train_state when is_atom(callback) and is_list(opts) ->
-        apply(callback, event, [train_state, train_opts ++ opts])
+            {:cont, acc} ->
+              {:cont, acc}
 
-      # Function callbacks that run on every event
-      callback, train_state when is_function(callback) ->
-        apply(callback, [train_state, train_opts])
+            other ->
+              raise "invalid return from callback #{inspect(other)}"
+          end
 
-      {callback, opts}, train_state when is_function(callback) and is_list(opts) ->
-        apply(callback, [train_state, train_opts ++ opts])
+        {callback, event, opts}, train_state ->
+          case apply(callback, [train_state, event, opts ++ train_opts]) do
+            {:halt, acc} ->
+              {:halt, {:halt, acc}}
 
-      # Function callbacks that run on specific events
-      {callback, run_on}, train_state when is_function(callback) and is_atom(run_on) ->
-        if run_on == event, do: apply(callback, [train_state, train_opts]), else: train_state
+            {:cont, acc} ->
+              {:cont, {:cont, acc}}
 
-      {callback, run_on, opts}, train_state
-      when is_function(callback) and is_atom(run_on) and is_list(opts) ->
-        if run_on == event,
-          do: apply(callback, [train_state, train_opts ++ opts]),
-          else: train_state
+            other ->
+              raise "invalid return from callback #{inspect(other)}"
+          end
+      end)
 
-      # Default case
-      _, train_state ->
-        train_state
-    end)
+    case result do
+      {:stopped, acc} ->
+        {:halt, acc}
+
+      acc ->
+        {:cont, acc}
+    end
   end
 end
