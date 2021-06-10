@@ -2,9 +2,10 @@ defmodule Axon.Training do
   @moduledoc """
   Abstractions for training machine learning models.
   """
-
   require Axon
   require Axon.Updates
+
+  alias Axon.Training.Step
 
   @doc false
   def step({_, _} = model, {_, _} = update), do: step(model, update, [])
@@ -111,7 +112,7 @@ defmodule Axon.Training do
       }
     end
 
-    {init_fn, step_fn}
+    %Step{init: init_fn, step: step_fn, callbacks: []}
   end
 
   @doc false
@@ -178,6 +179,65 @@ defmodule Axon.Training do
     step(model, train_state, loss_fn, optimizer, opts)
   end
 
+  @valid_callbacks [:early_stopping]
+
+  @doc false
+  def callback(%Step{} = step, callback) when callback in @valid_callbacks do
+    callback(step, callback, [])
+  end
+
+  @doc """
+  Adds a callback from `Axon.Training.Callbacks` to the training step.
+  """
+  def callback(%Step{} = step, callback, opts) when callback in @valid_callbacks do
+    fun = &apply(Axon.Training.Callbacks, callback, [&1, &2, &3])
+    callback(step, fun, :all, opts)
+  end
+
+  @doc """
+  Adds a callback function to the training step.
+
+  Callback functions instrument specific points in the training loop.
+  You can specify an `event` which is one of:
+
+    - `:before_{train, epoch, batch}`
+    - `:after_{train, epoch, batch}`
+
+  The default `event` is `:all`, meaning the callback will run at every
+  callback point.
+
+  Callback functions have the following signature:
+
+      callback_fn(train_state :: map, event :: atom, opts :: keyword) ::
+        {:cont, train_state} | {:halt, train_state}
+
+  You can trigger event-specific behavior using pattern matching:
+
+      def my_callback(train_state, :before_epoch, _opts) do
+        {:cont, %{train_state | my_metadata: 0}}
+      end
+
+      def my_callback(train_state, :after_epoch, _opts) do
+        {:cont, %{train_state | my_metadata: train_state[:metadata] + 1}}
+      end
+
+      def my_callback(train_state, _event, _opts), do: {:cont, train_state}
+
+  Returning `{:halt, train_state}` will immediately terminate the training loop:
+
+      def early_stopping(train_state, :after_epoch, opts) do
+        if stop?(train_state, opts) do
+          {:halt, train_state}
+        else
+          {:cont, train_state}
+        end
+      end
+  """
+  def callback(%Step{callbacks: callbacks} = step, function, event \\ :all, opts \\ [])
+      when is_function(function, 3) and is_atom(event) and is_list(opts) do
+    %{step | callbacks: [{function, event, opts} | callbacks]}
+  end
+
   @doc """
   Implements a common training loop.
 
@@ -229,89 +289,130 @@ defmodule Axon.Training do
       init_fn = &init_values/0
 
   """
-  def train({init_fn, step_fn}, inputs, targets, opts \\ []) do
+  def train(
+        %Step{init: init_fn, step: step_fn, callbacks: callbacks},
+        inputs,
+        targets,
+        opts \\ []
+      ) do
     epochs = opts[:epochs] || 5
     compiler = opts[:compiler] || Nx.Defn.Evaluator
     log_every = opts[:log_every] || 50
 
-    jit_opts = [compiler: compiler, log_every: log_every] ++ opts
+    callbacks = [
+      {&Axon.Training.Callbacks.standard_io_logger(&1, &2, &3), :all, log_every: log_every}
+      | Enum.reverse(callbacks)
+    ]
+
+    jit_opts = [compiler: compiler] ++ opts
     train_state = Nx.Defn.jit(init_fn, [], jit_opts)
 
-    for epoch <- 1..epochs, reduce: train_state do
-      train_state ->
-        {time, train_state} =
-          :timer.tc(
-            &train_epoch/6,
-            [step_fn, train_state, inputs, targets, epoch, jit_opts]
-          )
-
-        epoch_avg_loss =
-          train_state[:epoch_loss]
-          |> Nx.to_scalar()
-
-        zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
-
-        IO.puts("\n")
-        IO.puts("Epoch #{epoch} time: #{time / 1_000_000}s")
-        IO.puts("Epoch #{epoch} loss: #{:io_lib.format("~.5f", [epoch_avg_loss])}")
-
-        train_state[:metrics]
-        |> Enum.each(fn {k, v} ->
-          IO.puts(
-            "Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
-          )
-        end)
-
-        IO.puts("\n")
-
-        %{train_state | metrics: zero_metrics, epoch: epoch + 1, epoch_step: 0, epoch_loss: 0.0}
-    end
-  end
-
-  ## Helpers
-
-  defp train_epoch(step_fn, train_state, inputs, targets, epoch, opts) do
-    {log_every, jit_opts} = Keyword.pop(opts, :log_every)
-
-    dataset =
-      inputs
-      |> Stream.zip(targets)
-
     train_state =
-      for {inp, tar} <- dataset, reduce: train_state do
-        train_state ->
-          train_state = Nx.Defn.jit(step_fn, [train_state, inp, tar], jit_opts)
+      case apply_callback(callbacks, train_state, jit_opts, :before_train) do
+        {:cont, train_state} ->
+          Enum.reduce_while(1..epochs, train_state, fn epoch, train_state ->
+            case apply_callback(callbacks, train_state, jit_opts, :before_epoch) do
+              {:cont, train_state} ->
+                {time, train_state} =
+                  :timer.tc(&train_epoch/6, [
+                    step_fn,
+                    train_state,
+                    inputs,
+                    targets,
+                    callbacks,
+                    jit_opts
+                  ])
 
-          if is_integer(log_every) and
-               Nx.remainder(train_state[:epoch_step], log_every) == Nx.tensor(0) do
-            log_batch(epoch, train_state)
-          end
+                zero_metrics = Map.new(train_state[:metrics], fn {k, _} -> {k, 0.0} end)
 
+                case apply_callback(
+                       callbacks,
+                       Map.put(train_state, :time, time),
+                       jit_opts,
+                       :after_epoch
+                     ) do
+                  {:cont, train_state} ->
+                    train_state = %{
+                      Map.delete(train_state, :time)
+                      | metrics: zero_metrics,
+                        epoch: epoch,
+                        epoch_step: 0,
+                        epoch_loss: 0.0
+                    }
+
+                    {:cont, train_state}
+
+                  {:halt, train_state} ->
+                    {:halt, train_state}
+                end
+
+              {:halt, train_state} ->
+                {:halt, train_state}
+            end
+          end)
+
+        {:halt, train_state} ->
           train_state
       end
+
+    {_, train_state} = apply_callback(callbacks, train_state, jit_opts, :after_train)
 
     train_state
   end
 
-  defp log_batch(epoch, train_state) do
-    batch_num = train_state[:epoch_step]
-    avg_loss = train_state[:epoch_loss]
+  ## Helpers
 
-    metrics =
-      train_state[:metrics]
-      |> Enum.map(fn {k, v} ->
-        "Average #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}"
+  defp train_epoch(step_fn, train_state, inputs, targets, callbacks, opts) do
+    dataset = Stream.zip(inputs, targets)
+
+    Enum.reduce_while(dataset, train_state, fn {inp, tar}, train_state ->
+      case apply_callback(callbacks, train_state, opts, :before_batch) do
+        {:cont, train_state} ->
+          train_state = Nx.Defn.jit(step_fn, [train_state, inp, tar], opts)
+          apply_callback(callbacks, train_state, opts, :after_batch)
+
+        {:halt, train_state} ->
+          {:halt, train_state}
+      end
+    end)
+  end
+
+  defp apply_callback([], train_state, _, _), do: {:cont, train_state}
+
+  defp apply_callback(callbacks, train_state, train_opts, event) do
+    result =
+      Enum.reduce_while(callbacks, train_state, fn
+        {callback, :all, opts}, train_state ->
+          case apply(callback, [train_state, event, opts ++ train_opts]) do
+            {:halt, acc} ->
+              {:halt, {:stopped, acc}}
+
+            {:cont, acc} ->
+              {:cont, acc}
+
+            other ->
+              raise "invalid return from callback #{inspect(other)}"
+          end
+
+        {callback, event, opts}, train_state ->
+          case apply(callback, [train_state, event, opts ++ train_opts]) do
+            {:halt, acc} ->
+              {:halt, {:halt, acc}}
+
+            {:cont, acc} ->
+              {:cont, {:cont, acc}}
+
+            other ->
+              raise "invalid return from callback #{inspect(other)}"
+          end
       end)
 
-    metrics =
-      Enum.join(
-        ["Average Loss: #{:io_lib.format("~.5f", [Nx.to_scalar(avg_loss)])}" | metrics],
-        " - "
-      )
+    case result do
+      {:stopped, acc} ->
+        {:halt, acc}
 
-    IO.write(
-      "\rEpoch #{epoch}, batch #{Nx.to_scalar(batch_num)} - " <>
-        "#{metrics}"
-    )
+      acc ->
+        {:cont, acc}
+    end
   end
 end
