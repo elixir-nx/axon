@@ -1095,7 +1095,7 @@ defmodule Axon.Layers do
       transform(
         {mask, Nx.shape(input)},
         fn {mask, input_shape} ->
-          if Nx.shape(mask) == input_shape,
+          if Elixir.Kernel.==(Nx.shape(mask), input_shape),
             do: mask,
             else: Nx.broadcast(mask, input_shape)
         end
@@ -1201,7 +1201,7 @@ defmodule Axon.Layers do
       transform(
         {mask, Nx.shape(input)},
         fn {mask, input_shape} ->
-          if Nx.shape(mask) == input_shape,
+          if Elixir.Kernel.==(Nx.shape(mask), input_shape),
             do: mask,
             else: Nx.broadcast(mask, input_shape)
         end
