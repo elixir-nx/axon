@@ -18,7 +18,7 @@ defmodule Axon.Shared do
         lhs = Nx.shape(lhs)
         rhs = Nx.shape(rhs)
 
-        unless lhs == rhs do
+        unless Elixir.Kernel.==(lhs, rhs) do
           raise ArgumentError,
                 "expected input shapes to be equal," <>
                   " got #{inspect(lhs)} != #{inspect(rhs)}"
@@ -37,7 +37,7 @@ defmodule Axon.Shared do
         x = if is_integer(x), do: x, else: Nx.rank(x)
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
-        unless x >= y do
+        unless Elixir.Kernel.>=(x, y) do
           raise ArgumentError, "expected input ranks to be equal, got #{x} != #{y}"
         end
       end
@@ -54,7 +54,7 @@ defmodule Axon.Shared do
         x = if is_integer(x), do: x, else: Nx.rank(x)
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
-        unless x >= y do
+        unless Elixir.Kernel.>=(x, y) do
           raise ArgumentError, "expected input shape to have at least rank #{y}, got rank #{x}"
         end
       end

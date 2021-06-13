@@ -89,7 +89,7 @@ defmodule Axon.Activations do
     transform(
       opts[:alpha],
       fn x ->
-        if x == 0,
+        if Elixir.Kernel.==(x, 0),
           do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
       end
     )
