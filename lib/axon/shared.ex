@@ -134,6 +134,7 @@ defmodule Axon.Shared do
         %Axon{} = hidden_state ->
           hidden_state = tree_map(hidden_state, fun)
           Keyword.replace(opts, :hidden_state, hidden_state)
+
         nil ->
           opts
       end
