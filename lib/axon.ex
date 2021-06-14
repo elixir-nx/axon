@@ -78,7 +78,7 @@ defmodule Axon do
   @type t :: %__MODULE__{}
 
   @doc false
-  defstruct [:id, :name, :output_shape, :parent, :op, :params, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
 
   @doc """
   Custom Axon layer with given parent.
@@ -125,6 +125,7 @@ defmodule Axon do
       parent: parent,
       op: op,
       params: parameters,
+      policy: Axon.MixedPrecision.create_policy(),
       opts: opts
     }
   end
