@@ -6,12 +6,14 @@ Axon consists of the following components:
 
   * Functional API – A low-level API of numerical definitions (defn) of which all other APIs build on.
   * Model Creation API – A high-level model creation API which manages model initialization and application.
-  * Optimization API – An API for creating and using first-order optimization techniques.
-  * Training API – An API for quickly training models.
+  * Optimization API – An API for creating and using first-order optimization techniques based on the [Optax](https://github.com/deepmind/optax) library.
+  * Training API – An API for quickly training models, inspired by [PyTorch Lightning](https://www.pytorchlightning.ai/).
 
 Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network.
 
 ## Overview
+
+For an in-depth overview, see: [Axon: Deep Learning in Elixir](https://seanmoriarity.com/2021/04/08/axon-deep-learning-in-elixir/)
 
 ### Functional API
 
@@ -119,7 +121,6 @@ Axon.Training.train implements a common training loop which initializes the trai
 * Validation and Testing Integration
 * Logging to tools like TensorBoard
 * Inclusion of Train/Validate/Test Metrics
-* Per batch/epoch callbacks for things like early stopping and model checkpointing
 
 Additionally, we would love to explore more advanced things like distributed training. We are also seeking ways to improve the performance of our training loops by running them entirely on native accelerators.
 
