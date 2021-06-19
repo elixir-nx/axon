@@ -927,7 +927,7 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp to_penalty_fun(%Axon{parent: parent, params: params}, cache) do
+  defp to_penalty_fun(%Axon{parent: parent, params: params, policy: %{params: param_policy}}, cache) do
     cache =
       params
       |> Enum.reduce(cache, fn {_, param}, cache ->
@@ -941,7 +941,7 @@ defmodule Axon.Compiler do
             fun = fn params ->
               case regularizer do
                 :none ->
-                  Nx.tensor(0.0)
+                  Nx.tensor(0.0, type: param_policy)
 
                 regularizer when is_atom(regularizer) ->
                   apply(Axon.Regularizers, regularizer, [params[name]])

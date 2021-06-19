@@ -62,8 +62,8 @@ defmodule Axon.MixedPrecision do
   """
   def create_policy(opts \\ []) do
     params = opts[:params] || {:f, 32}
-    compute = opts[:params] || {:f, 32}
-    output = opts[:params] || {:f, 32}
+    compute = opts[:compute] || {:f, 32}
+    output = opts[:output] || {:f, 32}
 
     %Policy{params: params, compute: compute, output: output}
   end
