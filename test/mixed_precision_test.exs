@@ -70,10 +70,13 @@ defmodule MixedPrecisionTest do
 
       mp_model = AMP.apply_policy(model, policy, except: [:batch_norm])
 
-      %Step{init: init_fn, step: step_fn} = Axon.Training.step(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
+      %Step{init: init_fn, step: step_fn} =
+        Axon.Training.step(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
 
       state = init_fn.()
-      state = Nx.Defn.jit(step_fn, [state, Nx.random_uniform({1, 784}), Nx.random_uniform({1, 1})])
+
+      state =
+        Nx.Defn.jit(step_fn, [state, Nx.random_uniform({1, 784}), Nx.random_uniform({1, 1})])
 
       params = state[:params]
 
