@@ -71,6 +71,24 @@ defmodule Axon.MixedPrecision do
   @doc """
   Applies mixed precision policy `policy` to every layer in the
   given model which returns true for `filter`.
+
+  `filter` may be a function or one of `:only` or `:except` - which define
+  filters for specific operations in the model. You may only use one of
+  `:only`, `:except`, or a function:
+
+      # Only applies to dense layers
+      Axon.MixedPrecision.apply_policy(model, policy, only: [:dense])
+
+      # Applies to every layer but batch norm
+      Axon.MixedPrecision.apply_policy(model, policy, except: [:batch_norm])
+
+      # A more complex application using filters
+      Axon.MixedPrecision.apply_policy(model, policy, fn
+        %Axon{op: :dense} -> true
+        %Axon{op: :batch_norm} -> false
+        %Axon{op: :conv} -> false
+        %Axon{op: _} -> true 
+      end)
   """
   def apply_policy(%Axon{} = axon, %Policy{} = policy, filter) when is_function(filter) do
     tree_map(axon, fn layer ->
@@ -83,10 +101,6 @@ defmodule Axon.MixedPrecision do
   end
 
   @doc false
-  def apply_policy(%Axon{} = axon, %Policy{} = policy) do
-    apply_policy(%Axon{} = axon, %Policy{} = policy, & &1)
-  end
-
   def apply_policy(axon, policy, only: only) do
     filter = fn %Axon{op: op} ->
       Enum.member?(only, op)
@@ -95,11 +109,17 @@ defmodule Axon.MixedPrecision do
     apply_policy(axon, policy, filter)
   end
 
+  @doc false
   def apply_policy(axon, policy, except: exceptions) do
     filter = fn %Axon{op: op} ->
       not Enum.member?(exceptions, op)
     end
 
     apply_policy(axon, policy, filter)
+  end
+
+  @doc false
+  def apply_policy(%Axon{} = axon, %Policy{} = policy) do
+    apply_policy(%Axon{} = axon, %Policy{} = policy, & &1)
   end
 end
