@@ -927,7 +927,10 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp to_penalty_fun(%Axon{parent: parent, params: params, policy: %{params: param_policy}}, cache) do
+  defp to_penalty_fun(
+         %Axon{parent: parent, params: params, policy: %{params: param_policy}},
+         cache
+       ) do
     cache =
       params
       |> Enum.reduce(cache, fn {_, param}, cache ->
