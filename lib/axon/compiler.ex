@@ -37,7 +37,10 @@ defmodule Axon.Compiler do
     Enum.reduce(parents, cache, &to_init_fun/2)
   end
 
-  defp to_init_fun(%Axon{parent: parent, params: params, opts: opts}, cache) do
+  defp to_init_fun(
+         %Axon{parent: parent, params: params, opts: opts, policy: %{params: dtype}},
+         cache
+       ) do
     cache =
       case opts[:hidden_state] do
         state when is_tuple(state) ->
@@ -58,7 +61,7 @@ defmodule Axon.Compiler do
 
             %{} ->
               %{name: name, shape: shape, initializer: initializer} = param
-              fun = fn -> apply(Axon.Initializers, initializer, [[shape: shape]]) end
+              fun = fn -> apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]]) end
               Map.put(cache, name, fun)
           end
       end)
@@ -205,7 +208,8 @@ defmodule Axon.Compiler do
          %Axon{
            op: :dense,
            parent: parent,
-           params: %{"kernel" => %{name: w, frozen: w_frz}, "bias" => %{name: b, frozen: b_frz}}
+           params: %{"kernel" => %{name: w, frozen: w_frz}, "bias" => %{name: b, frozen: b_frz}},
+           policy: %{compute: compute, output: output}
          },
          cache,
          input_map
@@ -213,9 +217,10 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      w = maybe_freeze(params[w], w_frz)
-      b = maybe_freeze(params[b], b_frz)
-      apply(Axon.Layers, :dense, [fun.(params, inputs), w, b])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      w = Nx.as_type(maybe_freeze(params[w], w_frz), compute)
+      b = Nx.as_type(maybe_freeze(params[b], b_frz), compute)
+      Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
     end
 
     {fun, cache}
@@ -225,12 +230,17 @@ defmodule Axon.Compiler do
 
   @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool, :lp_pool]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache, input_map)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, opts: opts, policy: %{compute: compute, output: output}},
+         cache,
+         input_map
+       )
        when op in @pooling_layers do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, op, [fun.(params, inputs), opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Axon.Layers, op, [input, opts]), output)
     end
 
     {fun, cache}
@@ -240,12 +250,17 @@ defmodule Axon.Compiler do
 
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent, opts: opts}, cache, input_map)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, opts: opts, policy: %{compute: compute, output: output}},
+         cache,
+         input_map
+       )
        when op in @dropout_layers do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Layers, op, [fun.(params, inputs), opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Axon.Layers, op, [input, opts]), output)
     end
 
     {fun, cache}
@@ -260,7 +275,8 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"kernel" => %{name: k, frozen: k_frz}, "bias" => %{name: b, frozen: b_frz}}
+           params: %{"kernel" => %{name: k, frozen: k_frz}, "bias" => %{name: b, frozen: b_frz}},
+           policy: %{compute: compute, output: output}
          },
          cache,
          input_map
@@ -269,9 +285,10 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      k = maybe_freeze(params[k], k_frz)
-      b = maybe_freeze(params[b], b_frz)
-      apply(Axon.Layers, op, [fun.(params, inputs), k, b, opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      k = Nx.as_type(maybe_freeze(params[k], k_frz), compute)
+      b = Nx.as_type(maybe_freeze(params[b], b_frz), compute)
+      Nx.as_type(apply(Axon.Layers, op, [input, k, b, opts]), output)
     end
 
     {fun, cache}
@@ -287,7 +304,8 @@ defmodule Axon.Compiler do
              "b1" => %{name: b1, frozen: b1_frz},
              "k2" => %{name: k2, frozen: k2_frz},
              "b2" => %{name: b2, frozen: b2_frz}
-           }
+           },
+           policy: %{compute: compute, output: output}
          },
          cache,
          input_map
@@ -295,11 +313,12 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      k1 = maybe_freeze(params[k1], k1_frz)
-      b1 = maybe_freeze(params[b1], b1_frz)
-      k2 = maybe_freeze(params[k2], k2_frz)
-      b2 = maybe_freeze(params[b2], b2_frz)
-      apply(Axon.Layers, :separable_conv2d, [fun.(params, inputs), k1, b1, k2, b2, opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      k1 = Nx.as_type(maybe_freeze(params[k1], k1_frz), compute)
+      b1 = Nx.as_type(maybe_freeze(params[b1], b1_frz), compute)
+      k2 = Nx.as_type(maybe_freeze(params[k2], k2_frz), compute)
+      b2 = Nx.as_type(maybe_freeze(params[b2], b2_frz), compute)
+      Nx.as_type(apply(Axon.Layers, :separable_conv2d, [input, k1, b1, k2, b2, opts]), output)
     end
 
     {fun, cache}
@@ -317,7 +336,8 @@ defmodule Axon.Compiler do
              "b2" => %{name: b2, frozen: b2_frz},
              "k3" => %{name: k3, frozen: k3_frz},
              "b3" => %{name: b3, frozen: b3_frz}
-           }
+           },
+           policy: %{compute: compute, output: output}
          },
          cache,
          input_map
@@ -325,13 +345,18 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      k1 = maybe_freeze(params[k1], k1_frz)
-      b1 = maybe_freeze(params[b1], b1_frz)
-      k2 = maybe_freeze(params[k2], k2_frz)
-      b2 = maybe_freeze(params[b2], b2_frz)
-      k3 = maybe_freeze(params[k3], k3_frz)
-      b3 = maybe_freeze(params[b3], b3_frz)
-      apply(Axon.Layers, :separable_conv3d, [fun.(params, inputs), k1, b1, k2, b2, k3, b3, opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      k1 = Nx.as_type(maybe_freeze(params[k1], k1_frz), compute)
+      b1 = Nx.as_type(maybe_freeze(params[b1], b1_frz), compute)
+      k2 = Nx.as_type(maybe_freeze(params[k2], k2_frz), compute)
+      b2 = Nx.as_type(maybe_freeze(params[b2], b2_frz), compute)
+      k3 = Nx.as_type(maybe_freeze(params[k3], k3_frz), compute)
+      b3 = Nx.as_type(maybe_freeze(params[b3], b3_frz), compute)
+
+      Nx.as_type(
+        apply(Axon.Layers, :separable_conv3d, [input, k1, b1, k2, b2, k3, b3, opts]),
+        output
+      )
     end
 
     {fun, cache}
@@ -346,7 +371,8 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"gamma" => %{name: g, frozen: g_frz}, "beta" => %{name: b, frozen: b_frz}}
+           params: %{"gamma" => %{name: g, frozen: g_frz}, "beta" => %{name: b, frozen: b_frz}},
+           policy: %{compute: compute, output: output}
          },
          cache,
          input_map
@@ -355,9 +381,10 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      g = maybe_freeze(params[g], g_frz)
-      b = maybe_freeze(params[b], b_frz)
-      apply(Axon.Layers, op, [fun.(params, inputs), g, b, opts])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      g = Nx.as_type(maybe_freeze(params[g], g_frz), compute)
+      b = Nx.as_type(maybe_freeze(params[b], b_frz), compute)
+      Nx.as_type(apply(Axon.Layers, op, [input, g, b, opts]), output)
     end
 
     {fun, cache}
@@ -383,6 +410,7 @@ defmodule Axon.Compiler do
              "bg" => %{name: bg, frozen: bg_frz},
              "bo" => %{name: bo, frozen: bo_frz}
            },
+           policy: %{compute: compute, output: output},
            opts: [
              activation: activation,
              gate: gate,
@@ -398,7 +426,7 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, input ->
-      input = fun.(params, input)
+      input = Nx.as_type(fun.(params, input), compute)
 
       hidden_state_fun =
         case hidden_state do
@@ -419,48 +447,64 @@ defmodule Axon.Compiler do
 
             fn _, _ ->
               {
-                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]]),
-                apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
+                apply(Axon.Initializers, recurrent_initializer, [[type: compute, shape: shape]]),
+                apply(Axon.Initializers, recurrent_initializer, [[type: compute, shape: shape]])
               }
             end
         end
 
-      input_kernel =
-        {maybe_freeze(params[wii], wii_frz), maybe_freeze(params[wif], wif_frz),
-         maybe_freeze(params[wig], wig_frz), maybe_freeze(params[wio], wio_frz)}
+      input_kernel = {
+        Nx.as_type(maybe_freeze(params[wii], wii_frz), compute),
+        Nx.as_type(maybe_freeze(params[wif], wif_frz), compute),
+        Nx.as_type(maybe_freeze(params[wig], wig_frz), compute),
+        Nx.as_type(maybe_freeze(params[wio], wio_frz), compute)
+      }
 
-      hidden_kernel =
-        {maybe_freeze(params[whi], whi_frz), maybe_freeze(params[whf], whf_frz),
-         maybe_freeze(params[whg], whg_frz), maybe_freeze(params[who], who_frz)}
+      hidden_kernel = {
+        Nx.as_type(maybe_freeze(params[whi], whi_frz), compute),
+        Nx.as_type(maybe_freeze(params[whf], whf_frz), compute),
+        Nx.as_type(maybe_freeze(params[whg], whg_frz), compute),
+        Nx.as_type(maybe_freeze(params[who], who_frz), compute)
+      }
 
-      bias =
-        {maybe_freeze(params[bi], bi_frz), maybe_freeze(params[bf], bf_frz),
-         maybe_freeze(params[bg], bg_frz), maybe_freeze(params[bo], bo_frz)}
+      bias = {
+        Nx.as_type(maybe_freeze(params[bi], bi_frz), compute),
+        Nx.as_type(maybe_freeze(params[bf], bf_frz), compute),
+        Nx.as_type(maybe_freeze(params[bg], bg_frz), compute),
+        Nx.as_type(maybe_freeze(params[bo], bo_frz), compute)
+      }
 
-      carry = hidden_state_fun.(params, input)
+      {h, c} = hidden_state_fun.(params, input)
+      carry = {Nx.as_type(h, compute), Nx.as_type(c, compute)}
 
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
       case unroll do
         :static ->
-          Axon.Recurrent.static_unroll(
-            &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.static_unroll(
+              &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
 
         :dynamic ->
-          Axon.Recurrent.dynamic_unroll(
-            &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.dynamic_unroll(
+              &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
       end
     end
@@ -477,6 +521,7 @@ defmodule Axon.Compiler do
              "wh" => %{name: wh, frozen: wh_frz},
              "b" => %{name: b, frozen: b_frz}
            },
+           policy: %{compute: compute, output: output},
            opts: [
              hidden_state: hidden_state,
              strides: strides,
@@ -492,7 +537,7 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, input ->
-      input = fun.(params, input)
+      input = Nx.as_type(fun.(params, input), compute)
 
       hidden_state_fun =
         case hidden_state do
@@ -519,31 +564,44 @@ defmodule Axon.Compiler do
             end
         end
 
-      input_kernel = {maybe_freeze(params[wi], wi_frz)}
-      hidden_kernel = {maybe_freeze(params[wh], wh_frz)}
-      bias = {maybe_freeze(params[b], b_frz)}
+      input_kernel = {Nx.as_type(maybe_freeze(params[wi], wi_frz), compute)}
+      hidden_kernel = {Nx.as_type(maybe_freeze(params[wh], wh_frz), compute)}
+      bias = {Nx.as_type(maybe_freeze(params[b], b_frz), compute)}
 
-      carry = hidden_state_fun.(params, input)
+      {h, c} = hidden_state_fun.(params, input)
+      carry = {Nx.as_type(h, compute), Nx.as_type(c, compute)}
 
       case unroll do
         :static ->
-          Axon.Recurrent.static_unroll(
-            &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.static_unroll(
+              &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5,
+                strides: strides,
+                padding: padding
+              ),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
 
         :dynamic ->
-          Axon.Recurrent.dynamic_unroll(
-            &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, strides: strides, padding: padding),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.dynamic_unroll(
+              &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5,
+                strides: strides,
+                padding: padding
+              ),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
       end
     end
@@ -567,6 +625,7 @@ defmodule Axon.Compiler do
              "bin" => %{name: bin, frozen: bin_frz},
              "bhn" => %{name: bhn, frozen: bhn_frz}
            },
+           policy: %{compute: compute, output: output},
            opts: [
              activation: activation,
              gate: gate,
@@ -582,7 +641,7 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, input ->
-      input = fun.(params, input)
+      input = Nx.as_type(fun.(params, input), compute)
 
       hidden_state_fun =
         case hidden_state do
@@ -607,42 +666,56 @@ defmodule Axon.Compiler do
             end
         end
 
-      input_kernel =
-        {maybe_freeze(params[wir], wir_frz), maybe_freeze(params[wiz], wiz_frz),
-         maybe_freeze(params[win], win_frz)}
+      input_kernel = {
+        Nx.as_type(maybe_freeze(params[wir], wir_frz), compute),
+        Nx.as_type(maybe_freeze(params[wiz], wiz_frz), compute),
+        Nx.as_type(maybe_freeze(params[win], win_frz), compute)
+      }
 
-      hidden_kernel =
-        {maybe_freeze(params[whr], whr_frz), maybe_freeze(params[whz], whz_frz),
-         maybe_freeze(params[whn], whn_frz)}
+      hidden_kernel = {
+        Nx.as_type(maybe_freeze(params[whr], whr_frz), compute),
+        Nx.as_type(maybe_freeze(params[whz], whz_frz), compute),
+        Nx.as_type(maybe_freeze(params[whn], whn_frz), compute)
+      }
 
-      bias =
-        {maybe_freeze(params[br], br_frz), maybe_freeze(params[bz], bz_frz),
-         maybe_freeze(params[bin], bin_frz), maybe_freeze(params[bhn], bhn_frz)}
+      bias = {
+        Nx.as_type(maybe_freeze(params[br], br_frz), compute),
+        Nx.as_type(maybe_freeze(params[bz], bz_frz), compute),
+        Nx.as_type(maybe_freeze(params[bin], bin_frz), compute),
+        Nx.as_type(maybe_freeze(params[bhn], bhn_frz), compute)
+      }
 
-      carry = hidden_state_fun.(params, input)
+      {h} = hidden_state_fun.(params, input)
+      carry = {Nx.as_type(h, compute)}
 
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
       case unroll do
         :static ->
-          Axon.Recurrent.static_unroll(
-            &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.static_unroll(
+              &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
 
         :dynamic ->
-          Axon.Recurrent.dynamic_unroll(
-            &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
-            fun.(params, input),
-            carry,
-            input_kernel,
-            hidden_kernel,
-            bias
+          Nx.as_type(
+            Axon.Recurrent.dynamic_unroll(
+              &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
+              input,
+              carry,
+              input_kernel,
+              hidden_kernel,
+              bias
+            ),
+            output
           )
       end
     end
@@ -654,13 +727,19 @@ defmodule Axon.Compiler do
 
   @element_wise_layers [:add, :subtract, :multiply]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parents}, cache, input_map)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parents, policy: %{compute: compute, output: output}},
+         cache,
+         input_map
+       )
        when op in @element_wise_layers do
     {[fun | funs], cache} = Enum.map_reduce(parents, cache, &recur_predict_fun(&1, &2, input_map))
 
     fun = fn params, inputs ->
       Enum.reduce(funs, fun.(params, inputs), fn next_fn, acc ->
-        apply(Nx, op, [acc, next_fn.(params, inputs)])
+        input = Nx.as_type(next_fn.(params, inputs), compute)
+        acc = Nx.as_type(acc, compute)
+        Nx.as_type(apply(Nx, op, [acc, input]), output)
       end)
     end
 
@@ -669,34 +748,49 @@ defmodule Axon.Compiler do
 
   ## Shape Layers
 
-  defp recur_predict_fun(%Axon{op: :flatten, parent: parent}, cache, input_map) do
-    {fun, cache} = to_predict_fun(parent, cache, input_map)
-
-    fun = fn params, inputs ->
-      apply(Axon.Layers, :flatten, [fun.(params, inputs)])
-    end
-
-    {fun, cache}
-  end
-
   defp recur_predict_fun(
-         %Axon{op: :reshape, parent: parent, output_shape: output_shape},
+         %Axon{op: :flatten, parent: parent, policy: %{compute: compute, output: output}},
          cache,
          input_map
        ) do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      inp = fun.(params, inputs)
-      reshape_shape = put_elem(output_shape, 0, elem(Nx.shape(inp), 0))
-      apply(Nx, :reshape, [inp, reshape_shape])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Axon.Layers, :flatten, [input]), output)
     end
 
     {fun, cache}
   end
 
   defp recur_predict_fun(
-         %Axon{op: :transpose, parent: parent, opts: [permutation: permutation]},
+         %Axon{
+           op: :reshape,
+           parent: parent,
+           output_shape: output_shape,
+           policy: %{compute: compute, output: output}
+         },
+         cache,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, input_map)
+
+    fun = fn params, inputs ->
+      inp = Nx.as_type(fun.(params, inputs), compute)
+      reshape_shape = put_elem(output_shape, 0, elem(Nx.shape(inp), 0))
+      Nx.as_type(apply(Nx, :reshape, [inp, reshape_shape]), output)
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :transpose,
+           parent: parent,
+           opts: [permutation: permutation],
+           policy: %{compute: compute, output: output}
+         },
          cache,
          input_map
        ) do
@@ -704,14 +798,20 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs ->
       permutation = [0 | Enum.map(permutation, &(&1 + 1))]
-      apply(Nx, :transpose, [fun.(params, inputs), [axes: permutation]])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Nx, :transpose, [input, [axes: permutation]]), output)
     end
 
     {fun, cache}
   end
 
   defp recur_predict_fun(
-         %Axon{op: :pad, parent: parent, opts: [padding_config: config, value: value]},
+         %Axon{
+           op: :pad,
+           parent: parent,
+           opts: [padding_config: config, value: value],
+           policy: %{compute: compute, output: output}
+         },
          cache,
          input_map
        ) do
@@ -719,22 +819,28 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs ->
       config = [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
-      apply(Nx, :pad, [fun.(params, inputs), value, config])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Nx, :pad, [input, value, config]), output)
     end
 
     {fun, cache}
   end
 
   defp recur_predict_fun(
-         %Axon{op: :concatenate, parent: parents, opts: [axis: axis]},
+         %Axon{
+           op: :concatenate,
+           parent: parents,
+           opts: [axis: axis],
+           policy: %{compute: compute, output: output}
+         },
          cache,
          input_map
        ) do
     {funs, cache} = Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map))
 
     fun = fn params, inputs ->
-      inps = Enum.map(funs, & &1.(params, inputs))
-      apply(Nx, :concatenate, [inps, [axis: axis]])
+      inps = Enum.map(funs, &Nx.as_type(&1.(params, inputs), compute))
+      Nx.as_type(apply(Nx, :concatenate, [inps, [axis: axis]]), output)
     end
 
     {fun, cache}
@@ -743,14 +849,19 @@ defmodule Axon.Compiler do
   ## Special Layers
 
   defp recur_predict_fun(
-         %Axon{op: :nx, parent: parent, opts: [fun: nx_fun]},
+         %Axon{
+           op: :nx,
+           parent: parent,
+           opts: [fun: nx_fun],
+           policy: %{compute: compute, output: output}
+         },
          cache,
          input_map
        ) do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      nx_fun.(fun.(params, inputs))
+      Nx.as_type(nx_fun.(Nx.as_type(fun.(params, inputs), compute)), output)
     end
 
     {fun, cache}
@@ -816,7 +927,10 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp to_penalty_fun(%Axon{parent: parent, params: params}, cache) do
+  defp to_penalty_fun(
+         %Axon{parent: parent, params: params, policy: %{params: param_policy}},
+         cache
+       ) do
     cache =
       params
       |> Enum.reduce(cache, fn {_, param}, cache ->
@@ -830,7 +944,7 @@ defmodule Axon.Compiler do
             fun = fn params ->
               case regularizer do
                 :none ->
-                  Nx.tensor(0.0)
+                  Nx.tensor(0.0, type: param_policy)
 
                 regularizer when is_atom(regularizer) ->
                   apply(Axon.Regularizers, regularizer, [params[name]])

@@ -102,6 +102,11 @@ defmodule Axon.Training do
       {updates, new_update_state} =
         update_fn.(gradients, train_state[:optimizer_state], train_state[:params])
 
+      # TODO(seanmor5): We probably shouldn't cast here
+      updates =
+        updates
+        |> Map.new(fn {k, v} -> {k, Nx.as_type(v, Nx.type(train_state[:params][k]))} end)
+
       %{
         epoch: train_state[:epoch],
         epoch_step: Nx.add(train_state[:epoch_step], 1),

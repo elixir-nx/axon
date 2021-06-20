@@ -116,6 +116,33 @@ defmodule Axon.Shared do
     end
   end
 
+  @doc """
+  Traverses a model tree applying `fun` to each layer.
+  """
+  def tree_map(%Axon{op: :input} = axon, fun) when is_function(fun, 1) do
+    fun.(axon)
+  end
+
+  def tree_map(%Axon{parent: x} = axon, fun) when is_list(x) do
+    x = Enum.map(x, &tree_map(&1, fun))
+    %{fun.(axon) | parent: x}
+  end
+
+  def tree_map(%Axon{parent: x, opts: opts} = axon, fun) do
+    opts =
+      case opts[:hidden_state] do
+        %Axon{} = hidden_state ->
+          hidden_state = tree_map(hidden_state, fun)
+          Keyword.replace(opts, :hidden_state, hidden_state)
+
+        nil ->
+          opts
+      end
+
+    x = tree_map(x, fun)
+    %{fun.(axon) | parent: x, opts: opts}
+  end
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else, like another library
