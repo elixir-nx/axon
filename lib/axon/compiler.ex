@@ -209,7 +209,9 @@ defmodule Axon.Compiler do
            op: :dense,
            parent: parent,
            params: %{"kernel" => %{name: w, frozen: w_frz}, "bias" => %{name: b, frozen: b_frz}},
-           policy: %{compute: compute, output: output}
+           policy: %{compute: compute, output: output},
+           on_forward: on_forward,
+           on_backward: on_backward
          },
          cache,
          input_map
@@ -220,7 +222,10 @@ defmodule Axon.Compiler do
       input = Nx.as_type(fun.(params, inputs), compute)
       w = Nx.as_type(maybe_freeze(params[w], w_frz), compute)
       b = Nx.as_type(maybe_freeze(params[b], b_frz), compute)
-      Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
+
+      out = Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
+
+      hooks(input, out, on_forward, on_backward)
     end
 
     {fun, cache}
@@ -882,6 +887,18 @@ defmodule Axon.Compiler do
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
   defp maybe_freeze(param, false), do: param
+
+  defp hooks(inp, out, on_forward, on_backward), do: backward_hook(inp, forward_hook(inp, out, on_forward), on_backward)
+
+  defp forward_hook(_, out, nil), do: out
+  defp forward_hook(inp, out, on_forward), do: Nx.Defn.Kernel.stop_grad(on_forward.(inp, out))
+
+  defp backward_hook(_, out, nil), do: out
+  defp backward_hook(inp, out, on_backward) do
+    Nx.Defn.Kernel.custom_grad(out, fn _, g ->
+      on_backward.(inp, g)
+    end)
+  end
 
   ## Penalty Function Compilation
 

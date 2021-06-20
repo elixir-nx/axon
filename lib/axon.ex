@@ -78,7 +78,7 @@ defmodule Axon do
   @type t :: %__MODULE__{}
 
   @doc false
-  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :on_forward, :on_backward, :opts]
 
   @doc """
   Custom Axon layer with given parent.
@@ -126,7 +126,9 @@ defmodule Axon do
       op: op,
       params: parameters,
       policy: Axon.MixedPrecision.create_policy(),
-      opts: opts
+      opts: opts,
+      on_forward: nil,
+      on_backward: nil
     }
   end
 
@@ -1356,6 +1358,8 @@ defmodule Axon do
     {{new_c, new_h}, output_sequence}
   end
 
+  ## Hooks
+
   @doc """
   Freezes parameters returned from `fun` in the given
   model. `fun` takes the model's parameter list and returns
@@ -1413,6 +1417,43 @@ defmodule Axon do
 
       %{axon | params: frozen_params}
     end)
+  end
+
+  @doc """
+  Registers a custom forward or backward hook at this point
+  in the model.
+
+  You can use forward or backward hooks to apply transformations
+  in the forward and backward pass. This can be useful for debugging
+  and visualization, or even applying perturbations to gradients and
+  outputs.
+
+  ## Options
+
+    * `:on_forward` - forward hook function. Defaults to identity.
+    * `:on_backward` - backward hook function. Defaults to identity.
+  """
+  def hook(%Axon{} = model, opts \\ []) do
+    on_forward = opts[:on_forward] || & &1
+    on_backward = opts[:on_backward] || & &1
+
+    %{model | on_forward: on_forward, on_backward: on_backward}
+  end
+
+  @doc """
+  Registers a forward hook at this point in the model using `hook/2`
+  with `:on_forward` set to `fun`. See `hook/2` for more information.
+  """
+  def forward_hook(%Axon{} = model, on_forward) do
+    hook(model, on_forward: on_forward)
+  end
+
+  @doc """
+  Registers a backward hook at this point in the model using `hook/2`
+  with `:on_backward` set to `fun`. See `hook/2` for more information.
+  """
+  def backward_hook(%Axon{} = model, on_backward) do
+    hook(model, on_backward: on_backward)
   end
 
   ## Traversal
