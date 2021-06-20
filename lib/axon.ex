@@ -1392,68 +1392,80 @@ defmodule Axon do
   """
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
     parameters =
-      model
-      |> get_params([])
-      |> Enum.uniq()
+      tree_reduce(model, MapSet.new(), fn %Axon{params: params}, acc ->
+        Enum.reduce(params, acc, fn {_, param}, acc ->
+          MapSet.put(acc, param)
+        end)
+      end)
 
-    parameters_to_freeze = fun.(parameters)
-    do_freeze(model, parameters_to_freeze)
+    parameters_to_freeze = fun.(Enum.to_list(parameters))
+
+    tree_map(model, fn %Axon{params: params} = axon ->
+      frozen_params =
+        params
+        |> Map.new(fn {k, %{name: param_name} = v} ->
+          if Enum.any?(parameters_to_freeze, fn %{name: name} -> name == param_name end) do
+            {k, %{v | frozen: true}}
+          else
+            {k, v}
+          end
+        end)
+
+      %{axon | params: frozen_params}
+    end)
   end
 
-  defp get_params(model, acc) when is_tuple(model) do
-    model
-    |> Tuple.to_list()
-    |> Enum.reduce(acc, &get_params/2)
+  ## Traversal
+
+  @doc """
+  Traverses a model tree applying `fun` to each layer.
+  """
+  def tree_map(%Axon{op: :input} = axon, fun) when is_function(fun, 1) do
+    fun.(axon)
   end
 
-  defp get_params(%Axon{op: :input}, acc), do: acc
-
-  defp get_params(%Axon{parent: x}, acc) when is_list(x) do
-    Enum.reduce(x, acc, &get_params/2)
+  def tree_map(%Axon{parent: x} = axon, fun) when is_list(x) do
+    x = Enum.map(x, &tree_map(&1, fun))
+    %{fun.(axon) | parent: x}
   end
 
-  defp get_params(%Axon{parent: x, params: params, opts: opts}, acc) do
+  def tree_map(%Axon{parent: x, opts: opts} = axon, fun) do
+    opts =
+      case opts[:hidden_state] do
+        %Axon{} = hidden_state ->
+          hidden_state = tree_map(hidden_state, fun)
+          Keyword.replace(opts, :hidden_state, hidden_state)
+
+        nil ->
+          opts
+      end
+
+    x = tree_map(x, fun)
+    %{fun.(axon) | parent: x, opts: opts}
+  end
+
+  @doc """
+  Traverses a model applying `fun` with an accumulator.
+  """
+  def tree_reduce(%Axon{op: :input} = axon, acc, fun) when is_function(fun, 2) do
+    fun.(axon, acc)
+  end
+
+  def tree_reduce(%Axon{parent: x} = axon, acc, fun) when is_list(x) do
+    Enum.reduce(x, fun.(axon, acc), &tree_reduce(&1, &2, fun))
+  end
+
+  def tree_reduce(%Axon{parent: x, opts: opts} = axon, acc, fun) do
     acc =
       case opts[:hidden_state] do
-        state when is_tuple(state) ->
-          state
-          |> Tuple.to_list()
-          |> Enum.reduce(acc, &get_params/2)
+        %Axon{} = hidden_state ->
+          tree_reduce(hidden_state, acc, fun)
 
         nil ->
           acc
       end
 
-    get_params(x, Enum.reduce(Map.values(params), acc, fn x, ls -> [x | ls] end))
-  end
-
-  defp do_freeze(%Axon{op: :input} = x, _), do: x
-
-  defp do_freeze(%Axon{parent: parent} = x, parameters_to_freeze) when is_list(parent) do
-    parent = Enum.map(parent, &do_freeze(&1, parameters_to_freeze))
-    %{x | parent: parent}
-  end
-
-  defp do_freeze(%Axon{parent: parent, params: params} = x, parameters_to_freeze) do
-    parent = do_freeze(parent, parameters_to_freeze)
-
-    params =
-      params
-      |> Map.new(fn {k, %{name: param_name} = v} ->
-        if Enum.any?(parameters_to_freeze, fn %{name: name} -> name == param_name end) do
-          {k, %{v | frozen: true}}
-        else
-          {k, v}
-        end
-      end)
-
-    %{x | parent: parent, params: params}
-  end
-
-  defp do_freeze(x, parameters_to_freeze) when is_tuple(x) do
-    x
-    |> Tuple.to_list()
-    |> Enum.map(&do_freeze(&1, parameters_to_freeze))
+    tree_reduce(x, fun.(axon, acc), fun)
   end
 
   @doc """

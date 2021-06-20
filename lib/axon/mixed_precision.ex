@@ -40,7 +40,6 @@ defmodule Axon.MixedPrecision do
   pass before casting the output back to `{:f, 32}`.
   """
 
-  import Axon.Shared
   alias Axon.MixedPrecision.Policy
 
   @doc """
@@ -87,11 +86,11 @@ defmodule Axon.MixedPrecision do
         %Axon{op: :dense} -> true
         %Axon{op: :batch_norm} -> false
         %Axon{op: :conv} -> false
-        %Axon{op: _} -> true 
+        %Axon{op: _} -> true
       end)
   """
   def apply_policy(%Axon{} = axon, %Policy{} = policy, filter) when is_function(filter) do
-    tree_map(axon, fn layer ->
+    Axon.tree_map(axon, fn layer ->
       if filter.(layer) do
         %{layer | policy: policy}
       else
