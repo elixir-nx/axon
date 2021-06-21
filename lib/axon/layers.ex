@@ -656,12 +656,21 @@ defmodule Axon.Layers do
         end
       )
 
+    padding =
+      transform({Nx.rank(input), opts[:padding]},
+        fn
+          {_, :same} -> :same
+          {_, :valid} -> :valid
+          {rank, padding} ->
+            List.duplicate({0, 0}, rank - 2) ++ padding
+        end)
+
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
     |> Nx.window_max(window_dimensions,
       strides: strides,
-      padding: opts[:padding],
+      padding: padding,
       window_dilations: opts[:window_dilations]
     )
   end
@@ -720,12 +729,21 @@ defmodule Axon.Layers do
         end
       )
 
+    padding =
+      transform({Nx.rank(input), opts[:padding]},
+        fn
+          {_, :same} -> :same
+          {_, :valid} -> :valid
+          {rank, padding} ->
+            List.duplicate({0, 0}, rank - 2) ++ padding
+        end)
+
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
     input
     |> Nx.window_mean(window_dimensions,
       strides: strides,
-      padding: opts[:padding],
+      padding: padding,
       window_dilations: opts[:window_dilations]
     )
   end
@@ -804,6 +822,15 @@ defmodule Axon.Layers do
         end
       )
 
+    padding =
+      transform({Nx.rank(input), opts[:padding]},
+        fn
+          {_, :same} -> :same
+          {_, :valid} -> :valid
+          {rank, padding} ->
+            List.duplicate({0, 0}, rank - 2) ++ padding
+        end)
+
     norm = opts[:norm]
 
     opts =
@@ -815,7 +842,7 @@ defmodule Axon.Layers do
     |> Nx.power(norm)
     |> Nx.window_sum(window_dimensions,
       strides: strides,
-      padding: opts[:padding],
+      padding: padding,
       window_dilations: opts[:window_dilations]
     )
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))

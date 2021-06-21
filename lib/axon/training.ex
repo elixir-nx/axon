@@ -78,7 +78,7 @@ defmodule Axon.Training do
 
     step_fn = fn train_state, input, target ->
       {{preds, batch_loss}, gradients} =
-        Nx.Defn.Kernel.value_and_grad(
+        Nx.Defn.value_and_grad(
           train_state[:params],
           &objective_fn.(&1, input, target),
           fn x -> elem(x, 1) end
