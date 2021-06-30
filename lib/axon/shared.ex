@@ -93,7 +93,7 @@ defmodule Axon.Shared do
   Creates a fulls-like tuple of inputs.
   """
   defn fulls_like(params, value) do
-    transform({params, Nx.tensor(value)}, fn {params, value} ->
+    transform({params, value}, fn {params, value} ->
       params
       |> Enum.map(fn {k, v} -> {k, Axon.Initializers.full(value, shape: Nx.shape(v))} end)
       |> Map.new()

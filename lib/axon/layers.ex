@@ -657,13 +657,19 @@ defmodule Axon.Layers do
       )
 
     padding =
-      transform({Nx.rank(input), opts[:padding]},
+      transform(
+        {Nx.rank(input), opts[:padding]},
         fn
-          {_, :same} -> :same
-          {_, :valid} -> :valid
+          {_, :same} ->
+            :same
+
+          {_, :valid} ->
+            :valid
+
           {rank, padding} ->
             List.duplicate({0, 0}, rank - 2) ++ padding
-        end)
+        end
+      )
 
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -730,13 +736,19 @@ defmodule Axon.Layers do
       )
 
     padding =
-      transform({Nx.rank(input), opts[:padding]},
+      transform(
+        {Nx.rank(input), opts[:padding]},
         fn
-          {_, :same} -> :same
-          {_, :valid} -> :valid
+          {_, :same} ->
+            :same
+
+          {_, :valid} ->
+            :valid
+
           {rank, padding} ->
             List.duplicate({0, 0}, rank - 2) ++ padding
-        end)
+        end
+      )
 
     opts = transform(opts, &Keyword.delete(&1, :kernel_size))
 
@@ -823,13 +835,19 @@ defmodule Axon.Layers do
       )
 
     padding =
-      transform({Nx.rank(input), opts[:padding]},
+      transform(
+        {Nx.rank(input), opts[:padding]},
         fn
-          {_, :same} -> :same
-          {_, :valid} -> :valid
+          {_, :same} ->
+            :same
+
+          {_, :valid} ->
+            :valid
+
           {rank, padding} ->
             List.duplicate({0, 0}, rank - 2) ++ padding
-        end)
+        end
+      )
 
     norm = opts[:norm]
 

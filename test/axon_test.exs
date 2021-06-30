@@ -702,7 +702,7 @@ defmodule AxonTest do
       {init_fn, predict_fn} = Axon.compile(model)
 
       backward = fn params, input ->
-        Nx.Defn.Kernel.grad(params, &Nx.mean(predict_fn.(&1, input)))
+        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       gradients = Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 784})])

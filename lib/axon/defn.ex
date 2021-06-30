@@ -10,8 +10,5 @@ defmodule Axon.Defn do
   @behaviour Nx.Defn.Compiler
 
   @impl true
-  def __async__(_, _, _, _), do: raise("not implemented")
-
-  @impl true
   def __jit__(_key, vars, fun, _opts), do: fun.(vars)
 end

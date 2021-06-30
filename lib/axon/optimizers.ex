@@ -3,14 +3,14 @@ defmodule Axon.Optimizers do
   Implementations of common gradient-based optimization algorithms.
 
   All of the methods in this module are written in terms of
-  the update methods defined in `Axon.Updates`. Axon treates
+  the update methods defined in `Axon.Updates`. Axon treats
   optimizers as the tuple:
 
       {init_fn, update_fn}
 
-  where `init_fn` returns an initial optimizer state and update_fn
+  where `init_fn` returns an initial optimizer state and `update_fn`
   scales input gradients. `init_fn` accepts a model's parameters
-  to and attaches state to each parameter. `update_fn` accepts
+  and attaches state to each parameter. `update_fn` accepts
   gradients, optimizer state, and current model parameters and
   returns updated optimizer state and gradients.
 
@@ -75,6 +75,14 @@ defmodule Axon.Optimizers do
 
   @doc """
   Adagrad optimizer.
+
+  ## Options
+
+    * `:eps` - numerical stability term. Defaults to `1.0e-7`
+
+  ## References
+
+    * [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](https://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
   """
   def adagrad(learning_rate, opts \\ []) do
     Updates.scale_by_rss(opts)
@@ -101,16 +109,34 @@ defmodule Axon.Optimizers do
   end
 
   @doc """
-  Adam with weight decay.
+  Adam with weight decay optimizer.
+
+  ## Options
+
+    * `:b1` - first moment decay. Defaults to `0.9`
+    * `:b2` - second moment decay. Defaults to `0.999`
+    * `:eps` - numerical stability term. Defaults to `1.0e-8`
+    * `:eps_root` - numerical stability term. Defaults to `0.0`
+    * `:decay` - weight decay. Defaults to `0.0`
   """
   def adamw(learning_rate, opts \\ []) do
+    {decay, opts} = Keyword.pop(opts, :decay, 0.0)
+
     Updates.scale_by_adam(opts)
-    |> Updates.add_decayed_weights(opts)
+    |> Updates.add_decayed_weights(decay: decay)
     |> Updates.scale(-learning_rate)
   end
 
   @doc """
   Fromage optimizer.
+
+  ## Options
+
+    * `:min_norm` - minimum norm value. Defaults to `0.0`.
+
+  ## References
+
+    * [On the distance between two neural networks and the stability of learning](https://proceedings.neurips.cc/paper/2020/file/f4b31bee138ff5f7b84ce1575a738f95-Paper.pdf)
   """
   def fromage(learning_rate, opts \\ []) do
     mult = Nx.divide(1, Nx.sqrt(Nx.add(1, Nx.power(learning_rate, 2))))
@@ -122,16 +148,37 @@ defmodule Axon.Optimizers do
 
   @doc """
   Lamb optimizer.
+
+  ## Options
+
+    * `:b1` - first moment decay. Defaults to `0.9`
+    * `:b2` - second moment decay. Defaults to `0.999`
+    * `:eps` - numerical stability term. Defaults to `1.0e-8`
+    * `:eps_root` - numerical stability term. Defaults to `0.0`
+    * `:decay` - weight decay. Defaults to `0.0`
+    * `:min_norm` - minimum norm value. Defaults to `0.0`
+
+  ## References
+
+    * [Large Batch Optimization for Deep Learning: Training BERT in 76 minutes](https://arxiv.org/abs/1904.00962)
   """
   def lamb(learning_rate, opts \\ []) do
+    {decay, opts} = Keyword.pop(opts, :decay, 0.0)
+    {min_norm, opts} = Keyword.pop(opts, :min_norm, 0.0)
+
     Updates.scale_by_adam(opts)
-    |> Updates.add_decayed_weights(opts)
-    |> Updates.scale_by_trust_ratio(opts)
+    |> Updates.add_decayed_weights(decay: decay)
+    |> Updates.scale_by_trust_ratio(min_norm: min_norm)
     |> Updates.scale(-learning_rate)
   end
 
   @doc """
-  Noisy SGD
+  Noisy SGD optimizer.
+
+  ## Options
+
+    * `:eta` - used to compute variance of noise distribution. Defaults to `0.1`
+    * `:gamma` - used to compute variance of noise distribution. Defaults to `0.55`
   """
   def noisy_sgd(learning_rate, opts \\ []) do
     Updates.scale(-learning_rate)
@@ -139,7 +186,19 @@ defmodule Axon.Optimizers do
   end
 
   @doc """
-  Radam optimizer.
+  Rectified Adam optimizer.
+
+  ## Options
+
+    * `:b1` - first moment decay. Defaults to `0.9`
+    * `:b2` - second moment decay. Defaults to `0.999`
+    * `:eps` - numerical stability term. Defaults to `1.0e-8`
+    * `:eps_root` - numerical stability term. Defaults to `0.0`
+    * `:threshold` - threshold term. Defaults to `5.0`
+
+  ## References
+
+    * [On the Variance of Adaptive Learning Rate and Beyond](https://arxiv.org/pdf/1908.03265.pdf)
   """
   def radam(learning_rate, opts \\ []) do
     Updates.scale_by_radam(opts)
@@ -148,11 +207,21 @@ defmodule Axon.Optimizers do
 
   @doc """
   RMSProp optimizer.
+
+  ## Options
+
+    * `:centered` - whether to scale by centered root of EMA of squares. Defaults to `false`
+    * `:momentum` - momentum term. If set, uses SGD with momentum and decay set
+      to value of this term.
+    * `:nesterov` - whether or not to use nesterov momentum. Defaults to `false`
+    * `:initial_scale` - initial value of EMA. Defaults to `0.0`
+    * `:decay` - EMA decay rate. Defaults to `0.9`
+    * `:eps` - numerical stability term. Defaults to `1.0e-8`
   """
   def rmsprop(learning_rate, opts \\ []) do
-    centered = opts[:centered] || false
-    nesterov? = opts[:nesterov] || false
-    momentum = opts[:momentum]
+    {centered, opts} = Keyword.pop(opts, :centered, false)
+    {nesterov?, opts} = Keyword.pop(opts, :nesterov, false)
+    {momentum, opts} = Keyword.pop(opts, :momentum, nil)
 
     combinator =
       if centered do
@@ -169,6 +238,12 @@ defmodule Axon.Optimizers do
 
   @doc """
   SGD optimizer.
+
+  ## Options
+
+    * `:momentum` - momentum term. If set, uses SGD with momentum and decay set
+      to value of this term.
+    * `:nesterov` - whether or not to use nesterov momentum. Defaults to `false`
   """
   def sgd(learning_rate, opts \\ []) do
     momentum = opts[:momentum]
@@ -184,6 +259,18 @@ defmodule Axon.Optimizers do
 
   @doc """
   Yogi optimizer.
+
+  ## Options
+
+    * `:initial_accumulator_value` - initial value for first and second moment. Defaults to `0.0`
+    * `:b1` - first moment decay. Defaults to `0.9`
+    * `:b2` - second moment decay. Defaults to `0.999`
+    * `:eps` - numerical stability term. Defaults to `1.0e-8`
+    * `:eps_root` - numerical stability term. Defaults to `0.0`
+
+  ## References
+
+    * [Adaptive Methods for Nonconvex Optimization](https://papers.nips.cc/paper/2018/file/90365351ccc7437a1309dc64e4db32a3-Paper.pdf)
   """
   def yogi(learning_rate, opts \\ []) do
     Updates.scale_by_yogi(opts)
