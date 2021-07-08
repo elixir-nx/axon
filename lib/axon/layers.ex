@@ -1255,7 +1255,190 @@ defmodule Axon.Layers do
     Nx.select(mask, input / keep_prob, Nx.negate(Axon.Activations.selu(input)))
   end
 
+  ## Global Pooling
+
+  @doc """
+  Functional implementation of global average pooling which averages across
+  the spatial dimensions of the input such that the only remaining dimensions
+  are the batch and feature dimensions.
+
+  Assumes data is configured in a channels-first like format.
+
+  ## Parameter Shapes
+
+    * `input` - {batch_size, features, s1, ..., sN}
+
+  ## Options
+
+    * `:keep_axes` - option to keep reduced axes with size 1 for each reduced
+      dimensions. Defaults to `false`
+
+  ## Examples
+
+      iex> Axon.Layers.global_average_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      #Nx.Tensor<
+        f32[3][2]
+        [
+          [1.0, 4.0],
+          [7.0, 10.0],
+          [13.0, 16.0]
+        ]
+      >
+
+      iex> Axon.Layers.global_average_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      #Nx.Tensor<
+        f32[1][3][1][1]
+        [
+          [
+            [
+              [1.5]
+            ],
+            [
+              [5.5]
+            ],
+            [
+              [9.5]
+            ]
+          ]
+        ]
+      >
+  """
+  defn global_average_pool(input, opts \\ []) do
+    opts = keyword!(opts, keep_axes: false)
+
+    all_but_batch_and_feature =
+      transform(Nx.rank(input), fn rank ->
+        for i <- 2..(rank - 1), do: i
+      end)
+
+    Nx.mean(input, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
+  end
+
+  @doc """
+  Functional implementation of global max pooling which computes maximums across
+  the spatial dimensions of the input such that the only remaning dimensions are
+  the batch and feature dimensions.
+
+  Assumes data is configured in a channels-first like format.
+
+  ## Parameter Shapes
+
+    * `input` - {batch_size, s1, ..., sN, features}
+
+  ## Options
+
+    * `:keep_axes` - option to keep reduced axes with size 1 for each reduced
+      dimensions. Defaults to `false`
+
+  ## Examples
+
+      iex> Axon.Layers.global_max_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      #Nx.Tensor<
+        f32[3][2]
+        [
+          [2.0, 5.0],
+          [8.0, 11.0],
+          [14.0, 17.0]
+        ]
+      >
+
+      iex> Axon.Layers.global_max_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      #Nx.Tensor<
+        f32[1][3][1][1]
+        [
+          [
+            [
+              [3.0]
+            ],
+            [
+              [7.0]
+            ],
+            [
+              [11.0]
+            ]
+          ]
+        ]
+      >
+  """
+  defn global_max_pool(x, opts \\ []) do
+    opts = keyword!(opts, keep_axes: false)
+
+    all_but_batch_and_feature =
+      transform(Nx.rank(x), fn rank ->
+        for i <- 2..(rank - 1), do: i
+      end)
+
+    Nx.reduce_max(x, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
+  end
+
+  @doc """
+  Functional implementation of global LP pooling which computes the following
+  function across spatial dimensions of the input:
+
+    $$f(X) = \sqrt[p]{\sum_{x \in X} x^{p}}$$
+
+  Where $p$ is given by the keyword argument `:norm`. As $p$ approaches
+  infinity, it becomes equivalent to max pooling.
+
+  Assumes data is configured in a channels-first like format.
+
+  ## Parameter Shapes
+
+    * `input` - {batch_size, s1, ..., sN, features}
+
+  ## Options
+
+    * `:keep_axes` - option to keep reduced axes with size 1 for each reduced
+      dimensions. Defaults to `false`
+    * `:norm` - $p$ in above function. Defaults to `1`
+
+  ## Examples
+
+      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      #Nx.Tensor<
+        f32[3][2]
+        [
+          [3.0, 12.0],
+          [21.0, 30.0],
+          [39.0, 48.0]
+        ]
+      >
+
+      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), norm: 2, keep_axes: true)
+      #Nx.Tensor<
+        f16[1][3][1][1]
+        [
+          [
+            [
+              [2.44921875]
+            ],
+            [
+              [4.69140625]
+            ],
+            [
+              [6.1640625]
+            ]
+          ]
+        ]
+      >
+  """
+  defn global_lp_pool(x, opts \\ []) do
+    opts = keyword!(opts, norm: 1, keep_axes: false)
+
+    norm = opts[:norm]
+
+    all_but_batch_and_feature =
+      transform(Nx.rank(x), fn rank ->
+        for i <- 2..(rank - 1), do: i
+      end)
+
+    x
+    |> Nx.sum(axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
+    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(x)), norm))
+  end
+
   ## Attention
+
   @doc """
   Functional implementation of dot-product attention layer.
   """

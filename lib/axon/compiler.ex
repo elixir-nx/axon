@@ -228,7 +228,16 @@ defmodule Axon.Compiler do
 
   ## Pooling Layers
 
-  @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool, :lp_pool]
+  @pooling_layers [
+    :max_pool,
+    :avg_pool,
+    :adaptive_avg_pool,
+    :adaptive_max_pool,
+    :lp_pool,
+    :global_lp_pool,
+    :global_max_pool,
+    :global_average_pool
+  ]
 
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, opts: opts, policy: %{compute: compute, output: output}},

@@ -768,9 +768,9 @@ defmodule Axon do
   ## Pooling
 
   @pooling_layers [
-    {:max_pool, "Max pooling", "a"},
-    {:avg_pool, "Average pooling", "an"},
-    {:lp_pool, "Power average pooling", "a"}
+    {:max_pool, "Max pool", "a"},
+    {:avg_pool, "Average pool", "an"},
+    {:lp_pool, "Power average pool", "a"}
   ]
 
   for {pool, name, a_or_an} <- @pooling_layers do
@@ -812,8 +812,8 @@ defmodule Axon do
   ## Adaptive Pooling
 
   @adaptive_pooling_layers [
-    {:adaptive_avg_pool, "Adaptive average pooling", "an"},
-    {:adaptive_max_pool, "Adaptive max pooling", "an"}
+    {:adaptive_avg_pool, "Adaptive average pool", "an"},
+    {:adaptive_max_pool, "Adaptive max pool", "an"}
   ]
 
   for {pool, name, a_or_an} <- @adaptive_pooling_layers do
@@ -841,6 +841,53 @@ defmodule Axon do
     output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
 
     layer(x, pool, output_shape, %{}, opts[:name], output_size: output_size)
+  end
+
+  ## Global Pooling
+
+  @global_pooling_layers [
+    {:global_average_pool, "Global average pool"},
+    {:global_max_pool, "Global max pool"},
+    {:global_lp_pool, "Global LP pool"}
+  ]
+
+  for {pool, name} <- @global_pooling_layers do
+    @doc """
+    Adds a #{name} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(pool)}/2` for more details.
+
+    Typically used to connect feature extractors such as those in convolutional
+    neural networks to fully-connected models by reducing inputs along spatial
+    dimensions to only feature and batch dimensions.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:keep_axes` - Option to keep reduced axes. If `true`, keeps reduced axes
+        with a dimension size of 1.
+    """
+    @doc type: :pooling
+    def unquote(pool)(%Axon{} = x, opts \\ []) do
+      global_pool(x, unquote(pool), opts)
+    end
+  end
+
+  defp global_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
+    keep_axes = opts[:keep_axes]
+    name = opts[:name]
+
+    opts =
+      if pool == :global_lp_pool do
+        norm = opts[:norm]
+        [keep_axes: keep_axes, norm: norm]
+      else
+        [keep_axes: keep_axes]
+      end
+
+    output_shape = Axon.Shape.global_pool(parent_shape, keep_axes)
+
+    layer(x, pool, output_shape, %{}, name, opts)
   end
 
   ## Normalization

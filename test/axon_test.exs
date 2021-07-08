@@ -477,6 +477,20 @@ defmodule AxonTest do
     end
   end
 
+  @global_pooling_layers [:global_average_pool, :global_max_pool, :global_lp_pool]
+
+  describe "global pooling" do
+    test "works with options" do
+      for pool <- @global_pooling_layers do
+        assert %Axon{name: "pool", output_shape: {nil, 1}} =
+                 apply(Axon, pool, [
+                   Axon.input({nil, 1, 28, 28}),
+                   [keep_axes: false, name: "pool"]
+                 ])
+      end
+    end
+  end
+
   @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
 
   describe "normalization" do

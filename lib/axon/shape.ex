@@ -671,6 +671,37 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the output shape after a global pooling operation with
+  the given parent shape and option to keep axes.
+
+  Assumes input is in a channels-first like format.
+
+  ## Examples
+
+      iex> Axon.Shape.global_pool({nil, 3, 2, 1, 1}, false)
+      {nil, 3}
+
+      iex> Axon.Shape.global_pool({nil, 3, 1}, true)
+      {nil, 3, 1}
+
+      iex> Axon.Shape.global_pool({nil, 1, 3, 3, 2, 4, 2}, true)
+      {nil, 1, 1, 1, 1, 1, 1}
+  """
+  def global_pool(parent_shape, keep_axes) do
+    for i <- 1..(Nx.rank(parent_shape) - 2), reduce: parent_shape do
+      new_shape ->
+        # Delete last element or replace last element with 1
+        last_elem = tuple_size(new_shape)
+
+        if keep_axes do
+          put_elem(new_shape, last_elem - i, 1)
+        else
+          Tuple.delete_at(new_shape, last_elem - 1)
+        end
+    end
+  end
+
+  @doc """
   Calculates the window size of a pooling operation based on given
   kernel size and spatial rank of the input.
 
