@@ -1330,4 +1330,102 @@ defmodule CompilerTest do
       end
     end
   end
+
+  describe "group normalization" do
+    test "initializes in default case" do
+      model = Axon.input({nil, 32}) |> Axon.group_norm(3, name: "norm")
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = init_fn.()
+      assert Nx.shape(gamma) == {32}
+      assert Nx.type(gamma) == {:f, 32}
+      assert Nx.shape(beta) == {32}
+      assert Nx.type(beta) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      model1 =
+        Axon.input({nil, 32}) |> Axon.group_norm(3, name: "norm", gamma_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = init_fn.()
+      assert gamma == Axon.Initializers.zeros(shape: {32})
+      assert Nx.shape(beta) == {32}
+      assert Nx.type(beta) == {:f, 32}
+
+      model2 =
+        Axon.input({nil, 3, 32}) |> Axon.group_norm(3, name: "norm", beta_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model2)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = init_fn.()
+      assert beta == Axon.Initializers.zeros(shape: {3})
+      assert Nx.shape(gamma) == {3}
+      assert Nx.type(gamma) == {:f, 32}
+    end
+
+    test "computes forward pass with default options" do
+      model1 = Axon.input({nil, 32}) |> Axon.group_norm(2, name: "norm")
+      input1 = Nx.random_uniform({1, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
+      assert predict_fn.(params, input1) == Axon.Layers.group_norm(input1, gamma, beta, group_size: 2)
+
+      model2 = Axon.input({nil, 3, 16, 16}) |> Axon.group_norm(3, name: "norm")
+      input2 = Nx.random_uniform({1, 3, 16, 16})
+
+      assert {init_fn, predict_fn} = Axon.compile(model2)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
+      assert predict_fn.(params, input2) == Axon.Layers.group_norm(input2, gamma, beta, group_size: 3)
+    end
+
+    test "computes forward pass with custom options" do
+      opts = [epsilon: 1.0e-3, channel_index: 3]
+      model = Axon.input({nil, 16, 16, 3}) |> Axon.group_norm(3, [name: "norm"] ++ opts)
+      input = Nx.random_uniform({1, 16, 16, 3})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.group_norm(input, gamma, beta, [group_size: 3] ++ opts)
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      model =
+        Axon.input({nil, 32})
+        |> Axon.group_norm(1, name: "norm")
+        |> Axon.freeze()
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      backward = fn params, input ->
+        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+      end
+
+      assert %{"norm_gamma" => gamma_grad, "norm_beta" => beta_grad} =
+               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 32})])
+
+      assert gamma_grad == Nx.broadcast(0.0, {32})
+      assert beta_grad == Nx.broadcast(0.0, {32})
+    end
+
+    test "initializes with parameter policy" do
+      model = Axon.input({nil, 32}) |> Axon.group_norm(1, name: "norm")
+      policy = AMP.create_policy(params: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, _} = Axon.compile(mp_model)
+      assert %{"norm_gamma" => gamma, "norm_beta" => beta} = init_fn.()
+      assert Nx.type(gamma) == {:bf, 16}
+      assert Nx.type(beta) == {:bf, 16}
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 32}) |> Axon.group_norm(1, name: "norm")
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 32}))) == {:bf, 16}
+    end
+  end
 end

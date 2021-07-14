@@ -1069,11 +1069,10 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
+    opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
-      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups,
-                                                                                channel} ->
+      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups, channel} ->
         Axon.Shape.group_norm_shape(shape, groups, channel)
       end)
 
@@ -1100,8 +1099,7 @@ defmodule Axon.Layers do
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
-    x = normalize(x, mean, var, gamma, bias)
-    Nx.reshape(x, Nx.shape(input)) * gamma + bias
+    normalize(Nx.reshape(x, input), mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
 
   @doc """
