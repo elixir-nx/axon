@@ -332,7 +332,7 @@ defmodule Axon.Compiler do
 
   defp recur_predict_fun(
          %Axon{
-           op: :separable_conv2d,
+           op: :separable_conv3d,
            parent: parent,
            opts: opts,
            params: %{

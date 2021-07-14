@@ -447,7 +447,7 @@ defmodule Axon do
     kernel_regularizer = opts[:kernel_regularizer]
 
     kernel =
-      param("weight", kernel_shape,
+      param("kernel", kernel_shape,
         initializer: kernel_initializer,
         regularizer: kernel_regularizer
       )

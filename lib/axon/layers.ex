@@ -372,11 +372,6 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank)
-      end)
-
     strides =
       transform(
         {Nx.rank(input), opts[:strides]},
@@ -394,13 +389,11 @@ defmodule Axon.Layers do
         end
       )
 
-    input
-    |> Nx.conv(weight,
+    conv(input, weight, bias,
       strides: opts[:strides],
       padding: padding,
       kernel_dilation: opts[:kernel_dilation]
     )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
 
   @doc """
@@ -456,31 +449,15 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    strides =
-      transform(
-        {Nx.rank(input), opts[:strides]},
-        fn
-          {_, [_ | _] = strides} -> strides
-          {rank, strides} -> List.duplicate(strides, rank - 2)
-        end
-      )
-
     num_groups = transform(Nx.shape(input), &elem(&1, 1))
 
-    bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank)
-      end)
-
-    input
-    |> Nx.conv(weight,
-      strides: strides,
+    conv(input, weight, bias,
+      strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
       feature_group_size: num_groups
     )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
 
   @doc """

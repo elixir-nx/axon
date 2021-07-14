@@ -160,13 +160,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3})
-      {1, 32, 1, 1}
+      {32}
 
       iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2})
-      {1, 64, 1}
+      {64}
 
       iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
-      {1, 32, 1, 1, 1}
+      {32}
 
   ### Error cases
 
@@ -180,8 +180,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
-    List.to_tuple([1, output_filters | spatial_dims])
+    {output_filters}
   end
 
   @doc """
@@ -394,13 +393,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3})
-      {1, 9, 1, 1}
+      {9}
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2})
-      {1, 6, 1}
+      {6}
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
-      {1, 1, 1, 1, 1}
+      {1}
 
   ### Error cases
 
@@ -414,9 +413,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    input_channels = elem(input_shape, 1)
-    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
-    List.to_tuple([1, input_channels * channel_multiplier | spatial_dims])
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """

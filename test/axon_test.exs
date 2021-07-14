@@ -89,7 +89,7 @@ defmodule AxonTest do
       assert opts[:input_dilation] == [1, 1]
 
       assert %Axon.Parameter{shape: {64, 1, 2, 2}} = kernel
-      assert %Axon.Parameter{shape: {1, 64, 1, 1}} = bias
+      assert %Axon.Parameter{shape: {64}} = bias
     end
 
     test "fails on bad options" do
@@ -160,7 +160,7 @@ defmodule AxonTest do
       assert opts[:input_dilation] == [1, 1]
 
       assert %Axon.Parameter{shape: {3, 1, 2, 2}} = kernel
-      assert %Axon.Parameter{shape: {1, 3, 1, 1}} = bias
+      assert %Axon.Parameter{shape: {3}} = bias
     end
 
     test "fails on bad options" do
