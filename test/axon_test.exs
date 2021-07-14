@@ -241,8 +241,8 @@ defmodule AxonTest do
 
       assert %Axon.Parameter{shape: {3, 1, 2, 1}} = k1
       assert %Axon.Parameter{shape: {3, 1, 1, 2}} = k2
-      assert %Axon.Parameter{shape: {1, 3, 1, 1}} = b1
-      assert %Axon.Parameter{shape: {1, 3, 1, 1}} = b2
+      assert %Axon.Parameter{shape: {3}} = b1
+      assert %Axon.Parameter{shape: {3}} = b2
     end
 
     test "fails on bad options" do
@@ -331,9 +331,9 @@ defmodule AxonTest do
       assert %Axon.Parameter{shape: {3, 1, 2, 1, 1}} = k1
       assert %Axon.Parameter{shape: {3, 1, 1, 2, 1}} = k2
       assert %Axon.Parameter{shape: {3, 1, 1, 1, 2}} = k3
-      assert %Axon.Parameter{shape: {1, 3, 1, 1, 1}} = b1
-      assert %Axon.Parameter{shape: {1, 3, 1, 1, 1}} = b2
-      assert %Axon.Parameter{shape: {1, 3, 1, 1, 1}} = b3
+      assert %Axon.Parameter{shape: {3}} = b1
+      assert %Axon.Parameter{shape: {3}} = b2
+      assert %Axon.Parameter{shape: {3}} = b3
     end
 
     test "fails on bad options" do

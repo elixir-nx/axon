@@ -526,10 +526,10 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3})
-      {1, 9, 1, 1}
+      {9}
 
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3})
-      {1, 12, 1, 1}
+      {12}
 
   ### Error cases
 
@@ -543,7 +543,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {1, elem(input_shape, 1) * channel_multiplier, 1, 1}
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """
@@ -596,13 +596,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2})
-      {1, 9, 1, 1, 1}
+      {9}
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2})
-      {1, 6, 1, 1, 1}
+      {6}
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1})
-      {1, 5, 1, 1, 1}
+      {5}
 
   ### Error cases
 
@@ -616,7 +616,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {1, elem(input_shape, 1) * channel_multiplier, 1, 1, 1}
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """
@@ -853,17 +853,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.norm_param({nil, 3, 28, 28}, 1)
-      {1, 3, 1, 1}
+      {3}
 
       iex> Axon.Shape.norm_param({nil, 28, 28, 3}, 3)
-      {1, 1, 1, 3}
+      {3}
   """
   def norm_param(parent_shape, channel_index) do
-    parent_shape
-    |> Tuple.to_list()
-    |> Enum.with_index()
-    |> Enum.map(fn {x, i} -> if i == channel_index, do: x, else: 1 end)
-    |> List.to_tuple()
+    {elem(parent_shape, channel_index)}
   end
 
   @doc """

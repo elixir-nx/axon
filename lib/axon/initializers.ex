@@ -184,7 +184,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
@@ -201,11 +201,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.lecun_uniform(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -233,7 +228,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
@@ -250,11 +245,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.lecun_normal(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -285,7 +275,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
@@ -302,11 +292,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.glorot_uniform(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -337,7 +322,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
@@ -354,11 +339,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.glorot_normal(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -386,7 +366,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `2.0`
 
@@ -403,11 +383,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.he_uniform(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -435,7 +410,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `2.0`
 
@@ -452,11 +427,6 @@ defmodule Axon.Initializers do
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
-
-  ### Error cases
-
-      iex> Axon.Initializers.he_normal(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
 
   ## References
 
@@ -484,7 +454,7 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
+    * `:shape` - output shape
     * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
     * `:mode` - compute fan mode. One of `:fan_in`, `:fan_out`, or `:fan_avg`.
@@ -512,11 +482,6 @@ defmodule Axon.Initializers do
       iex> Nx.type(t)
       {:f, 32}
 
-  ### Error cases
-
-      iex> Axon.Initializers.variance_scaling(shape: {2})
-      ** (ArgumentError) expected input shape to have at least rank 2, got rank 1
-
       iex> Axon.Initializers.variance_scaling(shape: {2, 2}, mode: :not_a_mode)
       ** (ArgumentError) invalid mode :not_a_mode passed to variance_scaling/1
 
@@ -527,8 +492,6 @@ defmodule Axon.Initializers do
   defn variance_scaling(opts \\ []) do
     opts =
       keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0, mode: :fan_in, distribution: :normal])
-
-    assert_greater_equal_rank!(opts[:shape], 2)
 
     fans = transform(opts[:shape], &compute_fans/1)
 

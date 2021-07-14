@@ -968,6 +968,26 @@ defmodule Axon.Layers do
         Axon.Shape.batch_norm_axes(axes, channel)
       end)
 
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     {mean, var} = mean_and_variance(input, axes: axes)
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -993,8 +1013,29 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = opts[:channel_index]
+
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     {mean, var} = mean_and_variance(input, axes: [axes])
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -1036,6 +1077,26 @@ defmodule Axon.Layers do
         Axon.Shape.group_norm_shape(shape, groups, channel)
       end)
 
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
@@ -1068,11 +1129,31 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
         Axon.Shape.instance_norm_axes(axes, channel)
+      end)
+
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
 
     {mean, var} = mean_and_variance(input, axes: axes)
