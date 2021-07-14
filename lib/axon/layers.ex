@@ -1072,7 +1072,8 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
-      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups, channel} ->
+      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups,
+                                                                                channel} ->
         Axon.Shape.group_norm_shape(shape, groups, channel)
       end)
 

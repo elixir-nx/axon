@@ -1369,14 +1369,18 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
       assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
-      assert predict_fn.(params, input1) == Axon.Layers.group_norm(input1, gamma, beta, group_size: 2)
+
+      assert predict_fn.(params, input1) ==
+               Axon.Layers.group_norm(input1, gamma, beta, group_size: 2)
 
       model2 = Axon.input({nil, 3, 16, 16}) |> Axon.group_norm(3, name: "norm")
       input2 = Nx.random_uniform({1, 3, 16, 16})
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
       assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
-      assert predict_fn.(params, input2) == Axon.Layers.group_norm(input2, gamma, beta, group_size: 3)
+
+      assert predict_fn.(params, input2) ==
+               Axon.Layers.group_norm(input2, gamma, beta, group_size: 3)
     end
 
     test "computes forward pass with custom options" do
@@ -1386,7 +1390,9 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"norm_gamma" => gamma, "norm_beta" => beta} = params = init_fn.()
-      assert predict_fn.(params, input) == Axon.Layers.group_norm(input, gamma, beta, [group_size: 3] ++ opts)
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.group_norm(input, gamma, beta, [group_size: 3] ++ opts)
     end
 
     test "returns zero gradient for frozen parameters" do
