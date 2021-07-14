@@ -36,29 +36,8 @@ defmodule MixedPrecisionTest do
   end
 
   describe "compilation" do
-    test "correctly initializes parameter policy" do
-      model =
-        Axon.input({nil, 784})
-        |> Axon.dense(128, name: "dense1")
-        |> Axon.batch_norm(name: "batch_norm")
-        |> Axon.dense(10, name: "dense2")
-
-      policy = AMP.create_policy(params: {:bf, 16})
-
-      mp_model = AMP.apply_policy(model, policy, except: [:batch_norm])
-
-      {init_fn, _} = Axon.compile(mp_model)
-
-      params = init_fn.()
-
-      assert Nx.type(params["dense1_kernel"]) == {:bf, 16}
-      assert Nx.type(params["dense1_bias"]) == {:bf, 16}
-      assert Nx.type(params["dense2_kernel"]) == {:bf, 16}
-      assert Nx.type(params["dense2_bias"]) == {:bf, 16}
-      assert Nx.type(params["batch_norm_gamma"]) == {:f, 32}
-      assert Nx.type(params["batch_norm_beta"]) == {:f, 32}
-    end
-
+    # TODO(seanmor5): Now that everything else has moved, maybe this
+    # belongs in a train test or elsewhere
     test "correctly maintains parameter type after train step" do
       model =
         Axon.input({nil, 784})
@@ -86,22 +65,6 @@ defmodule MixedPrecisionTest do
       assert Nx.type(params["dense2_bias"]) == {:bf, 16}
       assert Nx.type(params["batch_norm_gamma"]) == {:f, 32}
       assert Nx.type(params["batch_norm_beta"]) == {:f, 32}
-    end
-
-    test "uses correct output type" do
-      model =
-        Axon.input({nil, 784})
-        |> Axon.dense(128, name: "dense1")
-        |> Axon.batch_norm(name: "batch_norm")
-        |> Axon.dense(1, activation: :sigmoid, name: "dense2")
-
-      policy = AMP.create_policy(output: {:bf, 16})
-
-      mp_model = AMP.apply_policy(model, policy, except: [:batch_norm])
-
-      {init_fn, predict_fn} = Axon.compile(mp_model)
-
-      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 784}))) == {:bf, 16}
     end
   end
 end

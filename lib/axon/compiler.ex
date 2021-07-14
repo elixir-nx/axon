@@ -100,7 +100,6 @@ defmodule Axon.Compiler do
       {funs, _} = Enum.map_reduce(graph, %{}, &to_predict_fun(&1, &2, input_map))
 
       funs
-      |> Enum.reverse()
       |> Enum.map(& &1.(params, inputs))
       |> List.to_tuple()
     end
@@ -165,6 +164,7 @@ defmodule Axon.Compiler do
   end
 
   ## Custom Layers
+
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, params: layer_params, opts: opts},
          cache,
@@ -191,12 +191,17 @@ defmodule Axon.Compiler do
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent}, cache, input_map)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, policy: %{compute: compute, output: output}},
+         cache,
+         input_map
+       )
        when op in @activation_layers do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Activations, op, [fun.(params, inputs)])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Axon.Activations, op, [input]), output)
     end
 
     {fun, cache}
@@ -228,16 +233,8 @@ defmodule Axon.Compiler do
 
   ## Pooling Layers
 
-  @pooling_layers [
-    :max_pool,
-    :avg_pool,
-    :adaptive_avg_pool,
-    :adaptive_max_pool,
-    :lp_pool,
-    :global_lp_pool,
-    :global_max_pool,
-    :global_average_pool
-  ]
+  @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool] ++
+                    [:lp_pool, :global_lp_pool, :global_max_pool, :global_avg_pool]
 
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, opts: opts, policy: %{compute: compute, output: output}},

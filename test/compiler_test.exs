@@ -1,0 +1,429 @@
+defmodule CompilerTest do
+  use ExUnit.Case, async: true
+
+  alias Axon.MixedPrecision, as: AMP
+
+  describe "input" do
+    test "single input, single output" do
+      model = Axon.input({nil, 32})
+      input = Nx.random_uniform({1, 32}, type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input) == input
+    end
+
+    test "multi-input, multi-output" do
+      model = {Axon.input({nil, 32}), Axon.input({nil, 16})}
+
+      input =
+        {Nx.random_uniform({1, 32}, type: {:f, 32}), Nx.random_uniform({1, 16}, type: {:f, 32})}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input) == input
+    end
+
+    # test "multi-input, multi-output nested" do
+    #   model = {Axon.input({nil, 32}), {Axon.input({nil, 16})}}
+    #   input = {Nx.random_uniform({1, 32}, type: {:f, 32}), {Nx.random_uniform({1, 16}, type: {:f, 32})}}
+
+    #   assert {init_fn, predict_fn} = Axon.compile(model)
+    #   assert %{} = init_fn.()
+    #   assert predict_fn.(%{}, input) == input
+    # end
+  end
+
+  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                       [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+
+  describe "activations" do
+    test "initializes with no params" do
+      for activation <- @activation_layers do
+        model = Axon.input({nil, 32}) |> Axon.activation(activation)
+
+        assert {init_fn, _predict_fn} = Axon.compile(model)
+        assert %{} = init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for activation <- @activation_layers do
+        model = Axon.input({nil, 32}) |> Axon.activation(activation)
+        input = Nx.random_uniform({1, 32})
+
+        assert {_init_fn, predict_fn} = Axon.compile(model)
+        assert predict_fn.(%{}, input) == apply(Axon.Activations, activation, [input])
+      end
+    end
+
+    # test "computes forward pass with custom options" do
+    # end
+
+    test "computes forward pass with output policy" do
+      for activation <- @activation_layers do
+        model = Axon.input({nil, 32}) |> Axon.activation(activation)
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 32}))) == {:bf, 16}
+      end
+    end
+  end
+
+  describe "dense" do
+    test "initializes in default case" do
+      model = Axon.input({nil, 32}) |> Axon.dense(1, name: "dense")
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = init_fn.()
+      assert Nx.shape(kernel) == {32, 1}
+      assert Nx.type(kernel) == {:f, 32}
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      model1 = Axon.input({nil, 32}) |> Axon.dense(1, name: "dense", kernel_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = init_fn.()
+      assert kernel == Axon.Initializers.zeros(shape: {32, 1})
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
+
+      model2 = Axon.input({nil, 32}) |> Axon.dense(1, name: "dense", bias_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model2)
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = init_fn.()
+      assert Nx.shape(kernel) == {32, 1}
+      assert Nx.type(kernel) == {:f, 32}
+      assert bias == Axon.Initializers.zeros(shape: {1})
+    end
+
+    test "computes forward pass" do
+      model = Axon.input({nil, 1}) |> Axon.dense(1, name: "dense", kernel_initializer: :identity)
+      input = Nx.iota({1, 1}, type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.dense(input, kernel, bias)
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      model =
+        Axon.input({nil, 32})
+        |> Axon.dense(1, name: "dense")
+        |> Axon.freeze()
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      backward = fn params, input ->
+        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+      end
+
+      assert %{"dense_kernel" => kernel_grad, "dense_bias" => bias_grad} =
+               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 32})])
+
+      assert kernel_grad == Nx.broadcast(0.0, {32, 1})
+      assert bias_grad == Nx.broadcast(0.0, {1})
+    end
+
+    test "initializes with parameter policy" do
+      model = Axon.input({nil, 32}) |> Axon.dense(1, name: "dense")
+      policy = AMP.create_policy(params: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, _} = Axon.compile(mp_model)
+      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = init_fn.()
+      assert Nx.type(kernel) == {:bf, 16}
+      assert Nx.type(bias) == {:bf, 16}
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 32}) |> Axon.dense(1, name: "dense")
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 32}))) == {:bf, 16}
+    end
+  end
+
+  @pooling_layers [:max_pool, :avg_pool, :lp_pool]
+
+  describe "pooling" do
+    test "initializes with no params" do
+      for pool <- @pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model)
+        assert %{} = init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      default_options = [kernel_size: 1]
+
+      for pool <- @pooling_layers do
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, default_options])
+
+        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4})])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, default_options])
+
+        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2})])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, default_options])
+      end
+    end
+
+    test "computes forward pass with custom options" do
+      for pool <- @pooling_layers do
+        opts1 = [kernel_size: 6]
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}), opts1])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
+
+        opts2 = [kernel_size: 2, strides: 2, padding: :same]
+        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}), opts2])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, opts2])
+
+        opts3 = [kernel_size: {2, 1, 2}, strides: [1, 2, 1], padding: [{0, 1}, {1, 1}, {0, 2}]]
+        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}), opts3])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, opts3])
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for pool <- @pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      end
+    end
+  end
+
+  @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool]
+
+  describe "adaptive pooling" do
+    test "initializes with no params" do
+      for pool <- @adaptive_pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model)
+        assert %{} = init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for pool <- @adaptive_pooling_layers do
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, [output_size: 32]])
+
+        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4})])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+
+        assert predict_fn.(%{}, input2) ==
+                 apply(Axon.Layers, pool, [input2, [output_size: {8, 4}]])
+
+        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2})])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+
+        assert predict_fn.(%{}, input3) ==
+                 apply(Axon.Layers, pool, [input3, [output_size: {8, 4, 2}]])
+      end
+    end
+
+    test "computes forward pass with custom options" do
+      for pool <- @adaptive_pooling_layers do
+        opts1 = [output_size: 27]
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}), opts1])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
+
+        opts2 = [output_size: {2, 3}]
+        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}), opts2])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, opts2])
+
+        opts3 = [output_size: {4, 3, 1}]
+        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}), opts3])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, opts3])
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for pool <- @adaptive_pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      end
+    end
+  end
+
+  @global_pooling_layers [:global_max_pool, :global_avg_pool, :global_lp_pool]
+
+  describe "global pooling" do
+    test "initializes with no params" do
+      for pool <- @global_pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model)
+        assert %{} = init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for pool <- @global_pooling_layers do
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1])
+
+        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4})])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2])
+
+        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2})])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3])
+      end
+    end
+
+    test "computes forward pass with custom options" do
+      for pool <- @global_pooling_layers do
+        opts1 = [keep_axes: true]
+        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}), opts1])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for pool <- @global_pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      end
+    end
+  end
+
+  @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
+
+  describe "dropout" do
+    test "initializes with no params" do
+      for dropout <- @dropout_layers do
+        model = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model)
+        assert %{} = init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for dropout <- @dropout_layers do
+        model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+        result1 = predict_fn.(%{}, input1)
+
+        assert Nx.shape(result1) == {1, 1, 32}
+        assert Nx.type(result1) == {:f, 32}
+
+        model2 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4})])
+        input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model2)
+        result2 = predict_fn.(%{}, input2)
+
+        assert Nx.shape(result2) == {1, 1, 8, 4}
+        assert Nx.type(result2) == {:f, 32}
+
+        model3 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4, 2})])
+        input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model3)
+        result3 = predict_fn.(%{}, input3)
+
+        assert Nx.shape(result3) == {1, 1, 8, 4, 2}
+        assert Nx.type(result3) == {:f, 32}
+      end
+    end
+
+    test "computes forward pass with custom options" do
+      for dropout <- @dropout_layers do
+        opts1 = [rate: 0.25]
+        model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32}), opts1])
+        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+
+        result = predict_fn.(%{}, input1)
+
+        assert Nx.shape(result) == {1, 1, 32}
+        assert Nx.type(result) == {:f, 32}
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for dropout <- @dropout_layers do
+        model = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      end
+    end
+  end
+end

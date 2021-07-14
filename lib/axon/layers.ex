@@ -652,22 +652,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -731,22 +731,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -830,22 +830,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -1275,7 +1275,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_average_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1285,7 +1285,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_average_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1303,7 +1303,7 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn global_average_pool(input, opts \\ []) do
+  defn global_avg_pool(input, opts \\ []) do
     opts = keyword!(opts, keep_axes: false)
 
     all_but_batch_and_feature =

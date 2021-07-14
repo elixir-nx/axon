@@ -83,16 +83,16 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.dense_bias({nil, 784}, 128)
-      {1, 128}
+      {128}
 
       iex> Axon.Shape.dense_bias({nil, 128}, 256)
-      {1, 256}
+      {256}
 
       iex> Axon.Shape.dense_bias({nil, 3, 256, 256}, 128)
-      {1, 128}
+      {128}
   """
   def dense_bias(_input_shape, units) do
-    {1, units}
+    {units}
   end
 
   @doc """
@@ -800,9 +800,8 @@ defmodule Axon.Shape do
       end
 
     strides =
-      output_spatial
-      |> Enum.zip(input_spatial)
-      |> Enum.map(fn {input, output} -> div(input, output) end)
+      input_spatial
+      |> Enum.zip_with(output_spatial, &Kernel.div/2)
 
     [1, 1 | strides]
   end

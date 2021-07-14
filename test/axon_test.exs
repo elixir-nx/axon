@@ -463,21 +463,9 @@ defmodule AxonTest do
                  ])
       end
     end
-
-    test "fails on bad options" do
-      for pool <- @adaptive_pooling_layers do
-        assert_raise ArgumentError, ~r/expected :output_size to be/, fn ->
-          apply(Axon, pool, [Axon.input({nil, 1, 28, 28})])
-        end
-
-        assert_raise ArgumentError, ~r/expected :output_size to be/, fn ->
-          apply(Axon, pool, [Axon.input({nil, 1, 28, 28}), [output_size: :foo]])
-        end
-      end
-    end
   end
 
-  @global_pooling_layers [:global_average_pool, :global_max_pool, :global_lp_pool]
+  @global_pooling_layers [:global_avg_pool, :global_max_pool, :global_lp_pool]
 
   describe "global pooling" do
     test "works with options" do
@@ -645,6 +633,7 @@ defmodule AxonTest do
     end
   end
 
+  # TODO(seanmor5): Move/replace all with compiler_test
   describe "execution" do
     test "compile returns init and predict" do
       {init_fn, predict_fn} =
@@ -654,7 +643,7 @@ defmodule AxonTest do
 
       assert %{"dense_kernel" => kernel, "dense_bias" => bias} = params = init_fn.()
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
-      assert bias == Axon.Initializers.zeros(shape: {1, 6})
+      assert bias == Axon.Initializers.zeros(shape: {6})
 
       assert predict_fn.(params, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
     end
@@ -670,14 +659,14 @@ defmodule AxonTest do
     test "init works inside defn" do
       assert init() == %{
                "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+               "dense_bias" => Axon.Initializers.zeros(shape: {6})
              }
     end
 
     test "init works outside defn" do
       assert Axon.init(model()) == %{
                "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-               "dense_bias" => Axon.Initializers.zeros(shape: {1, 6})
+               "dense_bias" => Axon.Initializers.zeros(shape: {6})
              }
     end
 
@@ -705,22 +694,6 @@ defmodule AxonTest do
 
       assert %Axon{params: %{"kernel" => %{frozen: false}, "bias" => %{frozen: false}}} =
                model |> Axon.dense(10)
-    end
-
-    test "returns zero gradient for frozen parameters" do
-      model =
-        Axon.input({nil, 784})
-        |> Axon.dense(128)
-        |> Axon.freeze()
-
-      {init_fn, predict_fn} = Axon.compile(model)
-
-      backward = fn params, input ->
-        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
-      end
-
-      gradients = Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 784})])
-      assert Map.values(gradients) == [Nx.broadcast(0.0, {1, 128}), Nx.broadcast(0.0, {784, 128})]
     end
   end
 
