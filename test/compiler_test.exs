@@ -1642,8 +1642,7 @@ defmodule CompilerTest do
       assert Nx.shape(bo) == {64}
       assert Nx.type(bo) == {:f, 32}
 
-      model2 =
-        Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
+      model2 = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
 
@@ -1690,59 +1689,89 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 32, 2}) |> Axon.lstm(64, name: "lstm", recurrent_initializer: :zeros)
-      input = Nx.random_uniform({1, 32, 2}, type: {:f, 32})
-      init_carry = {Axon.Initializers.zeros(shape: {1, 1, 64}), Axon.Initializers.zeros(shape: {1, 1, 64})}
+      model = Axon.input({nil, 8, 2}) |> Axon.lstm(2, name: "lstm", recurrent_initializer: :zeros)
+      input = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+
+      init_carry =
+        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
       assert %{
-           "lstm_wii" => wii,
-           "lstm_wif" => wif,
-           "lstm_wig" => wig,
-           "lstm_wio" => wio,
-           "lstm_whi" => whi,
-           "lstm_whf" => whf,
-           "lstm_whg" => whg,
-           "lstm_who" => who,
-           "lstm_bi" => bi,
-           "lstm_bf" => bf,
-           "lstm_bg" => bg,
-           "lstm_bo" => bo
-         } = params = init_fn.()
+               "lstm_wii" => wii,
+               "lstm_wif" => wif,
+               "lstm_wig" => wig,
+               "lstm_wio" => wio,
+               "lstm_whi" => whi,
+               "lstm_whf" => whf,
+               "lstm_whg" => whg,
+               "lstm_who" => who,
+               "lstm_bi" => bi,
+               "lstm_bf" => bf,
+               "lstm_bg" => bg,
+               "lstm_bo" => bo
+             } = params = init_fn.()
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
       b = {bi, bf, bg, bo}
 
       assert {{_, _} = carry, seq} = predict_fn.(params, input)
-      assert {carry, seq} == Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, input, init_carry, k, h, b)
+
+      assert {carry, seq} ==
+               Axon.Recurrent.dynamic_unroll(
+                 &Axon.Recurrent.lstm_cell/5,
+                 input,
+                 init_carry,
+                 k,
+                 h,
+                 b
+               )
     end
 
     test "computes forward pass with custom options" do
-      model1 = Axon.input({nil, 32, 2}) |> Axon.lstm(64, name: "lstm", recurrent_initializer: :zeros, gate: :relu, activation: :sigmoid)
-      input1 = Nx.random_uniform({1, 32, 2}, type: {:f, 32})
-      init_carry1 = {Axon.Initializers.zeros(shape: {1, 1, 64}), Axon.Initializers.zeros(shape: {1, 1, 64})}
+      model1 =
+        Axon.input({nil, 8, 2})
+        |> Axon.lstm(2,
+          name: "lstm",
+          recurrent_initializer: :zeros,
+          gate: :relu,
+          activation: :sigmoid
+        )
+
+      input1 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+
+      init_carry1 =
+        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.lstm_cell(i, c, k, h, b, &Axon.Activations.relu/1, &Axon.Activations.sigmoid/1)
+        Axon.Recurrent.lstm_cell(
+          i,
+          c,
+          k,
+          h,
+          b,
+          &Axon.Activations.relu/1,
+          &Axon.Activations.sigmoid/1
+        )
       end
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
 
       assert %{
-           "lstm_wii" => wii,
-           "lstm_wif" => wif,
-           "lstm_wig" => wig,
-           "lstm_wio" => wio,
-           "lstm_whi" => whi,
-           "lstm_whf" => whf,
-           "lstm_whg" => whg,
-           "lstm_who" => who,
-           "lstm_bi" => bi,
-           "lstm_bf" => bf,
-           "lstm_bg" => bg,
-           "lstm_bo" => bo
-         } = params = init_fn.()
+               "lstm_wii" => wii,
+               "lstm_wif" => wif,
+               "lstm_wig" => wig,
+               "lstm_wio" => wio,
+               "lstm_whi" => whi,
+               "lstm_whf" => whf,
+               "lstm_whg" => whg,
+               "lstm_who" => who,
+               "lstm_bi" => bi,
+               "lstm_bf" => bf,
+               "lstm_bg" => bg,
+               "lstm_bo" => bo
+             } = params = init_fn.()
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
@@ -1751,27 +1780,33 @@ defmodule CompilerTest do
       assert {{_, _} = carry, seq} = predict_fn.(params, input1)
       assert {carry, seq} == Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
 
-      model2 = Axon.input({nil, 32, 2}) |> Axon.lstm(64, name: "lstm", unroll: :static, recurrent_initializer: :zeros)
-      input2 = Nx.random_uniform({1, 32, 2}, type: {:f, 32})
-      init_carry2 = {Axon.Initializers.zeros(shape: {1, 1, 64}), Axon.Initializers.zeros(shape: {1, 1, 64})}
+      model2 =
+        Axon.input({nil, 8, 2})
+        |> Axon.lstm(2, name: "lstm", unroll: :static, recurrent_initializer: :zeros)
+
+      input2 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+
+      init_carry2 =
+        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+
       cell_fn2 = &Axon.Recurrent.lstm_cell/5
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
 
       assert %{
-           "lstm_wii" => wii,
-           "lstm_wif" => wif,
-           "lstm_wig" => wig,
-           "lstm_wio" => wio,
-           "lstm_whi" => whi,
-           "lstm_whf" => whf,
-           "lstm_whg" => whg,
-           "lstm_who" => who,
-           "lstm_bi" => bi,
-           "lstm_bf" => bf,
-           "lstm_bg" => bg,
-           "lstm_bo" => bo
-         } = params = init_fn.()
+               "lstm_wii" => wii,
+               "lstm_wif" => wif,
+               "lstm_wig" => wig,
+               "lstm_wio" => wio,
+               "lstm_whi" => whi,
+               "lstm_whf" => whf,
+               "lstm_whg" => whg,
+               "lstm_who" => who,
+               "lstm_bi" => bi,
+               "lstm_bf" => bf,
+               "lstm_bg" => bg,
+               "lstm_bo" => bo
+             } = params = init_fn.()
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
@@ -1781,139 +1816,53 @@ defmodule CompilerTest do
       assert {carry, seq} == Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
     end
 
-    test "initializes with hidden state" do
-      seq = Axon.input({nil, 32, 10})
-      {carry, _} = seq |> Axon.lstm(32, name: "encode")
-      model = Axon.lstm(seq, 32, name: "decode", hidden_state: carry)
-
-      assert {init_fn, _} = Axon.compile(model)
-
-      assert %{
-           "encode_wii" => eii,
-           "encode_wif" => eif,
-           "encode_wig" => eig,
-           "encode_wio" => eio,
-           "encode_whi" => ehi,
-           "encode_whf" => ehf,
-           "encode_whg" => ehg,
-           "encode_who" => eho,
-           "encode_bi" => ebi,
-           "encode_bf" => ebf,
-           "encode_bg" => ebg,
-           "encode_bo" => ebo,
-           "decode_wii" => dii,
-           "decode_wif" => dif,
-           "decode_wig" => dig,
-           "decode_wio" => dio,
-           "decode_whi" => dhi,
-           "decode_whf" => dhf,
-           "decode_whg" => dhg,
-           "decode_who" => dho,
-           "decode_bi" => dbi,
-           "decode_bf" => dbf,
-           "decode_bg" => dbg,
-           "decode_bo" => dbo,
-      } = init_fn.()
-
-      # Encoder
-
-      # Input kernel
-      assert Nx.shape(eii) == {10, 32}
-      assert Nx.type(eii) == {:f, 32}
-      assert Nx.shape(eif) == {10, 32}
-      assert Nx.type(eif) == {:f, 32}
-      assert Nx.shape(eig) == {10, 32}
-      assert Nx.type(eig) == {:f, 32}
-      assert Nx.shape(eio) == {10, 32}
-      assert Nx.type(eio) == {:f, 32}
-
-      # Hidden kernel
-      assert Nx.shape(ehi) == {32, 32}
-      assert Nx.type(ehi) == {:f, 32}
-      assert Nx.shape(ehf) == {32, 32}
-      assert Nx.type(ehf) == {:f, 32}
-      assert Nx.shape(ehg) == {32, 32}
-      assert Nx.type(ehg) == {:f, 32}
-      assert Nx.shape(eho) == {32, 32}
-      assert Nx.type(eho) == {:f, 32}
-
-      # Bias
-      assert ebi == Axon.Initializers.zeros(shape: {32})
-      assert ebf == Axon.Initializers.zeros(shape: {32})
-      assert ebg == Axon.Initializers.zeros(shape: {32})
-      assert ebo == Axon.Initializers.zeros(shape: {32})
-
-      # Decoder
-
-      # Input kernel
-      assert Nx.shape(dii) == {10, 32}
-      assert Nx.type(dii) == {:f, 32}
-      assert Nx.shape(dif) == {10, 32}
-      assert Nx.type(dif) == {:f, 32}
-      assert Nx.shape(dig) == {10, 32}
-      assert Nx.type(dig) == {:f, 32}
-      assert Nx.shape(dio) == {10, 32}
-      assert Nx.type(dio) == {:f, 32}
-
-      # Hidden kernel
-      assert Nx.shape(dhi) == {32, 32}
-      assert Nx.type(dhi) == {:f, 32}
-      assert Nx.shape(dhf) == {32, 32}
-      assert Nx.type(dhf) == {:f, 32}
-      assert Nx.shape(dhg) == {32, 32}
-      assert Nx.type(dhg) == {:f, 32}
-      assert Nx.shape(dho) == {32, 32}
-      assert Nx.type(dho) == {:f, 32}
-
-      # Bias
-      assert dbi == Axon.Initializers.zeros(shape: {32})
-      assert dbf == Axon.Initializers.zeros(shape: {32})
-      assert dbg == Axon.Initializers.zeros(shape: {32})
-      assert dbo == Axon.Initializers.zeros(shape: {32})
-    end
-
     test "computes forward pass with hidden state" do
-      seq = Axon.input({nil, 32, 10})
-      {carry, _} = seq |> Axon.lstm(32, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.lstm(seq, 32, name: "decode", hidden_state: carry)
-      input = Nx.random_uniform({1, 32, 10})
+      seq = Axon.input({nil, 8, 2})
+      {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
+      model = Axon.lstm(seq, 2, name: "decode", hidden_state: carry)
+      input = Nx.random_uniform({1, 8, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
       equiv_fn = fn inp, enc, dec ->
         {ei, eh, eb} = enc
         {di, dh, db} = dec
-        init_carry = {Axon.Initializers.zeros(shape: {1, 1, 32}), Axon.Initializers.zeros(shape: {1, 1, 32})}
-        {carr, _} = Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
+
+        init_carry =
+          {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+
+        {carr, _} =
+          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
+
         Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, carr, di, dh, db)
       end
 
       assert %{
-           "encode_wii" => eii,
-           "encode_wif" => eif,
-           "encode_wig" => eig,
-           "encode_wio" => eio,
-           "encode_whi" => ehi,
-           "encode_whf" => ehf,
-           "encode_whg" => ehg,
-           "encode_who" => eho,
-           "encode_bi" => ebi,
-           "encode_bf" => ebf,
-           "encode_bg" => ebg,
-           "encode_bo" => ebo,
-           "decode_wii" => dii,
-           "decode_wif" => dif,
-           "decode_wig" => dig,
-           "decode_wio" => dio,
-           "decode_whi" => dhi,
-           "decode_whf" => dhf,
-           "decode_whg" => dhg,
-           "decode_who" => dho,
-           "decode_bi" => dbi,
-           "decode_bf" => dbf,
-           "decode_bg" => dbg,
-           "decode_bo" => dbo,
-      } = params = init_fn.()
+               "encode_wii" => eii,
+               "encode_wif" => eif,
+               "encode_wig" => eig,
+               "encode_wio" => eio,
+               "encode_whi" => ehi,
+               "encode_whf" => ehf,
+               "encode_whg" => ehg,
+               "encode_who" => eho,
+               "encode_bi" => ebi,
+               "encode_bf" => ebf,
+               "encode_bg" => ebg,
+               "encode_bo" => ebo,
+               "decode_wii" => dii,
+               "decode_wif" => dif,
+               "decode_wig" => dig,
+               "decode_wio" => dio,
+               "decode_whi" => dhi,
+               "decode_whf" => dhf,
+               "decode_whg" => dhg,
+               "decode_who" => dho,
+               "decode_bi" => dbi,
+               "decode_bf" => dbf,
+               "decode_bg" => dbg,
+               "decode_bo" => dbo
+             } = params = init_fn.()
 
       enc = {{eii, eif, eig, eio}, {ehi, ehf, ehg, eho}, {ebi, ebf, ebg, ebo}}
       dec = {{dii, dif, dig, dio}, {dhi, dhf, dhg, dho}, {dbi, dbf, dbg, dbo}}
@@ -1963,5 +1912,285 @@ defmodule CompilerTest do
       assert bg_grad == Nx.broadcast(0.0, {1})
       assert bo_grad == Nx.broadcast(0.0, {1})
     end
+
+    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
+    # test "initializes with parameter policy" do
+    # end
+    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
+    # test "computes forward pass with output policy" do
+    # end
+  end
+
+  describe "gru" do
+    test "initializes in default case" do
+      model = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru")
+
+      assert {init_fn, _} = Axon.compile(model)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = init_fn.()
+
+      assert Nx.shape(wir) == {10, 64}
+      assert Nx.type(wir) == {:f, 32}
+      assert Nx.shape(wiz) == {10, 64}
+      assert Nx.type(wiz) == {:f, 32}
+      assert Nx.shape(win) == {10, 64}
+      assert Nx.type(win) == {:f, 32}
+      assert Nx.shape(whr) == {64, 64}
+      assert Nx.type(whr) == {:f, 32}
+      assert Nx.shape(whz) == {64, 64}
+      assert Nx.type(whz) == {:f, 32}
+      assert Nx.shape(whn) == {64, 64}
+      assert Nx.type(whn) == {:f, 32}
+      assert Nx.shape(br) == {64}
+      assert Nx.type(br) == {:f, 32}
+      assert Nx.shape(bz) == {64}
+      assert Nx.type(bz) == {:f, 32}
+      assert Nx.shape(bhn) == {64}
+      assert Nx.type(bhn) == {:f, 32}
+      assert Nx.shape(bin) == {64}
+      assert Nx.type(bin) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      model1 = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru", kernel_initializer: :zeros)
+
+      assert {init_fn, _} = Axon.compile(model1)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = init_fn.()
+
+      assert wir == Axon.Initializers.zeros(shape: {10, 64})
+      assert wiz == Axon.Initializers.zeros(shape: {10, 64})
+      assert win == Axon.Initializers.zeros(shape: {10, 64})
+      assert whr == Axon.Initializers.zeros(shape: {64, 64})
+      assert whz == Axon.Initializers.zeros(shape: {64, 64})
+      assert whn == Axon.Initializers.zeros(shape: {64, 64})
+      assert Nx.shape(br) == {64}
+      assert Nx.type(br) == {:f, 32}
+      assert Nx.shape(bz) == {64}
+      assert Nx.type(bz) == {:f, 32}
+      assert Nx.shape(bhn) == {64}
+      assert Nx.type(bhn) == {:f, 32}
+      assert Nx.shape(bin) == {64}
+      assert Nx.type(bin) == {:f, 32}
+
+      model2 = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru", bias_initializer: :zeros)
+
+      assert {init_fn, _} = Axon.compile(model2)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = init_fn.()
+
+      assert Nx.shape(wir) == {10, 64}
+      assert Nx.type(wir) == {:f, 32}
+      assert Nx.shape(wiz) == {10, 64}
+      assert Nx.type(wiz) == {:f, 32}
+      assert Nx.shape(win) == {10, 64}
+      assert Nx.type(win) == {:f, 32}
+      assert Nx.shape(whr) == {64, 64}
+      assert Nx.type(whr) == {:f, 32}
+      assert Nx.shape(whz) == {64, 64}
+      assert Nx.type(whz) == {:f, 32}
+      assert Nx.shape(whn) == {64, 64}
+      assert Nx.type(whn) == {:f, 32}
+      assert br == Axon.Initializers.zeros(shape: {64})
+      assert bz == Axon.Initializers.zeros(shape: {64})
+      assert bhn == Axon.Initializers.zeros(shape: {64})
+      assert bin == Axon.Initializers.zeros(shape: {64})
+    end
+
+    test "computes forward pass with default options" do
+      model = Axon.input({nil, 8, 2}) |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros)
+      input = Nx.random_uniform({1, 8, 2})
+      carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = params = init_fn.()
+
+      k = {wir, wiz, win}
+      h = {whr, whz, whn}
+      b = {br, bz, bin, bhn}
+
+      assert predict_fn.(params, input) ==
+               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, carry, k, h, b)
+    end
+
+    test "computes forward pass with custom options" do
+      model1 =
+        Axon.input({nil, 8, 2})
+        |> Axon.gru(2,
+          name: "gru",
+          recurrent_initializer: :zeros,
+          gate: :relu,
+          activation: :sigmoid
+        )
+
+      input1 = Nx.random_uniform({1, 8, 2})
+      carry1 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+
+      cell_fn1 = fn i, c, k, h, b ->
+        Axon.Recurrent.gru_cell(
+          i,
+          c,
+          k,
+          h,
+          b,
+          &Axon.Activations.relu/1,
+          &Axon.Activations.sigmoid/1
+        )
+      end
+
+      assert {init_fn, predict_fn} = Axon.compile(model1)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = params = init_fn.()
+
+      k = {wir, wiz, win}
+      h = {whr, whz, whn}
+      b = {br, bz, bin, bhn}
+
+      assert predict_fn.(params, input1) ==
+               Axon.Recurrent.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
+
+      model2 =
+        Axon.input({nil, 8, 2})
+        |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros, unroll: :static)
+
+      input2 = Nx.random_uniform({1, 8, 2})
+      carry2 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+
+      assert {init_fn, predict_fn} = Axon.compile(model2)
+
+      assert %{
+               "gru_wir" => wir,
+               "gru_wiz" => wiz,
+               "gru_win" => win,
+               "gru_whr" => whr,
+               "gru_whz" => whz,
+               "gru_whn" => whn,
+               "gru_br" => br,
+               "gru_bz" => bz,
+               "gru_bhn" => bhn,
+               "gru_bin" => bin
+             } = params = init_fn.()
+
+      k = {wir, wiz, win}
+      h = {whr, whz, whn}
+      b = {br, bz, bin, bhn}
+
+      assert predict_fn.(params, input2) ==
+               Axon.Recurrent.static_unroll(&Axon.Recurrent.gru_cell/5, input2, carry2, k, h, b)
+    end
+
+    test "computes forward pass with hidden state" do
+      seq = Axon.input({nil, 8, 2})
+      {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
+      model = Axon.gru(seq, 2, name: "decode", hidden_state: carry)
+      input = Nx.random_uniform({1, 8, 2})
+      carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+
+      equiv_fn = fn inp, enc, dec ->
+        {ei, eh, eb} = enc
+        {di, dh, db} = dec
+
+        {carry, _} =
+          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, ei, eh, eb)
+
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, di, dh, db)
+      end
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "encode_wir" => eir,
+               "encode_wiz" => eiz,
+               "encode_win" => ein,
+               "encode_whr" => ehr,
+               "encode_whz" => ehz,
+               "encode_whn" => ehn,
+               "encode_br" => ebr,
+               "encode_bz" => ebz,
+               "encode_bhn" => ebhn,
+               "encode_bin" => ebin,
+               "decode_wir" => dir,
+               "decode_wiz" => diz,
+               "decode_win" => din,
+               "decode_whr" => dhr,
+               "decode_whz" => dhz,
+               "decode_whn" => dhn,
+               "decode_br" => dbr,
+               "decode_bz" => dbz,
+               "decode_bhn" => dbhn,
+               "decode_bin" => dbin
+             } = params = init_fn.()
+
+      enc = {{eir, eiz, ein}, {ehr, ehz, ehn}, {ebr, ebz, ebin, ebhn}}
+      dec = {{dir, diz, din}, {dhr, dhz, dhn}, {dbr, dbz, dbin, dbhn}}
+
+      assert predict_fn.(params, input) == equiv_fn.(input, enc, dec)
+    end
+
+    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
+    # test ""
+    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
+    # test "returns zero gradient for frozen parameters" do
+    # end
+    # end
+    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
+    # test "computes forward pass with output policy" do
+    # end
   end
 end

@@ -104,6 +104,7 @@ defmodule Axon.Compiler do
     fn params, inputs ->
       inputs = maybe_flatten(inputs)
       {fun, _} = to_predict_fun(graph, %{}, input_map)
+
       case fun do
         [_ | _] = funs ->
           do_recur_apply(funs, params, inputs, [])
@@ -126,6 +127,7 @@ defmodule Axon.Compiler do
 
   defp do_flatten([inp | []], acc) when is_tuple(inp) do
     res = do_flatten(Tuple.to_list(inp), [])
+
     [res | acc]
     |> Enum.reverse()
   end
@@ -754,9 +756,9 @@ defmodule Axon.Compiler do
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
-      case unroll do
-        :static ->
-          Nx.as_type(
+      {{c}, out} =
+        case unroll do
+          :static ->
             Axon.Recurrent.static_unroll(
               &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -764,12 +766,9 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
+            )
 
-        :dynamic ->
-          Nx.as_type(
+          :dynamic ->
             Axon.Recurrent.dynamic_unroll(
               &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -777,10 +776,10 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
-      end
+            )
+        end
+
+      {{Nx.as_type(c, output)}, Nx.as_type(out, output)}
     end
 
     {fun, cache}
