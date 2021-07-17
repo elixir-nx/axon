@@ -979,7 +979,7 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.reshape({nil, 4, 2}, {9})
-      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as batch dimensions of old shape
+      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as non-batch dimensions of old shape
   """
   def reshape(shape, new_shape) do
     batch_size = elem(shape, 0)
@@ -990,7 +990,7 @@ defmodule Axon.Shape do
             "new shape invalid for reshape operation," <>
               " layer shape #{inspect(shape)} is incompatible" <>
               " with new shape #{inspect(new_shape)}, new shape" <>
-              " must have same size as batch dimensions of old shape"
+              " must have same size as non-batch dimensions of old shape"
     end
 
     Tuple.insert_at(new_shape, 0, batch_size)
@@ -1119,7 +1119,7 @@ defmodule Axon.Shape do
               " got #{inspect(shape)}"
     end
 
-    {1, 1, units}
+    {units}
   end
 
   @doc """
