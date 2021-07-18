@@ -17,8 +17,11 @@ defmodule AxonTest do
 
   describe "dense" do
     test "works with defaults" do
-      assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} =
-               Axon.input({nil, 784}) |> Axon.dense(128)
+      assert %Axon{
+               op: :dense,
+               params: %{"kernel" => weight, "bias" => bias},
+               opts: [use_bias: true]
+             } = Axon.input({nil, 784}) |> Axon.dense(128)
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = weight
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -52,6 +55,11 @@ defmodule AxonTest do
         Axon.input({nil, 784}) |> Axon.dense(128, bias_initializer: :foo)
       end
     end
+
+    test "works with use_bias false" do
+      assert %Axon{op: :dense, opts: [use_bias: false]} =
+               Axon.input({nil, 784}) |> Axon.dense(128, use_bias: false)
+    end
   end
 
   describe "conv" do
@@ -63,6 +71,7 @@ defmodule AxonTest do
       assert opts[:strides] == [1, 1]
       assert opts[:kernel_dilation] == [1, 1]
       assert opts[:input_dilation] == [1, 1]
+      assert opts[:use_bias] == true
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -123,6 +132,13 @@ defmodule AxonTest do
         Axon.input({nil, 1, 28, 28}) |> Axon.conv(128, bias_initializer: :foo)
       end
     end
+
+    test "works with use_bias false" do
+      assert %Axon{op: :conv, opts: opts} =
+               Axon.input({nil, 1, 2}) |> Axon.conv(2, use_bias: false)
+
+      assert opts[:use_bias] == false
+    end
   end
 
   describe "depthwise_conv" do
@@ -134,6 +150,7 @@ defmodule AxonTest do
       assert opts[:strides] == [1, 1]
       assert opts[:kernel_dilation] == [1, 1]
       assert opts[:input_dilation] == [1, 1]
+      assert opts[:use_bias] == true
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -194,6 +211,13 @@ defmodule AxonTest do
         Axon.input({nil, 1, 28, 28}) |> Axon.depthwise_conv(3, bias_initializer: :foo)
       end
     end
+
+    test "works with use_bias false" do
+      assert %Axon{op: :depthwise_conv, opts: opts} =
+               Axon.input({nil, 1, 2}) |> Axon.depthwise_conv(1, use_bias: false)
+
+      assert opts[:use_bias] == false
+    end
   end
 
   describe "separable_conv2d" do
@@ -208,6 +232,7 @@ defmodule AxonTest do
       assert opts[:strides] == [1, 1]
       assert opts[:kernel_dilation] == [1, 1]
       assert opts[:input_dilation] == [1, 1]
+      assert opts[:use_bias] == true
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = k1
       assert %Axon.Parameter{initializer: :glorot_uniform} = k2
@@ -276,6 +301,13 @@ defmodule AxonTest do
         Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3, bias_initializer: :foo)
       end
     end
+
+    test "works with use_bias false" do
+      assert %Axon{op: :separable_conv2d, opts: opts} =
+               Axon.input({nil, 1, 2, 2}) |> Axon.separable_conv2d(1, use_bias: false)
+
+      assert opts[:use_bias] == false
+    end
   end
 
   describe "separable_conv3d" do
@@ -290,6 +322,7 @@ defmodule AxonTest do
       assert opts[:strides] == [1, 1, 1]
       assert opts[:kernel_dilation] == [1, 1, 1]
       assert opts[:input_dilation] == [1, 1, 1]
+      assert opts[:use_bias] == true
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = k1
       assert %Axon.Parameter{initializer: :glorot_uniform} = k2
@@ -366,6 +399,13 @@ defmodule AxonTest do
       assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
         Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, bias_initializer: :foo)
       end
+    end
+
+    test "works with use_bias false" do
+      assert %Axon{op: :separable_conv3d, opts: opts} =
+               Axon.input({nil, 1, 2, 2, 2}) |> Axon.separable_conv3d(1, use_bias: false)
+
+      assert opts[:use_bias] == false
     end
   end
 
