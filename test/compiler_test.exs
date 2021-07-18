@@ -2193,4 +2193,152 @@ defmodule CompilerTest do
     # test "computes forward pass with output policy" do
     # end
   end
+
+  @binary_layers [:add, :subtract, :multiply]
+
+  describe "binary operations" do
+    test "initializes with no params" do
+      for op <- @binary_layers do
+        model = apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
+        assert {init_fn, _} = Axon.compile(model)
+        assert %{} == init_fn.()
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for op <- @binary_layers do
+        model1 = apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
+        input1_1 = Nx.random_uniform({1, 32})
+        input1_2 = Nx.random_uniform({1, 32})
+        assert {_, predict_fn} = Axon.compile(model1)
+        assert predict_fn.(%{}, {input1_1, input1_2}) == apply(Nx, op, [input1_1, input1_2])
+
+        model2 =
+          apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]])
+
+        input2_1 = Nx.random_uniform({1, 32})
+        input2_2 = Nx.random_uniform({1, 32})
+        input2_3 = Nx.random_uniform({1, 32})
+        assert {_, predict_fn} = Axon.compile(model2)
+
+        assert predict_fn.(%{}, {input2_1, input2_2, input2_3}) ==
+                 apply(Nx, op, [apply(Nx, op, [input2_1, input2_2]), input2_3])
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for op <- @binary_layers do
+        model = apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+        input = {Nx.random_uniform({1, 32}), Nx.random_uniform({1, 32})}
+
+        assert {_, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
+      end
+    end
+  end
+
+  describe "concatenate" do
+    test "initializes with no params" do
+      model = Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
+      assert {init_fn, _} = Axon.compile(model)
+      assert %{} == init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      model1 = Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
+      input1_1 = Nx.random_uniform({1, 32})
+      input1_2 = Nx.random_uniform({1, 32})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+
+      assert predict_fn.(%{}, {input1_1, input1_2}) ==
+               Nx.concatenate([input1_1, input1_2], axis: 1)
+
+      model2 =
+        Axon.concatenate([Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})])
+
+      input2_1 = Nx.random_uniform({1, 32})
+      input2_2 = Nx.random_uniform({1, 32})
+      input2_3 = Nx.random_uniform({1, 32})
+
+      assert {_, predict_fn} = Axon.compile(model2)
+
+      assert predict_fn.(%{}, {input2_1, input2_2, input2_3}) ==
+               Nx.concatenate([input2_1, input2_2, input2_3], axis: 1)
+    end
+
+    test "computes forward pass with custom options" do
+      model1 = Axon.concatenate(Axon.input({nil, 1, 32}), Axon.input({nil, 1, 32}), axis: 1)
+      input1_1 = Nx.random_uniform({1, 32})
+      input1_2 = Nx.random_uniform({1, 32})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+
+      assert predict_fn.(%{}, {input1_1, input1_2}) ==
+               Nx.concatenate([input1_1, input1_2], axis: 1)
+    end
+
+    test "computes forward pass with output policy" do
+      model1 = Axon.concatenate(Axon.input({nil, 1, 32}), Axon.input({nil, 1, 32}), axis: 1)
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model1, policy)
+      input1_1 = Nx.random_uniform({1, 32})
+      input1_2 = Nx.random_uniform({1, 32})
+
+      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(%{}, {input1_1, input1_2})) == {:bf, 16}
+    end
+  end
+
+  describe "pad" do
+    test "initializes with no params" do
+      model = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}])
+      assert {init_fn, _} = Axon.compile(model)
+      assert %{} == init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      model1 = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}])
+      input1 = Nx.random_uniform({1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+      assert predict_fn.(%{}, input1) == Nx.pad(input1, 0, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}])
+
+      model2 = Axon.input({nil, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}])
+      input2 = Nx.random_uniform({1, 3, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model2)
+
+      assert predict_fn.(%{}, input2) ==
+               Nx.pad(input2, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}])
+
+      model3 = Axon.input({nil, 3, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}, {1, 0}])
+      input3 = Nx.random_uniform({1, 3, 3, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model3)
+
+      assert predict_fn.(%{}, input3) ==
+               Nx.pad(input3, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}, {1, 0, 0}])
+    end
+
+    test "computes forward pass with custom options" do
+      model = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}], 2)
+      input = Nx.random_uniform({1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input) == Nx.pad(input, 2, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}])
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}])
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+      input = Nx.random_uniform({1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
+    end
+  end
 end

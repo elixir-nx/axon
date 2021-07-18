@@ -33,10 +33,6 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp to_init_fun(graph, cache) when is_list(graph) do
-    Enum.reduce(graph, cache, fn x, acc -> to_init_fun(x, acc) end)
-  end
-
   defp to_init_fun(graph, cache) when is_tuple(graph) do
     graph
     |> Tuple.to_list()
@@ -167,11 +163,6 @@ defmodule Axon.Compiler do
   end
 
   ## Input Ordering
-
-  defp get_inputs(graph, input_ids) when is_list(graph) do
-    graph
-    |> Enum.reduce(input_ids, fn x, acc -> get_inputs(x, acc) end)
-  end
 
   defp get_inputs(graph, input_ids) when is_tuple(graph) do
     graph
