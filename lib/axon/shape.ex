@@ -83,16 +83,16 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.dense_bias({nil, 784}, 128)
-      {1, 128}
+      {128}
 
       iex> Axon.Shape.dense_bias({nil, 128}, 256)
-      {1, 256}
+      {256}
 
       iex> Axon.Shape.dense_bias({nil, 3, 256, 256}, 128)
-      {1, 128}
+      {128}
   """
   def dense_bias(_input_shape, units) do
-    {1, units}
+    {units}
   end
 
   @doc """
@@ -160,13 +160,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3})
-      {1, 32, 1, 1}
+      {32}
 
       iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2})
-      {1, 64, 1}
+      {64}
 
       iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
-      {1, 32, 1, 1, 1}
+      {32}
 
   ### Error cases
 
@@ -180,8 +180,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
-    List.to_tuple([1, output_filters | spatial_dims])
+    {output_filters}
   end
 
   @doc """
@@ -394,13 +393,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3})
-      {1, 9, 1, 1}
+      {9}
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2})
-      {1, 6, 1}
+      {6}
 
       iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
-      {1, 1, 1, 1, 1}
+      {1}
 
   ### Error cases
 
@@ -414,9 +413,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    input_channels = elem(input_shape, 1)
-    spatial_dims = List.duplicate(1, Nx.rank(input_shape) - 2)
-    List.to_tuple([1, input_channels * channel_multiplier | spatial_dims])
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """
@@ -529,10 +526,10 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3})
-      {1, 9, 1, 1}
+      {9}
 
       iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3})
-      {1, 12, 1, 1}
+      {12}
 
   ### Error cases
 
@@ -546,7 +543,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {1, elem(input_shape, 1) * channel_multiplier, 1, 1}
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """
@@ -599,13 +596,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2})
-      {1, 9, 1, 1, 1}
+      {9}
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2})
-      {1, 6, 1, 1, 1}
+      {6}
 
       iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1})
-      {1, 5, 1, 1, 1}
+      {5}
 
   ### Error cases
 
@@ -619,7 +616,7 @@ defmodule Axon.Shape do
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {1, elem(input_shape, 1) * channel_multiplier, 1, 1, 1}
+    {elem(input_shape, 1) * channel_multiplier}
   end
 
   @doc """
@@ -800,9 +797,8 @@ defmodule Axon.Shape do
       end
 
     strides =
-      output_spatial
-      |> Enum.zip(input_spatial)
-      |> Enum.map(fn {input, output} -> div(input, output) end)
+      input_spatial
+      |> Enum.zip_with(output_spatial, &Kernel.div/2)
 
     [1, 1 | strides]
   end
@@ -857,17 +853,13 @@ defmodule Axon.Shape do
   ## Examples
 
       iex> Axon.Shape.norm_param({nil, 3, 28, 28}, 1)
-      {1, 3, 1, 1}
+      {3}
 
       iex> Axon.Shape.norm_param({nil, 28, 28, 3}, 3)
-      {1, 1, 1, 3}
+      {3}
   """
   def norm_param(parent_shape, channel_index) do
-    parent_shape
-    |> Tuple.to_list()
-    |> Enum.with_index()
-    |> Enum.map(fn {x, i} -> if i == channel_index, do: x, else: 1 end)
-    |> List.to_tuple()
+    {elem(parent_shape, channel_index)}
   end
 
   @doc """
@@ -987,7 +979,7 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.reshape({nil, 4, 2}, {9})
-      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as batch dimensions of old shape
+      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as non-batch dimensions of old shape
   """
   def reshape(shape, new_shape) do
     batch_size = elem(shape, 0)
@@ -998,7 +990,7 @@ defmodule Axon.Shape do
             "new shape invalid for reshape operation," <>
               " layer shape #{inspect(shape)} is incompatible" <>
               " with new shape #{inspect(new_shape)}, new shape" <>
-              " must have same size as batch dimensions of old shape"
+              " must have same size as non-batch dimensions of old shape"
     end
 
     Tuple.insert_at(new_shape, 0, batch_size)
@@ -1127,7 +1119,7 @@ defmodule Axon.Shape do
               " got #{inspect(shape)}"
     end
 
-    {1, 1, units}
+    {units}
   end
 
   @doc """

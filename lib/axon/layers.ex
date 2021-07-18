@@ -372,11 +372,6 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank)
-      end)
-
     strides =
       transform(
         {Nx.rank(input), opts[:strides]},
@@ -394,13 +389,11 @@ defmodule Axon.Layers do
         end
       )
 
-    input
-    |> Nx.conv(weight,
+    conv(input, weight, bias,
       strides: opts[:strides],
       padding: padding,
       kernel_dilation: opts[:kernel_dilation]
     )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
 
   @doc """
@@ -456,31 +449,15 @@ defmodule Axon.Layers do
         kernel_dilation: 1
       )
 
-    strides =
-      transform(
-        {Nx.rank(input), opts[:strides]},
-        fn
-          {_, [_ | _] = strides} -> strides
-          {rank, strides} -> List.duplicate(strides, rank - 2)
-        end
-      )
-
     num_groups = transform(Nx.shape(input), &elem(&1, 1))
 
-    bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank)
-      end)
-
-    input
-    |> Nx.conv(weight,
-      strides: strides,
+    conv(input, weight, bias,
+      strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
       feature_group_size: num_groups
     )
-    |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
 
   @doc """
@@ -652,22 +629,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -731,22 +708,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -830,22 +807,22 @@ defmodule Axon.Layers do
         {Nx.rank(input), opts[:strides]},
         fn
           {_, [_ | _] = strides} -> [1, 1 | strides]
-          {rank, strides} -> [1, 1 | List.duplicate(rank - 2, strides)]
+          {rank, strides} -> [1, 1 | List.duplicate(strides, rank - 2)]
         end
       )
 
     padding =
       transform(
-        {Nx.rank(input), opts[:padding]},
+        opts[:padding],
         fn
-          {_, :same} ->
+          :same ->
             :same
 
-          {_, :valid} ->
+          :valid ->
             :valid
 
-          {rank, padding} ->
-            List.duplicate({0, 0}, rank - 2) ++ padding
+          padding ->
+            [{0, 0}, {0, 0} | padding]
         end
       )
 
@@ -991,6 +968,26 @@ defmodule Axon.Layers do
         Axon.Shape.batch_norm_axes(axes, channel)
       end)
 
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     {mean, var} = mean_and_variance(input, axes: axes)
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -1016,8 +1013,29 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = opts[:channel_index]
+
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     {mean, var} = mean_and_variance(input, axes: [axes])
     normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
@@ -1051,7 +1069,7 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, [:group_size, epsilon: 1.0e-6, channel_index: 1])
+    opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
       transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups,
@@ -1059,11 +1077,30 @@ defmodule Axon.Layers do
         Axon.Shape.group_norm_shape(shape, groups, channel)
       end)
 
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+      end)
+
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
-    x = normalize(x, mean, var, gamma, bias)
-    Nx.reshape(x, Nx.shape(input)) * gamma + bias
+    normalize(Nx.reshape(x, input), mean, var, gamma, bias, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -1091,11 +1128,31 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6, channel_index: 1)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
         Axon.Shape.instance_norm_axes(axes, channel)
+      end)
+
+    channel_index = opts[:channel_index]
+
+    num_channels =
+      transform({input, channel_index}, fn {inp, channel_idx} ->
+        elem(Nx.shape(inp), channel_idx)
+      end)
+
+    {gamma, bias} =
+      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+                                                                                num_channels,
+                                                                                channel_idx} ->
+        new_shape =
+          1
+          |> List.duplicate(rank)
+          |> List.to_tuple()
+          |> put_elem(channel_idx, num_channels)
+
+        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
 
     {mean, var} = mean_and_variance(input, axes: axes)
@@ -1275,7 +1332,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_average_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1285,7 +1342,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_average_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1303,7 +1360,7 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn global_average_pool(input, opts \\ []) do
+  defn global_avg_pool(input, opts \\ []) do
     opts = keyword!(opts, keep_axes: false)
 
     all_but_batch_and_feature =

@@ -33,6 +33,12 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp to_init_fun(graph, cache) when is_tuple(graph) do
+    graph
+    |> Tuple.to_list()
+    |> Enum.reduce(cache, fn x, acc -> to_init_fun(x, acc) end)
+  end
+
   defp to_init_fun(%Axon{parent: parents}, cache) when is_list(parents) do
     Enum.reduce(parents, cache, &to_init_fun/2)
   end
@@ -81,32 +87,7 @@ defmodule Axon.Compiler do
     jit_or_apply(caller, fun, args, opts)
   end
 
-  defp compile_predict(graph) when is_tuple(graph) do
-    graph = Tuple.to_list(graph)
-
-    input_ids =
-      Enum.reduce(graph, [], fn x, input_ids ->
-        get_inputs(x, input_ids)
-      end)
-
-    input_map =
-      input_ids
-      |> Enum.uniq()
-      |> Enum.sort()
-      |> Enum.with_index()
-      |> Enum.into(%{})
-
-    fn params, inputs ->
-      {funs, _} = Enum.map_reduce(graph, %{}, &to_predict_fun(&1, &2, input_map))
-
-      funs
-      |> Enum.reverse()
-      |> Enum.map(& &1.(params, inputs))
-      |> List.to_tuple()
-    end
-  end
-
-  defp compile_predict(%Axon{} = graph) do
+  defp compile_predict(graph) do
     input_ids = get_inputs(graph, [])
 
     input_map =
@@ -117,12 +98,77 @@ defmodule Axon.Compiler do
       |> Enum.into(%{})
 
     fn params, inputs ->
+      inputs = maybe_flatten(inputs)
       {fun, _} = to_predict_fun(graph, %{}, input_map)
-      fun.(params, inputs)
+
+      case fun do
+        [_ | _] = funs ->
+          do_recur_apply(funs, params, inputs, [])
+
+        fun when is_function(fun) ->
+          fun.(params, inputs)
+      end
     end
   end
 
+  defp maybe_flatten(inputs) when is_tuple(inputs) do
+    inputs
+    |> Tuple.to_list()
+    |> do_flatten([])
+    |> List.flatten()
+    |> List.to_tuple()
+  end
+
+  defp maybe_flatten(inputs), do: inputs
+
+  defp do_flatten([inp | []], acc) when is_tuple(inp) do
+    res = do_flatten(Tuple.to_list(inp), [])
+
+    [res | acc]
+    |> Enum.reverse()
+  end
+
+  defp do_flatten([inp | []], acc), do: Enum.reverse([inp | acc])
+
+  defp do_flatten([inp | rest], acc) when is_tuple(inp) do
+    res = do_flatten(Tuple.to_list(inp), [])
+    do_flatten(rest, [res | acc])
+  end
+
+  defp do_flatten([inp | rest], acc) do
+    do_flatten(rest, [inp | acc])
+  end
+
+  defp do_recur_apply([fun | []], params, inputs, acc) when is_function(fun) do
+    [fun.(params, inputs) | acc]
+    |> Enum.reverse()
+    |> List.to_tuple()
+  end
+
+  defp do_recur_apply([fun | []], params, inputs, acc) when is_list(fun) do
+    res = do_recur_apply(fun, params, inputs, [])
+
+    [res | acc]
+    |> Enum.reverse()
+    |> List.to_tuple()
+  end
+
+  defp do_recur_apply([fun | funs], params, inputs, acc) when is_list(fun) do
+    res = do_recur_apply(fun, params, inputs, [])
+    do_recur_apply(funs, params, inputs, [res | acc])
+  end
+
+  defp do_recur_apply([fun | funs], params, inputs, acc) when is_function(fun) do
+    do_recur_apply(funs, params, inputs, [fun.(params, inputs) | acc])
+  end
+
   ## Input Ordering
+
+  defp get_inputs(graph, input_ids) when is_tuple(graph) do
+    graph
+    |> Tuple.to_list()
+    |> Enum.reduce(input_ids, fn x, acc -> get_inputs(x, acc) end)
+  end
 
   defp get_inputs(%Axon{id: id, op: :input}, input_ids) do
     [id | input_ids]
@@ -152,6 +198,12 @@ defmodule Axon.Compiler do
     get_inputs(parent, input_ids)
   end
 
+  defp to_predict_fun(graph, cache, input_map) when is_tuple(graph) do
+    graph
+    |> Tuple.to_list()
+    |> Enum.map_reduce(cache, fn x, acc -> to_predict_fun(x, acc, input_map) end)
+  end
+
   defp to_predict_fun(%{id: id} = graph, cache, input_map) do
     case cache do
       %{^id => fun} ->
@@ -165,6 +217,7 @@ defmodule Axon.Compiler do
   end
 
   ## Custom Layers
+
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, params: layer_params, opts: opts},
          cache,
@@ -191,12 +244,17 @@ defmodule Axon.Compiler do
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
 
-  defp recur_predict_fun(%Axon{op: op, parent: parent}, cache, input_map)
+  defp recur_predict_fun(
+         %Axon{op: op, parent: parent, policy: %{compute: compute, output: output}},
+         cache,
+         input_map
+       )
        when op in @activation_layers do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      apply(Axon.Activations, op, [fun.(params, inputs)])
+      input = Nx.as_type(fun.(params, inputs), compute)
+      Nx.as_type(apply(Axon.Activations, op, [input]), output)
     end
 
     {fun, cache}
@@ -228,16 +286,8 @@ defmodule Axon.Compiler do
 
   ## Pooling Layers
 
-  @pooling_layers [
-    :max_pool,
-    :avg_pool,
-    :adaptive_avg_pool,
-    :adaptive_max_pool,
-    :lp_pool,
-    :global_lp_pool,
-    :global_max_pool,
-    :global_average_pool
-  ]
+  @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool] ++
+                    [:lp_pool, :global_lp_pool, :global_max_pool, :global_avg_pool]
 
   defp recur_predict_fun(
          %Axon{op: op, parent: parent, opts: opts, policy: %{compute: compute, output: output}},
@@ -335,7 +385,7 @@ defmodule Axon.Compiler do
 
   defp recur_predict_fun(
          %Axon{
-           op: :separable_conv2d,
+           op: :separable_conv3d,
            parent: parent,
            opts: opts,
            params: %{
@@ -489,9 +539,9 @@ defmodule Axon.Compiler do
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
-      case unroll do
-        :static ->
-          Nx.as_type(
+      {{c1, c2}, res} =
+        case unroll do
+          :static ->
             Axon.Recurrent.static_unroll(
               &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -499,12 +549,9 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
+            )
 
-        :dynamic ->
-          Nx.as_type(
+          :dynamic ->
             Axon.Recurrent.dynamic_unroll(
               &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -512,10 +559,10 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
-      end
+            )
+        end
+
+      {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(res, output)}
     end
 
     {fun, cache}
@@ -700,9 +747,9 @@ defmodule Axon.Compiler do
       gate_fn = &apply(Axon.Activations, gate, [&1])
       activation_fn = &apply(Axon.Activations, activation, [&1])
 
-      case unroll do
-        :static ->
-          Nx.as_type(
+      {{c}, out} =
+        case unroll do
+          :static ->
             Axon.Recurrent.static_unroll(
               &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -710,12 +757,9 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
+            )
 
-        :dynamic ->
-          Nx.as_type(
+          :dynamic ->
             Axon.Recurrent.dynamic_unroll(
               &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn),
               input,
@@ -723,10 +767,10 @@ defmodule Axon.Compiler do
               input_kernel,
               hidden_kernel,
               bias
-            ),
-            output
-          )
-      end
+            )
+        end
+
+      {{Nx.as_type(c, output)}, Nx.as_type(out, output)}
     end
 
     {fun, cache}
