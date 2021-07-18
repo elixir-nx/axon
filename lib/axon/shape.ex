@@ -76,7 +76,7 @@ defmodule Axon.Shape do
       |> Tuple.to_list()
       |> Enum.zip(Tuple.to_list(s2))
       |> Enum.reduce(true, fn {d1, d2}, acc ->
-          acc and (d1 == d2) or (d1 == nil) or (d2 == nil)
+        (acc and d1 == d2) or d1 == nil or d2 == nil
       end)
     else
       false

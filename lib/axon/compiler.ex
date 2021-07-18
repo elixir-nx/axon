@@ -1011,9 +1011,10 @@ defmodule Axon.Compiler do
         end
 
       unless Axon.Shape.compatible?(Nx.shape(value), shape) do
-        raise ArgumentError, "invalid input shape given to model, expected input" <>
-                                " with shape #{inspect(shape)}, but got input with" <>
-                                " shape #{inspect(Nx.shape(value))}"
+        raise ArgumentError,
+              "invalid input shape given to model, expected input" <>
+                " with shape #{inspect(shape)}, but got input with" <>
+                " shape #{inspect(Nx.shape(value))}"
       end
 
       value
