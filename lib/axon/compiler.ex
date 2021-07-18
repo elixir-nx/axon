@@ -121,6 +121,8 @@ defmodule Axon.Compiler do
 
   defp maybe_flatten(inputs), do: inputs
 
+  defp do_flatten([], acc), do: Enum.reverse(acc)
+
   defp do_flatten([inp | []], acc) when is_tuple(inp) do
     res = do_flatten(Tuple.to_list(inp), [])
 
@@ -168,6 +170,10 @@ defmodule Axon.Compiler do
     graph
     |> Tuple.to_list()
     |> Enum.reduce(input_ids, fn x, acc -> get_inputs(x, acc) end)
+  end
+
+  defp get_inputs(%Axon{op: :constant}, input_ids) do
+    input_ids
   end
 
   defp get_inputs(%Axon{id: id, op: :input}, input_ids) do
@@ -977,6 +983,14 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs ->
       Nx.as_type(nx_fun.(Nx.as_type(fun.(params, inputs), compute)), output)
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(%Axon{op: :constant, opts: [value: tensor], policy: %{output: output}}, cache, _) do
+    fun = fn _, _ ->
+      Nx.as_type(tensor, output)
     end
 
     {fun, cache}

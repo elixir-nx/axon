@@ -180,6 +180,31 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a constant layer to the network.
+
+  Constant layers encapsulate Nx tensors in an Axon layer for ease
+  of use with other Axon layers. They can be used interchangeably
+  with other Axon layers.
+
+  ## Options
+
+    * `name` - Layer name.
+  """
+  def constant(tensor, opts \\ [])
+
+  @doc type: :special
+  def constant(%Nx.Tensor{shape: output_shape} = tensor, opts) do
+    layer(nil, :constant, output_shape, %{}, opts[:name], value: tensor)
+  end
+
+  def constant(value, _) do
+    raise ArgumentError,
+          "value passed to constant must be an Nx tensor" <>
+            " but got #{inspect(value)}, if you are passing" <>
+            " a number, wrap it with a call to Nx.tensor/2"
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -1583,7 +1608,7 @@ defmodule Axon do
   @doc """
   Traverses a model tree applying `fun` to each layer.
   """
-  def tree_map(%Axon{op: :input} = axon, fun) when is_function(fun, 1) do
+  def tree_map(%Axon{op: op} = axon, fun) when is_function(fun, 1) and op in [:input, :constant] do
     fun.(axon)
   end
 
@@ -1610,7 +1635,7 @@ defmodule Axon do
   @doc """
   Traverses a model applying `fun` with an accumulator.
   """
-  def tree_reduce(%Axon{op: :input} = axon, acc, fun) when is_function(fun, 2) do
+  def tree_reduce(%Axon{op: op} = axon, acc, fun) when is_function(fun, 2) and op in [:input, :constant] do
     fun.(axon, acc)
   end
 

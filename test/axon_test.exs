@@ -15,6 +15,27 @@ defmodule AxonTest do
     end
   end
 
+  describe "constant" do
+    test "works with defaults" do
+      assert %Axon{op: :constant, opts: [value: value]} = Axon.constant(Nx.tensor(1.0))
+      assert value == Nx.tensor(1.0)
+    end
+
+    test "works with name" do
+      assert %Axon{op: :constant, name: "constant"} = Axon.constant(Nx.tensor(1.0), name: "constant")
+    end
+
+    test "raises on bad value" do
+      assert_raise ArgumentError, ~r/value passed to constant/, fn ->
+        Axon.constant(:foo)
+      end
+
+      assert_raise ArgumentError, ~r/value passed to constant/, fn ->
+        Axon.constant(1)
+      end
+    end
+  end
+
   describe "dense" do
     test "works with defaults" do
       assert %Axon{

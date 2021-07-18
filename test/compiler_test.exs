@@ -50,6 +50,39 @@ defmodule CompilerTest do
     end
   end
 
+  describe "constant" do
+    test "initializes with no params" do
+      model = Axon.constant(Nx.tensor(1.0))
+
+      assert {init_fn, _} = Axon.compile(model)
+
+      assert %{} == init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      model = Axon.constant(Nx.tensor(1.0))
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, {}) == Nx.tensor(1.0)
+    end
+
+    test "computes forward pass with other layers" do
+      model = Axon.add(Axon.constant(Nx.tensor(1.0)), Axon.constant(Nx.tensor(2.0)))
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, {}) == Nx.tensor(3.0)
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.constant(Nx.tensor(1.0))
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert predict_fn.(%{}, {}) == Nx.tensor(1.0, type: {:bf, 16})
+    end
+  end
+
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
