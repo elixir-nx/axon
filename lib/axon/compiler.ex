@@ -1000,14 +1000,24 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
-  defp recur_predict_fun(%Axon{op: :input, id: id}, cache, input_map) do
+  defp recur_predict_fun(%Axon{op: :input, id: id, output_shape: shape}, cache, input_map) do
     fun = fn _, inputs ->
-      if is_tuple(inputs) do
-        idx = input_map[id]
-        elem(inputs, idx)
-      else
-        inputs
+      value =
+        if is_tuple(inputs) do
+          idx = input_map[id]
+          elem(inputs, idx)
+        else
+          inputs
+        end
+
+      unless Axon.Shape.compatible?(Nx.shape(value), shape) do
+        raise ArgumentError,
+              "invalid input shape given to model, expected input" <>
+                " with shape #{inspect(shape)}, but got input with" <>
+                " shape #{inspect(Nx.shape(value))}"
       end
+
+      value
     end
 
     {fun, cache}

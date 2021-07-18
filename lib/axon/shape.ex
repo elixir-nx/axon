@@ -55,6 +55,34 @@ defmodule Axon.Shape do
             " only the leading dimension as nil, if any"
   end
 
+  @doc """
+  Determines if two shapes are compatible. Shapes are compatible
+  if they are equal, or if all non-nil dimensions are equal.
+
+  ## Examples
+
+      iex> Axon.Shape.compatible?({nil, 32}, {2, 32})
+      true
+
+      iex> Axon.Shape.compatible?({1, 32}, {2, 32})
+      false
+
+      iex> Axon.Shape.compatible?({1, 3, 2}, {3, 2})
+      false
+  """
+  def compatible?(s1, s2) do
+    if Nx.rank(s1) == Nx.rank(s2) do
+      s1
+      |> Tuple.to_list()
+      |> Enum.zip(Tuple.to_list(s2))
+      |> Enum.reduce(true, fn {d1, d2}, acc ->
+        (acc and d1 == d2) or d1 == nil or d2 == nil
+      end)
+    else
+      false
+    end
+  end
+
   ## Linear
 
   @doc """

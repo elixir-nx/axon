@@ -48,6 +48,17 @@ defmodule CompilerTest do
       assert %{} = init_fn.()
       assert predict_fn.(%{}, input2) == input2
     end
+
+    test "raises on bad input shape" do
+      model = Axon.input({nil, 32})
+      input = Nx.random_uniform({1, 16})
+
+      assert {_, predict_fn} = Axon.compile(model)
+
+      assert_raise ArgumentError, ~r/invalid input shape/, fn ->
+        predict_fn.(%{}, input)
+      end
+    end
   end
 
   describe "constant" do
@@ -2527,8 +2538,8 @@ defmodule CompilerTest do
 
     test "computes forward pass with custom options" do
       model1 = Axon.concatenate(Axon.input({nil, 1, 32}), Axon.input({nil, 1, 32}), axis: 1)
-      input1_1 = Nx.random_uniform({1, 32})
-      input1_2 = Nx.random_uniform({1, 32})
+      input1_1 = Nx.random_uniform({1, 1, 32})
+      input1_2 = Nx.random_uniform({1, 1, 32})
 
       assert {_, predict_fn} = Axon.compile(model1)
 
@@ -2540,8 +2551,8 @@ defmodule CompilerTest do
       model1 = Axon.concatenate(Axon.input({nil, 1, 32}), Axon.input({nil, 1, 32}), axis: 1)
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model1, policy)
-      input1_1 = Nx.random_uniform({1, 32})
-      input1_2 = Nx.random_uniform({1, 32})
+      input1_1 = Nx.random_uniform({1, 1, 32})
+      input1_2 = Nx.random_uniform({1, 1, 32})
 
       assert {_, predict_fn} = Axon.compile(mp_model)
       assert Nx.type(predict_fn.(%{}, {input1_1, input1_2})) == {:bf, 16}
