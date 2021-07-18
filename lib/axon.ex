@@ -204,6 +204,7 @@ defmodule Axon do
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
     bias_shape = Axon.Shape.dense_bias(parent_shape, units)
@@ -218,11 +219,20 @@ defmodule Axon do
         regularizer: kernel_regularizer
       )
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
 
-    node = layer(x, :dense, output_shape, %{"kernel" => kernel, "bias" => bias}, opts[:name])
+        bias =
+          param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"kernel" => kernel, "bias" => bias}
+      else
+        %{"kernel" => kernel}
+      end
+
+    node = layer(x, :dense, output_shape, params, opts[:name], use_bias: use_bias)
 
     if activation do
       node
@@ -258,6 +268,7 @@ defmodule Axon do
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
@@ -293,16 +304,26 @@ defmodule Axon do
         regularizer: kernel_regularizer
       )
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        bias =
+          param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"kernel" => kernel, "bias" => bias}
+      else
+        %{"kernel" => kernel}
+      end
 
     node =
-      layer(x, :conv, output_shape, %{"kernel" => kernel, "bias" => bias}, opts[:name],
+      layer(x, :conv, output_shape, params, opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
-        kernel_dilation: kernel_dilation
+        kernel_dilation: kernel_dilation,
+        use_bias: use_bias
       )
 
     if activation do
@@ -335,6 +356,7 @@ defmodule Axon do
   @doc type: :convolution
   def conv_transpose(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
@@ -358,9 +380,18 @@ defmodule Axon do
         regularizer: kernel_regularizer
       )
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        bias =
+          param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"kernel" => kernel, "bias" => bias}
+      else
+        %{"kernel" => kernel}
+      end
 
     output_shape =
       Axon.Shape.conv_transpose(
@@ -372,10 +403,11 @@ defmodule Axon do
       )
 
     node =
-      layer(x, :conv_transpose, output_shape, %{"kernel" => kernel, "bias" => bias}, opts[:name],
+      layer(x, :conv_transpose, output_shape, params, opts[:name],
         strides: strides,
         padding: padding,
-        kernel_dilation: kernel_dilation
+        kernel_dilation: kernel_dilation,
+        use_bias: use_bias
       )
 
     if activation do
@@ -417,6 +449,7 @@ defmodule Axon do
   def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
@@ -452,16 +485,26 @@ defmodule Axon do
         regularizer: kernel_regularizer
       )
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    bias = param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        bias =
+          param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"kernel" => kernel, "bias" => bias}
+      else
+        %{"kernel" => kernel}
+      end
 
     node =
-      layer(x, :depthwise_conv, output_shape, %{"kernel" => kernel, "bias" => bias}, opts[:name],
+      layer(x, :depthwise_conv, output_shape, params, opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
-        kernel_dilation: kernel_dilation
+        kernel_dilation: kernel_dilation,
+        use_bias: use_bias
       )
 
     if activation do
@@ -499,6 +542,7 @@ defmodule Axon do
   def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
@@ -540,22 +584,34 @@ defmodule Axon do
     k2 =
       param("kernel_2", k2_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    b1 = param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
-    b2 = param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        b1 =
+          param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        b2 =
+          param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2}
+      else
+        %{"k1" => k1, "k2" => k2}
+      end
 
     node =
       layer(
         x,
         :separable_conv2d,
         output_shape,
-        %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2},
+        params,
         opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
-        kernel_dilation: kernel_dilation
+        kernel_dilation: kernel_dilation,
+        use_bias: use_bias
       )
 
     if activation do
@@ -593,6 +649,7 @@ defmodule Axon do
   def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
 
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
@@ -641,23 +698,37 @@ defmodule Axon do
     k3 =
       param("kernel_3", k3_shape, initializer: kernel_initializer, regularizer: kernel_regularizer)
 
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias_regularizer = opts[:bias_regularizer]
-    b1 = param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
-    b2 = param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
-    b3 = param("bias_3", b3_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        b1 =
+          param("bias_1", b1_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        b2 =
+          param("bias_2", b2_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        b3 =
+          param("bias_3", b3_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3}
+      else
+        %{"k1" => k1, "k2" => k2, "k3" => k3}
+      end
 
     node =
       layer(
         x,
         :separable_conv3d,
         output_shape,
-        %{"k1" => k1, "b1" => b1, "k2" => k2, "b2" => b2, "k3" => k3, "b3" => b3},
+        params,
         opts[:name],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
-        kernel_dilation: kernel_dilation
+        kernel_dilation: kernel_dilation,
+        use_bias: use_bias
       )
 
     if activation do
@@ -1201,6 +1272,8 @@ defmodule Axon do
     hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
 
+    use_bias = Keyword.get(opts, :use_bias, true)
+
     output_shape = Axon.Shape.rnn(shape, units, "LSTM")
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, "LSTM")
     hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, "LSTM")
@@ -1209,7 +1282,6 @@ defmodule Axon do
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
     recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
-    bias_initializer = opts[:bias_initializer] || :zeros
 
     # Parameters
     wii = param("wii", input_kernel_shape, initializer: kernel_initializer)
@@ -1222,16 +1294,14 @@ defmodule Axon do
     whg = param("whg", hidden_kernel_shape, initializer: kernel_initializer)
     who = param("who", hidden_kernel_shape, initializer: kernel_initializer)
 
-    bi = param("bi", bias_shape, initializer: bias_initializer)
-    bf = param("bf", bias_shape, initializer: bias_initializer)
-    bg = param("bg", bias_shape, initializer: bias_initializer)
-    bo = param("bo", bias_shape, initializer: bias_initializer)
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bi = param("bi", bias_shape, initializer: bias_initializer)
+        bf = param("bf", bias_shape, initializer: bias_initializer)
+        bg = param("bg", bias_shape, initializer: bias_initializer)
+        bo = param("bo", bias_shape, initializer: bias_initializer)
 
-    output =
-      layer(
-        x,
-        :lstm,
-        {{hidden_state_shape, hidden_state_shape}, output_shape},
         %{
           "wii" => wii,
           "wif" => wif,
@@ -1245,14 +1315,34 @@ defmodule Axon do
           "bf" => bf,
           "bg" => bg,
           "bo" => bo
-        },
+        }
+      else
+        %{
+          "wii" => wii,
+          "wif" => wif,
+          "wig" => wig,
+          "wio" => wio,
+          "whi" => whi,
+          "whf" => whf,
+          "whg" => whg,
+          "who" => who
+        }
+      end
+
+    output =
+      layer(
+        x,
+        :lstm,
+        {{hidden_state_shape, hidden_state_shape}, output_shape},
+        params,
         opts[:name],
         activation: activation,
         gate: gate,
         hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
         recurrent_initializer: recurrent_initializer,
-        unroll: unroll
+        unroll: unroll,
+        use_bias: use_bias
       )
 
     new_c = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, hidden_state_shape, %{})
@@ -1285,6 +1375,7 @@ defmodule Axon do
   @doc type: :recurrent
   def gru(%Axon{output_shape: shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
+    use_bias = Keyword.get(opts, :use_bias, true)
     activation = opts[:activation] || :tanh
     gate = opts[:gate] || :sigmoid
     hidden_state = opts[:hidden_state]
@@ -1298,7 +1389,6 @@ defmodule Axon do
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
     recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
-    bias_initializer = opts[:bias_initializer] || :zeros
 
     wir = param("wir", input_kernel_shape, initializer: kernel_initializer)
     wiz = param("wiz", input_kernel_shape, initializer: kernel_initializer)
@@ -1306,16 +1396,15 @@ defmodule Axon do
     whr = param("whr", hidden_kernel_shape, initializer: kernel_initializer)
     whz = param("whz", hidden_kernel_shape, initializer: kernel_initializer)
     whn = param("whn", hidden_kernel_shape, initializer: kernel_initializer)
-    br = param("br", bias_shape, initializer: bias_initializer)
-    bz = param("bz", bias_shape, initializer: bias_initializer)
-    bin = param("bin", bias_shape, initializer: bias_initializer)
-    bhn = param("bhn", bias_shape, initializer: bias_initializer)
 
-    output =
-      layer(
-        x,
-        :gru,
-        {{hidden_state_shape}, output_shape},
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        br = param("br", bias_shape, initializer: bias_initializer)
+        bz = param("bz", bias_shape, initializer: bias_initializer)
+        bin = param("bin", bias_shape, initializer: bias_initializer)
+        bhn = param("bhn", bias_shape, initializer: bias_initializer)
+
         %{
           "wir" => wir,
           "wiz" => wiz,
@@ -1327,14 +1416,32 @@ defmodule Axon do
           "bz" => bz,
           "bin" => bin,
           "bhn" => bhn
-        },
+        }
+      else
+        %{
+          "wir" => wir,
+          "wiz" => wiz,
+          "win" => win,
+          "whr" => whr,
+          "whz" => whz,
+          "whn" => whn
+        }
+      end
+
+    output =
+      layer(
+        x,
+        :gru,
+        {{hidden_state_shape}, output_shape},
+        params,
         opts[:name],
         activation: activation,
         gate: gate,
         hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
         recurrent_initializer: recurrent_initializer,
-        unroll: unroll
+        unroll: unroll,
+        use_bias: use_bias
       )
 
     new_h = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, hidden_state_shape, %{})

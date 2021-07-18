@@ -70,17 +70,7 @@ defmodule Axon.Recurrent do
     {wii, wif, wig, wio} = input_kernel
     {whi, whf, whg, who} = hidden_kernel
 
-    {bi, bf, bg, bo} =
-      transform(bias, fn {bi, bf, bg, bo} ->
-        new_shape =
-          bi
-          |> Nx.shape()
-          |> Tuple.insert_at(0, 1)
-          |> Tuple.insert_at(0, 1)
-
-        {Nx.reshape(bi, new_shape), Nx.reshape(bf, new_shape), Nx.reshape(bg, new_shape),
-         Nx.reshape(bo, new_shape)}
-      end)
+    {bi, bf, bg, bo} = bias
 
     i = gate_fn.(dense(input, wii, bi) + dense(hidden, whi, 0))
     f = gate_fn.(dense(input, wif, bf) + dense(hidden, whf, 0))
