@@ -1608,7 +1608,8 @@ defmodule Axon do
   @doc """
   Traverses a model tree applying `fun` to each layer.
   """
-  def tree_map(%Axon{op: op} = axon, fun) when is_function(fun, 1) and op in [:input, :constant] do
+  def tree_map(%Axon{op: op} = axon, fun)
+      when is_function(fun, 1) and op in [:input, :constant] do
     fun.(axon)
   end
 
@@ -1635,7 +1636,8 @@ defmodule Axon do
   @doc """
   Traverses a model applying `fun` with an accumulator.
   """
-  def tree_reduce(%Axon{op: op} = axon, acc, fun) when is_function(fun, 2) and op in [:input, :constant] do
+  def tree_reduce(%Axon{op: op} = axon, acc, fun)
+      when is_function(fun, 2) and op in [:input, :constant] do
     fun.(axon, acc)
   end
 

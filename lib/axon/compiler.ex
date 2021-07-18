@@ -988,7 +988,11 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
-  defp recur_predict_fun(%Axon{op: :constant, opts: [value: tensor], policy: %{output: output}}, cache, _) do
+  defp recur_predict_fun(
+         %Axon{op: :constant, opts: [value: tensor], policy: %{output: output}},
+         cache,
+         _
+       ) do
     fun = fn _, _ ->
       Nx.as_type(tensor, output)
     end

@@ -22,7 +22,8 @@ defmodule AxonTest do
     end
 
     test "works with name" do
-      assert %Axon{op: :constant, name: "constant"} = Axon.constant(Nx.tensor(1.0), name: "constant")
+      assert %Axon{op: :constant, name: "constant"} =
+               Axon.constant(Nx.tensor(1.0), name: "constant")
     end
 
     test "raises on bad value" do
