@@ -184,7 +184,16 @@ defmodule Axon do
 
   Constant layers encapsulate Nx tensors in an Axon layer for ease
   of use with other Axon layers. They can be used interchangeably
-  with other Axon layers.
+  with other Axon layers:
+
+      inp = Axon.input({nil, 32})
+      my_constant = Axon.constant(Nx.iota({1, 32}))
+      model = Axon.add(inp, my_constant)
+
+  Constant layers will be cast according to the mixed precision policy.
+  If it's important for your constant to retain it's type during
+  the computation, you will need to set the mixed precision policy to
+  ignore constant layers.
 
   ## Options
 
