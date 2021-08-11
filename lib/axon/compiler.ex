@@ -251,7 +251,7 @@ defmodule Axon.Compiler do
                        [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
 
   defp recur_predict_fun(
-         %Axon{op: op, parent: parent, policy: %{compute: compute, output: output}},
+         %Axon{op: op, parent: parent, policy: %{compute: compute, output: output}, opts: opts},
          cache,
          input_map
        )
@@ -260,7 +260,17 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs ->
       input = Nx.as_type(fun.(params, inputs), compute)
-      Nx.as_type(apply(Axon.Activations, op, [input]), output)
+
+      args =
+        case opts do
+          [] ->
+            [input]
+
+          [_ | _] ->
+            [input, opts]
+        end
+
+      Nx.as_type(apply(Axon.Activations, op, args), output)
     end
 
     {fun, cache}
