@@ -811,7 +811,8 @@ defmodule Axon do
   def activation(x, activation, opts \\ [])
 
   def activation(%Axon{output_shape: shape} = x, activation, opts) when is_atom(activation) do
-    layer(x, activation, shape, %{}, opts[:name], opts)
+    {name, opts} = Keyword.pop(opts, :name, nil)
+    layer(x, activation, shape, %{}, name, opts)
   end
 
   def activation(%Axon{output_shape: shape} = x, activation, opts)

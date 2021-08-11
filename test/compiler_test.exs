@@ -118,8 +118,17 @@ defmodule CompilerTest do
       end
     end
 
-    # test "computes forward pass with custom options" do
-    # end
+    test "computes forward pass with custom options" do
+      for activation <- [:celu, :elu, :leaky_relu] do
+        model = Axon.input({nil, 32}) |> Axon.activation(activation, alpha: 0.8)
+        input = Nx.random_uniform({1, 32}, type: {:f, 32})
+
+        assert {_, predict_fn} = Axon.compile(model)
+
+        assert predict_fn.(%{}, input) ==
+                 apply(Axon.Activations, activation, [input, [alpha: 0.8]])
+      end
+    end
 
     test "computes forward pass with output policy" do
       for activation <- @activation_layers do
