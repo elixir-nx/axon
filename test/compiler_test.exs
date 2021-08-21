@@ -238,6 +238,77 @@ defmodule CompilerTest do
     end
   end
 
+  describe "embedding" do
+    test "initializes in default case" do
+      model = Axon.input({nil, 1}) |> Axon.embedding(1, 1, name: "embedding")
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{"embedding_kernel" => kernel} = init_fn.()
+      assert Nx.shape(kernel) == {1, 1}
+      assert Nx.type(kernel) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      model1 =
+        Axon.input({nil, 1})
+        |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      assert %{"embedding_kernel" => kernel} = init_fn.()
+      assert kernel == Axon.Initializers.zeros(shape: {1, 1})
+    end
+
+    test "computes forward pass" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :identity)
+
+      input = Nx.tensor([[0]])
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"embedding_kernel" => kernel} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.embedding(input, kernel)
+    end
+
+    # TODO(seanmor5): Requires gradient of Nx.take/3
+    # test "returns zero gradient for frozen parameters" do
+    #   model =
+    #     Axon.input({nil, 1})
+    #     |> Axon.embedding(1, 1, name: "embedding")
+    #     |> Axon.freeze()
+
+    #   assert {init_fn, predict_fn} = Axon.compile(model)
+
+    #   backward = fn params, input ->
+    #     Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+    #   end
+
+    #   assert %{"embedding_kernel" => kernel_grad} =
+    #            Nx.Defn.jit(backward, [init_fn.(), Nx.tensor([[0]])])
+
+    #   assert kernel_grad == Nx.broadcast(0.0, {1, 1})
+    # end
+
+    test "initializes with parameter policy" do
+      model = Axon.input({nil, 2}) |> Axon.embedding(1, 1, name: "embedding")
+      policy = AMP.create_policy(params: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, _} = Axon.compile(mp_model)
+      assert %{"embedding_kernel" => kernel} = init_fn.()
+      assert Nx.type(kernel) == {:bf, 16}
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 2}) |> Axon.embedding(1, 1, name: "embedding")
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(), Nx.tensor([[0, 0]]))) == {:bf, 16}
+    end
+  end
+
   @pooling_layers [:max_pool, :avg_pool, :lp_pool]
 
   describe "pooling" do

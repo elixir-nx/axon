@@ -142,6 +142,40 @@ defmodule Axon.Shape do
     {elem(input_shape, 0), units}
   end
 
+  ## Sparse
+
+  @doc """
+  Calculates the shape of an embedding kernel given input shape
+  vocab size and embedding size.
+
+  ## Examples
+
+      iex> Axon.Shape.embedding_kernel({nil, 10}, 128, 32)
+      {128, 32}
+
+      iex> Axon.Shape.embedding_kernel({nil, 32}, 10, 10)
+      {10, 10}
+  """
+  def embedding_kernel(_input_shape, vocab_size, embedding_size) do
+    {vocab_size, embedding_size}
+  end
+
+  @doc """
+  Calculates the output shape of an embedding layer given input shape
+  vocab size and embedding size.
+
+  ## Examples
+
+      iex> Axon.Shape.embedding({nil, 10}, 128, 32)
+      {nil, 10, 32}
+
+      iex> Axon.Shape.embedding({nil, 32}, 10, 10)
+      {nil, 32, 10}
+  """
+  def embedding(input_shape, _vocab_size, embedding_size) do
+    Tuple.append(input_shape, embedding_size)
+  end
+
   ## Conv
 
   @doc """
