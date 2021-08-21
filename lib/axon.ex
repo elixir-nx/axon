@@ -1555,6 +1555,24 @@ defmodule Axon do
   end
 
   @doc """
+  Adds an embedding layer to the network.
+
+  An embedding layer initializes a kernel of shape `{vocab_size, embedding_size}`
+  which acts as a lookup table for sequences of discrete tokens (e.g. sentences).
+  Embeddings are typically used to obtain a dense representation of a sparse input
+  space.
+  """
+  def embedding(%Axon{output_shape: shape} = x, vocab_size, embedding_size, opts \\ []) do
+    kernel_shape = Axon.Shape.embedding_kernel(shape, vocab_size, embedding_size)
+    output_shape = Axon.Shape.embedding(shape, vocab_size, embedding_size)
+
+    kernel_initializer = opts[:kernel_initializer] || :uniform
+    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
+
+    layer(x, :embedding, output_shape, %{"kernel" => kernel}, opts[:name])
+  end
+
+  @doc """
   Freezes parameters returned from `fun` in the given
   model. `fun` takes the model's parameter list and returns
   the list of parameters it wishes to freeze. `fun` defaults

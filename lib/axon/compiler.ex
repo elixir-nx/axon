@@ -309,6 +309,30 @@ defmodule Axon.Compiler do
     {fun, cache}
   end
 
+  ## Sparse Layers
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :embedding,
+           parent: parent,
+           params: %{"kernel" => %{name: w, frozen: w_frz}},
+           policy: %{compute: compute, output: output}
+         },
+         cache,
+         input_map
+       ) do
+    {fun, cache} = to_predict_fun(parent, cache, input_map)
+
+    fun = fn params, inputs ->
+      input = fun.(params, inputs)
+      w = Nx.as_type(maybe_freeze(params[w], w_frz), compute)
+
+      Nx.as_type(apply(Axon.Layers, :embedding, [input, w]), output)
+    end
+
+    {fun, cache}
+  end
+
   ## Pooling Layers
 
   @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool] ++

@@ -695,6 +695,13 @@ defmodule AxonTest do
     end
   end
 
+  describe "embedding" do
+    test "works with defaults" do
+      assert %Axon{output_shape: {nil, 10, 32}} =
+               Axon.input({nil, 10}) |> Axon.embedding(128, 32, name: "embedding")
+    end
+  end
+
   # TODO(seanmor5): Move/replace all with compiler_test
   describe "execution" do
     test "compile returns init and predict" do

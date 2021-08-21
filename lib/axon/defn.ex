@@ -11,4 +11,7 @@ defmodule Axon.Defn do
 
   @impl true
   def __jit__(_key, vars, fun, _opts), do: fun.(vars)
+
+  @impl true
+  def __stream__(_, _, _, _, _, _), do: raise("not implemented")
 end

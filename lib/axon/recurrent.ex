@@ -145,7 +145,7 @@ defmodule Axon.Recurrent do
         sequence = Nx.slice_axis(input_sequence, i, 1, 1)
         indices = transform({feature_dims, i}, fn {feature_dims, i} -> [0, i] ++ feature_dims end)
         {carry, output} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
-        update_sequence = Nx.put_slice(init_sequence, output, indices)
+        update_sequence = Nx.put_slice(init_sequence, indices, output)
         {i + 1, carry, update_sequence, input_sequence, input_kernel, recurrent_kernel, bias}
       end
 
