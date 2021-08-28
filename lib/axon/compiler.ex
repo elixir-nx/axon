@@ -923,7 +923,8 @@ defmodule Axon.Compiler do
            op: :reshape,
            parent: parent,
            output_shape: output_shape,
-           policy: %{compute: compute, output: output}
+           policy: %{compute: compute, output: output},
+           opts: [constant: is_constant_reshape?]
          },
          cache,
          input_map
@@ -932,7 +933,14 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs ->
       inp = Nx.as_type(fun.(params, inputs), compute)
-      reshape_shape = put_elem(output_shape, 0, elem(Nx.shape(inp), 0))
+
+      reshape_shape =
+        if is_constant_reshape? do
+          output_shape
+        else
+          put_elem(output_shape, 0, elem(Nx.shape(inp), 0))
+        end
+
       Nx.as_type(apply(Nx, :reshape, [inp, reshape_shape]), output)
     end
 
@@ -943,7 +951,7 @@ defmodule Axon.Compiler do
          %Axon{
            op: :transpose,
            parent: parent,
-           opts: [permutation: permutation],
+           opts: [permutation: permutation, constant: is_constant_reshape?],
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -952,7 +960,13 @@ defmodule Axon.Compiler do
     {fun, cache} = to_predict_fun(parent, cache, input_map)
 
     fun = fn params, inputs ->
-      permutation = [0 | Enum.map(permutation, &(&1 + 1))]
+      permutation =
+        if is_constant_reshape? do
+          permutation
+        else
+          [0 | Enum.map(permutation, &(&1 + 1))]
+        end
+
       input = Nx.as_type(fun.(params, inputs), compute)
       Nx.as_type(apply(Nx, :transpose, [input, [axes: permutation]]), output)
     end

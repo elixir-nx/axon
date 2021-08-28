@@ -1755,6 +1755,13 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, input2) == Nx.transpose(input2, axes: [0, 2, 1, 3])
     end
 
+    test "computes forward pass with constant" do
+      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0])
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, {}) == Nx.transpose(Nx.iota({1, 2, 3}, type: {:f, 32}))
+    end
+
     test "computes forward pass with output policy" do
       model = Axon.input({nil, 32}) |> Axon.transpose([0])
       policy = AMP.create_policy(output: {:bf, 16})
@@ -1785,6 +1792,13 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.compile(model2)
       assert predict_fn.(%{}, input2) == Nx.reshape(input2, {1, 3, 16, 2, 32})
+    end
+
+    test "computes forward pass with constant input" do
+      model = Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, {}) == Nx.tensor([[[0, 1, 2], [3, 4, 5]]], type: {:f, 32})
     end
 
     test "computes forward pass with output policy" do

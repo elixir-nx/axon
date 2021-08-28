@@ -702,6 +702,28 @@ defmodule AxonTest do
     end
   end
 
+  describe "reshape" do
+    test "works with batch input" do
+      assert %Axon{output_shape: {nil, 3, 3}} = Axon.input({nil, 9}) |> Axon.reshape({3, 3})
+    end
+
+    test "works with constant input" do
+      assert %Axon{output_shape: {1, 2, 3}} =
+               Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
+    end
+  end
+
+  describe "transpose" do
+    test "works with batch input" do
+      assert %Axon{output_shape: {nil, 1, 2}} = Axon.input({nil, 2, 1}) |> Axon.transpose([1, 0])
+    end
+
+    test "works with constant input" do
+      assert %Axon{output_shape: {1, 2, 3}} =
+               Axon.constant(Nx.iota({3, 2, 1})) |> Axon.transpose([2, 1, 0])
+    end
+  end
+
   # TODO(seanmor5): Move/replace all with compiler_test
   describe "execution" do
     test "compile returns init and predict" do
