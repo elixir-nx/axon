@@ -39,7 +39,21 @@ defmodule Axon.Compiler do
     |> Enum.reduce(cache, fn x, acc -> to_init_fun(x, acc) end)
   end
 
-  defp to_init_fun(%Axon{parent: parents}, cache) when is_list(parents) do
+  defp to_init_fun(%Axon{parent: parents, params: params, policy: %{params: dtype}}, cache)
+       when is_list(parents) do
+    cache =
+      Enum.reduce(params, cache, fn {_, %{name: name} = param}, cache ->
+        case cache do
+          %{^name => _} ->
+            cache
+
+          %{} ->
+            %{name: name, shape: shape, initializer: initializer} = param
+            fun = fn -> apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]]) end
+            Map.put(cache, name, fun)
+        end
+      end)
+
     Enum.reduce(parents, cache, &to_init_fun/2)
   end
 
@@ -304,6 +318,38 @@ defmodule Axon.Compiler do
         end
 
       Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
+    end
+
+    {fun, cache}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           op: :bilinear,
+           parent: parents,
+           params: %{"kernel" => %{name: w, frozen: w_frz}} = layer_params,
+           policy: %{compute: compute, output: output},
+           opts: [use_bias: use_bias]
+         },
+         cache,
+         input_map
+       ) do
+    {[fun1, fun2], cache} = Enum.map_reduce(parents, cache, &recur_predict_fun(&1, &2, input_map))
+
+    fun = fn params, inputs ->
+      input1 = Nx.as_type(fun1.(params, inputs), compute)
+      input2 = Nx.as_type(fun2.(params, inputs), compute)
+      w = Nx.as_type(maybe_freeze(params[w], w_frz), compute)
+
+      b =
+        if use_bias do
+          %{name: b, frozen: b_frz} = layer_params["bias"]
+          Nx.as_type(maybe_freeze(params[b], b_frz), compute)
+        else
+          Nx.tensor(0.0, type: compute)
+        end
+
+      Nx.as_type(apply(Axon.Layers, :bilinear, [input1, input2, w, b]), output)
     end
 
     {fun, cache}

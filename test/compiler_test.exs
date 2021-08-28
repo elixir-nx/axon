@@ -238,6 +238,143 @@ defmodule CompilerTest do
     end
   end
 
+  describe "bilinear" do
+    test "initializes in default case" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear")
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = init_fn.()
+      assert Nx.shape(kernel) == {1, 1, 2}
+      assert Nx.type(kernel) == {:f, 32}
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model1 = Axon.bilinear(input1, input2, 1, name: "bilinear", kernel_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = init_fn.()
+      assert kernel == Axon.Initializers.zeros(shape: {1, 1, 2})
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
+
+      model2 = Axon.bilinear(input1, input2, 1, name: "bilinear", bias_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model2)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = init_fn.()
+      assert Nx.shape(kernel) == {1, 1, 2}
+      assert Nx.type(kernel) == {:f, 32}
+      assert bias == Axon.Initializers.zeros(shape: {1})
+    end
+
+    test "computes forward pass" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear")
+
+      input1 = Nx.iota({1, 1}, type: {:f, 32})
+      input2 = Nx.iota({1, 2}, type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = params = init_fn.()
+
+      assert predict_fn.(params, {input1, input2}) ==
+               Axon.Layers.bilinear(input1, input2, kernel, bias)
+    end
+
+    test "computes forward pass with constant" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.constant(Nx.iota({2, 1}))
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear")
+
+      input1 = Nx.iota({2, 1}, type: {:f, 32})
+      input2 = Nx.iota({2, 1}, type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = params = init_fn.()
+
+      assert predict_fn.(params, input1) == Axon.Layers.bilinear(input1, input2, kernel, bias)
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear") |> Axon.freeze()
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      backward = fn params, input ->
+        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+      end
+
+      assert %{"bilinear_kernel" => kernel_grad, "bilinear_bias" => bias_grad} =
+               Nx.Defn.jit(backward, [
+                 init_fn.(),
+                 {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})}
+               ])
+
+      assert kernel_grad == Nx.broadcast(0.0, {1, 1, 2})
+      assert bias_grad == Nx.broadcast(0.0, {1})
+    end
+
+    test "initializes with parameter policy" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear")
+      policy = AMP.create_policy(params: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, _} = Axon.compile(mp_model)
+      assert %{"bilinear_kernel" => kernel, "bilinear_bias" => bias} = init_fn.()
+      assert Nx.type(kernel) == {:bf, 16}
+      assert Nx.type(bias) == {:bf, 16}
+    end
+
+    test "computes forward pass with output policy" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear")
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+
+      assert Nx.type(
+               predict_fn.(init_fn.(), {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})})
+             ) == {:bf, 16}
+    end
+
+    test "initializes with use_bias false" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear", use_bias: false)
+
+      assert {init_fn, _} = Axon.compile(model)
+      assert %{"bilinear_kernel" => _} = params = init_fn.()
+      assert Map.has_key?(params, "bilinear_bias") == false
+    end
+
+    test "computes forward pass with use_bias false" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+      model = Axon.bilinear(input1, input2, 1, name: "bilinear", use_bias: false)
+
+      inp1 = Nx.random_uniform({1, 1})
+      inp2 = Nx.random_uniform({1, 2})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear_kernel" => k} = params = init_fn.()
+
+      assert predict_fn.(params, {inp1, inp2}) ==
+               Axon.Layers.bilinear(inp1, inp2, k, Nx.tensor(0.0))
+    end
+  end
+
   describe "embedding" do
     test "initializes in default case" do
       model = Axon.input({nil, 1}) |> Axon.embedding(1, 1, name: "embedding")

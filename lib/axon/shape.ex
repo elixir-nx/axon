@@ -142,6 +142,100 @@ defmodule Axon.Shape do
     {elem(input_shape, 0), units}
   end
 
+  @doc """
+  Calculates the shape of a bilinear kernel given both input
+  shapes and output units.
+
+  ## Examples
+
+      iex> Axon.Shape.bilinear_kernel({nil, 32}, {nil, 64}, 128)
+      {128, 32, 64}
+
+      iex> Axon.Shape.bilinear_kernel({nil, 32, 64}, {nil, 16}, 32)
+      {32, 64, 16}
+  """
+  def bilinear_kernel(parent1, parent2, units) do
+    parent1_features = elem(parent1, Nx.rank(parent1) - 1)
+    parent2_features = elem(parent2, Nx.rank(parent2) - 1)
+    {units, parent1_features, parent2_features}
+  end
+
+  @doc """
+  Calculates the shape of a bilinear bias given both input
+  shapes and output units.
+
+  ## Examples
+
+      iex> Axon.Shape.bilinear_bias({nil, 32}, {nil, 64}, 128)
+      {128}
+
+      iex> Axon.Shape.bilinear_bias({nil, 32, 64}, {nil, 32, 16}, 32)
+      {32}
+  """
+  def bilinear_bias(_parent1, _parent2, units) do
+    {units}
+  end
+
+  @doc """
+  Calculates the output shape of a bilinear layer given both input
+  shapes and output units.
+
+  ## Examples
+
+      iex> Axon.Shape.bilinear({nil, 32}, {nil, 64}, 128)
+      {nil, 128}
+
+      iex> Axon.Shape.bilinear({nil, 32, 64}, {nil, 32, 16}, 32)
+      {nil, 32, 32}
+
+      iex> Axon.Shape.bilinear({nil, 32, 64}, {16, 32, 16}, 32)
+      {16, 32, 32}
+
+  ### Errors
+
+      iex> Axon.Shape.bilinear({32, 32}, {16, 16}, 32)
+      ** (ArgumentError) all input dimensions but the last must match, got 32 and 16 for shapes {32, 32} and {16, 16}
+
+      iex> Axon.Shape.bilinear({nil, 16, 32}, {nil, 16}, 32)
+      ** (ArgumentError) input ranks must match, got 3 and 2
+  """
+  def bilinear(parent1, parent2, units) do
+    unless Nx.rank(parent1) == Nx.rank(parent2) do
+      raise ArgumentError,
+            "input ranks must match, got #{inspect(Nx.rank(parent1))}" <>
+              " and #{inspect(Nx.rank(parent2))}"
+    end
+
+    parent1_without_features =
+      parent1
+      |> Tuple.delete_at(Nx.rank(parent1) - 1)
+      |> Tuple.to_list()
+
+    parent2_without_features =
+      parent2
+      |> Tuple.delete_at(Nx.rank(parent2) - 1)
+      |> Tuple.to_list()
+
+    output_shape_no_features =
+      parent1_without_features
+      |> Enum.zip_with(parent2_without_features, fn p1, p2 ->
+        unless is_nil(p1) or is_nil(p2) or p1 == p2 do
+          raise ArgumentError,
+                "all input dimensions but the last must match, got #{inspect(p1)}" <>
+                  " and #{inspect(p2)} for shapes #{inspect(parent1)} and #{inspect(parent2)}"
+        end
+
+        if is_nil(p1) do
+          p2
+        else
+          p1
+        end
+      end)
+      |> List.to_tuple()
+
+    Tuple.append(output_shape_no_features, units)
+  end
+
   ## Sparse
 
   @doc """

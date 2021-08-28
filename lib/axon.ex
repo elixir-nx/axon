@@ -277,6 +277,80 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a bilinear layer to the network.
+
+  The bilinear layer implements:
+
+      output = activation(dot(dot(input1, kernel), input2) + bias)
+
+  where `activation` is given by the `:activation` option and both
+  `kernel` and `bias` are layer parameters. `units` specifies the
+  number of output units.
+
+  All dimensions but the last of `input1` and `input2` must match. The
+  batch sizes of both inputs must also match or at least one must be `nil`.
+  Inferred output batch size coerces to the strictest input batch size.
+
+  Compiles to `Axon.Layers.bilinear/4`.
+
+  ## Options
+
+    * `name` - Layer name.
+    * `name` - Layer name.
+    * `kernel_initializer` - Initializer for `kernel` weights.
+    * `bias_initializer` - Initializer for `bias` weights.
+    * `activation` - Element-wise activation function.
+
+  """
+  @doc type: :linear
+  def bilinear(
+        %Axon{output_shape: parent1_shape} = input1,
+        %Axon{output_shape: parent2_shape} = input2,
+        units,
+        opts \\ []
+      )
+      when is_integer(units) and units > 0 do
+    activation = opts[:activation]
+    use_bias = Keyword.get(opts, :use_bias, true)
+
+    kernel_shape = Axon.Shape.bilinear_kernel(parent1_shape, parent2_shape, units)
+    bias_shape = Axon.Shape.bilinear_bias(parent1_shape, parent2_shape, units)
+    output_shape = Axon.Shape.bilinear(parent1_shape, parent2_shape, units)
+
+    kernel_initializer = opts[:kernel_initializer]
+    kernel_regularizer = opts[:kernel_regularizer]
+
+    kernel =
+      param("kernel", kernel_shape,
+        initializer: kernel_initializer,
+        regularizer: kernel_regularizer
+      )
+
+    params =
+      if use_bias do
+        bias_initializer = opts[:bias_initializer] || :zeros
+        bias_regularizer = opts[:bias_regularizer]
+
+        bias =
+          param("bias", bias_shape, initializer: bias_initializer, regularizer: bias_regularizer)
+
+        %{"kernel" => kernel, "bias" => bias}
+      else
+        %{"kernel" => kernel}
+      end
+
+    node =
+      layer([input1, input2], :bilinear, output_shape, params, opts[:name], use_bias: use_bias)
+
+    if activation do
+      node
+      |> activation(activation)
+    else
+      node
+    end
+  end
+
+  @doc """
   Adds a convolution layer to the network.
 
   The convolution layer implements a general dimensional
