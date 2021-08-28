@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.25.1">
+    <meta name="project" content="Axon v0.1.0-dev">
+
+    <title>Axon.Updates — Axon v0.1.0-dev</title>
+    <link rel="stylesheet" href="dist/elixir-a172fe91e725dcb259e2.css" />
+
+    <script src="dist/sidebar_items-ffc5c9fdfe.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-f27ff079945e43879c46.js"></script>
+
+
+  </head>
+  <body data-type="modules">
+    <script>
+
+      try {
+        if (localStorage.getItem('night-mode') === 'true') {
+          document.body.classList.add('night-mode');
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+<button class="sidebar-button sidebar-toggle">
+  <span class="icon-menu" title="Collapse/expand sidebar"></span>
+</button>
+
+<section class="sidebar">
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <span class="icon-search" aria-hidden="true" title="Submit search"></span>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <span class="icon-cross" aria-hidden="true" title="Cancel search"></span>
+    </button>
+    <label class="search-label">
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion">
+        v0.1.0-dev
+      </strong>
+    </div>
+
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+      <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+  </ul>
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+      <h1>
+Axon.Updates <small class="app-vsn">(Axon v0.1.0-dev)</small>
+
+          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L1" title="View Source" class="view-source" rel="help">
+            <span class="icon-code" aria-hidden="true"></span>
+            <span class="sr-only">View Source</span>
+          </a>
+
+      </h1>
+
+
+        <section id="moduledoc">
+<p>Parameter update methods.</p><p>Update methods transform the input tensor in some way,
+usually by scaling or shifting the input with respect
+to some input state. Update methods are composed
+to create more advanced optimization methods such as AdaGrad
+or Adam. Each update returns a tuple:</p><pre><code class="makeup elixir"><span class="p" data-group-id="3754806209-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="3754806209-1">}</span></code></pre><p>Which represent a state initialization and state update
+function respectively. While each method in the Updates
+API is a regular Elixir function, the two methods they
+return are implemented as <code class="inline">defn</code>, so they can be accelerated
+using any Nx backend or compiler.</p><p>Update methods are just combinators that can be arbitrarily
+composed to create complex optimizers. For example, the Adam
+optimizer in Axon.Optimizers is implemented as:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">adam</span><span class="p" data-group-id="1609851967-1">(</span><span class="n">learning_rate</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="1609851967-2">[</span><span class="p" data-group-id="1609851967-2">]</span><span class="p" data-group-id="1609851967-1">)</span><span class="w"> </span><span class="k" data-group-id="1609851967-3">do</span><span class="w">
+  </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale_by_adam</span><span class="p" data-group-id="1609851967-4">(</span><span class="n">opts</span><span class="p" data-group-id="1609851967-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale</span><span class="p" data-group-id="1609851967-5">(</span><span class="o">-</span><span class="n">learning_rate</span><span class="p" data-group-id="1609851967-5">)</span><span class="w">
+</span><span class="k" data-group-id="1609851967-3">end</span></code></pre><p>Updates are maps of updates, often assosciated with parameters of
+the same names. Using <a href="#apply_updates/2"><code class="inline">Axon.Updates.apply_updates/2</code></a> will merge updates
+and parameters by adding assosciated parameters and updates.</p><h2 id="module-custom-combinators" class="section-heading">
+  <a href="#module-custom-combinators" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Custom combinators
+</h2>
+<p>You can create your own combinators using the <a href="#stateless/2"><code class="inline">stateless/2</code></a> and
+<a href="#stateful/3"><code class="inline">stateful/3</code></a> primitives. Every update method in this module is
+implemented in terms of one of these two primitives.</p><p><a href="#stateless/2"><code class="inline">stateless/2</code></a> represents a stateless update:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">scale</span><span class="p" data-group-id="1859177490-1">(</span><span class="n">combinator</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">identity</span><span class="p" data-group-id="1859177490-2">(</span><span class="p" data-group-id="1859177490-2">)</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="1859177490-1">)</span><span class="w"> </span><span class="k" data-group-id="1859177490-3">do</span><span class="w">
+  </span><span class="n">stateless</span><span class="p" data-group-id="1859177490-4">(</span><span class="n">combinator</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_scale</span><span class="p" data-group-id="1859177490-5">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="1859177490-5">)</span><span class="p" data-group-id="1859177490-4">)</span><span class="w">
+</span><span class="k" data-group-id="1859177490-3">end</span><span class="w">
+
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_scale</span><span class="p" data-group-id="1859177490-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1859177490-6">)</span><span class="w"> </span><span class="k" data-group-id="1859177490-7">do</span><span class="w">
+  </span><span class="n">transform</span><span class="p" data-group-id="1859177490-8">(</span><span class="w">
+    </span><span class="p" data-group-id="1859177490-9">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1859177490-9">}</span><span class="p">,</span><span class="w">
+    </span><span class="k" data-group-id="1859177490-10">fn</span><span class="w"> </span><span class="p" data-group-id="1859177490-11">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1859177490-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+      </span><span class="nc">Map</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="1859177490-12">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="1859177490-13">fn</span><span class="w"> </span><span class="p" data-group-id="1859177490-14">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p" data-group-id="1859177490-14">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="1859177490-15">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1859177490-15">)</span><span class="w"> </span><span class="k" data-group-id="1859177490-13">end</span><span class="p" data-group-id="1859177490-12">)</span><span class="w">
+    </span><span class="k" data-group-id="1859177490-10">end</span><span class="w">
+  </span><span class="p" data-group-id="1859177490-8">)</span><span class="w">
+</span><span class="k" data-group-id="1859177490-7">end</span></code></pre><p>Notice how the function given to <a href="#stateless/2"><code class="inline">stateless/2</code></a> is defined within <code class="inline">defn</code>.
+This is what allows the anonymous functions returned by <a href="Axon.Updates.html#content"><code class="inline">Axon.Updates</code></a>
+to be used inside <code class="inline">defn</code>.</p><p><a href="#stateful/3"><code class="inline">stateful/3</code></a> represents a stateful update and follows the same pattern:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">my_stateful_update</span><span class="p" data-group-id="3853354888-1">(</span><span class="n">updates</span><span class="p" data-group-id="3853354888-1">)</span><span class="w"> </span><span class="k" data-group-id="3853354888-2">do</span><span class="w">
+  </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">stateful</span><span class="p" data-group-id="3853354888-3">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">init_my_update</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_my_update</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="3853354888-3">)</span><span class="w">
+</span><span class="k" data-group-id="3853354888-2">end</span><span class="w">
+
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">init_my_update</span><span class="p" data-group-id="3853354888-4">(</span><span class="n">params</span><span class="p" data-group-id="3853354888-4">)</span><span class="w"> </span><span class="k" data-group-id="3853354888-5">do</span><span class="w">
+  </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zeros_like</span><span class="p" data-group-id="3853354888-6">(</span><span class="n">params</span><span class="p" data-group-id="3853354888-6">)</span><span class="w">
+  </span><span class="p" data-group-id="3853354888-7">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="3853354888-7">}</span><span class="w">
+</span><span class="k" data-group-id="3853354888-5">end</span><span class="w">
+
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_my_update</span><span class="p" data-group-id="3853354888-8">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3853354888-9">{</span><span class="n">state</span><span class="p" data-group-id="3853354888-9">}</span><span class="p" data-group-id="3853354888-8">)</span><span class="w"> </span><span class="k" data-group-id="3853354888-10">do</span><span class="w">
+  </span><span class="n">new_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">apply_map</span><span class="p" data-group-id="3853354888-11">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="3853354888-12">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p" data-group-id="3853354888-12">)</span><span class="p" data-group-id="3853354888-11">)</span><span class="w">
+  </span><span class="n">updates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transform</span><span class="p" data-group-id="3853354888-13">(</span><span class="p" data-group-id="3853354888-14">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="3853354888-14">}</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="3853354888-15">fn</span><span class="w"> </span><span class="p" data-group-id="3853354888-16">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="3853354888-16">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="nc">Map</span><span class="o">.</span><span class="n">merge</span><span class="p" data-group-id="3853354888-17">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="3853354888-18">fn</span><span class="w"> </span><span class="bp">_</span><span class="p">,</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="3853354888-19">(</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p" data-group-id="3853354888-19">)</span><span class="w"> </span><span class="k" data-group-id="3853354888-18">end</span><span class="p" data-group-id="3853354888-17">)</span><span class="w">
+  </span><span class="k" data-group-id="3853354888-15">end</span><span class="p" data-group-id="3853354888-13">)</span><span class="w">
+  </span><span class="p" data-group-id="3853354888-20">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3853354888-21">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="3853354888-21">}</span><span class="p" data-group-id="3853354888-20">}</span><span class="w">
+</span><span class="k" data-group-id="3853354888-10">end</span></code></pre><p>State assosciated with individual parameters should have keys that match the
+keys of the parameter. For example, if you have parameters <code class="inline">%{kernel: kernel}</code>
+with assosciated states <code class="inline">mu</code> and <code class="inline">nu</code> representing the first and second moments,
+your state should look something like:</p><pre><code class="makeup elixir"><span class="p" data-group-id="8684486445-1">%{</span><span class="w">
+  </span><span class="ss">mu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8684486445-2">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_mu</span><span class="p" data-group-id="8684486445-2">}</span><span class="w">
+  </span><span class="ss">nu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8684486445-3">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_nu</span><span class="p" data-group-id="8684486445-3">}</span><span class="w">
+</span><span class="p" data-group-id="8684486445-1">}</span></code></pre>
+        </section>
+
+
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+            Summary
+          </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#add_decayed_weights/2">add_decayed_weights(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Weight decay.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#add_noise/2">add_noise(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Add noise.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#apply_updates/2">apply_updates(params, updates)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Applies updates to params.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#centralize/1">centralize(combinator \\ identity())</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Centralize input.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#clip/2">clip(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Clips input between -delta and delta.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#clip_by_global_norm/2">clip_by_global_norm(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Clips input using input global norm.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#identity/0">identity()</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Returns the identity update.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#identity/1">identity(combinator)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale/2">scale(combinator \\ identity(), step_size)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input by a fixed step size.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_adam/2">scale_by_adam(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input according to Adam algorithm.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_belief/2">scale_by_belief(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input according to the AdaBelief algorithm.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_radam/2">scale_by_radam(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scale input according to the Rectified Adam algorithm.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_rms/2">scale_by_rms(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input by the root of the EMA of squared inputs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_rss/2">scale_by_rss(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input by the root of all prior squared inputs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_schedule/2">scale_by_schedule(combinator \\ identity(), schedule_fn)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input using the given schedule function.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_stddev/2">scale_by_stddev(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scales input by the root of the centered EMA of squared inputs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_trust_ratio/2">scale_by_trust_ratio(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scale by trust ratio.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#scale_by_yogi/2">scale_by_yogi(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Scale by yogi.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#stateful/3">stateful(arg \\ identity(), init_fn, apply_fn)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Represents a stateful update.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#stateless/2">stateless(arg \\ identity(), apply_fn)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Represents a stateless update.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#trace/2">trace(combinator \\ identity(), opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Trace inputs with past inputs.</p></div>
+
+</div>
+
+  </div>
+
+        </section>
+
+
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions
+          </h1>
+          <div class="functions-list">
+<section class="detail" id="add_decayed_weights/2">
+
+    <span id="add_decayed_weights/1"></span>
+
+  <div class="detail-header">
+    <a href="#add_decayed_weights/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">add_decayed_weights(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L586" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Weight decay.</p>
+  </section>
+</section>
+<section class="detail" id="add_noise/2">
+
+    <span id="add_noise/1"></span>
+
+  <div class="detail-header">
+    <a href="#add_noise/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">add_noise(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L633" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Add noise.</p>
+  </section>
+</section>
+<section class="detail" id="apply_updates/2">
+
+  <div class="detail-header">
+    <a href="#apply_updates/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">apply_updates(params, updates)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Applies updates to params.</p>
+  </section>
+</section>
+<section class="detail" id="centralize/1">
+
+    <span id="centralize/0"></span>
+
+  <div class="detail-header">
+    <a href="#centralize/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">centralize(combinator \\ identity())</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L566" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Centralize input.</p>
+  </section>
+</section>
+<section class="detail" id="clip/2">
+
+    <span id="clip/1"></span>
+
+  <div class="detail-header">
+    <a href="#clip/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">clip(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L524" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Clips input between -delta and delta.</p><h2 id="clip/2-options" class="section-heading">
+  <a href="#clip/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:delta</code> - maximum absolute value of the input. Defaults
+to <code class="inline">2.0</code></li></ul>
+  </section>
+</section>
+<section class="detail" id="clip_by_global_norm/2">
+
+    <span id="clip_by_global_norm/1"></span>
+
+  <div class="detail-header">
+    <a href="#clip_by_global_norm/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">clip_by_global_norm(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L545" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Clips input using input global norm.</p><h2 id="clip_by_global_norm/2-options" class="section-heading">
+  <a href="#clip_by_global_norm/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:max_norm</code> - maximum norm value of input. Defaults to
+<code class="inline">1.0</code></li></ul>
+  </section>
+</section>
+<section class="detail" id="identity/0">
+
+  <div class="detail-header">
+    <a href="#identity/0" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">identity()</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L723" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Returns the identity update.</p><p>This is often as the initial update in many functions in this module.</p>
+  </section>
+</section>
+<section class="detail" id="identity/1">
+
+  <div class="detail-header">
+    <a href="#identity/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">identity(combinator)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L727" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="scale/2">
+
+    <span id="scale/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale(combinator \\ identity(), step_size)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L94" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input by a fixed step size.</p><p>$$f(x_i) = \alpha x_i$$</p>
+  </section>
+</section>
+<section class="detail" id="scale_by_adam/2">
+
+    <span id="scale_by_adam/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_adam/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_adam(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L122" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input according to Adam algorithm.</p><h2 id="scale_by_adam/2-options" class="section-heading">
+  <a href="#scale_by_adam/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span></code></pre><h2 id="scale_by_adam/2-references" class="section-heading">
+  <a href="#scale_by_adam/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1412.6980">Adam: A Method for Stochastic Optimization</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="scale_by_belief/2">
+
+    <span id="scale_by_belief/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_belief/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_belief(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L268" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input according to the AdaBelief algorithm.</p><h2 id="scale_by_belief/2-options" class="section-heading">
+  <a href="#scale_by_belief/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-16</span><span class="err">`</span></code></pre><h2 id="scale_by_belief/2-references" class="section-heading">
+  <a href="#scale_by_belief/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/2010.07468">AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="scale_by_radam/2">
+
+    <span id="scale_by_radam/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_radam/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_radam(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L391" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scale input according to the Rectified Adam algorithm.</p><h2 id="scale_by_radam/2-options" class="section-heading">
+  <a href="#scale_by_radam/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:threshold</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">threshold</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">variance</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">5.0</span><span class="err">`</span></code></pre><h2 id="scale_by_radam/2-references" class="section-heading">
+  <a href="#scale_by_radam/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1908.03265">On the Variance of the Adaptive Learning Rate and Beyond</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="scale_by_rms/2">
+
+    <span id="scale_by_rms/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_rms/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_rms(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L223" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input by the root of the EMA of squared inputs.</p><h2 id="scale_by_rms/2-options" class="section-heading">
+  <a href="#scale_by_rms/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span></code></pre><h2 id="scale_by_rms/2-references" class="section-heading">
+  <a href="#scale_by_rms/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf">Overview of mini-batch gradient descent</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="scale_by_rss/2">
+
+    <span id="scale_by_rss/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_rss/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_rss(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L166" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input by the root of all prior squared inputs.</p><h2 id="scale_by_rss/2-options" class="section-heading">
+  <a href="#scale_by_rss/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-7</span><span class="err">`</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="scale_by_schedule/2">
+
+    <span id="scale_by_schedule/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_schedule/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_schedule(combinator \\ identity(), schedule_fn)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L352" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input using the given schedule function.</p>
+  </section>
+</section>
+<section class="detail" id="scale_by_stddev/2">
+
+    <span id="scale_by_stddev/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_stddev/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_stddev(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L317" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scales input by the root of the centered EMA of squared inputs.</p><h2 id="scale_by_stddev/2-options" class="section-heading">
+  <a href="#scale_by_stddev/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<pre><code class="makeup elixir"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span></code></pre><h2 id="scale_by_stddev/2-references" class="section-heading">
+  <a href="#scale_by_stddev/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf">Overview of mini-batch gradient descent</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="scale_by_trust_ratio/2">
+
+    <span id="scale_by_trust_ratio/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_trust_ratio/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_trust_ratio(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L602" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scale by trust ratio.</p>
+  </section>
+</section>
+<section class="detail" id="scale_by_yogi/2">
+
+    <span id="scale_by_yogi/1"></span>
+
+  <div class="detail-header">
+    <a href="#scale_by_yogi/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">scale_by_yogi(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L661" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Scale by yogi.</p>
+  </section>
+</section>
+<section class="detail" id="stateful/3">
+
+    <span id="stateful/2"></span>
+
+  <div class="detail-header">
+    <a href="#stateful/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">stateful(arg \\ identity(), init_fn, apply_fn)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L734" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Represents a stateful update.</p>
+  </section>
+</section>
+<section class="detail" id="stateless/2">
+
+    <span id="stateless/1"></span>
+
+  <div class="detail-header">
+    <a href="#stateless/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">stateless(arg \\ identity(), apply_fn)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L709" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Represents a stateless update.</p>
+  </section>
+</section>
+<section class="detail" id="trace/2">
+
+    <span id="trace/1"></span>
+
+  <div class="detail-header">
+    <a href="#trace/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">trace(combinator \\ identity(), opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L482" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Trace inputs with past inputs.</p><h2 id="trace/2-options" class="section-heading">
+  <a href="#trace/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:decay</code> - decay rate for tracing past updates. Defaults
+to <code class="inline">0.9</code></li><li><code class="inline">:nesterov</code> - whether to use Nesterov momentum. Defaults
+to <code class="inline">false</code></li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+      <footer class="footer">
+        <p>
+          <span class="line">
+            Built using
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.1) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+          </span>
+          <span class="line">
+            Designed by
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+        </p>
+        <p>
+
+            <a href="api-reference.html" title="API reference" class="line footer-button">API Reference</a>
+
+          <button class="line footer-button display-shortcuts-help">
+            Display keyboard shortcuts
+          </button>
+          <button class="line footer-button night-mode-toggle">
+            Toggle night mode
+          </button>
+          <button class="line footer-button display-quick-switch">
+            Go to a HexDocs package
+          </button>
+          <button class="line footer-button tooltips-toggle">
+            <span class="tooltips-option-disable">Disable tooltips</span>
+            <span class="tooltips-option-enable">Enable tooltips</span>
+          </button>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+  </body>
+</html>

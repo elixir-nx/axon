@@ -1,0 +1,3072 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.25.1">
+    <meta name="project" content="Axon v0.1.0-dev">
+
+    <title>Axon — Axon v0.1.0-dev</title>
+    <link rel="stylesheet" href="dist/elixir-a172fe91e725dcb259e2.css" />
+
+    <script src="dist/sidebar_items-ffc5c9fdfe.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-f27ff079945e43879c46.js"></script>
+
+
+  </head>
+  <body data-type="modules">
+    <script>
+
+      try {
+        if (localStorage.getItem('night-mode') === 'true') {
+          document.body.classList.add('night-mode');
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+<button class="sidebar-button sidebar-toggle">
+  <span class="icon-menu" title="Collapse/expand sidebar"></span>
+</button>
+
+<section class="sidebar">
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <span class="icon-search" aria-hidden="true" title="Submit search"></span>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <span class="icon-cross" aria-hidden="true" title="Cancel search"></span>
+    </button>
+    <label class="search-label">
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion">
+        v0.1.0-dev
+      </strong>
+    </div>
+
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+      <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+  </ul>
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+      <h1>
+Axon <small class="app-vsn">(Axon v0.1.0-dev)</small>
+
+          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1" title="View Source" class="view-source" rel="help">
+            <span class="icon-code" aria-hidden="true"></span>
+            <span class="sr-only">View Source</span>
+          </a>
+
+      </h1>
+
+
+        <section id="moduledoc">
+<p>A high-level interface for creating neural network models.</p><p>Axon is built entirely on top of Nx numerical definitions,
+so every neural network can be JIT or AOT compiled using
+any Nx compiler, or even transformed into high-level neural
+network formats like TensorFlow Lite and ONNX.</p><p>All Axon models start with an input layer, specifying the
+expected input shape of the training data:</p><pre><code class="makeup elixir"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="3017451048-1">(</span><span class="p" data-group-id="3017451048-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="3017451048-2">}</span><span class="p" data-group-id="3017451048-1">)</span></code></pre><p>Notice you can specify the batch dimension as <code class="inline">nil</code>. You can
+then compose inputs with other layers:</p><pre><code class="makeup elixir"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">input</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0368874560-1">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="0368874560-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="0368874560-2">(</span><span class="p" data-group-id="0368874560-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="0368874560-3">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="p" data-group-id="0368874560-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0368874560-4">(</span><span class="mi">64</span><span class="p" data-group-id="0368874560-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">tanh</span><span class="p" data-group-id="0368874560-5">(</span><span class="p" data-group-id="0368874560-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0368874560-6">(</span><span class="mi">10</span><span class="p" data-group-id="0368874560-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="0368874560-7">(</span><span class="ss">:softmax</span><span class="p" data-group-id="0368874560-7">)</span></code></pre><p>You can inspect the model for a nice summary:</p><pre><code class="makeup elixir"><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="8608700649-1">(</span><span class="n">model</span><span class="p" data-group-id="8608700649-1">)</span><span class="w">
+
+</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">-</span><span class="w">
+                  </span><span class="nc">Model</span><span class="w">
+</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">==</span><span class="w">
+ </span><span class="nc">Layer</span><span class="w">                       </span><span class="nc">Shape</span><span class="w">        </span><span class="nc">Parameters</span><span class="w">
+</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">==</span><span class="w">
+ </span><span class="n">input_1</span><span class="w"> </span><span class="p" data-group-id="8608700649-2">(</span><span class="n">input</span><span class="p" data-group-id="8608700649-2">)</span><span class="w">             </span><span class="p" data-group-id="8608700649-3">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="8608700649-3">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_2</span><span class="w"> </span><span class="p" data-group-id="8608700649-4">(</span><span class="n">dense</span><span class="p" data-group-id="8608700649-4">)</span><span class="w">             </span><span class="p" data-group-id="8608700649-5">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="8608700649-5">}</span><span class="w">   </span><span class="mi">100480</span><span class="w">
+ </span><span class="n">relu_3</span><span class="w"> </span><span class="p" data-group-id="8608700649-6">(</span><span class="n">relu</span><span class="p" data-group-id="8608700649-6">)</span><span class="w">               </span><span class="p" data-group-id="8608700649-7">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="8608700649-7">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">batch_norm_4</span><span class="w"> </span><span class="p" data-group-id="8608700649-8">(</span><span class="n">batch_norm</span><span class="p" data-group-id="8608700649-8">)</span><span class="w">   </span><span class="p" data-group-id="8608700649-9">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="8608700649-9">}</span><span class="w">   </span><span class="mi">256</span><span class="w">
+ </span><span class="n">dropout_5</span><span class="w"> </span><span class="p" data-group-id="8608700649-10">(</span><span class="n">dropout</span><span class="p" data-group-id="8608700649-10">)</span><span class="w">         </span><span class="p" data-group-id="8608700649-11">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="8608700649-11">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_6</span><span class="w"> </span><span class="p" data-group-id="8608700649-12">(</span><span class="n">dense</span><span class="p" data-group-id="8608700649-12">)</span><span class="w">             </span><span class="p" data-group-id="8608700649-13">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="8608700649-13">}</span><span class="w">    </span><span class="mi">8256</span><span class="w">
+ </span><span class="n">tanh_7</span><span class="w"> </span><span class="p" data-group-id="8608700649-14">(</span><span class="n">tanh</span><span class="p" data-group-id="8608700649-14">)</span><span class="w">               </span><span class="p" data-group-id="8608700649-15">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="8608700649-15">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_8</span><span class="w"> </span><span class="p" data-group-id="8608700649-16">(</span><span class="n">dense</span><span class="p" data-group-id="8608700649-16">)</span><span class="w">             </span><span class="p" data-group-id="8608700649-17">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="8608700649-17">}</span><span class="w">    </span><span class="mi">650</span><span class="w">
+ </span><span class="n">softmax_9</span><span class="w"> </span><span class="p" data-group-id="8608700649-18">(</span><span class="n">softmax</span><span class="p" data-group-id="8608700649-18">)</span><span class="w">         </span><span class="p" data-group-id="8608700649-19">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="8608700649-19">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
+</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">-</span></code></pre><p>Under the hood, Axon models are represented as Elixir structs. You
+can initialize and apply models using the macros <a href="#init/2"><code class="inline">Axon.init/2</code></a> and
+<a href="#predict/4"><code class="inline">Axon.predict/4</code></a>:</p><pre><code class="makeup elixir"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">init</span><span class="p" data-group-id="5550076529-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="5550076529-1">)</span><span class="w">
+
+</span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="5550076529-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="5550076529-2">)</span></code></pre><p>Both <a href="#init/2"><code class="inline">Axon.init/2</code></a> and <a href="#predict/4"><code class="inline">Axon.predict/4</code></a> can be used from within
+Nx defn or outside.</p><p>Combining the Axon model creation API with the optimization and training
+APIs, you can create and train neural networks with ease:</p><pre><code class="makeup elixir"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="9822876784-1">(</span><span class="p" data-group-id="9822876784-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="9822876784-2">}</span><span class="p" data-group-id="9822876784-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9822876784-3">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="9822876784-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer_norm</span><span class="p" data-group-id="9822876784-4">(</span><span class="p" data-group-id="9822876784-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9822876784-5">(</span><span class="p" data-group-id="9822876784-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9822876784-6">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="9822876784-6">)</span><span class="w">
+
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="w"> </span><span class="n">model</span><span class="w">
+
+</span><span class="n">final_params</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Training</span><span class="o">.</span><span class="n">step</span><span class="p" data-group-id="9822876784-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adamw</span><span class="p" data-group-id="9822876784-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="9822876784-8">)</span><span class="p" data-group-id="9822876784-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Training</span><span class="o">.</span><span class="n">train</span><span class="p" data-group-id="9822876784-9">(</span><span class="n">train_images</span><span class="p">,</span><span class="w"> </span><span class="n">train_labels</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="9822876784-9">)</span></code></pre>
+        </section>
+
+
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+            Summary
+          </h1>
+
+  <div class="summary-types summary">
+    <h2>
+      <a href="#types">Types</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#t:t/0">t()</a>
+
+  </div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-special summary">
+    <h2>
+      <a href="#layers-special">Layers: Special</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#constant/2">constant(tensor, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a constant layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#input/2">input(input_shape, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an input layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#layer/6">layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Custom Axon layer with given parent.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#nx/3">nx(x, fun, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Applies the given <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inline">Nx</code></a> expression to the input.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-activation summary">
+    <h2>
+      <a href="#layers-activation">Layers: Activation</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#activation/3">activation(x, activation, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#celu/2">celu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Continuously-differentiable exponential linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#elu/2">elu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Exponential linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#exp/2">exp(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Exponential activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#gelu/2">gelu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Gaussian error linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#hard_sigmoid/2">hard_sigmoid(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Hard sigmoid activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#hard_silu/2">hard_silu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Hard sigmoid weighted linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#hard_tanh/2">hard_tanh(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Hard hyperbolic tangent activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#leaky_relu/2">leaky_relu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Leaky rectified linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#linear/2">linear(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Linear activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#log_sigmoid/2">log_sigmoid(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Log-sigmoid activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#mish/2">mish(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Mish activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#relu/2">relu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Rectified linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#relu6/2">relu6(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Rectified linear unit 6 activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#selu/2">selu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Scaled exponential linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#sigmoid/2">sigmoid(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Sigmoid activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#silu/2">silu(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Sigmoid weighted linear unit activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#softmax/2">softmax(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Softmax activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#softplus/2">softplus(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Softplus activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#softsign/2">softsign(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Softsign activation layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#tanh/2">tanh(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Hyperbolic tangent activation layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-linear summary">
+    <h2>
+      <a href="#layers-linear">Layers: Linear</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dense/3">dense(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a dense layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-convolution summary">
+    <h2>
+      <a href="#layers-convolution">Layers: Convolution</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#conv/3">conv(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a convolution layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#conv_transpose/3">conv_transpose(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a transposed convolution layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#depthwise_conv/3">depthwise_conv(x, channel_multiplier, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a depthwise convolution layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#separable_conv2d/3">separable_conv2d(x, channel_multiplier, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a depthwise separable 2-dimensional convolution to the
+network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#separable_conv3d/3">separable_conv3d(x, channel_multiplier, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a depthwise separable 3-dimensional convolution to the
+network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-dropout summary">
+    <h2>
+      <a href="#layers-dropout">Layers: Dropout</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#alpha_dropout/2">alpha_dropout(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Alpha dropout layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dropout/2">dropout(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Dropout layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#feature_alpha_dropout/2">feature_alpha_dropout(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Feature alpha dropout layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#spatial_dropout/2">spatial_dropout(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Spatial dropout layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-pooling summary">
+    <h2>
+      <a href="#layers-pooling">Layers: Pooling</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#adaptive_avg_pool/2">adaptive_avg_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Adaptive average pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#adaptive_max_pool/2">adaptive_max_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Adaptive max pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#avg_pool/2">avg_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Average pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_avg_pool/2">global_avg_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Global average pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_lp_pool/2">global_lp_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Global LP pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_max_pool/2">global_max_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Global max pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#lp_pool/2">lp_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Power average pool layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#max_pool/2">max_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Max pool layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-normalization summary">
+    <h2>
+      <a href="#layers-normalization">Layers: Normalization</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#batch_norm/2">batch_norm(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Batch normalization layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#group_norm/3">group_norm(x, group_size, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a group normalization layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#instance_norm/2">instance_norm(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an Instance normalization layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#layer_norm/2">layer_norm(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a Layer normalization layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-recurrent summary">
+    <h2>
+      <a href="#layers-recurrent">Layers: Recurrent</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#conv_lstm/3">conv_lstm(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a convolutional long short-term memory (LSTM) layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#gru/3">gru(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a gated recurrent unit (GRU) layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#lstm/3">lstm(x, units, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a long short-term memory (LSTM) layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-composition summary">
+    <h2>
+      <a href="#layers-composition">Layers: Composition</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#add/3">add(x, y, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a add layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#concatenate/3">concatenate(x, y, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a concatenate layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#multiply/3">multiply(x, y, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a multiply layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#subtract/3">subtract(x, y, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a subtract layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-shape summary">
+    <h2>
+      <a href="#layers-shape">Layers: Shape</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#flatten/2">flatten(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a flatten layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#pad/4">pad(x, config, value \\ 0.0, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a pad layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#reshape/3">reshape(x, new_shape, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a reshape layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#transpose/3">transpose(x, permutation, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds a transpose layer to the network.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-model-compilation summary">
+    <h2>
+      <a href="#model-compilation">Model: Compilation</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#compile/1">compile(model)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Compiles the given model to <code class="inline">{init_fn, predict_fn}</code>.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-model-execution summary">
+    <h2>
+      <a href="#model-execution">Model: Execution</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#init/2">init(model, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Compiles and runs the given models initialization function
+with the given compiler options.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#penalty/3">penalty(model, params, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Compiles and runs the given Axon model's penalty function
+on <code class="inline">params</code> with the given compiler options.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#predict/4">predict(model, params, input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Compiles and runs the given Axon model with <code class="inline">params</code> on
+<code class="inline">input</code> with the given compiler options.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#embedding/4">embedding(x, vocab_size, embedding_size, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Adds an embedding layer to the network.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#freeze/2">freeze(model, fun \\ &amp;(&amp;1))</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Freezes parameters returned from <code class="inline">fun</code> in the given
+model. <code class="inline">fun</code> takes the model's parameter list and returns
+the list of parameters it wishes to freeze. <code class="inline">fun</code> defaults
+to the identity function, freezing all of the parameters in
+<code class="inline">model</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#param/3">param(name, shape, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Trainable Axon parameter used to create custom layers.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#tree_map/2">tree_map(axon, fun)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Traverses a model tree applying <code class="inline">fun</code> to each layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#tree_reduce/3">tree_reduce(axon, acc, fun)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Traverses a model applying <code class="inline">fun</code> with an accumulator.</p></div>
+
+</div>
+
+  </div>
+
+        </section>
+
+
+        <section id="types" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#types">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Types
+          </h1>
+          <div class="types-list">
+<section class="detail" id="t:t/0">
+
+  <div class="detail-header">
+    <a href="#t:t/0" class="detail-link" title="Link to this type">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this type</span>
+    </a>
+    <h1 class="signature">t()</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L78" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+      <h2>Specs</h2>
+      <div class="specs">
+
+          <pre>t() :: %Axon{
+  id: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  name: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  op: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  opts: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  output_shape: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  params: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  parent: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  policy: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>()
+}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-special" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-special">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Special
+          </h1>
+          <div class="layers-special-list">
+<section class="detail" id="constant/2">
+
+    <span id="constant/1"></span>
+
+  <div class="detail-header">
+    <a href="#constant/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">constant(tensor, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L202" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a constant layer to the network.</p><p>Constant layers encapsulate Nx tensors in an Axon layer for ease
+of use with other Axon layers. They can be used interchangeably
+with other Axon layers:</p><pre><code class="makeup elixir"><span class="n">inp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1067296294-1">(</span><span class="p" data-group-id="1067296294-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="1067296294-2">}</span><span class="p" data-group-id="1067296294-1">)</span><span class="w">
+</span><span class="n">my_constant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">constant</span><span class="p" data-group-id="1067296294-3">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="1067296294-4">(</span><span class="p" data-group-id="1067296294-5">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="1067296294-5">}</span><span class="p" data-group-id="1067296294-4">)</span><span class="p" data-group-id="1067296294-3">)</span><span class="w">
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="1067296294-6">(</span><span class="n">inp</span><span class="p">,</span><span class="w"> </span><span class="n">my_constant</span><span class="p" data-group-id="1067296294-6">)</span></code></pre><p>Constant layers will be cast according to the mixed precision policy.
+If it's important for your constant to retain it's type during
+the computation, you will need to set the mixed precision policy to
+ignore constant layers.</p><h2 id="constant/2-options" class="section-heading">
+  <a href="#constant/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="input/2">
+
+    <span id="input/1"></span>
+
+  <div class="detail-header">
+    <a href="#input/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">input(input_shape, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L177" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an input layer to the network.</p><p>Input layers specify a model's inputs. Input layers are
+always the root layers of the neural network.</p><h2 id="input/2-options" class="section-heading">
+  <a href="#input/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="layer/6">
+
+    <span id="layer/4"></span>
+
+    <span id="layer/5"></span>
+
+  <div class="detail-header">
+    <a href="#layer/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">layer(parent, op, output_shape, parameters, name \\ nil, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L108" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Custom Axon layer with given parent.</p><p>Applies <code class="inline">op</code> on <code class="inline">parent</code> with parameters <code class="inline">parameters</code>. <code class="inline">parameters</code>
+is a map of trainable <code class="inline">parameters</code> created using <code class="inline">Axon.param</code>. Assumes
+<code class="inline">op</code> is a function of the following form:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="6884130717-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="6884130717-1">end</span></code></pre><p>If <code class="inline">opts</code> is not empty, it is treated as input options to the layer
+method:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="1151916797-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="1151916797-1">end</span></code></pre><p>Parameters are accessed using the same key referenced in the <code class="inline">parameters</code>
+map passed to <code class="inline">Axon.layer</code>:</p><pre><code class="makeup elixir"><span class="n">w1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="2602234213-1">(</span><span class="s">&quot;weight&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2602234213-2">{</span><span class="p" data-group-id="2602234213-2">}</span><span class="p" data-group-id="2602234213-1">)</span><span class="w">
+</span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="2602234213-3">(</span><span class="s">&quot;bias&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2602234213-4">{</span><span class="p" data-group-id="2602234213-4">}</span><span class="p" data-group-id="2602234213-3">)</span><span class="w">
+
+</span><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="2602234213-5">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="2602234213-6">[</span><span class="s">&quot;weight&quot;</span><span class="p" data-group-id="2602234213-6">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="2602234213-7">[</span><span class="s">&quot;bias&quot;</span><span class="p" data-group-id="2602234213-7">]</span><span class="w"> </span><span class="k" data-group-id="2602234213-5">end</span><span class="w">
+
+</span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer</span><span class="p" data-group-id="2602234213-8">(</span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2602234213-9">{</span><span class="p" data-group-id="2602234213-9">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2602234213-10">%{</span><span class="s">&quot;weight&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">b1</span><span class="p" data-group-id="2602234213-10">}</span><span class="p" data-group-id="2602234213-8">)</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="nx/3">
+
+    <span id="nx/2"></span>
+
+  <div class="detail-header">
+    <a href="#nx/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">nx(x, fun, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1111" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Applies the given <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inline">Nx</code></a> expression to the input.</p><h2 id="nx/3-options" class="section-heading">
+  <a href="#nx/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-activation" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-activation">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Activation
+          </h1>
+          <div class="layers-activation-list">
+<section class="detail" id="activation/3">
+
+    <span id="activation/2"></span>
+
+  <div class="detail-header">
+    <a href="#activation/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">activation(x, activation, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L811" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an activation layer to the network.</p><p>Activation layers are element-wise functions typically called
+after the output of another layer.</p><h2 id="activation/3-options" class="section-heading">
+  <a href="#activation/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="celu/2">
+
+    <span id="celu/1"></span>
+
+  <div class="detail-header">
+    <a href="#celu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">celu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Continuously-differentiable exponential linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#celu/1"><code class="inline">Axon.Activations.celu/1</code></a> for more details.</p><h2 id="celu/2-options" class="section-heading">
+  <a href="#celu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="elu/2">
+
+    <span id="elu/1"></span>
+
+  <div class="detail-header">
+    <a href="#elu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">elu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Exponential linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#elu/1"><code class="inline">Axon.Activations.elu/1</code></a> for more details.</p><h2 id="elu/2-options" class="section-heading">
+  <a href="#elu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="exp/2">
+
+    <span id="exp/1"></span>
+
+  <div class="detail-header">
+    <a href="#exp/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">exp(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Exponential activation layer to the network.</p><p>See <a href="Axon.Activations.html#exp/1"><code class="inline">Axon.Activations.exp/1</code></a> for more details.</p><h2 id="exp/2-options" class="section-heading">
+  <a href="#exp/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="gelu/2">
+
+    <span id="gelu/1"></span>
+
+  <div class="detail-header">
+    <a href="#gelu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">gelu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Gaussian error linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#gelu/1"><code class="inline">Axon.Activations.gelu/1</code></a> for more details.</p><h2 id="gelu/2-options" class="section-heading">
+  <a href="#gelu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="hard_sigmoid/2">
+
+    <span id="hard_sigmoid/1"></span>
+
+  <div class="detail-header">
+    <a href="#hard_sigmoid/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">hard_sigmoid(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Hard sigmoid activation layer to the network.</p><p>See <a href="Axon.Activations.html#hard_sigmoid/1"><code class="inline">Axon.Activations.hard_sigmoid/1</code></a> for more details.</p><h2 id="hard_sigmoid/2-options" class="section-heading">
+  <a href="#hard_sigmoid/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="hard_silu/2">
+
+    <span id="hard_silu/1"></span>
+
+  <div class="detail-header">
+    <a href="#hard_silu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">hard_silu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Hard sigmoid weighted linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#hard_silu/1"><code class="inline">Axon.Activations.hard_silu/1</code></a> for more details.</p><h2 id="hard_silu/2-options" class="section-heading">
+  <a href="#hard_silu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="hard_tanh/2">
+
+    <span id="hard_tanh/1"></span>
+
+  <div class="detail-header">
+    <a href="#hard_tanh/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">hard_tanh(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Hard hyperbolic tangent activation layer to the network.</p><p>See <a href="Axon.Activations.html#hard_tanh/1"><code class="inline">Axon.Activations.hard_tanh/1</code></a> for more details.</p><h2 id="hard_tanh/2-options" class="section-heading">
+  <a href="#hard_tanh/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="leaky_relu/2">
+
+    <span id="leaky_relu/1"></span>
+
+  <div class="detail-header">
+    <a href="#leaky_relu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">leaky_relu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Leaky rectified linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#leaky_relu/1"><code class="inline">Axon.Activations.leaky_relu/1</code></a> for more details.</p><h2 id="leaky_relu/2-options" class="section-heading">
+  <a href="#leaky_relu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="linear/2">
+
+    <span id="linear/1"></span>
+
+  <div class="detail-header">
+    <a href="#linear/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">linear(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Linear activation layer to the network.</p><p>See <a href="Axon.Activations.html#linear/1"><code class="inline">Axon.Activations.linear/1</code></a> for more details.</p><h2 id="linear/2-options" class="section-heading">
+  <a href="#linear/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="log_sigmoid/2">
+
+    <span id="log_sigmoid/1"></span>
+
+  <div class="detail-header">
+    <a href="#log_sigmoid/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">log_sigmoid(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Log-sigmoid activation layer to the network.</p><p>See <a href="Axon.Activations.html#log_sigmoid/1"><code class="inline">Axon.Activations.log_sigmoid/1</code></a> for more details.</p><h2 id="log_sigmoid/2-options" class="section-heading">
+  <a href="#log_sigmoid/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="mish/2">
+
+    <span id="mish/1"></span>
+
+  <div class="detail-header">
+    <a href="#mish/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">mish(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Mish activation layer to the network.</p><p>See <a href="Axon.Activations.html#mish/1"><code class="inline">Axon.Activations.mish/1</code></a> for more details.</p><h2 id="mish/2-options" class="section-heading">
+  <a href="#mish/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="relu/2">
+
+    <span id="relu/1"></span>
+
+  <div class="detail-header">
+    <a href="#relu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">relu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Rectified linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#relu/1"><code class="inline">Axon.Activations.relu/1</code></a> for more details.</p><h2 id="relu/2-options" class="section-heading">
+  <a href="#relu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="relu6/2">
+
+    <span id="relu6/1"></span>
+
+  <div class="detail-header">
+    <a href="#relu6/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">relu6(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Rectified linear unit 6 activation layer to the network.</p><p>See <a href="Axon.Activations.html#relu6/1"><code class="inline">Axon.Activations.relu6/1</code></a> for more details.</p><h2 id="relu6/2-options" class="section-heading">
+  <a href="#relu6/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="selu/2">
+
+    <span id="selu/1"></span>
+
+  <div class="detail-header">
+    <a href="#selu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">selu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Scaled exponential linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#selu/1"><code class="inline">Axon.Activations.selu/1</code></a> for more details.</p><h2 id="selu/2-options" class="section-heading">
+  <a href="#selu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="sigmoid/2">
+
+    <span id="sigmoid/1"></span>
+
+  <div class="detail-header">
+    <a href="#sigmoid/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">sigmoid(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Sigmoid activation layer to the network.</p><p>See <a href="Axon.Activations.html#sigmoid/1"><code class="inline">Axon.Activations.sigmoid/1</code></a> for more details.</p><h2 id="sigmoid/2-options" class="section-heading">
+  <a href="#sigmoid/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="silu/2">
+
+    <span id="silu/1"></span>
+
+  <div class="detail-header">
+    <a href="#silu/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">silu(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Sigmoid weighted linear unit activation layer to the network.</p><p>See <a href="Axon.Activations.html#silu/1"><code class="inline">Axon.Activations.silu/1</code></a> for more details.</p><h2 id="silu/2-options" class="section-heading">
+  <a href="#silu/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="softmax/2">
+
+    <span id="softmax/1"></span>
+
+  <div class="detail-header">
+    <a href="#softmax/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">softmax(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Softmax activation layer to the network.</p><p>See <a href="Axon.Activations.html#softmax/1"><code class="inline">Axon.Activations.softmax/1</code></a> for more details.</p><h2 id="softmax/2-options" class="section-heading">
+  <a href="#softmax/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="softplus/2">
+
+    <span id="softplus/1"></span>
+
+  <div class="detail-header">
+    <a href="#softplus/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">softplus(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Softplus activation layer to the network.</p><p>See <a href="Axon.Activations.html#softplus/1"><code class="inline">Axon.Activations.softplus/1</code></a> for more details.</p><h2 id="softplus/2-options" class="section-heading">
+  <a href="#softplus/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="softsign/2">
+
+    <span id="softsign/1"></span>
+
+  <div class="detail-header">
+    <a href="#softsign/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">softsign(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Softsign activation layer to the network.</p><p>See <a href="Axon.Activations.html#softsign/1"><code class="inline">Axon.Activations.softsign/1</code></a> for more details.</p><h2 id="softsign/2-options" class="section-heading">
+  <a href="#softsign/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="tanh/2">
+
+    <span id="tanh/1"></span>
+
+  <div class="detail-header">
+    <a href="#tanh/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">tanh(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L837" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Hyperbolic tangent activation layer to the network.</p><p>See <a href="Axon.Activations.html#tanh/1"><code class="inline">Axon.Activations.tanh/1</code></a> for more details.</p><h2 id="tanh/2-options" class="section-heading">
+  <a href="#tanh/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-linear" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-linear">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Linear
+          </h1>
+          <div class="layers-linear-list">
+<section class="detail" id="dense/3">
+
+    <span id="dense/2"></span>
+
+  <div class="detail-header">
+    <a href="#dense/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dense(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L238" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a dense layer to the network.</p><p>The dense layer implements:</p><pre><code class="makeup elixir"><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activation</span><span class="p" data-group-id="1849591354-1">(</span><span class="n">dot</span><span class="p" data-group-id="1849591354-2">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p" data-group-id="1849591354-2">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="1849591354-1">)</span></code></pre><p>where <code class="inline">activation</code> is given by the <code class="inline">:activation</code> option and both
+<code class="inline">kernel</code> and <code class="inline">bias</code> are layer parameters. <code class="inline">units</code> specifies the
+number of output units.</p><p>Compiles to <a href="Axon.Layers.html#dense/3"><code class="inline">Axon.Layers.dense/3</code></a>.</p><h2 id="dense/3-options" class="section-heading">
+  <a href="#dense/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-convolution" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-convolution">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Convolution
+          </h1>
+          <div class="layers-convolution-list">
+<section class="detail" id="conv/3">
+
+    <span id="conv/2"></span>
+
+  <div class="detail-header">
+    <a href="#conv/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">conv(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L302" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a convolution layer to the network.</p><p>The convolution layer implements a general dimensional
+convolutional layer - which convolves a kernel over the input
+to produce an output.</p><p>Compiles to <a href="Axon.Layers.html#conv/4"><code class="inline">Axon.Layers.conv/4</code></a>.</p><h2 id="conv/3-options" class="section-heading">
+  <a href="#conv/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li><li><code class="inline">kernel_size</code> - Size of the kernel spatial dimensions.</li><li><code class="inline">strides</code> - Stride during convolution.</li><li><code class="inline">padding</code> - Padding to the spatial dimensions of the input.</li><li><code class="inline">input_dilation</code> - Dilation to apply to input.</li><li><code class="inline">kernel_dilation</code> - Dilation to apply to kernel.</li></ul>
+  </section>
+</section>
+<section class="detail" id="conv_transpose/3">
+
+    <span id="conv_transpose/2"></span>
+
+  <div class="detail-header">
+    <a href="#conv_transpose/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">conv_transpose(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L391" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a transposed convolution layer to the network.</p><p>The tranposed convolution layer is sometimes referred to as a
+fractionally strided convolution or (incorrectly) as a deconvolution.</p><p>Compiles to <a href="Axon.Layers.html#conv_transpose/4"><code class="inline">Axon.Layers.conv_transpose/4</code></a>.</p><h2 id="conv_transpose/3-options" class="section-heading">
+  <a href="#conv_transpose/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li><li><code class="inline">kernel_size</code> - Size of the kernel spatial dimensions.</li><li><code class="inline">strides</code> - Stride during convolution.</li><li><code class="inline">padding</code> - Padding to the spatial dimensions of the input.</li><li><code class="inline">kernel_dilation</code> - Dilation to apply to kernel.</li></ul>
+  </section>
+</section>
+<section class="detail" id="depthwise_conv/3">
+
+    <span id="depthwise_conv/2"></span>
+
+  <div class="detail-header">
+    <a href="#depthwise_conv/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">depthwise_conv(x, channel_multiplier, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L483" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a depthwise convolution layer to the network.</p><p>The depthwise convolution layer implements a general
+dimensional depthwise convolution - which is a convolution
+where the feature group size is equal to the number of
+input channels.</p><p>Channel multiplier grows the input channels by the given
+factor. An input factor of 1 means the output channels
+are the same as the input channels.</p><p>Compiles to <code class="inline">Axon.Layers.depthwise_conv</code>/4.</p><h2 id="depthwise_conv/3-options" class="section-heading">
+  <a href="#depthwise_conv/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li><li><code class="inline">kernel_size</code> - Size of the kernel spatial dimensions.</li><li><code class="inline">strides</code> - Stride during convolution.</li><li><code class="inline">padding</code> - Padding to the spatial dimensions of the input.</li><li><code class="inline">input_dilation</code> - Dilation to apply to input.</li><li><code class="inline">kernel_dilation</code> - Dilation to apply to kernel.</li></ul>
+  </section>
+</section>
+<section class="detail" id="separable_conv2d/3">
+
+    <span id="separable_conv2d/2"></span>
+
+  <div class="detail-header">
+    <a href="#separable_conv2d/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">separable_conv2d(x, channel_multiplier, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L576" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a depthwise separable 2-dimensional convolution to the
+network.</p><p>Depthwise separable convolutions break the kernel into kernels
+for each dimension of the input and perform a depthwise conv
+over the input with each kernel.</p><p>Compiles to <a href="Axon.Layers.html#separable_conv2d/6"><code class="inline">Axon.Layers.separable_conv2d/6</code></a>.</p><h2 id="separable_conv2d/3-options" class="section-heading">
+  <a href="#separable_conv2d/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li><li><code class="inline">kernel_size</code> - Size of the kernel spatial dimensions.</li><li><code class="inline">strides</code> - Stride during convolution.</li><li><code class="inline">padding</code> - Padding to the spatial dimensions of the input.</li><li><code class="inline">input_dilation</code> - Dilation to apply to input.</li><li><code class="inline">kernel_dilation</code> - Dilation to apply to kernel.</li></ul>
+  </section>
+</section>
+<section class="detail" id="separable_conv3d/3">
+
+    <span id="separable_conv3d/2"></span>
+
+  <div class="detail-header">
+    <a href="#separable_conv3d/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">separable_conv3d(x, channel_multiplier, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L683" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a depthwise separable 3-dimensional convolution to the
+network.</p><p>Depthwise separable convolutions break the kernel into kernels
+for each dimension of the input and perform a depthwise conv
+over the input with each kernel.</p><p>Compiles to <a href="Axon.Layers.html#separable_conv3d/8"><code class="inline">Axon.Layers.separable_conv3d/8</code></a>.</p><h2 id="separable_conv3d/3-options" class="section-heading">
+  <a href="#separable_conv3d/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li><li><code class="inline">kernel_initializer</code> - Initializer for <code class="inline">kernel</code> weights.</li><li><code class="inline">bias_initializer</code> - Initializer for <code class="inline">bias</code> weights.</li><li><code class="inline">activation</code> - Element-wise activation function.</li><li><code class="inline">kernel_size</code> - Size of the kernel spatial dimensions.</li><li><code class="inline">strides</code> - Stride during convolution.</li><li><code class="inline">padding</code> - Padding to the spatial dimensions of the input.</li><li><code class="inline">input_dilation</code> - Dilation to apply to input.</li><li><code class="inline">kernel_dilation</code> - Dilation to apply to kernel.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-dropout" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-dropout">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Dropout
+          </h1>
+          <div class="layers-dropout-list">
+<section class="detail" id="alpha_dropout/2">
+
+    <span id="alpha_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#alpha_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">alpha_dropout(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L864" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Alpha dropout layer to the network.</p><p>See <a href="Axon.Layers.html#alpha_dropout/2"><code class="inline">Axon.Layers.alpha_dropout/2</code></a> for more details.</p><h2 id="alpha_dropout/2-options" class="section-heading">
+  <a href="#alpha_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:rate</code> - Dropout rate.</li></ul>
+  </section>
+</section>
+<section class="detail" id="dropout/2">
+
+    <span id="dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dropout(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L864" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Dropout layer to the network.</p><p>See <a href="Axon.Layers.html#dropout/2"><code class="inline">Axon.Layers.dropout/2</code></a> for more details.</p><h2 id="dropout/2-options" class="section-heading">
+  <a href="#dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:rate</code> - Dropout rate.</li></ul>
+  </section>
+</section>
+<section class="detail" id="feature_alpha_dropout/2">
+
+    <span id="feature_alpha_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#feature_alpha_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">feature_alpha_dropout(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L864" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Feature alpha dropout layer to the network.</p><p>See <a href="Axon.Layers.html#feature_alpha_dropout/2"><code class="inline">Axon.Layers.feature_alpha_dropout/2</code></a> for more details.</p><h2 id="feature_alpha_dropout/2-options" class="section-heading">
+  <a href="#feature_alpha_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:rate</code> - Dropout rate.</li></ul>
+  </section>
+</section>
+<section class="detail" id="spatial_dropout/2">
+
+    <span id="spatial_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#spatial_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">spatial_dropout(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L864" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Spatial dropout layer to the network.</p><p>See <a href="Axon.Layers.html#spatial_dropout/2"><code class="inline">Axon.Layers.spatial_dropout/2</code></a> for more details.</p><h2 id="spatial_dropout/2-options" class="section-heading">
+  <a href="#spatial_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:rate</code> - Dropout rate.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-pooling" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-pooling">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Pooling
+          </h1>
+          <div class="layers-pooling-list">
+<section class="detail" id="adaptive_avg_pool/2">
+
+    <span id="adaptive_avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#adaptive_avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">adaptive_avg_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L938" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Adaptive average pool layer to the network.</p><p>See <a href="Axon.Layers.html#adaptive_avg_pool/2"><code class="inline">Axon.Layers.adaptive_avg_pool/2</code></a> for more details.</p><h2 id="adaptive_avg_pool/2-options" class="section-heading">
+  <a href="#adaptive_avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:output_size</code> - Layer output size.</li></ul>
+  </section>
+</section>
+<section class="detail" id="adaptive_max_pool/2">
+
+    <span id="adaptive_max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#adaptive_max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">adaptive_max_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L938" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Adaptive max pool layer to the network.</p><p>See <a href="Axon.Layers.html#adaptive_max_pool/2"><code class="inline">Axon.Layers.adaptive_max_pool/2</code></a> for more details.</p><h2 id="adaptive_max_pool/2-options" class="section-heading">
+  <a href="#adaptive_max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:output_size</code> - Layer output size.</li></ul>
+  </section>
+</section>
+<section class="detail" id="avg_pool/2">
+
+    <span id="avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">avg_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L896" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Average pool layer to the network.</p><p>See <a href="Axon.Layers.html#avg_pool/2"><code class="inline">Axon.Layers.avg_pool/2</code></a> for more details.</p><h2 id="avg_pool/2-options" class="section-heading">
+  <a href="#avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:kernel_size</code> - Pooling kernel size.</li><li><code class="inline">:strides</code> - Pooling strides.</li></ul>
+  </section>
+</section>
+<section class="detail" id="global_avg_pool/2">
+
+    <span id="global_avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_avg_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L986" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Global average pool layer to the network.</p><p>See <a href="Axon.Layers.html#global_avg_pool/2"><code class="inline">Axon.Layers.global_avg_pool/2</code></a> for more details.</p><p>Typically used to connect feature extractors such as those in convolutional
+neural networks to fully-connected models by reducing inputs along spatial
+dimensions to only feature and batch dimensions.</p><h2 id="global_avg_pool/2-options" class="section-heading">
+  <a href="#global_avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:keep_axes</code> - Option to keep reduced axes. If <code class="inline">true</code>, keeps reduced axes
+with a dimension size of 1.</li></ul>
+  </section>
+</section>
+<section class="detail" id="global_lp_pool/2">
+
+    <span id="global_lp_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_lp_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_lp_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L986" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Global LP pool layer to the network.</p><p>See <a href="Axon.Layers.html#global_lp_pool/2"><code class="inline">Axon.Layers.global_lp_pool/2</code></a> for more details.</p><p>Typically used to connect feature extractors such as those in convolutional
+neural networks to fully-connected models by reducing inputs along spatial
+dimensions to only feature and batch dimensions.</p><h2 id="global_lp_pool/2-options" class="section-heading">
+  <a href="#global_lp_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:keep_axes</code> - Option to keep reduced axes. If <code class="inline">true</code>, keeps reduced axes
+with a dimension size of 1.</li></ul>
+  </section>
+</section>
+<section class="detail" id="global_max_pool/2">
+
+    <span id="global_max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_max_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L986" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Global max pool layer to the network.</p><p>See <a href="Axon.Layers.html#global_max_pool/2"><code class="inline">Axon.Layers.global_max_pool/2</code></a> for more details.</p><p>Typically used to connect feature extractors such as those in convolutional
+neural networks to fully-connected models by reducing inputs along spatial
+dimensions to only feature and batch dimensions.</p><h2 id="global_max_pool/2-options" class="section-heading">
+  <a href="#global_max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:keep_axes</code> - Option to keep reduced axes. If <code class="inline">true</code>, keeps reduced axes
+with a dimension size of 1.</li></ul>
+  </section>
+</section>
+<section class="detail" id="lp_pool/2">
+
+    <span id="lp_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#lp_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">lp_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L896" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Power average pool layer to the network.</p><p>See <a href="Axon.Layers.html#lp_pool/2"><code class="inline">Axon.Layers.lp_pool/2</code></a> for more details.</p><h2 id="lp_pool/2-options" class="section-heading">
+  <a href="#lp_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:kernel_size</code> - Pooling kernel size.</li><li><code class="inline">:strides</code> - Pooling strides.</li></ul>
+  </section>
+</section>
+<section class="detail" id="max_pool/2">
+
+    <span id="max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">max_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L896" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Max pool layer to the network.</p><p>See <a href="Axon.Layers.html#max_pool/2"><code class="inline">Axon.Layers.max_pool/2</code></a> for more details.</p><h2 id="max_pool/2-options" class="section-heading">
+  <a href="#max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:kernel_size</code> - Pooling kernel size.</li><li><code class="inline">:strides</code> - Pooling strides.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-normalization" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-normalization">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Normalization
+          </h1>
+          <div class="layers-normalization-list">
+<section class="detail" id="batch_norm/2">
+
+    <span id="batch_norm/1"></span>
+
+  <div class="detail-header">
+    <a href="#batch_norm/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">batch_norm(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1033" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Batch normalization layer to the network.</p><p>See <a href="Axon.Layers.html#batch_norm/4"><code class="inline">Axon.Layers.batch_norm/4</code></a> for more details.</p><h2 id="batch_norm/2-options" class="section-heading">
+  <a href="#batch_norm/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:gamma_initializer</code> - Gamma parameter initializer.</li><li><code class="inline">:beta_initializer</code> - Beta parameter initializer.</li><li><code class="inline">:channel_index</code> - Input feature index used for calculating
+mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stability term.</li></ul>
+  </section>
+</section>
+<section class="detail" id="group_norm/3">
+
+    <span id="group_norm/2"></span>
+
+  <div class="detail-header">
+    <a href="#group_norm/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">group_norm(x, group_size, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1077" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a group normalization layer to the network.</p><p>See <a href="Axon.Layers.html#group_norm/4"><code class="inline">Axon.Layers.group_norm/4</code></a> for more details.</p><h2 id="group_norm/3-options" class="section-heading">
+  <a href="#group_norm/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:gamma_initializer</code> - Gamma parameter initializer.</li><li><code class="inline">:beta_initializer</code> - Beta parameter initializer.</li><li><code class="inline">:channel_index</code> - Input feature index used for calculating
+mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stability term.</li></ul>
+  </section>
+</section>
+<section class="detail" id="instance_norm/2">
+
+    <span id="instance_norm/1"></span>
+
+  <div class="detail-header">
+    <a href="#instance_norm/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">instance_norm(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1033" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an Instance normalization layer to the network.</p><p>See <a href="Axon.Layers.html#instance_norm/4"><code class="inline">Axon.Layers.instance_norm/4</code></a> for more details.</p><h2 id="instance_norm/2-options" class="section-heading">
+  <a href="#instance_norm/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:gamma_initializer</code> - Gamma parameter initializer.</li><li><code class="inline">:beta_initializer</code> - Beta parameter initializer.</li><li><code class="inline">:channel_index</code> - Input feature index used for calculating
+mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stability term.</li></ul>
+  </section>
+</section>
+<section class="detail" id="layer_norm/2">
+
+    <span id="layer_norm/1"></span>
+
+  <div class="detail-header">
+    <a href="#layer_norm/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">layer_norm(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1033" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Layer normalization layer to the network.</p><p>See <a href="Axon.Layers.html#layer_norm/4"><code class="inline">Axon.Layers.layer_norm/4</code></a> for more details.</p><h2 id="layer_norm/2-options" class="section-heading">
+  <a href="#layer_norm/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:gamma_initializer</code> - Gamma parameter initializer.</li><li><code class="inline">:beta_initializer</code> - Beta parameter initializer.</li><li><code class="inline">:channel_index</code> - Input feature index used for calculating
+mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stability term.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-recurrent" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-recurrent">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Recurrent
+          </h1>
+          <div class="layers-recurrent-list">
+<section class="detail" id="conv_lstm/3">
+
+    <span id="conv_lstm/2"></span>
+
+  <div class="detail-header">
+    <a href="#conv_lstm/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">conv_lstm(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1521" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a convolutional long short-term memory (LSTM) layer to the network.</p><p>ConvLSTMs apply <a href="Axon.Recurrent.html#conv_lstm_cell/5"><code class="inline">Axon.Recurrent.conv_lstm_cell/5</code></a> over an entire input
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="7754070530-1">{</span><span class="p" data-group-id="7754070530-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="7754070530-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="7754070530-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="conv_lstm/3-options" class="section-heading">
+  <a href="#conv_lstm/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:padding</code> - convolutional padding. Defaults to <code class="inline">:same</code>.</li><li><code class="inline">:kernel_size</code> - convolutional kernel size. Defaults to <code class="inline">1</code>.</li><li><code class="inline">:strides</code> - convolutional strides. Defaults to <code class="inline">1</code>.</li><li><code class="inline">:hidden_state</code> - initial hidden state. Defaults to <code class="inline">nil</code>.</li><li><code class="inline">:unroll</code> - <code class="inline">:dynamic</code> (loop preserving) or <code class="inline">:static</code> (compiled)
+unrolling of RNN.</li></ul>
+  </section>
+</section>
+<section class="detail" id="gru/3">
+
+    <span id="gru/2"></span>
+
+  <div class="detail-header">
+    <a href="#gru/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">gru(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1422" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a gated recurrent unit (GRU) layer to the network.</p><p>GRUs apply <a href="Axon.Recurrent.html#gru_cell/7"><code class="inline">Axon.Recurrent.gru_cell/7</code></a> over an entire input
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="0453390190-1">{</span><span class="p" data-group-id="0453390190-2">{</span><span class="n">new_hidden</span><span class="p" data-group-id="0453390190-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="0453390190-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="gru/3-options" class="section-heading">
+  <a href="#gru/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:activation</code> - recurrent activation. Defaults to <code class="inline">:tanh</code>.</li><li><code class="inline">:gate</code> - recurrent gate function. Defaults to <code class="inline">:sigmoid</code>.</li><li><code class="inline">:hidden_state</code> - initial hidden state. Defaults to <code class="inline">nil</code>.</li><li><code class="inline">:unroll</code> - <code class="inline">:dynamic</code> (loop preserving) or <code class="inline">:static</code> (compiled)
+unrolling of RNN.</li></ul>
+  </section>
+</section>
+<section class="detail" id="lstm/3">
+
+    <span id="lstm/2"></span>
+
+  <div class="detail-header">
+    <a href="#lstm/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">lstm(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1314" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a long short-term memory (LSTM) layer to the network.</p><p>LSTMs apply <a href="Axon.Recurrent.html#lstm_cell/7"><code class="inline">Axon.Recurrent.lstm_cell/7</code></a> over an entire input
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="6915315439-1">{</span><span class="p" data-group-id="6915315439-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="6915315439-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="6915315439-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="lstm/3-options" class="section-heading">
+  <a href="#lstm/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:activation</code> - recurrent activation. Defaults to <code class="inline">:tanh</code>.</li><li><code class="inline">:gate</code> - recurrent gate function. Defaults to <code class="inline">:sigmoid</code>.</li><li><code class="inline">:hidden_state</code> - initial hidden state. Defaults to <code class="inline">nil</code>.</li><li><code class="inline">:unroll</code> - <code class="inline">:dynamic</code> (loop preserving) or <code class="inline">:static</code> (compiled)
+unrolling of RNN.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-composition" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-composition">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Composition
+          </h1>
+          <div class="layers-composition-list">
+<section class="detail" id="add/3">
+
+  <div class="detail-header">
+    <a href="#add/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">add(x, y, opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1254" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a add layer to the network.</p><p>This layer performs an element-wise add operation
+on input layers. All input layers must be the same shape.</p><h2 id="add/3-options" class="section-heading">
+  <a href="#add/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="concatenate/3">
+
+  <div class="detail-header">
+    <a href="#concatenate/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">concatenate(x, y, opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1215" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a concatenate layer to the network.</p><p>This layer will concatenate inputs along the last
+dimension unless specified otherwise.</p><h2 id="concatenate/3-options" class="section-heading">
+  <a href="#concatenate/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li><li><code class="inline">:axis</code> - Concatenate axis.</li></ul>
+  </section>
+</section>
+<section class="detail" id="multiply/3">
+
+  <div class="detail-header">
+    <a href="#multiply/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">multiply(x, y, opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1254" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a multiply layer to the network.</p><p>This layer performs an element-wise multiply operation
+on input layers. All input layers must be the same shape.</p><h2 id="multiply/3-options" class="section-heading">
+  <a href="#multiply/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="subtract/3">
+
+  <div class="detail-header">
+    <a href="#subtract/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">subtract(x, y, opts)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1254" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a subtract layer to the network.</p><p>This layer performs an element-wise subtract operation
+on input layers. All input layers must be the same shape.</p><h2 id="subtract/3-options" class="section-heading">
+  <a href="#subtract/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-shape" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-shape">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Shape
+          </h1>
+          <div class="layers-shape-list">
+<section class="detail" id="flatten/2">
+
+    <span id="flatten/1"></span>
+
+  <div class="detail-header">
+    <a href="#flatten/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">flatten(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1137" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a flatten layer to the network.</p><p>This layer will flatten all but the batch dimensions
+of the input into a single layer. Typically called to flatten
+the output of a convolution for use with a dense layer.</p><h2 id="flatten/2-options" class="section-heading">
+  <a href="#flatten/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="pad/4">
+
+    <span id="pad/2"></span>
+
+    <span id="pad/3"></span>
+
+  <div class="detail-header">
+    <a href="#pad/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">pad(x, config, value \\ 0.0, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1196" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a pad layer to the network.</p><p>This layer will pad the spatial dimensions of the input.
+Padding configuration is a list of tuples for each spatial
+dimension.</p><h2 id="pad/4-options" class="section-heading">
+  <a href="#pad/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="reshape/3">
+
+    <span id="reshape/2"></span>
+
+  <div class="detail-header">
+    <a href="#reshape/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">reshape(x, new_shape, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1158" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a reshape layer to the network.</p><p>This layer implements a special case of <code class="inline">Nx.reshape</code> which accounts
+for possible batch dimensions in the input tensor. If the input contains
+batch dimensions, the reshape operation is performed on all non-batch
+dimensions of the input - preserving the original batch size.</p><p>If the input is an Axon constant, the reshape behavior matches that of
+<code class="inline">Nx.reshape</code>.</p><h2 id="reshape/3-options" class="section-heading">
+  <a href="#reshape/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+<section class="detail" id="transpose/3">
+
+    <span id="transpose/2"></span>
+
+  <div class="detail-header">
+    <a href="#transpose/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">transpose(x, permutation, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1174" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a transpose layer to the network.</p><p>This layer will transpose non-batch dimensions of the input.</p><h2 id="transpose/3-options" class="section-heading">
+  <a href="#transpose/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:name</code> - Layer name.</li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="model-compilation" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#model-compilation">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Model: Compilation
+          </h1>
+          <div class="model-compilation-list">
+<section class="detail" id="compile/1">
+
+  <div class="detail-header">
+    <a href="#compile/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">compile(model)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1704" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Compiles the given model to <code class="inline">{init_fn, predict_fn}</code>.</p>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="model-execution" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#model-execution">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Model: Execution
+          </h1>
+          <div class="model-execution-list">
+<section class="detail" id="init/2">
+
+    <span id="init/1"></span>
+
+  <div class="detail-header">
+    <a href="#init/2" class="detail-link" title="Link to this macro">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature">init(model, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1713" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Compiles and runs the given models initialization function
+with the given compiler options.</p>
+  </section>
+</section>
+<section class="detail" id="penalty/3">
+
+    <span id="penalty/2"></span>
+
+  <div class="detail-header">
+    <a href="#penalty/3" class="detail-link" title="Link to this macro">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature">penalty(model, params, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1731" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Compiles and runs the given Axon model's penalty function
+on <code class="inline">params</code> with the given compiler options.</p>
+  </section>
+</section>
+<section class="detail" id="predict/4">
+
+    <span id="predict/3"></span>
+
+  <div class="detail-header">
+    <a href="#predict/4" class="detail-link" title="Link to this macro">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature">predict(model, params, input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1722" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Compiles and runs the given Axon model with <code class="inline">params</code> on
+<code class="inline">input</code> with the given compiler options.</p>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions
+          </h1>
+          <div class="functions-list">
+<section class="detail" id="embedding/4">
+
+    <span id="embedding/3"></span>
+
+  <div class="detail-header">
+    <a href="#embedding/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">embedding(x, vocab_size, embedding_size, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1576" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds an embedding layer to the network.</p><p>An embedding layer initializes a kernel of shape <code class="inline">{vocab_size, embedding_size}</code>
+which acts as a lookup table for sequences of discrete tokens (e.g. sentences).
+Embeddings are typically used to obtain a dense representation of a sparse input
+space.</p>
+  </section>
+</section>
+<section class="detail" id="freeze/2">
+
+    <span id="freeze/1"></span>
+
+  <div class="detail-header">
+    <a href="#freeze/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">freeze(model, fun \\ &amp;(&amp;1))</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1620" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Freezes parameters returned from <code class="inline">fun</code> in the given
+model. <code class="inline">fun</code> takes the model's parameter list and returns
+the list of parameters it wishes to freeze. <code class="inline">fun</code> defaults
+to the identity function, freezing all of the parameters in
+<code class="inline">model</code>.</p><p>Freezing parameters is useful when performing transfer learning
+to leverage features learned from another problem in a new problem.
+For example, it's common to combine the convolutional base from
+larger models trained on ImageNet with fresh fully-connected classifiers.
+The combined model is then trained on fresh data, with the convolutional
+base frozen so as not to lose information. You can see this example in code
+here:</p><pre><code class="makeup elixir"><span class="n">cnn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_pretrained_cnn_base</span><span class="p" data-group-id="1006194449-1">(</span><span class="p" data-group-id="1006194449-1">)</span><span class="w">
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">cnn_base</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">freeze</span><span class="p" data-group-id="1006194449-2">(</span><span class="p" data-group-id="1006194449-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="1006194449-3">(</span><span class="p" data-group-id="1006194449-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1006194449-4">(</span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="1006194449-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="1006194449-5">(</span><span class="p" data-group-id="1006194449-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1006194449-6">(</span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="1006194449-6">)</span><span class="w">
+
+</span><span class="n">model</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Training</span><span class="o">.</span><span class="n">step</span><span class="p" data-group-id="1006194449-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="1006194449-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="1006194449-8">)</span><span class="p" data-group-id="1006194449-7">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Training</span><span class="o">.</span><span class="n">train</span><span class="p" data-group-id="1006194449-9">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="1006194449-9">)</span></code></pre><p>When compiled, frozen parameters are wrapped in <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.Defn.Kernel.html#stop_grad/1"><code class="inline">Nx.Defn.Kernel.stop_grad/1</code></a>,
+which zeros out the gradient with respect to the frozen parameter. Gradients
+of frozen parameters will return <code class="inline">0.0</code>, meaning they won't be changed during
+the update process.</p>
+  </section>
+</section>
+<section class="detail" id="param/3">
+
+    <span id="param/2"></span>
+
+  <div class="detail-header">
+    <a href="#param/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">param(name, shape, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L148" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Trainable Axon parameter used to create custom layers.</p><p>Parameters are specified in usages of <code class="inline">Axon.layer</code> and will
+be automatically initialized and used in subsequent applications
+of Axon models.</p><p>Parameters <em>must</em> be specified in order of their usage.</p><h2 id="param/3-options" class="section-heading">
+  <a href="#param/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">initializer</code> - parameter initializer. Defaults to <code class="inline">:glorot_uniform</code>.</li><li><code class="inline">:regularizer</code> - parameter regularizer. Defaults to <code class="inline">:none</code>.</li></ul>
+  </section>
+</section>
+<section class="detail" id="tree_map/2">
+
+  <div class="detail-header">
+    <a href="#tree_map/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">tree_map(axon, fun)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1650" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Traverses a model tree applying <code class="inline">fun</code> to each layer.</p>
+  </section>
+</section>
+<section class="detail" id="tree_reduce/3">
+
+  <div class="detail-header">
+    <a href="#tree_reduce/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">tree_reduce(axon, acc, fun)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1678" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Traverses a model applying <code class="inline">fun</code> with an accumulator.</p>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+      <footer class="footer">
+        <p>
+          <span class="line">
+            Built using
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.1) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+          </span>
+          <span class="line">
+            Designed by
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+        </p>
+        <p>
+
+            <a href="api-reference.html" title="API reference" class="line footer-button">API Reference</a>
+
+          <button class="line footer-button display-shortcuts-help">
+            Display keyboard shortcuts
+          </button>
+          <button class="line footer-button night-mode-toggle">
+            Toggle night mode
+          </button>
+          <button class="line footer-button display-quick-switch">
+            Go to a HexDocs package
+          </button>
+          <button class="line footer-button tooltips-toggle">
+            <span class="tooltips-option-disable">Disable tooltips</span>
+            <span class="tooltips-option-enable">Enable tooltips</span>
+          </button>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+  </body>
+</html>

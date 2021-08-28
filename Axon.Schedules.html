@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.25.1">
+    <meta name="project" content="Axon v0.1.0-dev">
+
+    <title>Axon.Schedules — Axon v0.1.0-dev</title>
+    <link rel="stylesheet" href="dist/elixir-a172fe91e725dcb259e2.css" />
+
+    <script src="dist/sidebar_items-ffc5c9fdfe.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-f27ff079945e43879c46.js"></script>
+
+
+  </head>
+  <body data-type="modules">
+    <script>
+
+      try {
+        if (localStorage.getItem('night-mode') === 'true') {
+          document.body.classList.add('night-mode');
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+<button class="sidebar-button sidebar-toggle">
+  <span class="icon-menu" title="Collapse/expand sidebar"></span>
+</button>
+
+<section class="sidebar">
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <span class="icon-search" aria-hidden="true" title="Submit search"></span>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <span class="icon-cross" aria-hidden="true" title="Cancel search"></span>
+    </button>
+    <label class="search-label">
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion">
+        v0.1.0-dev
+      </strong>
+    </div>
+
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+      <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+  </ul>
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+      <h1>
+Axon.Schedules <small class="app-vsn">(Axon v0.1.0-dev)</small>
+
+          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L1" title="View Source" class="view-source" rel="help">
+            <span class="icon-code" aria-hidden="true"></span>
+            <span class="sr-only">View Source</span>
+          </a>
+
+      </h1>
+
+
+        <section id="moduledoc">
+<p>Parameter Schedules.</p><p>Parameter schedules are often used to anneal hyperparameters
+such as the learning rate during the training process. Schedules
+provide a mapping from the current time step to a learning rate
+or another hyperparameter.</p><p>Choosing a good learning rate and consequently a good learning
+rate schedule is typically a process of trial and error. Learning
+rates should be relatively small such that the learning curve
+does not oscillate violently during the training process, but
+not so small that learning proceeds too slowly. Using a
+schedule slowly decreases oscillations during the training
+process such that, as the model converges, training also
+becomes more stable.</p><p>All of the functions in this module are implemented as
+numerical functions and can be JIT or AOT compiled with
+any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inline">Nx</code></a> compiler.</p>
+        </section>
+
+
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+            Summary
+          </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#constant/2">constant(arg1, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Constant schedule.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#cosine_decay/2">cosine_decay(step, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Cosine decay schedule.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#exponential_decay/2">exponential_decay(step, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Exponential decay schedule.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#polynomial_decay/2">polynomial_decay(step, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Polynomial schedule.</p></div>
+
+</div>
+
+  </div>
+
+        </section>
+
+
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions
+          </h1>
+          <div class="functions-list">
+<section class="detail" id="constant/2">
+
+    <span id="constant/1"></span>
+
+  <div class="detail-header">
+    <a href="#constant/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">constant(arg1, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Constant schedule.</p><p>$$\gamma(t) = \gamma_0$$</p><h2 id="constant/2-options" class="section-heading">
+  <a href="#constant/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$ in above formulation.
+Defaults to <code class="inline">1.0e-2</code></li></ul>
+  </section>
+</section>
+<section class="detail" id="cosine_decay/2">
+
+    <span id="cosine_decay/1"></span>
+
+  <div class="detail-header">
+    <a href="#cosine_decay/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">cosine_decay(step, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Cosine decay schedule.</p><p>$$\gamma(t) = \gamma_0 <em> (1 - \alpha)</em>(\frac{1}{2}(1 + \cos{\pi \frac{t}{k}})) + \alpha$$</p><h2 id="cosine_decay/2-options" class="section-heading">
+  <a href="#cosine_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$  in above formulation.
+Defaults to <code class="inline">1.0e-2</code></li><li><code class="inline">:decay_steps</code> - number of steps to apply decay for.
+$k$ in above formulation. Defaults to <code class="inline">10</code></li><li><code class="inline">:alpha</code> - minium value of multiplier adjusting learning rate.
+$\alpha$ in above formulation. Defaults to <code class="inline">0.0</code></li></ul><h2 id="cosine_decay/2-references" class="section-heading">
+  <a href="#cosine_decay/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx">SGDR: Stochastic Gradient Descent with Warm Restarts</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="exponential_decay/2">
+
+    <span id="exponential_decay/1"></span>
+
+  <div class="detail-header">
+    <a href="#exponential_decay/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">exponential_decay(step, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Exponential decay schedule.</p><p>$$\gamma(t) = \gamma_0 * r^{\frac{t}{k}}$$</p><h2 id="exponential_decay/2-options" class="section-heading">
+  <a href="#exponential_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:init_value</code> - inital value. $\gamma$ in above formulation.
+Defaults to <code class="inline">1.0e-2</code></li><li><code class="inline">:decay_rate</code> - rate of decay. $r$ in above formulation.
+Defaults to <code class="inline">0.95</code></li><li><code class="inline">:transition_steps</code> - steps per transition. $k$ in above
+formulation. Defaults to <code class="inline">10</code></li><li><code class="inline">:transition_begin</code> - step to begin transition. Defaults to <code class="inline">0</code></li><li><code class="inline">:staircase</code> - discretize outputs. Defaults to <code class="inline">false</code></li></ul>
+  </section>
+</section>
+<section class="detail" id="polynomial_decay/2">
+
+    <span id="polynomial_decay/1"></span>
+
+  <div class="detail-header">
+    <a href="#polynomial_decay/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">polynomial_decay(step, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Polynomial schedule.</p><p>$$\gamma(t) = (\gamma_0 - \gamma_n) * (1 - \frac{t}{k})^p$$</p><h2 id="polynomial_decay/2-options" class="section-heading">
+  <a href="#polynomial_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$ in above formulation.
+Defaults to <code class="inline">1.0e-2</code></li><li><code class="inline">:end_value</code> - end value of annealed scalar. $\gamma_n$ in above formulation.
+Defaults to <code class="inline">1.0e-3</code></li><li><code class="inline">:power</code> - power of polynomial. $p$ in above formulation. Defaults to <code class="inline">2</code></li><li><code class="inline">:transition_steps</code> - number of steps over which annealing takes place.
+$k$ in above formulation. Defaults to <code class="inline">10</code></li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+      <footer class="footer">
+        <p>
+          <span class="line">
+            Built using
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.1) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+          </span>
+          <span class="line">
+            Designed by
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+        </p>
+        <p>
+
+            <a href="api-reference.html" title="API reference" class="line footer-button">API Reference</a>
+
+          <button class="line footer-button display-shortcuts-help">
+            Display keyboard shortcuts
+          </button>
+          <button class="line footer-button night-mode-toggle">
+            Toggle night mode
+          </button>
+          <button class="line footer-button display-quick-switch">
+            Go to a HexDocs package
+          </button>
+          <button class="line footer-button tooltips-toggle">
+            <span class="tooltips-option-disable">Disable tooltips</span>
+            <span class="tooltips-option-enable">Enable tooltips</span>
+          </button>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+  </body>
+</html>

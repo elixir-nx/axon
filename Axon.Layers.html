@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.25.1">
+    <meta name="project" content="Axon v0.1.0-dev">
+
+    <title>Axon.Layers — Axon v0.1.0-dev</title>
+    <link rel="stylesheet" href="dist/elixir-a172fe91e725dcb259e2.css" />
+
+    <script src="dist/sidebar_items-ffc5c9fdfe.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-f27ff079945e43879c46.js"></script>
+
+
+  </head>
+  <body data-type="modules">
+    <script>
+
+      try {
+        if (localStorage.getItem('night-mode') === 'true') {
+          document.body.classList.add('night-mode');
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+<button class="sidebar-button sidebar-toggle">
+  <span class="icon-menu" title="Collapse/expand sidebar"></span>
+</button>
+
+<section class="sidebar">
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <span class="icon-search" aria-hidden="true" title="Submit search"></span>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <span class="icon-cross" aria-hidden="true" title="Cancel search"></span>
+    </button>
+    <label class="search-label">
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion">
+        v0.1.0-dev
+      </strong>
+    </div>
+
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+      <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+  </ul>
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+      <h1>
+Axon.Layers <small class="app-vsn">(Axon v0.1.0-dev)</small>
+
+          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L1" title="View Source" class="view-source" rel="help">
+            <span class="icon-code" aria-hidden="true"></span>
+            <span class="sr-only">View Source</span>
+          </a>
+
+      </h1>
+
+
+        <section id="moduledoc">
+<p>Functional implementations of common neural network layer
+operations.</p><p>Layers are the building blocks of neural networks. These
+functional implementations can be used to express higher-level
+constructs using fundamental building blocks. Neural network
+layers are stateful with respect to their parameters.
+These implementations do not assume the responsibility of
+managing state - instead opting to delegate this responsibility
+to the caller.</p><p>Basic neural networks can be seen as a composition of functions:</p><pre><code class="makeup elixir"><span class="n">input</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense</span><span class="p" data-group-id="6631636408-1">(</span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="n">b1</span><span class="p" data-group-id="6631636408-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="n">relu</span><span class="p" data-group-id="6631636408-2">(</span><span class="p" data-group-id="6631636408-2">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense</span><span class="p" data-group-id="6631636408-3">(</span><span class="n">w2</span><span class="p">,</span><span class="w"> </span><span class="n">b2</span><span class="p" data-group-id="6631636408-3">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="n">softmax</span><span class="p" data-group-id="6631636408-4">(</span><span class="p" data-group-id="6631636408-4">)</span></code></pre><p>These kinds of models are often referred to as deep feedforward networks
+or multilayer perceptrons (MLPs) because information flows forward
+through the network with no feedback connections. Mathematically,
+a feedforward network can be represented as:</p><p>  $$f(x) = f^{(3)}(f^{(2)}(f^{(1)}(x)))$$</p><p>You can see a similar pattern emerge if we condense the call stack
+in the previous example:</p><pre><code class="makeup elixir"><span class="n">softmax</span><span class="p" data-group-id="7775101405-1">(</span><span class="n">dense</span><span class="p" data-group-id="7775101405-2">(</span><span class="n">relu</span><span class="p" data-group-id="7775101405-3">(</span><span class="n">dense</span><span class="p" data-group-id="7775101405-4">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="n">b1</span><span class="p" data-group-id="7775101405-4">)</span><span class="p" data-group-id="7775101405-3">)</span><span class="p">,</span><span class="w"> </span><span class="n">w2</span><span class="p">,</span><span class="w"> </span><span class="n">b2</span><span class="p" data-group-id="7775101405-2">)</span><span class="p" data-group-id="7775101405-1">)</span></code></pre><p>The chain structure shown here is the most common structure used
+in neural networks. You can consider each function $f^{(n)}$ as a
+<em>layer</em> in the neural network - for example $f^{(2)} is the 2nd
+layer in the network. The number of function calls in the
+structure is the <em>depth</em> of the network. This is where the term
+<em>deep learning</em> comes from.</p><p>Neural networks are often written as the mapping:</p><p>  $$y = f(x; \theta)$$</p><p>Where $x$ is the input to the neural network and $\theta$ are the
+set of learned parameters. In Elixir, you would write this:</p><pre><code class="makeup elixir"><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model</span><span class="p" data-group-id="2136783932-1">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="2136783932-1">)</span></code></pre><p>From the previous example, <code class="inline">params</code> would represent the collection:</p><pre><code class="makeup elixir"><span class="p" data-group-id="2426559121-1">{</span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="n">b1</span><span class="p">,</span><span class="w"> </span><span class="n">w2</span><span class="p">,</span><span class="w"> </span><span class="n">b2</span><span class="p" data-group-id="2426559121-1">}</span></code></pre><p>where <code class="inline">w1</code> and <code class="inline">w2</code> are layer <em>weights</em>, and <code class="inline">b1</code> and <code class="inline">b2</code> are layer
+<em>biases</em>.</p>
+        </section>
+
+
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+            Summary
+          </h1>
+
+  <div class="summary-layers-linear summary">
+    <h2>
+      <a href="#layers-linear">Layers: Linear</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#bilinear/4">bilinear(input1, input2, weight, bias)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a bilinear layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dense/3">dense(input, weight, bias)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a dense layer.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-dropout summary">
+    <h2>
+      <a href="#layers-dropout">Layers: Dropout</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#alpha_dropout/2">alpha_dropout(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of an alpha dropout layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dropout/2">dropout(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a dropout layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#feature_alpha_dropout/2">feature_alpha_dropout(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a feature alpha dropout layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#spatial_dropout/2">spatial_dropout(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of an n-dimensional spatial
+dropout layer.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-pooling summary">
+    <h2>
+      <a href="#layers-pooling">Layers: Pooling</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#adaptive_avg_pool/2">adaptive_avg_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of general dimensional adaptive average
+pooling.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#adaptive_max_pool/2">adaptive_max_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of general dimensional adaptive max
+pooling.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#avg_pool/2">avg_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>A general dimensional functional average pooling layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#lp_pool/2">lp_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a general dimensional power average
+pooling layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#max_pool/2">max_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a general dimensional max pooling layer.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-layers-normalization summary">
+    <h2>
+      <a href="#layers-normalization">Layers: Normalization</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#batch_norm/4">batch_norm(input, gamma, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of batch normalization.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#group_norm/4">group_norm(input, gamma, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of group normalization.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#instance_norm/4">instance_norm(input, gamma, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of instance normalization.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#layer_norm/4">layer_norm(input, gamma, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of layer normalization.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-functions-attention summary">
+    <h2>
+      <a href="#functions-attention">Functions: Attention</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dot_product_attention/5">dot_product_attention(query, key, value, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of dot-product attention layer.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-functions-convolutional summary">
+    <h2>
+      <a href="#functions-convolutional">Functions: Convolutional</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#conv/4">conv(input, weight, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a general dimensional convolutional
+layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#conv_transpose/4">conv_transpose(input, weight, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a general dimensional transposed
+convolutional layer.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#depthwise_conv/4">depthwise_conv(input, weight, bias, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a general dimensional depthwise
+convolution.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#separable_conv2d/6">separable_conv2d(input, k1, b1, k2, b2, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a 2-dimensional separable depthwise
+convolution.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#separable_conv3d/8">separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of a 3-dimensional separable depthwise
+convolution.</p></div>
+
+</div>
+
+  </div>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#embedding/2">embedding(input, weights)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Computes embedding by treating weight matrix as a lookup table
+for discrete tokens.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#flatten/1">flatten(x)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Flattens input to shape of <code class="inline">{batch, units}</code> by folding outer
+dimensions.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_avg_pool/2">global_avg_pool(input, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of global average pooling which averages across
+the spatial dimensions of the input such that the only remaining dimensions
+are the batch and feature dimensions.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_lp_pool/2">global_lp_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of global LP pooling which computes the following
+function across spatial dimensions of the input</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#global_max_pool/2">global_max_pool(x, opts \\ [])</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Functional implementation of global max pooling which computes maximums across
+the spatial dimensions of the input such that the only remaning dimensions are
+the batch and feature dimensions.</p></div>
+
+</div>
+
+  </div>
+
+        </section>
+
+
+        <section id="layers-linear" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-linear">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Linear
+          </h1>
+          <div class="layers-linear-list">
+<section class="detail" id="bilinear/4">
+
+  <div class="detail-header">
+    <a href="#bilinear/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">bilinear(input1, input2, weight, bias)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a bilinear layer.</p><p>Bilinear transformation of the input such that:</p><p>$$y = x_1^{T}Ax_2 + b$$</p><h2 id="bilinear/4-parameter-shapes" class="section-heading">
+  <a href="#bilinear/4-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input1</code> - <code class="inline">{batch_size, ..., input1_features}</code></li><li><code class="inline">input2</code> - <code class="inline">{batch_size, ..., input2_features}</code></li><li><code class="inline">weight</code> - <code class="inline">{out_features, input1_features, input2_features}</code></li></ul><h2 id="bilinear/4-output-shape" class="section-heading">
+  <a href="#bilinear/4-output-shape" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Output Shape
+</h2>
+<p>  <code class="inline">{batch_size, output_features}</code></p><h2 id="bilinear/4-examples" class="section-heading">
+  <a href="#bilinear/4-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">inp1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="7838225579-1">(</span><span class="p" data-group-id="7838225579-2">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="7838225579-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7838225579-3">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7838225579-3">}</span><span class="p" data-group-id="7838225579-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">inp2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="7838225579-4">(</span><span class="p" data-group-id="7838225579-5">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p" data-group-id="7838225579-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7838225579-6">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7838225579-6">}</span><span class="p" data-group-id="7838225579-4">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="7838225579-7">(</span><span class="p" data-group-id="7838225579-8">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p" data-group-id="7838225579-8">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7838225579-9">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7838225579-9">}</span><span class="p" data-group-id="7838225579-7">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">bias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7838225579-10">(</span><span class="mf">1.0</span><span class="p" data-group-id="7838225579-10">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">bilinear</span><span class="p" data-group-id="7838225579-11">(</span><span class="n">inp1</span><span class="p">,</span><span class="w"> </span><span class="n">inp2</span><span class="p">,</span><span class="w"> </span><span class="n">weight</span><span class="p">,</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="7838225579-11">)</span><span class="w">
+</span><span class="p" data-group-id="7838225579-12">#</span><span class="nc" data-group-id="7838225579-12">Nx.Tensor</span><span class="p" data-group-id="7838225579-12">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="7838225579-13">[</span><span class="mi">3</span><span class="p" data-group-id="7838225579-13">]</span><span class="p" data-group-id="7838225579-14">[</span><span class="mi">1</span><span class="p" data-group-id="7838225579-14">]</span><span class="w">
+  </span><span class="p" data-group-id="7838225579-15">[</span><span class="w">
+    </span><span class="p" data-group-id="7838225579-16">[</span><span class="mf">39.0</span><span class="p" data-group-id="7838225579-16">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="7838225579-17">[</span><span class="mf">455.0</span><span class="p" data-group-id="7838225579-17">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="7838225579-18">[</span><span class="mf">1319.0</span><span class="p" data-group-id="7838225579-18">]</span><span class="w">
+  </span><span class="p" data-group-id="7838225579-15">]</span><span class="w">
+</span><span class="p" data-group-id="7838225579-12">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="dense/3">
+
+  <div class="detail-header">
+    <a href="#dense/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dense(input, weight, bias)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a dense layer.</p><p>Linear transformation of the input such that:</p><p>$$y = xW^T + b$$</p><p>A dense layer or fully connected layer transforms
+the input using the given weight matrix and bias
+to compute:</p><pre><code class="makeup elixir"><span class="nc">Nx</span><span class="o">.</span><span class="n">dot</span><span class="p" data-group-id="7734699841-1">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">weight</span><span class="p" data-group-id="7734699841-1">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span></code></pre><p>Typically, both <code class="inline">weight</code> and <code class="inline">bias</code> are learnable
+parameters trained using gradient-based optimzation.</p><h2 id="dense/3-parameter-shapes" class="section-heading">
+  <a href="#dense/3-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, ..., input_features}</code></li><li><code class="inline">weight</code> - <code class="inline">{input_features, output_features}</code></li><li><code class="inline">bias</code> - <code class="inline">{output_features}</code></li></ul><h2 id="dense/3-output-shape" class="section-heading">
+  <a href="#dense/3-output-shape" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Output Shape
+</h2>
+<p>  <code class="inline">{batch_size, output_features}</code></p><h2 id="dense/3-examples" class="section-heading">
+  <a href="#dense/3-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7981331191-1">(</span><span class="p" data-group-id="7981331191-2">[</span><span class="p" data-group-id="7981331191-3">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="7981331191-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7981331191-4">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="7981331191-4">]</span><span class="p" data-group-id="7981331191-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7981331191-5">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7981331191-5">}</span><span class="p" data-group-id="7981331191-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7981331191-6">(</span><span class="p" data-group-id="7981331191-7">[</span><span class="p" data-group-id="7981331191-8">[</span><span class="mf">0.2</span><span class="p" data-group-id="7981331191-8">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7981331191-9">[</span><span class="mf">0.3</span><span class="p" data-group-id="7981331191-9">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7981331191-10">[</span><span class="mf">0.5</span><span class="p" data-group-id="7981331191-10">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7981331191-11">[</span><span class="mf">0.8</span><span class="p" data-group-id="7981331191-11">]</span><span class="p" data-group-id="7981331191-7">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7981331191-12">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7981331191-12">}</span><span class="p" data-group-id="7981331191-6">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">bias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7981331191-13">(</span><span class="p" data-group-id="7981331191-14">[</span><span class="mf">1.0</span><span class="p" data-group-id="7981331191-14">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7981331191-15">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7981331191-15">}</span><span class="p" data-group-id="7981331191-13">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7981331191-16">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">weight</span><span class="p">,</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="7981331191-16">)</span><span class="w">
+</span><span class="p" data-group-id="7981331191-17">#</span><span class="nc" data-group-id="7981331191-17">Nx.Tensor</span><span class="p" data-group-id="7981331191-17">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="7981331191-18">[</span><span class="mi">2</span><span class="p" data-group-id="7981331191-18">]</span><span class="p" data-group-id="7981331191-19">[</span><span class="mi">1</span><span class="p" data-group-id="7981331191-19">]</span><span class="w">
+  </span><span class="p" data-group-id="7981331191-20">[</span><span class="w">
+    </span><span class="p" data-group-id="7981331191-21">[</span><span class="mf">2.25</span><span class="p" data-group-id="7981331191-21">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="7981331191-22">[</span><span class="mf">1.0</span><span class="p" data-group-id="7981331191-22">]</span><span class="w">
+  </span><span class="p" data-group-id="7981331191-20">]</span><span class="w">
+</span><span class="p" data-group-id="7981331191-17">&gt;</span></code></pre>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-dropout" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-dropout">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Dropout
+          </h1>
+          <div class="layers-dropout-list">
+<section class="detail" id="alpha_dropout/2">
+
+    <span id="alpha_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#alpha_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">alpha_dropout(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of an alpha dropout layer.</p><p>Alpha dropout is a type of dropout that forces the input
+to have zero mean and unit standard deviation. Randomly
+masks some elements and scales to enforce self-normalization.</p><h2 id="alpha_dropout/2-options" class="section-heading">
+  <a href="#alpha_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:rate</code> - dropout rate. Used to determine probability a connection
+will be dropped. Required.</li></ul><p>  # <code class="inline">:noise_shape</code> - input noise shape. Shape of <code class="inline">mask</code> which can be useful</p><pre><code class="makeup elixir"><span class="k">for</span><span class="w"> </span><span class="n">broadcasting</span><span class="w"> </span><span class="err">`</span><span class="n">mask</span><span class="err">`</span><span class="w"> </span><span class="n">across</span><span class="w"> </span><span class="n">feature</span><span class="w"> </span><span class="n">channels</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">dimensions</span><span class="o">.</span><span class="w">
+</span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">shape</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="n">tensor</span><span class="o">.</span></code></pre><h2 id="alpha_dropout/2-references" class="section-heading">
+  <a href="#alpha_dropout/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1706.02515">Self-Normalizing Neural Networks</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="dropout/2">
+
+    <span id="dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dropout(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a dropout layer.</p><p>Applies a mask to some elements of the input tensor with probability
+<code class="inline">rate</code> and scales the input tensor by a factor of $\frac{1}{1 - rate}$.</p><p>Dropout is a form of regularization that helps prevent overfitting
+by preventing models from becoming too reliant on certain connections.
+Dropout can somewhat be thought of as learning an ensemble of models
+with random connections masked.</p><h2 id="dropout/2-options" class="section-heading">
+  <a href="#dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:rate</code> - dropout rate. Used to determine probability a connection
+will be dropped. Required.</li></ul><p>  # <code class="inline">:noise_shape</code> - input noise shape. Shape of <code class="inline">mask</code> which can be useful</p><pre><code class="makeup elixir"><span class="k">for</span><span class="w"> </span><span class="n">broadcasting</span><span class="w"> </span><span class="err">`</span><span class="n">mask</span><span class="err">`</span><span class="w"> </span><span class="n">across</span><span class="w"> </span><span class="n">feature</span><span class="w"> </span><span class="n">channels</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">dimensions</span><span class="o">.</span><span class="w">
+</span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">shape</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="n">tensor</span><span class="o">.</span></code></pre><h2 id="dropout/2-references" class="section-heading">
+  <a href="#dropout/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://jmlr.org/papers/v15/srivastava14a.html">Dropout: A Simple Way to Prevent Neural Networks from Overfitting</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="feature_alpha_dropout/2">
+
+    <span id="feature_alpha_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#feature_alpha_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">feature_alpha_dropout(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a feature alpha dropout layer.</p><p>Feature alpha dropout applies dropout in the same manner as
+spatial dropout; however, it also enforces self-normalization
+by masking inputs with the SELU activation function and scaling
+unmasked inputs.</p><h2 id="feature_alpha_dropout/2-options" class="section-heading">
+  <a href="#feature_alpha_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:rate</code> - dropout rate. Used to determine probability a connection
+will be dropped. Required.</li></ul><p>  # <code class="inline">:noise_shape</code> - input noise shape. Shape of <code class="inline">mask</code> which can be useful</p><pre><code class="makeup elixir"><span class="k">for</span><span class="w"> </span><span class="n">broadcasting</span><span class="w"> </span><span class="err">`</span><span class="n">mask</span><span class="err">`</span><span class="w"> </span><span class="n">across</span><span class="w"> </span><span class="n">feature</span><span class="w"> </span><span class="n">channels</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">dimensions</span><span class="o">.</span><span class="w">
+</span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">shape</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="n">tensor</span><span class="o">.</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="spatial_dropout/2">
+
+    <span id="spatial_dropout/1"></span>
+
+  <div class="detail-header">
+    <a href="#spatial_dropout/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">spatial_dropout(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of an n-dimensional spatial
+dropout layer.</p><p>Applies a mask to entire feature maps instead of individual
+elements. This is done by calculating a mask shape equal to
+the spatial dimensions of the input tensor with 1 channel,
+and then broadcasting the mask across the feature dimension
+of the input tensor.</p><h2 id="spatial_dropout/2-options" class="section-heading">
+  <a href="#spatial_dropout/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:rate</code> - dropout rate. Used to determine probability a connection
+will be dropped. Required.</li></ul><p>  # <code class="inline">:noise_shape</code> - input noise shape. Shape of <code class="inline">mask</code> which can be useful</p><pre><code class="makeup elixir"><span class="k">for</span><span class="w"> </span><span class="n">broadcasting</span><span class="w"> </span><span class="err">`</span><span class="n">mask</span><span class="err">`</span><span class="w"> </span><span class="n">across</span><span class="w"> </span><span class="n">feature</span><span class="w"> </span><span class="n">channels</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n">dimensions</span><span class="o">.</span><span class="w">
+</span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">shape</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="n">tensor</span><span class="o">.</span></code></pre><h2 id="spatial_dropout/2-references" class="section-heading">
+  <a href="#spatial_dropout/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1411.4280">Efficient Object Localization Using Convolutional Networks</a></li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-pooling" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-pooling">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Pooling
+          </h1>
+          <div class="layers-pooling-list">
+<section class="detail" id="adaptive_avg_pool/2">
+
+    <span id="adaptive_avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#adaptive_avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">adaptive_avg_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of general dimensional adaptive average
+pooling.</p><p>Adaptive pooling allows you to specify the desired output size
+of the transformed input. This will automatically adapt the
+window size and strides to obtain the desired output size. It
+will then perform average pooling using the calculated window
+size and strides.</p><p>Adaptive pooling can be useful when working on multiple inputs with
+different spatial input shapes. You can guarantee the output of
+an adaptive pooling operation is always the same size regardless
+of input shape.</p><h2 id="adaptive_avg_pool/2-options" class="section-heading">
+  <a href="#adaptive_avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:output_size</code> - spatial output size. Must be a tuple with
+size equal to the spatial dimensions in the input tensor.
+Required.</li></ul>
+  </section>
+</section>
+<section class="detail" id="adaptive_max_pool/2">
+
+    <span id="adaptive_max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#adaptive_max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">adaptive_max_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of general dimensional adaptive max
+pooling.</p><p>Adaptive pooling allows you to specify the desired output size
+of the transformed input. This will automatically adapt the
+window size and strides to obtain the desired output size. It
+will then perform max pooling using the calculated window
+size and strides.</p><p>Adaptive pooling can be useful when working on multiple inputs with
+different spatial input shapes. You can guarantee the output of
+an adaptive pooling operation is always the same size regardless
+of input shape.</p><h2 id="adaptive_max_pool/2-options" class="section-heading">
+  <a href="#adaptive_max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:output_size</code> - spatial output size. Must be a tuple with
+size equal to the spatial dimensions in the input tensor.
+Required.</li></ul>
+  </section>
+</section>
+<section class="detail" id="avg_pool/2">
+
+    <span id="avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">avg_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>A general dimensional functional average pooling layer.</p><p>Pooling is applied to the spatial dimension of the input tensor.
+Average pooling returns the average of all elements in valid
+windows in the input tensor. It is often used after convolutional
+layers to downsample the input even further.</p><h2 id="avg_pool/2-options" class="section-heading">
+  <a href="#avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">kernel_size</code> - window size. Rank must match spatial dimension
+of the input tensor. Required.</p></li><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:window_dilations</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Can be scalar or list who's length matches the number of
+spatial dimensions in the input tensor. Defaults to <code class="inline">1</code> or no
+dilation.</p></li></ul>
+  </section>
+</section>
+<section class="detail" id="lp_pool/2">
+
+    <span id="lp_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#lp_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">lp_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a general dimensional power average
+pooling layer.</p><p>Pooling is applied to the spatial dimension of the input tensor.
+Power average pooling computes the following function on each
+valid window of the input tensor:</p><p>$$f(X) = \sqrt[p]{\sum_{x \in X} x^{p}}$$</p><p>Where $p$ is given by the keyword argument <code class="inline">:norm</code>. As $p$ approaches
+infinity, it becomes equivalent to max pooling.</p><h2 id="lp_pool/2-options" class="section-heading">
+  <a href="#lp_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">kernel_size</code> - window size. Rank must match spatial dimension
+of the input tensor. Required.</p></li><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:window_dilations</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Can be scalar or list who's length matches the number of
+spatial dimensions in the input tensor. Defaults to <code class="inline">1</code> or no
+dilation.</p></li></ul><h2 id="lp_pool/2-examples" class="section-heading">
+  <a href="#lp_pool/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="9768283905-1">(</span><span class="p" data-group-id="9768283905-2">[</span><span class="p" data-group-id="9768283905-3">[</span><span class="p" data-group-id="9768283905-4">[</span><span class="mf">0.9450</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4684</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8146</span><span class="p" data-group-id="9768283905-4">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9768283905-5">[</span><span class="mf">1.2663</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4354</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.0781</span><span class="p" data-group-id="9768283905-5">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9768283905-6">[</span><span class="o">-</span><span class="mf">0.4759</span><span class="p">,</span><span class="w"> </span><span class="mf">0.3251</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8742</span><span class="p" data-group-id="9768283905-6">]</span><span class="p" data-group-id="9768283905-3">]</span><span class="p" data-group-id="9768283905-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9768283905-7">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="9768283905-7">}</span><span class="p" data-group-id="9768283905-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">lp_pool</span><span class="p" data-group-id="9768283905-8">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="ss">kernel_size</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="ss">norm</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="9768283905-8">)</span><span class="w">
+</span><span class="p" data-group-id="9768283905-9">#</span><span class="nc" data-group-id="9768283905-9">Nx.Tensor</span><span class="p" data-group-id="9768283905-9">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="9768283905-10">[</span><span class="mi">1</span><span class="p" data-group-id="9768283905-10">]</span><span class="p" data-group-id="9768283905-11">[</span><span class="mi">3</span><span class="p" data-group-id="9768283905-11">]</span><span class="p" data-group-id="9768283905-12">[</span><span class="mi">2</span><span class="p" data-group-id="9768283905-12">]</span><span class="w">
+  </span><span class="p" data-group-id="9768283905-13">[</span><span class="w">
+    </span><span class="p" data-group-id="9768283905-14">[</span><span class="w">
+      </span><span class="p" data-group-id="9768283905-15">[</span><span class="mf">1.0547149181365967</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8740788698196411</span><span class="p" data-group-id="9768283905-15">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="9768283905-16">[</span><span class="mf">1.3390626907348633</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4423491656780243</span><span class="p" data-group-id="9768283905-16">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="9768283905-17">[</span><span class="mf">0.5763426423072815</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9326926469802856</span><span class="p" data-group-id="9768283905-17">]</span><span class="w">
+    </span><span class="p" data-group-id="9768283905-14">]</span><span class="w">
+  </span><span class="p" data-group-id="9768283905-13">]</span><span class="w">
+</span><span class="p" data-group-id="9768283905-9">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="max_pool/2">
+
+    <span id="max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">max_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a general dimensional max pooling layer.</p><p>Pooling is applied to the spatial dimension of the input tensor.
+Max pooling returns the maximum element in each valid window of
+the input tensor. It is often used after convolutional layers
+to downsample the input even further.</p><h2 id="max_pool/2-options" class="section-heading">
+  <a href="#max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">kernel_size</code> - window size. Rank must match spatial dimension
+of the input tensor. Required.</p></li><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:window_dilations</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Can be scalar or list who's length matches the number of
+spatial dimensions in the input tensor. Defaults to <code class="inline">1</code> or no
+dilation.</p></li></ul><h2 id="max_pool/2-examples" class="section-heading">
+  <a href="#max_pool/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3863594819-1">(</span><span class="p" data-group-id="3863594819-2">[</span><span class="p" data-group-id="3863594819-3">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="3863594819-4">[</span><span class="mf">0.051500000059604645</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.7042999863624573</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.32899999618530273</span><span class="p" data-group-id="3863594819-4">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="3863594819-5">[</span><span class="o">-</span><span class="mf">0.37130001187324524</span><span class="p">,</span><span class="w"> </span><span class="mf">1.6191999912261963</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.11829999834299088</span><span class="p" data-group-id="3863594819-5">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="3863594819-6">[</span><span class="mf">0.7099999785423279</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7282999753952026</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.18639999628067017</span><span class="p" data-group-id="3863594819-6">]</span><span class="p" data-group-id="3863594819-3">]</span><span class="p" data-group-id="3863594819-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3863594819-7">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="3863594819-7">}</span><span class="p" data-group-id="3863594819-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">max_pool</span><span class="p" data-group-id="3863594819-8">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="ss">kernel_size</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="3863594819-8">)</span><span class="w">
+</span><span class="p" data-group-id="3863594819-9">#</span><span class="nc" data-group-id="3863594819-9">Nx.Tensor</span><span class="p" data-group-id="3863594819-9">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="3863594819-10">[</span><span class="mi">1</span><span class="p" data-group-id="3863594819-10">]</span><span class="p" data-group-id="3863594819-11">[</span><span class="mi">3</span><span class="p" data-group-id="3863594819-11">]</span><span class="p" data-group-id="3863594819-12">[</span><span class="mi">2</span><span class="p" data-group-id="3863594819-12">]</span><span class="w">
+  </span><span class="p" data-group-id="3863594819-13">[</span><span class="w">
+    </span><span class="p" data-group-id="3863594819-14">[</span><span class="w">
+      </span><span class="p" data-group-id="3863594819-15">[</span><span class="mf">0.051500000059604645</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.32899999618530273</span><span class="p" data-group-id="3863594819-15">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="3863594819-16">[</span><span class="mf">1.6191999912261963</span><span class="p">,</span><span class="w"> </span><span class="mf">1.6191999912261963</span><span class="p" data-group-id="3863594819-16">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="3863594819-17">[</span><span class="mf">0.7282999753952026</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7282999753952026</span><span class="p" data-group-id="3863594819-17">]</span><span class="w">
+    </span><span class="p" data-group-id="3863594819-14">]</span><span class="w">
+  </span><span class="p" data-group-id="3863594819-13">]</span><span class="w">
+</span><span class="p" data-group-id="3863594819-9">&gt;</span></code></pre>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="layers-normalization" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#layers-normalization">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Layers: Normalization
+          </h1>
+          <div class="layers-normalization-list">
+<section class="detail" id="batch_norm/4">
+
+    <span id="batch_norm/3"></span>
+
+  <div class="detail-header">
+    <a href="#batch_norm/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">batch_norm(input, gamma, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of batch normalization.</p><p>Normalizes the input by calculating mean and variance of the
+input tensor along every dimension but the given <code class="inline">:channel_index</code>,
+and then scaling according to:</p><p>$$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$</p><p><code class="inline">gamma</code> and <code class="inline">beta</code> are often trainable parameters. This method does
+not maintain an EMA of mean and variance.</p><h2 id="batch_norm/4-options" class="section-heading">
+  <a href="#batch_norm/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:epsilon</code> - numerical stability term. $epsilon$ in the above
+formulation.</p></li><li><p><code class="inline">:channel_index</code> - channel index used to determine reduction
+axes for mean and variance calculation.</p></li></ul><h2 id="batch_norm/4-references" class="section-heading">
+  <a href="#batch_norm/4-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1502.03167">Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="group_norm/4">
+
+    <span id="group_norm/3"></span>
+
+  <div class="detail-header">
+    <a href="#group_norm/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">group_norm(input, gamma, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of group normalization.</p><p>Normalizes the input by reshaping input into groups of given
+<code class="inline">:group_size</code> and then calculating the mean and variance along
+every dimension but the input batch dimension.</p><p>$$y = rac{x - E[x]}{ qrt{Var[x] + psilon}} * gamma + eta$$</p><p><code class="inline">gamma</code> and <code class="inline">beta</code> are often trainable parameters. This method does
+not maintain an EMA of mean and variance.</p><h2 id="group_norm/4-options" class="section-heading">
+  <a href="#group_norm/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:group_size</code> - channel group size. Size of each group to split
+input channels into.</p></li><li><p><code class="inline">:epsilon</code> - numerical stability term. $epsilon$ in the above
+formulation.</p></li><li><p><code class="inline">:channel_index</code> - channel index used to determine reduction
+axes and group shape for mean and variance calculation.</p></li></ul><h2 id="group_norm/4-references" class="section-heading">
+  <a href="#group_norm/4-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1803.08494v3">Group Normalization</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="instance_norm/4">
+
+    <span id="instance_norm/3"></span>
+
+  <div class="detail-header">
+    <a href="#instance_norm/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">instance_norm(input, gamma, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of instance normalization.</p><p>Normalizes the input by calculating mean and variance of the
+input tensor along the spatial dimensions of the input.</p><p>$$y = rac{x - E[x]}{ qrt{Var[x] + psilon}} * gamma + eta$$</p><p><code class="inline">gamma</code> and <code class="inline">beta</code> are often trainable parameters. This method does
+not maintain an EMA of mean and variance.</p><h2 id="instance_norm/4-options" class="section-heading">
+  <a href="#instance_norm/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:epsilon</code> - numerical stability term. $epsilon$ in the above
+formulation.</p></li><li><p><code class="inline">:channel_index</code> - channel index used to determine reduction
+axes for mean and variance calculation.</p></li></ul><h2 id="instance_norm/4-references" class="section-heading">
+  <a href="#instance_norm/4-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1607.08022v3">Instance Normalization: The Missing Ingredient for Fast Stylization</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="layer_norm/4">
+
+    <span id="layer_norm/3"></span>
+
+  <div class="detail-header">
+    <a href="#layer_norm/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">layer_norm(input, gamma, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of layer normalization.</p><p>Normalizes the input by calculating mean and variance of the
+input tensor along the given feature dimension <code class="inline">:channel_index</code>.</p><p>$$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$</p><p><code class="inline">gamma</code> and <code class="inline">beta</code> are often trainable parameters. This method does
+not maintain an EMA of mean and variance.</p><h2 id="layer_norm/4-options" class="section-heading">
+  <a href="#layer_norm/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:epsilon</code> - numerical stability term. $epsilon$ in the above
+formulation.</p></li><li><p><code class="inline">:channel_index</code> - channel index used to determine reduction
+axes for mean and variance calculation.</p></li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="functions-attention" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions-attention">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions: Attention
+          </h1>
+          <div class="functions-attention-list">
+<section class="detail" id="dot_product_attention/5">
+
+    <span id="dot_product_attention/4"></span>
+
+  <div class="detail-header">
+    <a href="#dot_product_attention/5" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dot_product_attention(query, key, value, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of dot-product attention layer.</p>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="functions-convolutional" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions-convolutional">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions: Convolutional
+          </h1>
+          <div class="functions-convolutional-list">
+<section class="detail" id="conv/4">
+
+    <span id="conv/3"></span>
+
+  <div class="detail-header">
+    <a href="#conv/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">conv(input, weight, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a general dimensional convolutional
+layer.</p><p>Convolutional layers can be described as applying a convolution
+over an input signal composed of several input planes. Intuitively,
+the input kernel slides <code class="inline">output_channels</code> number of filters over
+the input tensor to extract features from the input tensor.</p><p>Convolutional layers are most commonly used in computer vision,
+but can also be useful when working with sequences and other input signals.</p><h2 id="conv/4-parameter-shapes" class="section-heading">
+  <a href="#conv/4-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, input_channels, input_spatial0, ..., input_spatialN}</code></li><li><code class="inline">weight</code> - <code class="inline">{output_channels, input_channels, kernel_spatial0, ..., kernel_spatialN}</code></li><li><code class="inline">bias</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li></ul><h2 id="conv/4-options" class="section-heading">
+  <a href="#conv/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:input_dilation</code> - input dilation factor. Equivalent
+to applying interior padding on the input. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li><li><p><code class="inline">:kernel_dilation</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li></ul><h2 id="conv/4-examples" class="section-heading">
+  <a href="#conv/4-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<h3 id="conv/4-one-dimensional-convolution" class="section-heading">
+  <a href="#conv/4-one-dimensional-convolution" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  One-dimensional convolution
+</h3>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5671405265-1">(</span><span class="p" data-group-id="5671405265-2">[</span><span class="p" data-group-id="5671405265-3">[</span><span class="p" data-group-id="5671405265-4">[</span><span class="mf">0.1294</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.6638</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0251</span><span class="p" data-group-id="5671405265-4">]</span><span class="p" data-group-id="5671405265-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5671405265-5">[</span><span class="p" data-group-id="5671405265-6">[</span><span class="w"> </span><span class="mf">0.9182</span><span class="p">,</span><span class="w">  </span><span class="mf">1.1512</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.6149</span><span class="p" data-group-id="5671405265-6">]</span><span class="p" data-group-id="5671405265-5">]</span><span class="p" data-group-id="5671405265-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5671405265-7">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5671405265-7">}</span><span class="p" data-group-id="5671405265-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5671405265-8">(</span><span class="p" data-group-id="5671405265-9">[</span><span class="p" data-group-id="5671405265-10">[</span><span class="p" data-group-id="5671405265-11">[</span><span class="o">-</span><span class="mf">1.5475</span><span class="p">,</span><span class="w"> </span><span class="mf">1.2425</span><span class="p" data-group-id="5671405265-11">]</span><span class="p" data-group-id="5671405265-10">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5671405265-12">[</span><span class="p" data-group-id="5671405265-13">[</span><span class="mf">0.1871</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5458</span><span class="p" data-group-id="5671405265-13">]</span><span class="p" data-group-id="5671405265-12">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5671405265-14">[</span><span class="p" data-group-id="5671405265-15">[</span><span class="o">-</span><span class="mf">0.4488</span><span class="p">,</span><span class="w">  </span><span class="mf">0.8879</span><span class="p" data-group-id="5671405265-15">]</span><span class="p" data-group-id="5671405265-14">]</span><span class="p" data-group-id="5671405265-9">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5671405265-16">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5671405265-16">}</span><span class="p" data-group-id="5671405265-8">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">bias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5671405265-17">(</span><span class="p" data-group-id="5671405265-18">[</span><span class="mf">0.7791</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1676</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5971</span><span class="p" data-group-id="5671405265-18">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5671405265-19">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5671405265-19">}</span><span class="p" data-group-id="5671405265-17">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">conv</span><span class="p" data-group-id="5671405265-20">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">weight</span><span class="p">,</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="5671405265-20">)</span><span class="w">
+</span><span class="p" data-group-id="5671405265-21">#</span><span class="nc" data-group-id="5671405265-21">Nx.Tensor</span><span class="p" data-group-id="5671405265-21">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="5671405265-22">[</span><span class="mi">2</span><span class="p" data-group-id="5671405265-22">]</span><span class="p" data-group-id="5671405265-23">[</span><span class="mi">3</span><span class="p" data-group-id="5671405265-23">]</span><span class="p" data-group-id="5671405265-24">[</span><span class="mi">2</span><span class="p" data-group-id="5671405265-24">]</span><span class="w">
+  </span><span class="p" data-group-id="5671405265-25">[</span><span class="w">
+    </span><span class="p" data-group-id="5671405265-26">[</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-27">[</span><span class="o">-</span><span class="mf">0.24591797590255737</span><span class="p">,</span><span class="w"> </span><span class="mf">3.08001708984375</span><span class="p" data-group-id="5671405265-27">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-28">[</span><span class="o">-</span><span class="mf">0.1704912781715393</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6029025316238403</span><span class="p" data-group-id="5671405265-28">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-29">[</span><span class="mf">0.9496372938156128</span><span class="p">,</span><span class="w"> </span><span class="mf">2.80519962310791</span><span class="p" data-group-id="5671405265-29">]</span><span class="w">
+    </span><span class="p" data-group-id="5671405265-26">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="5671405265-30">[</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-31">[</span><span class="mf">0.7885514497756958</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">3.0088953971862793</span><span class="p" data-group-id="5671405265-31">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-32">[</span><span class="mf">0.9677201509475708</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.4984228312969208</span><span class="p" data-group-id="5671405265-32">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5671405265-33">[</span><span class="mf">2.207162380218506</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.3534282445907593</span><span class="p" data-group-id="5671405265-33">]</span><span class="w">
+    </span><span class="p" data-group-id="5671405265-30">]</span><span class="w">
+  </span><span class="p" data-group-id="5671405265-25">]</span><span class="w">
+</span><span class="p" data-group-id="5671405265-21">&gt;</span></code></pre><h3 id="conv/4-two-dimensional-convolution" class="section-heading">
+  <a href="#conv/4-two-dimensional-convolution" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Two-dimensional convolution
+</h3>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7014460241-1">(</span><span class="p" data-group-id="7014460241-2">[</span><span class="p" data-group-id="7014460241-3">[</span><span class="p" data-group-id="7014460241-4">[</span><span class="p" data-group-id="7014460241-5">[</span><span class="o">-</span><span class="mf">1.0476</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.5041</span><span class="p" data-group-id="7014460241-5">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7014460241-6">[</span><span class="o">-</span><span class="mf">0.9336</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5907</span><span class="p" data-group-id="7014460241-6">]</span><span class="p" data-group-id="7014460241-4">]</span><span class="p" data-group-id="7014460241-3">]</span><span class="p" data-group-id="7014460241-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7014460241-7">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7014460241-7">}</span><span class="p" data-group-id="7014460241-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">weight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7014460241-8">(</span><span class="p" data-group-id="7014460241-9">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="7014460241-10">[</span><span class="p" data-group-id="7014460241-11">[</span><span class="p" data-group-id="7014460241-12">[</span><span class="mf">0.7514</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7356</span><span class="p" data-group-id="7014460241-12">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7014460241-13">[</span><span class="mf">1.3909</span><span class="p">,</span><span class="w">  </span><span class="mf">0.6800</span><span class="p" data-group-id="7014460241-13">]</span><span class="p" data-group-id="7014460241-11">]</span><span class="p" data-group-id="7014460241-10">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="7014460241-14">[</span><span class="p" data-group-id="7014460241-15">[</span><span class="p" data-group-id="7014460241-16">[</span><span class="o">-</span><span class="mf">0.3450</span><span class="p">,</span><span class="w">  </span><span class="mf">0.4551</span><span class="p" data-group-id="7014460241-16">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7014460241-17">[</span><span class="o">-</span><span class="mf">0.6275</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.9875</span><span class="p" data-group-id="7014460241-17">]</span><span class="p" data-group-id="7014460241-15">]</span><span class="p" data-group-id="7014460241-14">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="7014460241-18">[</span><span class="p" data-group-id="7014460241-19">[</span><span class="p" data-group-id="7014460241-20">[</span><span class="mf">1.8587</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4722</span><span class="p" data-group-id="7014460241-20">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7014460241-21">[</span><span class="mf">0.6058</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.0301</span><span class="p" data-group-id="7014460241-21">]</span><span class="p" data-group-id="7014460241-19">]</span><span class="p" data-group-id="7014460241-18">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="7014460241-9">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7014460241-22">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7014460241-22">}</span><span class="p" data-group-id="7014460241-8">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">bias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7014460241-23">(</span><span class="p" data-group-id="7014460241-24">[</span><span class="mf">1.9564</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2822</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.5385</span><span class="p" data-group-id="7014460241-24">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7014460241-25">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="7014460241-25">}</span><span class="p" data-group-id="7014460241-23">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">conv</span><span class="p" data-group-id="7014460241-26">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">weight</span><span class="p">,</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="7014460241-26">)</span><span class="w">
+</span><span class="p" data-group-id="7014460241-27">#</span><span class="nc" data-group-id="7014460241-27">Nx.Tensor</span><span class="p" data-group-id="7014460241-27">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="7014460241-28">[</span><span class="mi">1</span><span class="p" data-group-id="7014460241-28">]</span><span class="p" data-group-id="7014460241-29">[</span><span class="mi">3</span><span class="p" data-group-id="7014460241-29">]</span><span class="p" data-group-id="7014460241-30">[</span><span class="mi">1</span><span class="p" data-group-id="7014460241-30">]</span><span class="p" data-group-id="7014460241-31">[</span><span class="mi">1</span><span class="p" data-group-id="7014460241-31">]</span><span class="w">
+  </span><span class="p" data-group-id="7014460241-32">[</span><span class="w">
+    </span><span class="p" data-group-id="7014460241-33">[</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-34">[</span><span class="w">
+        </span><span class="p" data-group-id="7014460241-35">[</span><span class="mf">0.5815491676330566</span><span class="p" data-group-id="7014460241-35">]</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-34">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-36">[</span><span class="w">
+        </span><span class="p" data-group-id="7014460241-37">[</span><span class="o">-</span><span class="mf">0.5707762241363525</span><span class="p" data-group-id="7014460241-37">]</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-36">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-38">[</span><span class="w">
+        </span><span class="p" data-group-id="7014460241-39">[</span><span class="o">-</span><span class="mf">4.927865028381348</span><span class="p" data-group-id="7014460241-39">]</span><span class="w">
+      </span><span class="p" data-group-id="7014460241-38">]</span><span class="w">
+    </span><span class="p" data-group-id="7014460241-33">]</span><span class="w">
+  </span><span class="p" data-group-id="7014460241-32">]</span><span class="w">
+</span><span class="p" data-group-id="7014460241-27">&gt;</span></code></pre><p>  ### Three-dimensional convolution</p><p>  iex&gt; input = Nx.tensor([[[[[-0.6497], [1.0939]], [[-2.5465], [0.7801]]]]], type: {:f, 32})
+  iex&gt; weight = Nx.tensor([
+  ...&gt;  [[[[ 0.7390], [-0.0927]], [[-0.8675], [-0.9209]]]],
+  ...&gt;  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
+  ...&gt; ], type: {:f, 32})
+  iex&gt; bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
+  iex&gt; Axon.Layers.conv(input, weight, bias)
+  #Nx.Tensor&lt;</p><pre><code class="makeup elixir"><span class="n">f32</span><span class="p" data-group-id="6944873746-1">[</span><span class="mi">1</span><span class="p" data-group-id="6944873746-1">]</span><span class="p" data-group-id="6944873746-2">[</span><span class="mi">2</span><span class="p" data-group-id="6944873746-2">]</span><span class="p" data-group-id="6944873746-3">[</span><span class="mi">1</span><span class="p" data-group-id="6944873746-3">]</span><span class="p" data-group-id="6944873746-4">[</span><span class="mi">1</span><span class="p" data-group-id="6944873746-4">]</span><span class="p" data-group-id="6944873746-5">[</span><span class="mi">1</span><span class="p" data-group-id="6944873746-5">]</span><span class="w">
+</span><span class="p" data-group-id="6944873746-6">[</span><span class="w">
+  </span><span class="p" data-group-id="6944873746-7">[</span><span class="w">
+    </span><span class="p" data-group-id="6944873746-8">[</span><span class="w">
+      </span><span class="p" data-group-id="6944873746-9">[</span><span class="w">
+        </span><span class="p" data-group-id="6944873746-10">[</span><span class="mf">0.49906185269355774</span><span class="p" data-group-id="6944873746-10">]</span><span class="w">
+      </span><span class="p" data-group-id="6944873746-9">]</span><span class="w">
+    </span><span class="p" data-group-id="6944873746-8">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="6944873746-11">[</span><span class="w">
+      </span><span class="p" data-group-id="6944873746-12">[</span><span class="w">
+        </span><span class="p" data-group-id="6944873746-13">[</span><span class="mf">0.38622811436653137</span><span class="p" data-group-id="6944873746-13">]</span><span class="w">
+      </span><span class="p" data-group-id="6944873746-12">]</span><span class="w">
+    </span><span class="p" data-group-id="6944873746-11">]</span><span class="w">
+  </span><span class="p" data-group-id="6944873746-7">]</span><span class="w">
+</span><span class="p" data-group-id="6944873746-6">]</span></code></pre><blockquote></blockquote>
+  </section>
+</section>
+<section class="detail" id="conv_transpose/4">
+
+    <span id="conv_transpose/3"></span>
+
+  <div class="detail-header">
+    <a href="#conv_transpose/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">conv_transpose(input, weight, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a general dimensional transposed
+convolutional layer.</p><p><em>Note: This layer is currently implemented as a fractionally strided
+convolution by padding the input tensor. Please open an issue if you'd
+like this behavior changed.</em></p><p>Transposed convolutions are sometimes (incorrectly) referred to as
+deconvolutions because it &quot;reverses&quot; the spatial dimensions
+of a normal convolution. Transposed convolutions are a form of upsampling -
+they produce larger spatial dimensions than the input tensor. They
+can be thought of as a convolution in reverse - and are sometimes
+implemented as the backward pass of a normal convolution.</p><h2 id="conv_transpose/4-options" class="section-heading">
+  <a href="#conv_transpose/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:input_dilation</code> - input dilation factor. Equivalent
+to applying interior padding on the input. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li><li><p><code class="inline">:kernel_dilation</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li></ul><h2 id="conv_transpose/4-examples" class="section-heading">
+  <a href="#conv_transpose/4-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="2956989847-1">(</span><span class="p" data-group-id="2956989847-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="2956989847-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2956989847-3">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="2956989847-3">}</span><span class="p" data-group-id="2956989847-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">kernel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="2956989847-4">(</span><span class="p" data-group-id="2956989847-5">{</span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="2956989847-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2956989847-6">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="2956989847-6">}</span><span class="p" data-group-id="2956989847-4">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">bias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2956989847-7">(</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2956989847-8">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="2956989847-8">}</span><span class="p" data-group-id="2956989847-7">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">conv_transpose</span><span class="p" data-group-id="2956989847-9">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p">,</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="2956989847-9">)</span><span class="w">
+</span><span class="p" data-group-id="2956989847-10">#</span><span class="nc" data-group-id="2956989847-10">Nx.Tensor</span><span class="p" data-group-id="2956989847-10">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="2956989847-11">[</span><span class="mi">1</span><span class="p" data-group-id="2956989847-11">]</span><span class="p" data-group-id="2956989847-12">[</span><span class="mi">6</span><span class="p" data-group-id="2956989847-12">]</span><span class="p" data-group-id="2956989847-13">[</span><span class="mi">4</span><span class="p" data-group-id="2956989847-13">]</span><span class="w">
+  </span><span class="p" data-group-id="2956989847-14">[</span><span class="w">
+    </span><span class="p" data-group-id="2956989847-15">[</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-16">[</span><span class="mf">40.0</span><span class="p">,</span><span class="w"> </span><span class="mf">79.0</span><span class="p">,</span><span class="w"> </span><span class="mf">94.0</span><span class="p">,</span><span class="w"> </span><span class="mf">43.0</span><span class="p" data-group-id="2956989847-16">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-17">[</span><span class="mf">94.0</span><span class="p">,</span><span class="w"> </span><span class="mf">205.0</span><span class="p">,</span><span class="w"> </span><span class="mf">256.0</span><span class="p">,</span><span class="w"> </span><span class="mf">133.0</span><span class="p" data-group-id="2956989847-17">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-18">[</span><span class="mf">148.0</span><span class="p">,</span><span class="w"> </span><span class="mf">331.0</span><span class="p">,</span><span class="w"> </span><span class="mf">418.0</span><span class="p">,</span><span class="w"> </span><span class="mf">223.0</span><span class="p" data-group-id="2956989847-18">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-19">[</span><span class="mf">202.0</span><span class="p">,</span><span class="w"> </span><span class="mf">457.0</span><span class="p">,</span><span class="w"> </span><span class="mf">580.0</span><span class="p">,</span><span class="w"> </span><span class="mf">313.0</span><span class="p" data-group-id="2956989847-19">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-20">[</span><span class="mf">256.0</span><span class="p">,</span><span class="w"> </span><span class="mf">583.0</span><span class="p">,</span><span class="w"> </span><span class="mf">742.0</span><span class="p">,</span><span class="w"> </span><span class="mf">403.0</span><span class="p" data-group-id="2956989847-20">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2956989847-21">[</span><span class="mf">310.0</span><span class="p">,</span><span class="w"> </span><span class="mf">709.0</span><span class="p">,</span><span class="w"> </span><span class="mf">904.0</span><span class="p">,</span><span class="w"> </span><span class="mf">493.0</span><span class="p" data-group-id="2956989847-21">]</span><span class="w">
+    </span><span class="p" data-group-id="2956989847-15">]</span><span class="w">
+  </span><span class="p" data-group-id="2956989847-14">]</span><span class="w">
+</span><span class="p" data-group-id="2956989847-10">&gt;</span></code></pre><h2 id="conv_transpose/4-references" class="section-heading">
+  <a href="#conv_transpose/4-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1603.07285v1">A guide to convolution arithmethic for deep learning</a></li><li><a href="https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf">Deconvolutional Networks</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="depthwise_conv/4">
+
+    <span id="depthwise_conv/3"></span>
+
+  <div class="detail-header">
+    <a href="#depthwise_conv/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">depthwise_conv(input, weight, bias, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a general dimensional depthwise
+convolution.</p><p>Depthwise convolutions apply a single convolutional filter to
+each input channel. This is done by setting <code class="inline">feature_group_size</code>
+equal to the number of input channels. This will split the
+output_channels into <code class="inline">input_channels</code> number of groups and
+convolve the grouped kernel channels over the corresponding input
+channel.</p><h2 id="depthwise_conv/4-parameter-shapes" class="section-heading">
+  <a href="#depthwise_conv/4-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, input_channels, input_spatial0, ..., input_spatialN}</code></li><li><code class="inline">weight</code> - <code class="inline">{output_channels, 1, kernel_spatial0, ..., kernel_spatialN}</code></li><li><code class="inline">bias</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li></ul><p>  <code class="inline">output_channels</code> must be a multiple of the input channels.</p><h2 id="depthwise_conv/4-options" class="section-heading">
+  <a href="#depthwise_conv/4-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:input_dilation</code> - input dilation factor. Equivalent
+to applying interior padding on the input. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li><li><p><code class="inline">:kernel_dilation</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li></ul>
+  </section>
+</section>
+<section class="detail" id="separable_conv2d/6">
+
+    <span id="separable_conv2d/5"></span>
+
+  <div class="detail-header">
+    <a href="#separable_conv2d/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">separable_conv2d(input, k1, b1, k2, b2, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a 2-dimensional separable depthwise
+convolution.</p><p>The 2-d depthwise separable convolution performs 2 depthwise convolutions
+each over 1 spatial dimension of the input.</p><h2 id="separable_conv2d/6-parameter-shapes" class="section-heading">
+  <a href="#separable_conv2d/6-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, input_channels, input_spatial0, ..., input_spatialN}</code></li><li><code class="inline">k1</code> - <code class="inline">{output_channels, 1, kernel_spatial0, 1}</code></li><li><code class="inline">b1</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li><li><code class="inline">k2</code> - <code class="inline">{output_channels, 1, 1, kernel_spatial1}</code></li><li><code class="inline">b2</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li></ul><p>  <code class="inline">output_channels</code> must be a multiple of the input channels.</p><h2 id="separable_conv2d/6-options" class="section-heading">
+  <a href="#separable_conv2d/6-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:input_dilation</code> - input dilation factor. Equivalent
+to applying interior padding on the input. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li><li><p><code class="inline">:kernel_dilation</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li></ul><h2 id="separable_conv2d/6-references" class="section-heading">
+  <a href="#separable_conv2d/6-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1610.02357">Xception: Deep Learning with Depthwise Separable Convolutions</a></li></ul>
+  </section>
+</section>
+<section class="detail" id="separable_conv3d/8">
+
+    <span id="separable_conv3d/7"></span>
+
+  <div class="detail-header">
+    <a href="#separable_conv3d/8" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of a 3-dimensional separable depthwise
+convolution.</p><p>The 3-d depthwise separable convolution performs 3 depthwise convolutions
+each over 1 spatial dimension of the input.</p><h2 id="separable_conv3d/8-parameter-shapes" class="section-heading">
+  <a href="#separable_conv3d/8-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, input_channels, input_spatial0, ..., input_spatialN}</code></li><li><code class="inline">k1</code> - <code class="inline">{output_channels, 1, kernel_spatial0, 1, 1}</code></li><li><code class="inline">b1</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li><li><code class="inline">k2</code> - <code class="inline">{output_channels, 1, 1, kernel_spatial1, 1}</code></li><li><code class="inline">b2</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li><li><code class="inline">k3</code> - <code class="inline">{output_channels, 1, 1, 1, 1, kernel_spatial2}</code></li><li><code class="inline">b3</code> - <code class="inline">{output_channels}</code> or <code class="inline">{}</code></li></ul><p>  <code class="inline">output_channels</code> must be a multiple of the input channels.</p><h2 id="separable_conv3d/8-options" class="section-heading">
+  <a href="#separable_conv3d/8-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - kernel strides. Can be a scalar or a list
+who's length matches the number of spatial dimensions in
+the input tensor. Defaults to 1.</p></li><li><p><code class="inline">:padding</code> - zero padding on the input. Can be one of
+<code class="inline">:valid</code>, <code class="inline">:same</code> or a general padding configuration
+without interior padding for each spatial dimension
+of the input.</p></li><li><p><code class="inline">:input_dilation</code> - input dilation factor. Equivalent
+to applying interior padding on the input. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li><li><p><code class="inline">:kernel_dilation</code> - kernel dilation factor. Equivalent
+to applying interior padding on the kernel. The amount
+of interior padding applied is given by <code class="inline">kernel_dilation - 1</code>.
+Defaults to <code class="inline">1</code> or no dilation.</p></li></ul><h2 id="separable_conv3d/8-references" class="section-heading">
+  <a href="#separable_conv3d/8-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1610.02357">Xception: Deep Learning with Depthwise Separable Convolutions</a></li></ul>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions
+          </h1>
+          <div class="functions-list">
+<section class="detail" id="embedding/2">
+
+  <div class="detail-header">
+    <a href="#embedding/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">embedding(input, weights)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Computes embedding by treating weight matrix as a lookup table
+for discrete tokens.</p><p><code class="inline">input</code> is a vector of discrete values, typically representing tokens
+(e.g. words, characters, etc.) from a vocabulary. <code class="inline">weights</code> is a weight
+matrix of shape <code class="inline">{vocab_size, embedding_size}</code> from which the dense
+embeddings will be drawn.</p><h2 id="embedding/2-parameter-shapes" class="section-heading">
+  <a href="#embedding/2-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - <code class="inline">{batch_size, seq_len}</code></li><li><code class="inline">weights</code> - <code class="inline">{vocab_size, embedding_size}</code></li></ul><h2 id="embedding/2-examples" class="section-heading">
+  <a href="#embedding/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5571173079-1">(</span><span class="p" data-group-id="5571173079-2">[</span><span class="p" data-group-id="5571173079-3">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p" data-group-id="5571173079-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5571173079-4">[</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p" data-group-id="5571173079-4">]</span><span class="p" data-group-id="5571173079-2">]</span><span class="p" data-group-id="5571173079-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">weights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5571173079-5">(</span><span class="p" data-group-id="5571173079-6">[</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-7">[</span><span class="mf">0.46299999952316284</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5562999844551086</span><span class="p">,</span><span class="w"> </span><span class="mf">0.18170000612735748</span><span class="p" data-group-id="5571173079-7">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-8">[</span><span class="mf">0.9801999926567078</span><span class="p">,</span><span class="w"> </span><span class="mf">0.09780000150203705</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5333999991416931</span><span class="p" data-group-id="5571173079-8">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-9">[</span><span class="mf">0.6980000138282776</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9240999817848206</span><span class="p">,</span><span class="w"> </span><span class="mf">0.23479999601840973</span><span class="p" data-group-id="5571173079-9">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-10">[</span><span class="mf">0.31929999589920044</span><span class="p">,</span><span class="w"> </span><span class="mf">0.42250001430511475</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7865999937057495</span><span class="p" data-group-id="5571173079-10">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-11">[</span><span class="mf">0.5519000291824341</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5662999749183655</span><span class="p">,</span><span class="w"> </span><span class="mf">0.20559999346733093</span><span class="p" data-group-id="5571173079-11">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-12">[</span><span class="mf">0.1898999959230423</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9311000108718872</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8356000185012817</span><span class="p" data-group-id="5571173079-12">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-13">[</span><span class="mf">0.6383000016212463</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8794000148773193</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5282999873161316</span><span class="p" data-group-id="5571173079-13">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-14">[</span><span class="mf">0.9523000121116638</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7597000002861023</span><span class="p">,</span><span class="w"> </span><span class="mf">0.08250000327825546</span><span class="p" data-group-id="5571173079-14">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-15">[</span><span class="mf">0.6622999906539917</span><span class="p">,</span><span class="w"> </span><span class="mf">0.02329999953508377</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8205999732017517</span><span class="p" data-group-id="5571173079-15">]</span><span class="p">,</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="w"> </span><span class="p" data-group-id="5571173079-16">[</span><span class="mf">0.9855999946594238</span><span class="p">,</span><span class="w"> </span><span class="mf">0.36419999599456787</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5372999906539917</span><span class="p" data-group-id="5571173079-16">]</span><span class="w">
+</span><span class="gp unselectable">...&gt; </span><span class="p" data-group-id="5571173079-6">]</span><span class="p" data-group-id="5571173079-5">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">embedding</span><span class="p" data-group-id="5571173079-17">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">weights</span><span class="p" data-group-id="5571173079-17">)</span><span class="w">
+</span><span class="p" data-group-id="5571173079-18">#</span><span class="nc" data-group-id="5571173079-18">Nx.Tensor</span><span class="p" data-group-id="5571173079-18">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="5571173079-19">[</span><span class="mi">2</span><span class="p" data-group-id="5571173079-19">]</span><span class="p" data-group-id="5571173079-20">[</span><span class="mi">4</span><span class="p" data-group-id="5571173079-20">]</span><span class="p" data-group-id="5571173079-21">[</span><span class="mi">3</span><span class="p" data-group-id="5571173079-21">]</span><span class="w">
+  </span><span class="p" data-group-id="5571173079-22">[</span><span class="w">
+    </span><span class="p" data-group-id="5571173079-23">[</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-24">[</span><span class="mf">0.9801999926567078</span><span class="p">,</span><span class="w"> </span><span class="mf">0.09780000150203705</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5333999991416931</span><span class="p" data-group-id="5571173079-24">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-25">[</span><span class="mf">0.6980000138282776</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9240999817848206</span><span class="p">,</span><span class="w"> </span><span class="mf">0.23479999601840973</span><span class="p" data-group-id="5571173079-25">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-26">[</span><span class="mf">0.5519000291824341</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5662999749183655</span><span class="p">,</span><span class="w"> </span><span class="mf">0.20559999346733093</span><span class="p" data-group-id="5571173079-26">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-27">[</span><span class="mf">0.1898999959230423</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9311000108718872</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8356000185012817</span><span class="p" data-group-id="5571173079-27">]</span><span class="w">
+    </span><span class="p" data-group-id="5571173079-23">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="5571173079-28">[</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-29">[</span><span class="mf">0.5519000291824341</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5662999749183655</span><span class="p">,</span><span class="w"> </span><span class="mf">0.20559999346733093</span><span class="p" data-group-id="5571173079-29">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-30">[</span><span class="mf">0.31929999589920044</span><span class="p">,</span><span class="w"> </span><span class="mf">0.42250001430511475</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7865999937057495</span><span class="p" data-group-id="5571173079-30">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-31">[</span><span class="mf">0.6980000138282776</span><span class="p">,</span><span class="w"> </span><span class="mf">0.9240999817848206</span><span class="p">,</span><span class="w"> </span><span class="mf">0.23479999601840973</span><span class="p" data-group-id="5571173079-31">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5571173079-32">[</span><span class="mf">0.9855999946594238</span><span class="p">,</span><span class="w"> </span><span class="mf">0.36419999599456787</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5372999906539917</span><span class="p" data-group-id="5571173079-32">]</span><span class="w">
+    </span><span class="p" data-group-id="5571173079-28">]</span><span class="w">
+  </span><span class="p" data-group-id="5571173079-22">]</span><span class="w">
+</span><span class="p" data-group-id="5571173079-18">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="flatten/1">
+
+  <div class="detail-header">
+    <a href="#flatten/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">flatten(x)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Flattens input to shape of <code class="inline">{batch, units}</code> by folding outer
+dimensions.</p><h2 id="flatten/1-examples" class="section-heading">
+  <a href="#flatten/1-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="5674493463-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="5674493463-2">(</span><span class="p" data-group-id="5674493463-3">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="5674493463-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5674493463-4">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5674493463-4">}</span><span class="p" data-group-id="5674493463-2">)</span><span class="p" data-group-id="5674493463-1">)</span><span class="w">
+</span><span class="p" data-group-id="5674493463-5">#</span><span class="nc" data-group-id="5674493463-5">Nx.Tensor</span><span class="p" data-group-id="5674493463-5">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="5674493463-6">[</span><span class="mi">1</span><span class="p" data-group-id="5674493463-6">]</span><span class="p" data-group-id="5674493463-7">[</span><span class="mi">4</span><span class="p" data-group-id="5674493463-7">]</span><span class="w">
+  </span><span class="p" data-group-id="5674493463-8">[</span><span class="w">
+    </span><span class="p" data-group-id="5674493463-9">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="5674493463-9">]</span><span class="w">
+  </span><span class="p" data-group-id="5674493463-8">]</span><span class="w">
+</span><span class="p" data-group-id="5674493463-5">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="global_avg_pool/2">
+
+    <span id="global_avg_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_avg_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_avg_pool(input, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of global average pooling which averages across
+the spatial dimensions of the input such that the only remaining dimensions
+are the batch and feature dimensions.</p><p>Assumes data is configured in a channels-first like format.</p><h2 id="global_avg_pool/2-parameter-shapes" class="section-heading">
+  <a href="#global_avg_pool/2-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - {batch_size, features, s1, ..., sN}</li></ul><h2 id="global_avg_pool/2-options" class="section-heading">
+  <a href="#global_avg_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:keep_axes</code> - option to keep reduced axes with size 1 for each reduced
+dimensions. Defaults to <code class="inline">false</code></li></ul><h2 id="global_avg_pool/2-examples" class="section-heading">
+  <a href="#global_avg_pool/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_avg_pool</span><span class="p" data-group-id="4270946633-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="4270946633-2">(</span><span class="p" data-group-id="4270946633-3">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="4270946633-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4270946633-4">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="4270946633-4">}</span><span class="p" data-group-id="4270946633-2">)</span><span class="p" data-group-id="4270946633-1">)</span><span class="w">
+</span><span class="p" data-group-id="4270946633-5">#</span><span class="nc" data-group-id="4270946633-5">Nx.Tensor</span><span class="p" data-group-id="4270946633-5">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="4270946633-6">[</span><span class="mi">3</span><span class="p" data-group-id="4270946633-6">]</span><span class="p" data-group-id="4270946633-7">[</span><span class="mi">2</span><span class="p" data-group-id="4270946633-7">]</span><span class="w">
+  </span><span class="p" data-group-id="4270946633-8">[</span><span class="w">
+    </span><span class="p" data-group-id="4270946633-9">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">4.0</span><span class="p" data-group-id="4270946633-9">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="4270946633-10">[</span><span class="mf">7.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p" data-group-id="4270946633-10">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="4270946633-11">[</span><span class="mf">13.0</span><span class="p">,</span><span class="w"> </span><span class="mf">16.0</span><span class="p" data-group-id="4270946633-11">]</span><span class="w">
+  </span><span class="p" data-group-id="4270946633-8">]</span><span class="w">
+</span><span class="p" data-group-id="4270946633-5">&gt;</span><span class="w">
+
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_avg_pool</span><span class="p" data-group-id="4270946633-12">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="4270946633-13">(</span><span class="p" data-group-id="4270946633-14">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="4270946633-14">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4270946633-15">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="4270946633-15">}</span><span class="p" data-group-id="4270946633-13">)</span><span class="p">,</span><span class="w"> </span><span class="ss">keep_axes</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="4270946633-12">)</span><span class="w">
+</span><span class="p" data-group-id="4270946633-16">#</span><span class="nc" data-group-id="4270946633-16">Nx.Tensor</span><span class="p" data-group-id="4270946633-16">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="4270946633-17">[</span><span class="mi">1</span><span class="p" data-group-id="4270946633-17">]</span><span class="p" data-group-id="4270946633-18">[</span><span class="mi">3</span><span class="p" data-group-id="4270946633-18">]</span><span class="p" data-group-id="4270946633-19">[</span><span class="mi">1</span><span class="p" data-group-id="4270946633-19">]</span><span class="p" data-group-id="4270946633-20">[</span><span class="mi">1</span><span class="p" data-group-id="4270946633-20">]</span><span class="w">
+  </span><span class="p" data-group-id="4270946633-21">[</span><span class="w">
+    </span><span class="p" data-group-id="4270946633-22">[</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-23">[</span><span class="w">
+        </span><span class="p" data-group-id="4270946633-24">[</span><span class="mf">1.5</span><span class="p" data-group-id="4270946633-24">]</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-23">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-25">[</span><span class="w">
+        </span><span class="p" data-group-id="4270946633-26">[</span><span class="mf">5.5</span><span class="p" data-group-id="4270946633-26">]</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-25">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-27">[</span><span class="w">
+        </span><span class="p" data-group-id="4270946633-28">[</span><span class="mf">9.5</span><span class="p" data-group-id="4270946633-28">]</span><span class="w">
+      </span><span class="p" data-group-id="4270946633-27">]</span><span class="w">
+    </span><span class="p" data-group-id="4270946633-22">]</span><span class="w">
+  </span><span class="p" data-group-id="4270946633-21">]</span><span class="w">
+</span><span class="p" data-group-id="4270946633-16">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="global_lp_pool/2">
+
+    <span id="global_lp_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_lp_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_lp_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of global LP pooling which computes the following
+function across spatial dimensions of the input:</p><p>  $$f(X) =  qrt[p]{ um_{x in X} x^{p}}$$</p><p>Where $p$ is given by the keyword argument <code class="inline">:norm</code>. As $p$ approaches
+infinity, it becomes equivalent to max pooling.</p><p>Assumes data is configured in a channels-first like format.</p><h2 id="global_lp_pool/2-parameter-shapes" class="section-heading">
+  <a href="#global_lp_pool/2-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - {batch_size, s1, ..., sN, features}</li></ul><h2 id="global_lp_pool/2-options" class="section-heading">
+  <a href="#global_lp_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:keep_axes</code> - option to keep reduced axes with size 1 for each reduced
+dimensions. Defaults to <code class="inline">false</code></li><li><code class="inline">:norm</code> - $p$ in above function. Defaults to <code class="inline">1</code></li></ul><h2 id="global_lp_pool/2-examples" class="section-heading">
+  <a href="#global_lp_pool/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_lp_pool</span><span class="p" data-group-id="2841643802-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="2841643802-2">(</span><span class="p" data-group-id="2841643802-3">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="2841643802-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2841643802-4">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="2841643802-4">}</span><span class="p" data-group-id="2841643802-2">)</span><span class="p" data-group-id="2841643802-1">)</span><span class="w">
+</span><span class="p" data-group-id="2841643802-5">#</span><span class="nc" data-group-id="2841643802-5">Nx.Tensor</span><span class="p" data-group-id="2841643802-5">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="2841643802-6">[</span><span class="mi">3</span><span class="p" data-group-id="2841643802-6">]</span><span class="p" data-group-id="2841643802-7">[</span><span class="mi">2</span><span class="p" data-group-id="2841643802-7">]</span><span class="w">
+  </span><span class="p" data-group-id="2841643802-8">[</span><span class="w">
+    </span><span class="p" data-group-id="2841643802-9">[</span><span class="mf">3.0</span><span class="p">,</span><span class="w"> </span><span class="mf">12.0</span><span class="p" data-group-id="2841643802-9">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="2841643802-10">[</span><span class="mf">21.0</span><span class="p">,</span><span class="w"> </span><span class="mf">30.0</span><span class="p" data-group-id="2841643802-10">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="2841643802-11">[</span><span class="mf">39.0</span><span class="p">,</span><span class="w"> </span><span class="mf">48.0</span><span class="p" data-group-id="2841643802-11">]</span><span class="w">
+  </span><span class="p" data-group-id="2841643802-8">]</span><span class="w">
+</span><span class="p" data-group-id="2841643802-5">&gt;</span><span class="w">
+
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_lp_pool</span><span class="p" data-group-id="2841643802-12">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="2841643802-13">(</span><span class="p" data-group-id="2841643802-14">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="2841643802-14">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2841643802-15">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="2841643802-15">}</span><span class="p" data-group-id="2841643802-13">)</span><span class="p">,</span><span class="w"> </span><span class="ss">norm</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="ss">keep_axes</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="2841643802-12">)</span><span class="w">
+</span><span class="p" data-group-id="2841643802-16">#</span><span class="nc" data-group-id="2841643802-16">Nx.Tensor</span><span class="p" data-group-id="2841643802-16">&lt;</span><span class="w">
+  </span><span class="n">f16</span><span class="p" data-group-id="2841643802-17">[</span><span class="mi">1</span><span class="p" data-group-id="2841643802-17">]</span><span class="p" data-group-id="2841643802-18">[</span><span class="mi">3</span><span class="p" data-group-id="2841643802-18">]</span><span class="p" data-group-id="2841643802-19">[</span><span class="mi">1</span><span class="p" data-group-id="2841643802-19">]</span><span class="p" data-group-id="2841643802-20">[</span><span class="mi">1</span><span class="p" data-group-id="2841643802-20">]</span><span class="w">
+  </span><span class="p" data-group-id="2841643802-21">[</span><span class="w">
+    </span><span class="p" data-group-id="2841643802-22">[</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-23">[</span><span class="w">
+        </span><span class="p" data-group-id="2841643802-24">[</span><span class="mf">2.44921875</span><span class="p" data-group-id="2841643802-24">]</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-23">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-25">[</span><span class="w">
+        </span><span class="p" data-group-id="2841643802-26">[</span><span class="mf">4.69140625</span><span class="p" data-group-id="2841643802-26">]</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-25">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-27">[</span><span class="w">
+        </span><span class="p" data-group-id="2841643802-28">[</span><span class="mf">6.1640625</span><span class="p" data-group-id="2841643802-28">]</span><span class="w">
+      </span><span class="p" data-group-id="2841643802-27">]</span><span class="w">
+    </span><span class="p" data-group-id="2841643802-22">]</span><span class="w">
+  </span><span class="p" data-group-id="2841643802-21">]</span><span class="w">
+</span><span class="p" data-group-id="2841643802-16">&gt;</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="global_max_pool/2">
+
+    <span id="global_max_pool/1"></span>
+
+  <div class="detail-header">
+    <a href="#global_max_pool/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">global_max_pool(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/layers.ex#L0" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Functional implementation of global max pooling which computes maximums across
+the spatial dimensions of the input such that the only remaning dimensions are
+the batch and feature dimensions.</p><p>Assumes data is configured in a channels-first like format.</p><h2 id="global_max_pool/2-parameter-shapes" class="section-heading">
+  <a href="#global_max_pool/2-parameter-shapes" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Parameter Shapes
+</h2>
+<ul><li><code class="inline">input</code> - {batch_size, s1, ..., sN, features}</li></ul><h2 id="global_max_pool/2-options" class="section-heading">
+  <a href="#global_max_pool/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">:keep_axes</code> - option to keep reduced axes with size 1 for each reduced
+dimensions. Defaults to <code class="inline">false</code></li></ul><h2 id="global_max_pool/2-examples" class="section-heading">
+  <a href="#global_max_pool/2-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h2>
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_max_pool</span><span class="p" data-group-id="5026009176-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="5026009176-2">(</span><span class="p" data-group-id="5026009176-3">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="5026009176-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5026009176-4">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5026009176-4">}</span><span class="p" data-group-id="5026009176-2">)</span><span class="p" data-group-id="5026009176-1">)</span><span class="w">
+</span><span class="p" data-group-id="5026009176-5">#</span><span class="nc" data-group-id="5026009176-5">Nx.Tensor</span><span class="p" data-group-id="5026009176-5">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="5026009176-6">[</span><span class="mi">3</span><span class="p" data-group-id="5026009176-6">]</span><span class="p" data-group-id="5026009176-7">[</span><span class="mi">2</span><span class="p" data-group-id="5026009176-7">]</span><span class="w">
+  </span><span class="p" data-group-id="5026009176-8">[</span><span class="w">
+    </span><span class="p" data-group-id="5026009176-9">[</span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p" data-group-id="5026009176-9">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="5026009176-10">[</span><span class="mf">8.0</span><span class="p">,</span><span class="w"> </span><span class="mf">11.0</span><span class="p" data-group-id="5026009176-10">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="5026009176-11">[</span><span class="mf">14.0</span><span class="p">,</span><span class="w"> </span><span class="mf">17.0</span><span class="p" data-group-id="5026009176-11">]</span><span class="w">
+  </span><span class="p" data-group-id="5026009176-8">]</span><span class="w">
+</span><span class="p" data-group-id="5026009176-5">&gt;</span><span class="w">
+
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Layers</span><span class="o">.</span><span class="n">global_max_pool</span><span class="p" data-group-id="5026009176-12">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="5026009176-13">(</span><span class="p" data-group-id="5026009176-14">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="5026009176-14">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5026009176-15">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5026009176-15">}</span><span class="p" data-group-id="5026009176-13">)</span><span class="p">,</span><span class="w"> </span><span class="ss">keep_axes</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="5026009176-12">)</span><span class="w">
+</span><span class="p" data-group-id="5026009176-16">#</span><span class="nc" data-group-id="5026009176-16">Nx.Tensor</span><span class="p" data-group-id="5026009176-16">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="5026009176-17">[</span><span class="mi">1</span><span class="p" data-group-id="5026009176-17">]</span><span class="p" data-group-id="5026009176-18">[</span><span class="mi">3</span><span class="p" data-group-id="5026009176-18">]</span><span class="p" data-group-id="5026009176-19">[</span><span class="mi">1</span><span class="p" data-group-id="5026009176-19">]</span><span class="p" data-group-id="5026009176-20">[</span><span class="mi">1</span><span class="p" data-group-id="5026009176-20">]</span><span class="w">
+  </span><span class="p" data-group-id="5026009176-21">[</span><span class="w">
+    </span><span class="p" data-group-id="5026009176-22">[</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-23">[</span><span class="w">
+        </span><span class="p" data-group-id="5026009176-24">[</span><span class="mf">3.0</span><span class="p" data-group-id="5026009176-24">]</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-23">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-25">[</span><span class="w">
+        </span><span class="p" data-group-id="5026009176-26">[</span><span class="mf">7.0</span><span class="p" data-group-id="5026009176-26">]</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-25">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-27">[</span><span class="w">
+        </span><span class="p" data-group-id="5026009176-28">[</span><span class="mf">11.0</span><span class="p" data-group-id="5026009176-28">]</span><span class="w">
+      </span><span class="p" data-group-id="5026009176-27">]</span><span class="w">
+    </span><span class="p" data-group-id="5026009176-22">]</span><span class="w">
+  </span><span class="p" data-group-id="5026009176-21">]</span><span class="w">
+</span><span class="p" data-group-id="5026009176-16">&gt;</span></code></pre>
+  </section>
+</section>
+
+          </div>
+        </section>
+
+      <footer class="footer">
+        <p>
+          <span class="line">
+            Built using
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.1) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+          </span>
+          <span class="line">
+            Designed by
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+        </p>
+        <p>
+
+            <a href="api-reference.html" title="API reference" class="line footer-button">API Reference</a>
+
+          <button class="line footer-button display-shortcuts-help">
+            Display keyboard shortcuts
+          </button>
+          <button class="line footer-button night-mode-toggle">
+            Toggle night mode
+          </button>
+          <button class="line footer-button display-quick-switch">
+            Go to a HexDocs package
+          </button>
+          <button class="line footer-button tooltips-toggle">
+            <span class="tooltips-option-disable">Disable tooltips</span>
+            <span class="tooltips-option-enable">Enable tooltips</span>
+          </button>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+  </body>
+</html>
