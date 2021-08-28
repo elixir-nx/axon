@@ -919,7 +919,8 @@ defmodule Axon do
 
   @adaptive_pooling_layers [
     {:adaptive_avg_pool, "Adaptive average pool", "an"},
-    {:adaptive_max_pool, "Adaptive max pool", "an"}
+    {:adaptive_max_pool, "Adaptive max pool", "an"},
+    {:adaptive_lp_pool, "Adaptive power average pool", "an"}
   ]
 
   for {pool, name, a_or_an} <- @adaptive_pooling_layers do
@@ -955,7 +956,17 @@ defmodule Axon do
     output_size = tuple_or_duplicate(:output_size, output_size, inner_rank)
     output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size)
 
-    layer(x, pool, output_shape, %{}, opts[:name], output_size: output_size)
+    name = opts[:name]
+
+    opts =
+      if pool == :adaptive_lp_pool do
+        norm = opts[:norm] || 2
+        [output_size: output_size, norm: norm]
+      else
+        [output_size: output_size]
+      end
+
+    layer(x, pool, output_shape, %{}, name, opts)
   end
 
   ## Global Pooling
@@ -994,7 +1005,7 @@ defmodule Axon do
 
     opts =
       if pool == :global_lp_pool do
-        norm = opts[:norm] || 1
+        norm = opts[:norm] || 2
         [keep_axes: keep_axes, norm: norm]
       else
         [keep_axes: keep_axes]

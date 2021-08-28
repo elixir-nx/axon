@@ -403,7 +403,7 @@ defmodule Axon.Layers do
   Depthwise convolutions apply a single convolutional filter to
   each input channel. This is done by setting `feature_group_size`
   equal to the number of input channels. This will split the
-  output_channels into `input_channels` number of groups and
+  `output_channels` into `input_channels` number of groups and
   convolve the grouped kernel channels over the corresponding input
   channel.
 
@@ -752,7 +752,9 @@ defmodule Axon.Layers do
 
   ## Options
 
-    * `kernel_size` - window size. Rank must match spatial dimension
+    * `:norm` - $p$ from above equation. Defaults to 2.
+
+    * `:kernel_size` - window size. Rank must match spatial dimension
       of the input tensor. Required.
 
     * `:strides` - kernel strides. Can be a scalar or a list
@@ -931,6 +933,61 @@ defmodule Axon.Layers do
 
     input
     |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
+  end
+
+  @doc """
+  Functional implementation of general dimensional adaptive power
+  average pooling.
+
+  Computes:
+
+    $$f(X) = \sqrt[p]{\sum_{x \in X} x^{p}}$$
+
+  Adaptive pooling allows you to specify the desired output size
+  of the transformed input. This will automatically adapt the
+  window size and strides to obtain the desired output size. It
+  will then perform max pooling using the calculated window
+  size and strides.
+
+  Adaptive pooling can be useful when working on multiple inputs with
+  different spatial input shapes. You can guarantee the output of
+  an adaptive pooling operation is always the same size regardless
+  of input shape.
+
+  ## Options
+
+    * `:norm` - $p$ from above equation. Defaults to 2.
+
+    * `:output_size` - spatial output size. Must be a tuple with
+      size equal to the spatial dimensions in the input tensor.
+      Required.
+  """
+  @doc type: :pooling
+  defn adaptive_lp_pool(input, opts \\ []) do
+    opts = keyword!(opts, [:output_size, norm: 2])
+
+    norm = opts[:norm]
+
+    window_strides =
+      transform(
+        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
+        fn {shape, rank, output_size} ->
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
+        end
+      )
+
+    window_dimensions =
+      transform(
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
+        fn {shape, rank, strides, output_size} ->
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
+        end
+      )
+
+    input
+    |> Nx.power(norm)
+    |> Nx.window_sum(window_dimensions, padding: :valid, strides: window_strides)
+    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   ## Normalization
@@ -1447,11 +1504,11 @@ defmodule Axon.Layers do
 
     * `:keep_axes` - option to keep reduced axes with size 1 for each reduced
       dimensions. Defaults to `false`
-    * `:norm` - $p$ in above function. Defaults to `1`
+    * `:norm` - $p$ in above function. Defaults to 2
 
   ## Examples
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), norm: 1)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1461,7 +1518,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), norm: 2, keep_axes: true)
+      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), keep_axes: true)
       #Nx.Tensor<
         f16[1][3][1][1]
         [
@@ -1480,7 +1537,7 @@ defmodule Axon.Layers do
       >
   """
   defn global_lp_pool(x, opts \\ []) do
-    opts = keyword!(opts, norm: 1, keep_axes: false)
+    opts = keyword!(opts, norm: 2, keep_axes: false)
 
     norm = opts[:norm]
 

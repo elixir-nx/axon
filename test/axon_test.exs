@@ -513,7 +513,7 @@ defmodule AxonTest do
     end
   end
 
-  @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool]
+  @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool, :adaptive_lp_pool]
 
   describe "adaptive pooling" do
     test "works with options" do

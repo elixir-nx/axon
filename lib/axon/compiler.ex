@@ -335,7 +335,13 @@ defmodule Axon.Compiler do
 
   ## Pooling Layers
 
-  @pooling_layers [:max_pool, :avg_pool, :adaptive_avg_pool, :adaptive_max_pool] ++
+  @pooling_layers [
+                    :max_pool,
+                    :avg_pool,
+                    :adaptive_avg_pool,
+                    :adaptive_max_pool,
+                    :adaptive_lp_pool
+                  ] ++
                     [:lp_pool, :global_lp_pool, :global_max_pool, :global_avg_pool]
 
   defp recur_predict_fun(
