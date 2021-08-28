@@ -1,0 +1,40 @@
+
+name: Axon Docs
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.ref }}-docs
+  cancel-in-progress: true
+
+env:
+  ELIXIR_VERSION: 1.12
+  OTP_VERSION: 24.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "${{ env.OTP_VERSION }}"
+          elixir-version: "${{ env.ELIXIR_VERSION }}"
+      - run: mix deps.get
+      - run: mix docs
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@4.1.1
+        with:
+          branch: gh-pages
+          folder: doc
