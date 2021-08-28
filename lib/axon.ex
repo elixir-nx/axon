@@ -1142,17 +1142,23 @@ defmodule Axon do
   @doc """
   Adds a reshape layer to the network.
 
-  This layer will reshape non-batch dimensions of the input.
-  New shape must be compatible with old shape.
+  This layer implements a special case of `Nx.reshape` which accounts
+  for possible batch dimensions in the input tensor. If the input contains
+  batch dimensions, the reshape operation is performed on all non-batch
+  dimensions of the input - preserving the original batch size.
+
+  If the input is an Axon constant, the reshape behavior matches that of
+  `Nx.reshape`.
 
   ## Options
 
     * `:name` - Layer name.
   """
   @doc type: :shape
-  def reshape(%Axon{output_shape: shape} = x, new_shape, opts \\ []) do
-    output_shape = Axon.Shape.reshape(shape, new_shape)
-    layer(x, :reshape, output_shape, %{}, opts[:name])
+  def reshape(%Axon{op: op, output_shape: shape} = x, new_shape, opts \\ []) do
+    is_constant_reshape? = op == :constant
+    output_shape = Axon.Shape.reshape(shape, new_shape, is_constant_reshape?)
+    layer(x, :reshape, output_shape, %{}, opts[:name], constant: is_constant_reshape?)
   end
 
   @doc """
@@ -1165,9 +1171,14 @@ defmodule Axon do
     * `:name` - Layer name.
   """
   @doc type: :shape
-  def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
-    output_shape = Axon.Shape.transpose(shape, permutation)
-    layer(x, :transpose, output_shape, %{}, opts[:name], permutation: permutation)
+  def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
+    is_constant_reshape? = op == :constant
+    output_shape = Axon.Shape.transpose(shape, permutation, is_constant_reshape?)
+
+    layer(x, :transpose, output_shape, %{}, opts[:name],
+      permutation: permutation,
+      constant: is_constant_reshape?
+    )
   end
 
   @doc """

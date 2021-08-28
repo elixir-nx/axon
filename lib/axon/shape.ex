@@ -1032,22 +1032,29 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.reshape({nil, 8}, {4, 2})
+      iex> Axon.Shape.reshape({nil, 8}, {4, 2}, false)
       {nil, 4, 2}
 
-      iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4})
+      iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4}, false)
       {32, 4, 4, 4}
+
+      iex> Axon.Shape.reshape({12, 2, 2}, {6, 2, 2, 2}, true)
+      {6, 2, 2, 2}
 
   ### Error cases
 
-      iex> Axon.Shape.reshape({nil, 4, 2}, {9})
+      iex> Axon.Shape.reshape({nil, 4, 2}, {9}, false)
       ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as non-batch dimensions of old shape
   """
-  def reshape(shape, new_shape) do
-    batch_size = elem(shape, 0)
-    non_batch_shape = Tuple.delete_at(shape, 0)
+  def reshape(shape, new_shape, is_constant_reshape?) do
+    original_shape =
+      if is_constant_reshape? do
+        shape
+      else
+        Tuple.delete_at(shape, 0)
+      end
 
-    unless Nx.size(non_batch_shape) == Nx.size(new_shape) do
+    unless Nx.size(original_shape) == Nx.size(new_shape) do
       raise ArgumentError,
             "new shape invalid for reshape operation," <>
               " layer shape #{inspect(shape)} is incompatible" <>
@@ -1055,7 +1062,11 @@ defmodule Axon.Shape do
               " must have same size as non-batch dimensions of old shape"
     end
 
-    Tuple.insert_at(new_shape, 0, batch_size)
+    if is_constant_reshape? do
+      new_shape
+    else
+      Tuple.insert_at(new_shape, 0, elem(shape, 0))
+    end
   end
 
   @doc """
@@ -1064,20 +1075,31 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0])
+      iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0], false)
       {nil, 10, 64}
 
-      iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2])
+      iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2], false)
       {nil, 224, 3, 224}
+
+      iex> Axon.Shape.transpose({1, 2, 3}, [2, 1, 0], true)
+      {3, 2, 1}
   """
-  def transpose(shape, permutation) do
-    batch_size = elem(shape, 0)
-    non_batch_shape = Tuple.delete_at(shape, 0)
+  def transpose(shape, permutation, is_constant_reshape?) do
+    original_shape =
+      if is_constant_reshape? do
+        shape
+      else
+        Tuple.delete_at(shape, 0)
+      end
 
-    nil_names = List.duplicate(nil, Nx.rank(non_batch_shape))
-    {transposed_shape, _} = Nx.Shape.transpose(non_batch_shape, permutation, nil_names)
+    nil_names = List.duplicate(nil, Nx.rank(original_shape))
+    {transposed_shape, _} = Nx.Shape.transpose(original_shape, permutation, nil_names)
 
-    Tuple.insert_at(transposed_shape, 0, batch_size)
+    if is_constant_reshape? do
+      transposed_shape
+    else
+      Tuple.insert_at(transposed_shape, 0, elem(shape, 0))
+    end
   end
 
   @doc """
