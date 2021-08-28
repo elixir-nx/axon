@@ -1573,6 +1573,7 @@ defmodule Axon do
   Embeddings are typically used to obtain a dense representation of a sparse input
   space.
   """
+  @doc type: :linear
   def embedding(%Axon{output_shape: shape} = x, vocab_size, embedding_size, opts \\ []) do
     kernel_shape = Axon.Shape.embedding_kernel(shape, vocab_size, embedding_size)
     output_shape = Axon.Shape.embedding(shape, vocab_size, embedding_size)
