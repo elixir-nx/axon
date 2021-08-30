@@ -909,42 +909,6 @@ defmodule Axon.Compiler do
     {res, Map.put(cache, id, res)}
   end
 
-  defp to_hidden_state(
-         hidden_state,
-         input,
-         cache,
-         input_map,
-         params,
-         inputs,
-         num_carry,
-         recurrent_initializer,
-         hidden_state_shape
-       ) do
-    case hidden_state do
-      {%Axon{} = c, %Axon{} = h} ->
-        {c_res, cache} = to_predict_fun(c, cache, input_map, params, inputs)
-        {h_res, cache} = to_predict_fun(h, cache, input_map, params, inputs)
-        {{c_res, h_res}, cache}
-
-      {%Axon{} = c} ->
-        {h_res, cache} = to_predict_fun(c, cache, input_map, params, inputs)
-        {{h_res}, cache}
-
-      %Axon{} = x ->
-        {h_res, cache} = to_predict_fun(x, cache, input_map, params, inputs)
-        {h_res, cache}
-
-      nil ->
-        shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
-        # TODO: Verify this does not embed large constant into the expression
-        h_res =
-          for _ <- 1..num_carry,
-              do: apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
-
-        {List.to_tuple(h_res), cache}
-    end
-  end
-
   ## Element-wise layers
 
   @element_wise_layers [:add, :subtract, :multiply]
@@ -1149,6 +1113,42 @@ defmodule Axon.Compiler do
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
   defp maybe_freeze(param, false), do: param
+
+  defp to_hidden_state(
+         hidden_state,
+         input,
+         cache,
+         input_map,
+         params,
+         inputs,
+         num_carry,
+         recurrent_initializer,
+         hidden_state_shape
+       ) do
+    case hidden_state do
+      {%Axon{} = c, %Axon{} = h} ->
+        {c_res, cache} = to_predict_fun(c, cache, input_map, params, inputs)
+        {h_res, cache} = to_predict_fun(h, cache, input_map, params, inputs)
+        {{c_res, h_res}, cache}
+
+      {%Axon{} = c} ->
+        {h_res, cache} = to_predict_fun(c, cache, input_map, params, inputs)
+        {{h_res}, cache}
+
+      %Axon{} = x ->
+        {h_res, cache} = to_predict_fun(x, cache, input_map, params, inputs)
+        {h_res, cache}
+
+      nil ->
+        shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
+        # TODO: Verify this does not embed large constant into the expression
+        h_res =
+          for _ <- 1..num_carry,
+              do: apply(Axon.Initializers, recurrent_initializer, [[shape: shape]])
+
+        {List.to_tuple(h_res), cache}
+    end
+  end
 
   ## Penalty Function Compilation
 
