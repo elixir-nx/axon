@@ -1,5 +1,6 @@
 defmodule Axon.Compiler do
   @moduledoc false
+  require Logger
 
   import Axon.Shared
 
@@ -110,6 +111,15 @@ defmodule Axon.Compiler do
       |> Enum.sort()
       |> Enum.with_index()
       |> Enum.into(%{})
+
+    # Warn if input map is empty
+    if Enum.empty?(input_map) do
+      Logger.warn(
+        "You are compiling a graph with no inputs. If this was" <>
+          " intentional, you can run your model's predict function" <>
+          " with an empty tuple as input: predict_fn(params, {})"
+      )
+    end
 
     fn params, inputs ->
       inputs = maybe_flatten(inputs)
