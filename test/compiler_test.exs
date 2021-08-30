@@ -1,5 +1,6 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   alias Axon.MixedPrecision, as: AMP
 
@@ -62,6 +63,7 @@ defmodule CompilerTest do
   end
 
   describe "constant" do
+    @tag capture_log: true
     test "initializes with no params" do
       model = Axon.constant(Nx.tensor(1.0))
 
@@ -70,6 +72,7 @@ defmodule CompilerTest do
       assert %{} == init_fn.()
     end
 
+    @tag capture_log: true
     test "computes forward pass with default options" do
       model = Axon.constant(Nx.tensor(1.0))
 
@@ -77,6 +80,7 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, {}) == Nx.tensor(1.0)
     end
 
+    @tag capture_log: true
     test "computes forward pass with other layers" do
       model = Axon.add(Axon.constant(Nx.tensor(1.0)), Axon.constant(Nx.tensor(2.0)))
 
@@ -84,6 +88,7 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, {}) == Nx.tensor(3.0)
     end
 
+    @tag capture_log: true
     test "computes forward pass with output policy" do
       model = Axon.constant(Nx.tensor(1.0))
       policy = AMP.create_policy(output: {:bf, 16})
@@ -91,6 +96,14 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.compile(mp_model)
       assert predict_fn.(%{}, {}) == Nx.tensor(1.0, type: {:bf, 16})
+    end
+
+    test "warns on constant only network" do
+      model = Axon.constant(Nx.tensor(1.0))
+
+      assert capture_log(fn ->
+               Axon.compile(model)
+             end) =~ "You are compiling a graph with no inputs."
     end
   end
 
