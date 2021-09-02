@@ -15,6 +15,8 @@ Axon provides abstractions that enable easy integration while maintaining a leve
 
 For an in-depth overview, see: [Axon: Deep Learning in Elixir](https://seanmoriarity.com/2021/04/08/axon-deep-learning-in-elixir/)
 
+API documentation is available at [https://elixir-nx.github.io/axon](https://elixir-nx.github.io/axon)
+
 ### Functional API
 
 At the lowest-level, Axon consists of a number of modules with functional implementations of common methods in deep learning:
