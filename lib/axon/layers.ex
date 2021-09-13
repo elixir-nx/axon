@@ -75,7 +75,7 @@ defmodule Axon.Layers do
       Nx.dot(input, weight) + bias
 
   Typically, both `weight` and `bias` are learnable
-  parameters trained using gradient-based optimzation.
+  parameters trained using gradient-based optimization.
 
   ## Parameter Shapes
 

@@ -25,9 +25,9 @@ defmodule Axon.Updates do
         |> Updates.scale(-learning_rate)
       end
 
-  Updates are maps of updates, often assosciated with parameters of
+  Updates are maps of updates, often associated with parameters of
   the same names. Using `Axon.Updates.apply_updates/2` will merge updates
-  and parameters by adding assosciated parameters and updates.
+  and parameters by adding associated parameters and updates.
 
   ## Custom combinators
 
@@ -73,9 +73,9 @@ defmodule Axon.Updates do
         {updates, %{state: new_state}}
       end
 
-  State assosciated with individual parameters should have keys that match the
+  State associated with individual parameters should have keys that match the
   keys of the parameter. For example, if you have parameters `%{kernel: kernel}`
-  with assosciated states `mu` and `nu` representing the first and second moments,
+  with associated states `mu` and `nu` representing the first and second moments,
   your state should look something like:
 
       %{

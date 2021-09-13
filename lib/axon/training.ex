@@ -284,7 +284,7 @@ defmodule Axon.Training do
       init_fn = fn -> params end
 
   Instead, we want to build the values inside the given compiler.
-  The correct way to build those values is by compuing them inside
+  The correct way to build those values is by computing them inside
   a defn:
 
       defn init_values, do: Nx.random_uniform({40, 28}, 0, 1)
