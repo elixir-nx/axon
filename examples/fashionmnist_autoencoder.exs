@@ -35,7 +35,7 @@ sample_image =
   train_images
   |> hd()
   |> Nx.slice_axis(0, 1, 0)
-  |> Nx.reshape({1, 28, 28})
+  |> Nx.reshape({1, 1, 28, 28})
 
 sample_image |> Nx.to_heatmap() |> IO.inspect
 
