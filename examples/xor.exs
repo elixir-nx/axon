@@ -2,8 +2,8 @@
 # multi input models as just using `input` many times
 require Axon
 
-inp1 = Axon.input({32, 1})
-inp2 = Axon.input({32, 1})
+inp1 = Axon.input({:nil, 1})
+inp2 = Axon.input({:nil, 1})
 
 model =
   inp1
