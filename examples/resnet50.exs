@@ -1,3 +1,7 @@
+Mix.install([
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+])
+
 defmodule ResNet50 do
 
   def conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
