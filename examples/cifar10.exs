@@ -62,7 +62,7 @@ defmodule Cifar do
       |> Nx.backend_transfer()
       |> IO.inspect()
 
-    test_images = train_images |> hd() |> Nx.slice_axis(0, 3, 0)
+    test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
 
     IO.inspect test_images |> Nx.mean(axes: [1], keep_axes: true) |> Nx.to_heatmap()
 
