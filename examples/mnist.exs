@@ -52,10 +52,8 @@ defmodule Mnist do
       model
       |> Axon.predict(final_training_state[:params], test_images)
       |> Nx.argmax(axis: -1)
-
-    prediction
+      |> IO.inspect
   end
-
 end
 
 Mnist.run()

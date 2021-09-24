@@ -63,7 +63,6 @@ defmodule Fashionmist do
     |> Nx.to_heatmap()
     |> IO.inspect()
   end
-
 end
 
 Fashionmist.run()

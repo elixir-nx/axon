@@ -37,7 +37,6 @@ defmodule XOR do
 
     IO.inspect Axon.predict(model, final_training_state[:params], {Nx.tensor([[0]]), Nx.tensor([[1]])})
   end
-
 end
 
 XOR.run()
