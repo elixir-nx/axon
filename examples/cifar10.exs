@@ -55,7 +55,7 @@ final_training_state =
 
 test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
 
-IO.inspect test_images |> Nx.reshape({3, 28, 28}) |> Nx.to_heatmap()
+IO.inspect test_images |> Nx.mean(axes: [1], keep_axes: true) |> Nx.to_heatmap()
 
 prediction =
   model
