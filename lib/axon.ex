@@ -1783,6 +1783,49 @@ defmodule Axon do
     tree_reduce(x, fun.(axon, acc), fun)
   end
 
+  ## Utilities
+
+  @doc """
+  Returns the model's signature as a tuple of `{input_shape, output_shape}`.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 32}) |> Axon.dense(10)
+      iex> {inp, out} = Axon.get_model_signature(model)
+      iex> inp
+      {nil, 32}
+      iex> out
+      {nil, 10}
+
+      iex> inp1 = Axon.input({nil, 32})
+      iex> inp2 = Axon.input({nil, 32})
+      iex> model = Axon.concatenate(inp1, inp2)
+      iex> {{inp1_shape, inp2_shape}, out} = Axon.get_model_signature(model)
+      iex> inp1_shape
+      {nil, 32}
+      iex> inp2_shape
+      {nil, 32}
+      iex> out
+      {nil, 64}
+  """
+  def get_model_signature(%Axon{output_shape: output_shape} = axon) do
+    # TODO: Refactor for tuples and use `tree_*` when they support
+    # tuple inputs
+    input_shapes = tree_reduce(axon, [],
+      fn
+        %Axon{op: :input, output_shape: shape}, acc -> [shape | acc]
+        _, acc -> acc
+      end)
+
+    case input_shapes do
+      [input_shape] ->
+        {input_shape, output_shape}
+
+      shapes ->
+        {List.to_tuple(Enum.reverse(shapes)), output_shape}
+    end
+  end
+
   @doc """
   Compiles the given model to `{init_fn, predict_fn}`.
   """
