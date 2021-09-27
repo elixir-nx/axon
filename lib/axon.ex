@@ -1811,8 +1811,8 @@ defmodule Axon do
   def get_model_signature(%Axon{output_shape: output_shape} = axon) do
     # TODO: Refactor for tuples and use `tree_*` when they support
     # tuple inputs
-    input_shapes = tree_reduce(axon, [],
-      fn
+    input_shapes =
+      tree_reduce(axon, [], fn
         %Axon{op: :input, output_shape: shape}, acc -> [shape | acc]
         _, acc -> acc
       end)
