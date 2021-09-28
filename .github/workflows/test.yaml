@@ -23,11 +23,6 @@ jobs:
   onnx_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
       - name: Install Erlang & Elixir
         uses: erlef/setup-elixir@v1
         with:
@@ -50,5 +45,5 @@ jobs:
           ref: refs/heads/master
       - name: Run ONNX tests
         run: |
-          AXON_CHECKOUT=${{ steps.extract_branch.outputs.branch }} mix deps.get
+          AXON_CHECKOUT=${{ github.head_ref }} mix deps.get
           MIX_ENV=test mix do compile --warnings-as-errors, test
