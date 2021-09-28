@@ -44,7 +44,6 @@ jobs:
         with:
           version: '3.x'
       - name: Run ONNX tests
-        uses: actions/checkout@v2
         with:
           repository: elixir-nx/axon_onnx
           ref: refs/heads/master
