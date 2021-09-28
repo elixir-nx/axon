@@ -23,11 +23,11 @@ jobs:
   onnx_check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Extract branch name
         shell: bash
         run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
         id: extract_branch
-      - uses: actions/checkout@v2
       - name: Install Erlang & Elixir
         uses: erlef/setup-elixir@v1
         with:
