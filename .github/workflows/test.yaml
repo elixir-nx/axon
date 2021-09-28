@@ -43,10 +43,12 @@ jobs:
         uses: arduino/setup-protoc@v1
         with:
           version: '3.x'
-      - name: Run ONNX tests
+      - name: Checkout AxonOnnx
+        uses: actions/checkout@v2
         with:
           repository: elixir-nx/axon_onnx
           ref: refs/heads/master
+      - name: Run ONNX tests
         run: |
           AXON_CHECKOUT=${{ steps.extract_branch.outputs.branch }} mix deps.get
           MIX_ENV=test mix do compile --warnings-as-errors, test
