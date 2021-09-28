@@ -520,6 +520,14 @@ defmodule CompilerTest do
       end
     end
 
+    test "lp_pool computes forward pass with custom norm" do
+      model = Axon.input({nil, 1, 32}) |> Axon.lp_pool(norm: 3)
+      input = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input) == Axon.Layers.lp_pool(input, kernel_size: {1}, norm: 3)
+    end
+
     test "computes forward pass with output policy" do
       for pool <- @pooling_layers do
         model = apply(Axon, pool, [Axon.input({nil, 1, 32})])

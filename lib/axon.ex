@@ -982,11 +982,23 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
-    layer(x, pool, output_shape, %{}, opts[:name],
-      kernel_size: kernel_size,
-      strides: strides,
-      padding: padding
-    )
+    name = opts[:name]
+
+    opts =
+      if pool == :lp_pool do
+        norm = opts[:norm] || 2
+
+        [
+          kernel_size: kernel_size,
+          strides: strides,
+          padding: padding,
+          norm: norm
+        ]
+      else
+        [kernel_size: kernel_size, strides: strides, padding: padding]
+      end
+
+    layer(x, pool, output_shape, %{}, name, opts)
   end
 
   ## Adaptive Pooling
