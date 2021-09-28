@@ -20,3 +20,29 @@ jobs:
         run: mix format --check-formatted
       - name: Run tests
         run: MIX_ENV=test mix do compile --warnings-as-errors, test
+  onnx_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Erlang & Elixir
+        uses: erlef/setup-elixir@v1
+        with:
+          otp-version: '24.0'
+          elixir-version: '1.12.0'
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install ONNX
+        run: pip install numpy onnx onnxruntime
+      - name: Install mix dependencies
+        run: mix deps.get
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.x'
+      - name: Run ONNX tests
+        with:
+          repository: elixir-nx/axon_onnx
+          ref: refs/heads/origin
+        run: MIX_ENV=test mix do compile --warnings-as-errors, test
