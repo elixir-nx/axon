@@ -95,7 +95,7 @@ Axon.Recurrent <small class="app-vsn">(Axon v0.1.0-dev)</small>
 routines.</p><p>Recurrent Neural Networks are commonly used for working with
 sequences of data where there is some level of dependence between
 outputs at different timesteps.</p><p>This module contains 3 RNN Cell functions and methods to &quot;unroll&quot;
-cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir"><span class="p" data-group-id="5077771808-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="5077771808-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
+cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir"><span class="p" data-group-id="3905718634-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="3905718634-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
 for a singular timestep. In order to apply an RNN across multiple timesteps,
 you need to use either <code class="inline">static_unroll</code> or <code class="inline">dynamic_unroll</code> (coming soon).</p><p>Unrolling an RNN is equivalent to a <code class="inline">map_reduce</code> or <code class="inline">scan</code> starting
 from an initial carry state and ending with a final carry state and
