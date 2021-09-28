@@ -45,5 +45,7 @@ jobs:
           ref: refs/heads/master
       - name: Run ONNX tests
         run: |
-          AXON_CHECKOUT=${{ github.head_ref }} mix deps.get
-          MIX_ENV=test mix do compile --warnings-as-errors, test
+          AXON_CHECKOUT=${{ github.head_ref }} MIX_ENV=test \
+            mix do deps.get, \
+            compile --warnings-as-errors, \
+            test
