@@ -56,7 +56,7 @@ defmodule Mnist do
 
     final_training_state =
       model
-      |> train_model({train_images, train_labels}, 1)
+      |> train_model({train_images, train_labels}, 10)
 
     test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
     view_images(train_images, {10, 3})
