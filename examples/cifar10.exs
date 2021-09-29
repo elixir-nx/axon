@@ -50,7 +50,7 @@ defmodule Cifar do
     |> Axon.dense(10, activation: :softmax)
   end
 
-  defp perform_training(model, {train_images, train_labels}, epochs) do
+  defp train_model(model, {train_images, train_labels}, epochs) do
     model
     |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.sgd(0.01), metrics: [:accuracy])
     |> Axon.Training.train(train_images, train_labels, epochs: epochs, compiler: EXLA)
@@ -68,7 +68,7 @@ defmodule Cifar do
 
     final_training_state = 
       model
-      |> perform_training({train_images, train_labels}, 20)
+      |> train_model({train_images, train_labels}, 20)
       |> IO.inspect()
 
     test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)

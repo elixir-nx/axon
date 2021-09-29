@@ -8,26 +8,25 @@ Mix.install([
 defmodule Mnist do
   require Axon
 
+  defp transform_mages({bin, type, shape}) do
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 784})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
+  end
+
+  defp transform_labels({bin, type, _}) do
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.new_axis(-1)
+    |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
+    |> Nx.to_batched_list(32)
+  end
+
   def run do
-    transform_images =
-      fn {bin, type, shape} ->
-        bin
-        |> Nx.from_binary(type)
-        |> Nx.reshape({elem(shape, 0), 784})
-        |> Nx.divide(255.0)
-        |> Nx.to_batched_list(32)
-      end
 
-    transform_labels =
-      fn {bin, type, _} ->
-        bin
-        |> Nx.from_binary(type)
-        |> Nx.new_axis(-1)
-        |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-        |> Nx.to_batched_list(32)
-      end
-
-    {train_images, train_labels} = Scidata.MNIST.download(transform_images: transform_images, transform_labels: transform_labels)
+    {train_images, train_labels} = Scidata.MNIST.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
 
     IO.inspect train_images |> hd() |> Nx.slice_axis(0, 1, 0) |> Nx.reshape({1, 28, 28}) |> Nx.to_heatmap()
 
