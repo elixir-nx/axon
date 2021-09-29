@@ -63,8 +63,7 @@ defmodule Cifar do
 
     view_images(train_images, {0, 1})
 
-    model = build_model({nil, 3, 32, 32})
-    IO.inspect model
+    model = build_model({nil, 3, 32, 32}) |> IO.inspect
 
     final_training_state = 
       model
