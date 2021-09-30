@@ -1,38 +1,9 @@
-Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-  {:exla, github: "elixir-nx/exla", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-])
-
 defmodule MNISTGAN do
   require Axon
   require Axon.Updates
   import Nx.Defn
 
   @default_defn_compiler {EXLA, keep_on_device: true}
-
-  def run do
-    #require Axon
-
-    generator = MNISTGAN.generator() |> IO.inspect
-    discriminator = MNISTGAN.discriminator() |> IO.inspect
-
-    train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
-
-    IO.puts("Initializing parameters...\n")
-
-    {init_fn, update_fn} = Axon.Optimizers.adam(0.005)
-
-    d_params = Axon.init(discriminator, compiler: EXLA)
-    d_state = Nx.Defn.jit(init_fn, [d_params], compiler: EXLA)
-    g_params = Axon.init(generator, compiler: EXLA)
-    g_state = Nx.Defn.jit(init_fn, [g_params], compiler: EXLA)
-
-    {g_params, _d_params} = MNISTGAN.train(train_images, g_params, g_state, d_params, d_state, update_fn, epochs: 10)
-
-    latent = Nx.random_uniform({1, 100})
-    IO.inspect Nx.to_heatmap MNISTGAN.generator(g_params, latent)
-  end
 
   def generator do
     Axon.input({nil, 100})
@@ -179,4 +150,23 @@ defmodule MNISTGAN do
   end
 end
 
-MNISTGAN.run()
+require Axon
+
+generator = MNISTGAN.generator() |> IO.inspect
+discriminator = MNISTGAN.discriminator() |> IO.inspect
+
+train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
+
+IO.puts("Initializing parameters...\n")
+
+{init_fn, update_fn} = Axon.Optimizers.adam(0.005)
+
+d_params = Axon.init(discriminator, compiler: EXLA)
+d_state = Nx.Defn.jit(init_fn, [d_params], compiler: EXLA)
+g_params = Axon.init(generator, compiler: EXLA)
+g_state = Nx.Defn.jit(init_fn, [g_params], compiler: EXLA)
+
+{g_params, _d_params} = MNISTGAN.train(train_images, g_params, g_state, d_params, d_state, update_fn, epochs: 10)
+
+latent = Nx.random_uniform({1, 100})
+IO.inspect Nx.to_heatmap MNISTGAN.generator(g_params, latent)
