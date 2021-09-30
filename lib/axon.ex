@@ -982,11 +982,23 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
-    layer(x, pool, output_shape, %{}, opts[:name],
-      kernel_size: kernel_size,
-      strides: strides,
-      padding: padding
-    )
+    name = opts[:name]
+
+    opts =
+      if pool == :lp_pool do
+        norm = opts[:norm] || 2
+
+        [
+          kernel_size: kernel_size,
+          strides: strides,
+          padding: padding,
+          norm: norm
+        ]
+      else
+        [kernel_size: kernel_size, strides: strides, padding: padding]
+      end
+
+    layer(x, pool, output_shape, %{}, name, opts)
   end
 
   ## Adaptive Pooling
@@ -1781,6 +1793,49 @@ defmodule Axon do
       end
 
     tree_reduce(x, fun.(axon, acc), fun)
+  end
+
+  ## Utilities
+
+  @doc """
+  Returns the model's signature as a tuple of `{input_shape, output_shape}`.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 32}) |> Axon.dense(10)
+      iex> {inp, out} = Axon.get_model_signature(model)
+      iex> inp
+      {nil, 32}
+      iex> out
+      {nil, 10}
+
+      iex> inp1 = Axon.input({nil, 32})
+      iex> inp2 = Axon.input({nil, 32})
+      iex> model = Axon.concatenate(inp1, inp2)
+      iex> {{inp1_shape, inp2_shape}, out} = Axon.get_model_signature(model)
+      iex> inp1_shape
+      {nil, 32}
+      iex> inp2_shape
+      {nil, 32}
+      iex> out
+      {nil, 64}
+  """
+  def get_model_signature(%Axon{output_shape: output_shape} = axon) do
+    # TODO: Refactor for tuples and use `tree_*` when they support
+    # tuple inputs
+    input_shapes =
+      tree_reduce(axon, [], fn
+        %Axon{op: :input, output_shape: shape}, acc -> [shape | acc]
+        _, acc -> acc
+      end)
+
+    case input_shapes do
+      [input_shape] ->
+        {input_shape, output_shape}
+
+      shapes ->
+        {List.to_tuple(Enum.reverse(shapes)), output_shape}
+    end
   end
 
   @doc """

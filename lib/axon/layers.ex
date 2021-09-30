@@ -1524,13 +1524,13 @@ defmodule Axon.Layers do
         [
           [
             [
-              [2.44921875]
+              [3.7421875]
             ],
             [
-              [4.69140625]
+              [11.2265625]
             ],
             [
-              [6.1640625]
+              [19.125]
             ]
           ]
         ]
@@ -1547,6 +1547,7 @@ defmodule Axon.Layers do
       end)
 
     x
+    |> Nx.power(norm)
     |> Nx.sum(axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(x)), norm))
   end
