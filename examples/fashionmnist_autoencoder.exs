@@ -45,6 +45,10 @@ defmodule Fashionmist do
   def run do
     {train_images, _} = Scidata.FashionMNIST.download(transform_images: &transform_images/1)
 
+    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
+
+    final_training_state = train_model(model, train_images, 5)
+
     sample_image =
       train_images
       |> hd()
@@ -53,13 +57,8 @@ defmodule Fashionmist do
 
     sample_image |> Nx.to_heatmap() |> IO.inspect
 
-    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
-
-    final_training_state = train_model(model, train_images, 5)
-
     model
     |> Axon.predict(final_training_state[:params], sample_image, compiler: EXLA)
-    |> Nx.reshape({1, 28, 28})
     |> Nx.to_heatmap()
     |> IO.inspect()
   end
