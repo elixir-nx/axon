@@ -47,7 +47,6 @@ defmodule Mnist do
   end
 
   def run do
-
     {train_images, train_labels} = Scidata.MNIST.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
 
     view_images(train_images, {0, 1})

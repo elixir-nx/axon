@@ -9,36 +9,41 @@ defmodule Fashionmist do
   require Axon
 
   defmodule Autoencoder do
-    def encoder(x, latent_dim) do
+    defp encoder(x, latent_dim) do
       x
       |> Axon.flatten()
       |> Axon.dense(latent_dim, activation: :relu)
     end
 
-    def decoder(x) do
+    defp decoder(x) do
       x
       |> Axon.dense(784, activation: :sigmoid)
       |> Axon.reshape({1, 28, 28})
     end
 
-    def model(latent_dim) do
-      Axon.input({nil, 1, 28, 28})
+    def build_model(input_shape, latent_dim) do
+      Axon.input(input_shape)
       |> encoder(latent_dim)
       |> decoder()
     end
   end
 
-  def run do
-    transform_images =
-      fn {bin, type, shape} ->
-        bin
-        |> Nx.from_binary(type)
-        |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-        |> Nx.divide(255.0)
-        |> Nx.to_batched_list(32)
-      end
+  defp transform_images({bin, type, shape}) do
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
+  end
 
-    {train_images, _} = Scidata.FashionMNIST.download(transform_images: transform_images)
+  defp train_model(model, train_images, epochs) do
+    model
+    |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adam(0.01), metrics: [:mean_absolute_error])
+    |> Axon.Training.train(train_images, train_images, epochs: epochs, compiler: EXLA)
+  end
+
+  def run do
+    {train_images, _} = Scidata.FashionMNIST.download(transform_images: &transform_images/1)
 
     sample_image =
       train_images
@@ -48,14 +53,9 @@ defmodule Fashionmist do
 
     sample_image |> Nx.to_heatmap() |> IO.inspect
 
-    model = Autoencoder.model(64)
+    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
 
-    IO.inspect model
-
-    final_training_state =
-      model
-      |> Axon.Training.step(:mean_squared_error, Axon.Optimizers.adam(0.01), metrics: [:mean_absolute_error])
-      |> Axon.Training.train(train_images, train_images, epochs: 5, compiler: EXLA)
+    final_training_state = train_model(model, train_images, 5)
 
     model
     |> Axon.predict(final_training_state[:params], sample_image, compiler: EXLA)
