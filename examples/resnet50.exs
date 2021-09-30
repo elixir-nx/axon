@@ -4,7 +4,7 @@ Mix.install([
 
 defmodule ResNet50 do
 
-  def conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
+  defp conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
     shortcut =
       x
       |> Axon.conv(f3, kernel_size: {1, 1}, strides: strides)
@@ -26,7 +26,7 @@ defmodule ResNet50 do
     |> Axon.relu()
   end
 
-  def identity_block(%Axon{output_shape: shape} = x, kernel_size, [f1, f2]) do
+  defp identity_block(%Axon{output_shape: shape} = x, kernel_size, [f1, f2]) do
     x
     |> Axon.conv(f1, kernel_size: {1, 1})
     |> Axon.batch_norm()
