@@ -40,8 +40,8 @@ defmodule ResNet50 do
     |> Axon.relu()
   end
 
-  def resnet do
-    x = Axon.input({nil, 3, 224, 224})
+  def build_model(input_shape) do
+    x = Axon.input(input_shape)
 
     stage1 =
       x
@@ -85,4 +85,4 @@ defmodule ResNet50 do
   end
 end
 
-IO.inspect ResNet50.resnet()
+IO.inspect ResNet50.build_model({nil, 3, 224, 224})
