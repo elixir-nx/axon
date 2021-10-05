@@ -59,7 +59,7 @@ defmodule Axon.Training.Callbacks do
 
     train_state[:metrics]
     |> Enum.each(fn {k, v} ->
-      IO.puts("Epoch #{epoch} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}")
+      IO.puts("Epoch #{epoch + 1} #{Atom.to_string(k)}: #{:io_lib.format("~.5f", [Nx.to_scalar(v)])}")
     end)
 
     IO.puts("\n")
