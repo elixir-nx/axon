@@ -142,7 +142,7 @@ defmodule Axon do
   ## Options
 
     * `initializer` - parameter initializer. Defaults to `:glorot_uniform`.
-    * `:regularizer` - parameter regularizer. Defaults to `:none`.
+    * `regularizer` - parameter regularizer. Defaults to `:none`.
 
   """
   def param(name, shape, opts \\ []) do
