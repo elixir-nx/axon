@@ -2,6 +2,7 @@ defmodule CompilerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
 
+  require Axon
   alias Axon.MixedPrecision, as: AMP
 
   describe "input" do
@@ -738,6 +739,15 @@ defmodule CompilerTest do
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      end
+    end
+
+    test "not present in inference mode" do
+      for dropout <- @dropout_layers do
+        model = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert Axon.predict(model, %{}, input) == input
       end
     end
   end

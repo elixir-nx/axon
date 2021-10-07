@@ -51,7 +51,11 @@ defmodule Axon do
 
       params = Axon.init(model, compiler: EXLA)
 
-      Axon.predict(model, params, inputs, compiler: EXLA)
+      Axon.predict(model, params, inputs, compiler: EXLA, mode: :train)
+
+  `Axon.predict/4` by default runs in inference mode, which performs certain
+  optimizations and removes layers such as dropout layers. If constructing
+  a training step using `Axon.predict/4`, be sure to specify `mode: :train`.
 
   Both `Axon.init/2` and `Axon.predict/4` can be used from within
   Nx defn or outside.
