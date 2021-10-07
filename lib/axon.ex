@@ -961,9 +961,10 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:kernel_size` - Pooling kernel size.
-      * `:strides` - Pooling strides.
+      * `name` - Layer name.
+      * `kernel_size` - Pooling kernel size. Defaults to `1`.
+      * `padding` - Padding to apply to input of pooling operation.
+      * `strides` - Pooling strides. Defaults to size of kernel.
 
     """
     @doc type: :pooling
@@ -974,11 +975,12 @@ defmodule Axon do
 
   defp pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
     kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
+    strides = opts[:strides]
     padding = opts[:padding] || :valid
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = if strides, do: strides, else: Tuple.to_list(kernel_size)
     strides = list_or_duplicate(:strides, strides, inner_rank)
     output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding)
 
