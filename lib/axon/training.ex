@@ -171,7 +171,7 @@ defmodule Axon.Training do
     end
 
     objective_fn = fn params, input, target ->
-      preds = Axon.predict(model, params, input)
+      preds = Axon.predict(model, params, input, mode: :train)
       Nx.add(loss.(target, preds), Axon.penalty(model, params))
     end
 
