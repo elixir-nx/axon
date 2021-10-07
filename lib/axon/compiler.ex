@@ -232,7 +232,9 @@ defmodule Axon.Compiler do
   defp to_predict_fun(graph, cache, input_map, params, inputs, mode) when is_tuple(graph) do
     graph
     |> Tuple.to_list()
-    |> Enum.map_reduce(cache, fn x, acc -> to_predict_fun(x, acc, input_map, params, inputs, mode) end)
+    |> Enum.map_reduce(cache, fn x, acc ->
+      to_predict_fun(x, acc, input_map, params, inputs, mode)
+    end)
   end
 
   defp to_predict_fun(%{id: id} = graph, cache, input_map, params, inputs, mode) do
