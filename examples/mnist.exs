@@ -1,7 +1,14 @@
-require Axon
+Mix.install([
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+  {:exla, github: "elixir-nx/exla", sparse: "exla"},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:scidata, "~> 0.1.1"},
+])
 
-transform_images =
-  fn {bin, type, shape} ->
+defmodule Mnist do
+  require Axon
+
+  defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 784})
@@ -9,8 +16,7 @@ transform_images =
     |> Nx.to_batched_list(32)
   end
 
-transform_labels =
-  fn {bin, type, _} ->
+  defp transform_labels({bin, type, _}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
@@ -18,30 +24,47 @@ transform_labels =
     |> Nx.to_batched_list(32)
   end
 
-{train_images, train_labels} = Scidata.MNIST.download(transform_images: transform_images, transform_labels: transform_labels)
+  defp view_images(images, {start_index, len}) do
+    images
+    |> hd()
+    |> Nx.slice_axis(start_index, len, 0)
+    |> Nx.reshape({:auto, 28, 28})
+    |> Nx.to_heatmap()
+    |> IO.inspect
+  end
 
-IO.inspect train_images |> hd() |> Nx.slice_axis(0, 1, 0) |> Nx.reshape({1, 28, 28}) |> Nx.to_heatmap()
+  defp build_model(input_shape) do
+    Axon.input(input_shape)
+    |> Axon.dense(128, activation: :relu)
+    |> Axon.dropout()
+    |> Axon.dense(10, activation: :softmax)
+  end
 
-model =
-  Axon.input({nil, 784})
-  |> Axon.dense(128, activation: :relu)
-  |> Axon.dropout()
-  |> Axon.dense(10, activation: :softmax)
+  defp train_model(model, {train_images, train_labels}, epochs) do
+    model
+    |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005), metrics: [:accuracy])
+    |> Axon.Training.train(train_images, train_labels, epochs: epochs, compiler: EXLA, log_every: 100)
+  end
 
-IO.inspect model
+  def run do
+    {train_images, train_labels} = Scidata.MNIST.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
 
-final_training_state =
-  model
-  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005), metrics: [:accuracy])
-  |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA, log_every: 100)
+    view_images(train_images, {0, 1})
 
-test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
+    model = build_model({nil, 784}) |> IO.inspect
 
-IO.inspect test_images |> Nx.reshape({3, 28, 28}) |> Nx.to_heatmap()
+    final_training_state =
+      model
+      |> train_model({train_images, train_labels}, 10)
 
-prediction =
-  model
-  |> Axon.predict(final_training_state[:params], test_images)
-  |> Nx.argmax(axis: -1)
+    test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
+    view_images(train_images, {10, 3})
 
-prediction
+    model
+    |> Axon.predict(final_training_state[:params], test_images)
+    |> Nx.argmax(axis: -1)
+    |> IO.inspect
+  end
+end
+
+Mnist.run()

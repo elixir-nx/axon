@@ -1,7 +1,14 @@
-require Axon
+Mix.install([
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+  {:exla, github: "elixir-nx/exla", sparse: "exla"},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:scidata, "~> 0.1.1"},
+])
 
-transform_images =
-  fn {bin, type, shape} ->
+defmodule Cifar do
+  require Axon
+
+  defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 3, 32, 32})
@@ -9,8 +16,7 @@ transform_images =
     |> Nx.to_batched_list(32)
   end
 
-transform_labels =
-  fn {bin, type, _} ->
+  defp transform_labels({bin, type, _}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
@@ -18,48 +24,59 @@ transform_labels =
     |> Nx.to_batched_list(32)
   end
 
-{train_images, train_labels} = Scidata.CIFAR10.download(transform_images: transform_images, transform_labels: transform_labels)
+  defp view_images(images, {start_index, len}) do
+    images
+    |> hd()
+    |> Nx.slice_axis(start_index, len, 0)
+    |> Nx.mean(axes: [1], keep_axes: true)
+    |> Nx.to_heatmap()
+    |> IO.inspect
+  end
 
-train_images
-|> hd()
-|> Nx.slice_axis(0, 1, 0)
-|> Nx.reshape({3, 32, 32})
-|> Nx.mean(axes: [0], keep_axes: true)
-|> Nx.to_heatmap()
-|> IO.inspect
+  defp build_model(input_shape) do
+    Axon.input(input_shape)
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.batch_norm()
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.spatial_dropout()
+    |> Axon.batch_norm()
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.batch_norm()
+    |> Axon.flatten()
+    |> Axon.dense(64, activation: :relu)
+    |> Axon.dropout()
+    |> Axon.dense(10, activation: :softmax)
+  end
 
-model =
-  Axon.input({nil, 3, 32, 32})
-  |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.batch_norm()
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.spatial_dropout()
-  |> Axon.batch_norm()
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.batch_norm()
-  |> Axon.flatten()
-  |> Axon.dense(64, activation: :relu)
-  |> Axon.dropout()
-  |> Axon.dense(10, activation: :softmax)
+  defp train_model(model, {train_images, train_labels}, epochs) do
+    model
+    |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.sgd(0.01), metrics: [:accuracy])
+    |> Axon.Training.train(train_images, train_labels, epochs: epochs, compiler: EXLA)
+    |> Nx.backend_transfer()
+  end
 
-IO.inspect model
+  def run do
+    {train_images, train_labels} = Scidata.CIFAR10.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
 
-final_training_state =
-  model
-  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.sgd(0.01), metrics: [:accuracy])
-  |> Axon.Training.train(train_images, train_labels, epochs: 20, compiler: EXLA)
-  |> Nx.backend_transfer()
-  |> IO.inspect()
+    view_images(train_images, {0, 1})
 
-test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
+    model = build_model({nil, 3, 32, 32}) |> IO.inspect
 
-IO.inspect test_images |> Nx.mean(axes: [1], keep_axes: true) |> Nx.to_heatmap()
+    final_training_state = 
+      model
+      |> train_model({train_images, train_labels}, 20)
+      |> IO.inspect()
 
-prediction =
-  model
-  |> Axon.predict(final_training_state[:params], test_images)
-  |> Nx.argmax(axis: -1)
+    test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
+    view_images(train_images, {10, 3})
 
-prediction
+    model
+    |> Axon.predict(final_training_state[:params], test_images)
+    |> Nx.argmax(axis: -1)
+    |> IO.inspect
+  end
+end
+
+Cifar.run()
