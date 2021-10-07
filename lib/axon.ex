@@ -142,7 +142,7 @@ defmodule Axon do
   ## Options
 
     * `initializer` - parameter initializer. Defaults to `:glorot_uniform`.
-    * `:regularizer` - parameter regularizer. Defaults to `:none`.
+    * `regularizer` - parameter regularizer. Defaults to `:none`.
 
   """
   def param(name, shape, opts \\ []) do
@@ -538,7 +538,7 @@ defmodule Axon do
   factor. An input factor of 1 means the output channels
   are the same as the input channels.
 
-  Compiles to `Axon.Layers.depthwise_conv`/4.
+  Compiles to `Axon.Layers.depthwise_conv/4`.
 
   ## Options
 
