@@ -344,7 +344,6 @@ defmodule Axon.Training do
                         epoch_step: 0,
                         epoch_loss: 0.0
                     }
-
                     {:cont, train_state}
 
                   {:halt, train_state} ->
@@ -399,16 +398,20 @@ defmodule Axon.Training do
               raise "invalid return from callback #{inspect(other)}"
           end
 
-        {callback, event, opts}, train_state ->
-          case apply(callback, [train_state, event, opts ++ train_opts]) do
-            {:halt, acc} ->
-              {:halt, {:halt, acc}}
+        {callback, on_event, opts}, train_state ->
+          if on_event == event do
+            case apply(callback, [train_state, event, opts ++ train_opts]) do
+              {:halt, acc} ->
+                {:halt, {:stopped, acc}}
 
-            {:cont, acc} ->
-              {:cont, {:cont, acc}}
+              {:cont, acc} ->
+                {:cont, acc}
 
-            other ->
-              raise "invalid return from callback #{inspect(other)}"
+              other ->
+                raise "invalid return from callback #{inspect(other)}"
+            end
+          else
+            {:cont, train_state}
           end
       end)
 
