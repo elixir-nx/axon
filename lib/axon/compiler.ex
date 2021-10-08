@@ -31,8 +31,8 @@ defmodule Axon.Compiler do
       graph
       |> to_init_fun(%{})
       |> Map.new(fn {k, v} ->
-          v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
-          {k, v}
+        v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
+        {k, v}
       end)
     end
   end
@@ -43,7 +43,10 @@ defmodule Axon.Compiler do
     |> Enum.reduce(cache, fn x, acc -> to_init_fun(x, acc) end)
   end
 
-  defp to_init_fun(%Axon{parent: parents, name: name, params: params, policy: %{params: dtype}}, cache)
+  defp to_init_fun(
+         %Axon{parent: parents, name: name, params: params, policy: %{params: dtype}},
+         cache
+       )
        when is_list(parents) do
     cache =
       case cache do

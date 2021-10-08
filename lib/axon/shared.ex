@@ -83,18 +83,24 @@ defmodule Axon.Shared do
   of the input.
   """
   defn zeros_like(params) do
-    transform(params, &deep_new(&1, fn {k, x} ->
-      {k, Axon.Initializers.zeros(shape: Nx.shape(x))}
-    end))
+    transform(
+      params,
+      &deep_new(&1, fn {k, x} ->
+        {k, Axon.Initializers.zeros(shape: Nx.shape(x))}
+      end)
+    )
   end
 
   @doc """
   Creates a fulls-like tuple of inputs.
   """
   defn fulls_like(params, value) do
-    transform(params, &deep_new(&1, fn {k, x} ->
-      {k, Axon.Initializers.full(value, shape: Nx.shape(x))}
-    end))
+    transform(
+      params,
+      &deep_new(&1, fn {k, x} ->
+        {k, Axon.Initializers.full(value, shape: Nx.shape(x))}
+      end)
+    )
   end
 
   @doc """
