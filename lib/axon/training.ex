@@ -344,6 +344,7 @@ defmodule Axon.Training do
                         epoch_step: 0,
                         epoch_loss: 0.0
                     }
+
                     {:cont, train_state}
 
                   {:halt, train_state} ->
