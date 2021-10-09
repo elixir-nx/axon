@@ -22,7 +22,10 @@ defmodule Axon.Compiler do
       graph
       |> Tuple.to_list()
       |> Enum.reduce(%{}, &to_init_fun/2)
-      |> Map.new(fn {k, v} -> {k, v.()} end)
+      |> Map.new(fn {k, v} ->
+        v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
+        {k, v}
+      end)
     end
   end
 
@@ -661,6 +664,7 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
+           name: name,
            op: :lstm,
            parent: parent,
            params:
@@ -710,17 +714,17 @@ defmodule Axon.Compiler do
     input = Nx.as_type(res, compute)
 
     input_kernel = {
-      Nx.as_type(maybe_freeze(params[wii], wii_frz), compute),
-      Nx.as_type(maybe_freeze(params[wif], wif_frz), compute),
-      Nx.as_type(maybe_freeze(params[wig], wig_frz), compute),
-      Nx.as_type(maybe_freeze(params[wio], wio_frz), compute)
+      Nx.as_type(maybe_freeze(params[name][wii], wii_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][wif], wif_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][wig], wig_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][wio], wio_frz), compute)
     }
 
     hidden_kernel = {
-      Nx.as_type(maybe_freeze(params[whi], whi_frz), compute),
-      Nx.as_type(maybe_freeze(params[whf], whf_frz), compute),
-      Nx.as_type(maybe_freeze(params[whg], whg_frz), compute),
-      Nx.as_type(maybe_freeze(params[who], who_frz), compute)
+      Nx.as_type(maybe_freeze(params[name][whi], whi_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][whf], whf_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][whg], whg_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][who], who_frz), compute)
     }
 
     bias =
@@ -731,10 +735,10 @@ defmodule Axon.Compiler do
         %{name: bo, frozen: bo_frz} = layer_params["bo"]
 
         {
-          Nx.as_type(maybe_freeze(params[bi], bi_frz), compute),
-          Nx.as_type(maybe_freeze(params[bf], bf_frz), compute),
-          Nx.as_type(maybe_freeze(params[bg], bg_frz), compute),
-          Nx.as_type(maybe_freeze(params[bo], bo_frz), compute)
+          Nx.as_type(maybe_freeze(params[name][bi], bi_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bf], bf_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bg], bg_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bo], bo_frz), compute)
         }
       else
         {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute), Nx.tensor(0, type: compute),
@@ -861,6 +865,7 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
+           name: name,
            op: :gru,
            parent: parent,
            params:
@@ -908,15 +913,15 @@ defmodule Axon.Compiler do
     input = Nx.as_type(res, compute)
 
     input_kernel = {
-      Nx.as_type(maybe_freeze(params[wir], wir_frz), compute),
-      Nx.as_type(maybe_freeze(params[wiz], wiz_frz), compute),
-      Nx.as_type(maybe_freeze(params[win], win_frz), compute)
+      Nx.as_type(maybe_freeze(params[name][wir], wir_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][wiz], wiz_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][win], win_frz), compute)
     }
 
     hidden_kernel = {
-      Nx.as_type(maybe_freeze(params[whr], whr_frz), compute),
-      Nx.as_type(maybe_freeze(params[whz], whz_frz), compute),
-      Nx.as_type(maybe_freeze(params[whn], whn_frz), compute)
+      Nx.as_type(maybe_freeze(params[name][whr], whr_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][whz], whz_frz), compute),
+      Nx.as_type(maybe_freeze(params[name][whn], whn_frz), compute)
     }
 
     bias =
@@ -927,10 +932,10 @@ defmodule Axon.Compiler do
         %{name: bhn, frozen: bhn_frz} = layer_params["bhn"]
 
         {
-          Nx.as_type(maybe_freeze(params[br], br_frz), compute),
-          Nx.as_type(maybe_freeze(params[bz], bz_frz), compute),
-          Nx.as_type(maybe_freeze(params[bin], bin_frz), compute),
-          Nx.as_type(maybe_freeze(params[bhn], bhn_frz), compute)
+          Nx.as_type(maybe_freeze(params[name][br], br_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bz], bz_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bin], bin_frz), compute),
+          Nx.as_type(maybe_freeze(params[name][bhn], bhn_frz), compute)
         }
       else
         {

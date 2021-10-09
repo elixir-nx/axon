@@ -5,6 +5,8 @@ defmodule Axon.Training do
   require Axon
   require Axon.Updates
 
+  import Axon.Shared
+
   alias Axon.Training.Step
 
   @doc false
@@ -101,6 +103,8 @@ defmodule Axon.Training do
 
       {updates, new_update_state} =
         update_fn.(gradients, train_state[:optimizer_state], train_state[:params])
+
+      updates = deep_merge(updates, train_state[:params], fn g, x -> Nx.as_type(g, Nx.type(x)) end)
 
       %{
         epoch: train_state[:epoch],

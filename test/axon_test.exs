@@ -732,7 +732,7 @@ defmodule AxonTest do
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
         |> Axon.compile()
 
-      assert %{"dense_kernel" => kernel, "dense_bias" => bias} = params = init_fn.()
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == Axon.Initializers.zeros(shape: {6})
 
@@ -749,15 +749,19 @@ defmodule AxonTest do
 
     test "init works inside defn" do
       assert init() == %{
-               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-               "dense_bias" => Axon.Initializers.zeros(shape: {6})
+               "dense" => %{
+                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+                  "bias" => Axon.Initializers.zeros(shape: {6})
+                }
              }
     end
 
     test "init works outside defn" do
       assert Axon.init(model()) == %{
-               "dense_kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-               "dense_bias" => Axon.Initializers.zeros(shape: {6})
+               "dense" => %{
+                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+                  "bias" => Axon.Initializers.zeros(shape: {6})
+                }
              }
     end
 
