@@ -45,7 +45,7 @@ defmodule Axon.Updates do
         transform(
           {x, step},
           fn {updates, step} ->
-            Map.new(updates, fn {k, x} -> Nx.multiply(x, step) end)
+            deep_new(updates, fn {k, x} -> Nx.multiply(x, step) end)
           end
         )
       end
@@ -68,7 +68,7 @@ defmodule Axon.Updates do
       defnp apply_my_update(updates, {state}) do
         new_state = apply_map(state, &Nx.add(&1, 0.01))
         updates = transform({updates, new_state}, fn {updates, state} ->
-          Map.merge(updates, state, fn _, g, z -> Nx.multiply(g, z) end)
+          deep_merge(updates, state, fn _, g, z -> Nx.multiply(g, z) end)
         end)
         {updates, %{state: new_state}}
       end
@@ -99,7 +99,7 @@ defmodule Axon.Updates do
     transform(
       {x, step},
       fn {updates, step} ->
-        Map.new(updates, fn {k, v} -> {k, Nx.multiply(v, step)} end)
+        deep_new(updates, fn {k, v} -> {k, Nx.multiply(v, step)} end)
       end
     )
   end
@@ -149,7 +149,7 @@ defmodule Axon.Updates do
 
     x =
       transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        Map.merge(mu_hat, nu_hat, fn _, z, t -> z / (Nx.sqrt(t + eps_root) + eps) end)
+        deep_merge(mu_hat, nu_hat, fn z, t -> z / (Nx.sqrt(t + eps_root) + eps) end)
       end)
 
     {x, %{mu: mu, nu: nu, count: count + 1}}
@@ -184,24 +184,24 @@ defmodule Axon.Updates do
 
     sum_of_squares =
       transform({x, sum_of_squares}, fn {x, sum_of_squares} ->
-        Map.merge(x, sum_of_squares, fn _, g, z -> Nx.power(g, 2) + z end)
+        deep_merge(x, sum_of_squares, fn g, z -> Nx.power(g, 2) + z end)
       end)
 
     inv_sqrt_squares =
       transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
-        Map.new(sum_of_squares, fn {k, z} -> {k, Nx.rsqrt(z + eps)} end)
+        deep_new(sum_of_squares, fn {k, z} -> {k, Nx.rsqrt(z + eps)} end)
       end)
 
     inv_sqrt_x_square =
       transform({sum_of_squares, inv_sqrt_squares}, fn {sum_of_squares, inv_sqrt_squares} ->
-        Map.merge(sum_of_squares, inv_sqrt_squares, fn _, z, t ->
+        deep_merge(sum_of_squares, inv_sqrt_squares, fn z, t ->
           Nx.select(Nx.greater(z, 0), t, 0.0)
         end)
       end)
 
     x =
       transform({x, inv_sqrt_x_square}, fn {x, inv_sqrt_x_square} ->
-        Map.merge(x, inv_sqrt_x_square, fn _, g, t -> g * t end)
+        deep_merge(x, inv_sqrt_x_square, fn g, t -> g * t end)
       end)
 
     {x, %{sum_of_squares: sum_of_squares}}
@@ -244,7 +244,7 @@ defmodule Axon.Updates do
 
     x =
       transform({x, nu, eps}, fn {x, nu, eps} ->
-        Map.merge(x, nu, fn _, g, t -> Nx.rsqrt(t + eps) * g end)
+        deep_merge(x, nu, fn g, t -> Nx.rsqrt(t + eps) * g end)
       end)
 
     {x, %{nu: nu}}
@@ -295,7 +295,7 @@ defmodule Axon.Updates do
 
     x =
       transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        Map.merge(mu_hat, nu_hat, fn _, z, t -> 1 / (Nx.sqrt(t + eps_root) + eps) * z end)
+        deep_merge(mu_hat, nu_hat, fn z, t -> 1 / (Nx.sqrt(t + eps_root) + eps) * z end)
       end)
 
     {x, %{mu: mu, nu: nu, count: count + 1}}
@@ -340,7 +340,7 @@ defmodule Axon.Updates do
 
     x =
       transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-        Map.new(x, fn {k, g} -> {k, g * Nx.rsqrt(-Nx.power(mu[k], 2) + nu[k] + eps)} end)
+        deep_new(x, fn {k, g} -> {k, g * Nx.rsqrt(-Nx.power(mu[k], 2) + nu[k] + eps)} end)
       end)
 
     {x, %{mu: mu, nu: nu}}
@@ -366,7 +366,7 @@ defmodule Axon.Updates do
 
     updates =
       transform({x, step_size}, fn {x, step_size} ->
-        Map.new(x, fn {k, x} -> {k, x * step_size} end)
+        deep_new(x, fn {k, x} -> {k, x * step_size} end)
       end)
 
     {updates, {count + 1}}
@@ -460,11 +460,11 @@ defmodule Axon.Updates do
 
     nu_hat =
       transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
-        Map.new(nu, fn {k, t} -> {k, Nx.sqrt(t + eps_root) + eps} end)
+        deep_new(nu, fn {k, t} -> {k, Nx.sqrt(t + eps_root) + eps} end)
       end)
 
     transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
-      Map.merge(mu, nu_hat, fn _, z, t -> Nx.sqrt(top / bottom) * (z / t) end)
+      deep_merge(mu, nu_hat, fn z, t -> Nx.sqrt(top / bottom) * (z / t) end)
     end)
   end
 
@@ -498,13 +498,13 @@ defmodule Axon.Updates do
 
     update_trace =
       transform({x, trace, decay}, fn {x, trace, decay} ->
-        Map.merge(x, trace, fn _, g, t -> t * decay + g end)
+        deep_merge(x, trace, fn g, t -> t * decay + g end)
       end)
 
     x =
       transform({x, update_trace, decay, opts}, fn {x, trace, decay, opts} ->
         if opts[:nesterov] do
-          Map.merge(x, trace, fn _, g, t -> t * decay + g end)
+          deep_merge(x, trace, fn g, t -> t * decay + g end)
         else
           trace
         end
@@ -530,7 +530,7 @@ defmodule Axon.Updates do
     delta = opts[:delta]
 
     transform({x, delta}, fn {x, delta} ->
-      Map.new(x, fn {k, g} -> {k, Nx.clip(g, -delta, delta)} end)
+      deep_new(x, fn {k, g} -> {k, Nx.clip(g, -delta, delta)} end)
     end)
   end
 
@@ -552,11 +552,11 @@ defmodule Axon.Updates do
 
     g_norm =
       transform(x, fn x ->
-        Map.new(x, fn {k, z} -> {k, Nx.sqrt(Nx.sum(Nx.power(z, 2)))} end)
+        deep_new(x, fn {k, z} -> {k, Nx.sqrt(Nx.sum(Nx.power(z, 2)))} end)
       end)
 
     transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      Map.merge(x, g_norm, fn _, z, g -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
+      deep_merge(x, g_norm, fn z, g -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
     end)
   end
 
@@ -569,7 +569,7 @@ defmodule Axon.Updates do
 
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
-      Map.new(x, fn z ->
+      deep_new(x, fn z ->
         if Nx.rank(z) > 1 do
           axes = tl(Nx.axes(z))
           z - Nx.mean(z, axes: axes, keep_axes: true)
@@ -592,7 +592,7 @@ defmodule Axon.Updates do
     decay = opts[:decay]
 
     transform({updates, params, decay}, fn {updates, params, decay} ->
-      Map.merge(updates, params, fn _, g, p -> g + decay * p end)
+      deep_merge(updates, params, fn g, p -> g + decay * p end)
     end)
   end
 
@@ -612,18 +612,18 @@ defmodule Axon.Updates do
 
     trust_ratios =
       transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        Map.merge(param_norm, update_norm, fn _, p, g -> p / g end)
+        deep_merge(param_norm, update_norm, fn p, g -> p / g end)
       end)
 
     zero_norms =
       transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        Map.merge(param_norm, update_norm, fn _, p, g ->
+        deep_merge(param_norm, update_norm, fn p, g ->
           Nx.logical_or(Nx.equal(p, 0), Nx.equal(g, 0))
         end)
       end)
 
     transform({zero_norms, trust_ratios, x}, fn {zero_norms, trust_ratios, x} ->
-      Map.new(zero_norms, fn {k, z} -> {k, x[k] * Nx.select(z, 1, trust_ratios[k])} end)
+      deep_new(zero_norms, fn {k, z} -> {k, x[k] * Nx.select(z, 1, trust_ratios[k])} end)
     end)
   end
 
@@ -644,12 +644,12 @@ defmodule Axon.Updates do
 
     noise =
       transform(x, fn x ->
-        Map.new(x, fn {k, z} -> {k, Nx.random_normal(z)} end)
+        deep_new(x, fn {k, z} -> {k, Nx.random_normal(z)} end)
       end)
 
     updates =
       transform({x, noise, var}, fn {x, noise, var} ->
-        Map.merge(x, noise, fn _, g, n -> g + var * n end)
+        deep_merge(x, noise, fn g, n -> g + var * n end)
       end)
 
     {updates, %{count: count + 1}}
@@ -687,7 +687,7 @@ defmodule Axon.Updates do
 
     signed_sq =
       transform({x, nu}, fn {x, nu} ->
-        Map.merge(x, nu, fn _, g, v -> Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2) end)
+        deep_merge(x, nu, fn g, v -> Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2) end)
       end)
 
     nu = update_moment(signed_sq, nu, b2, 2)
@@ -697,7 +697,7 @@ defmodule Axon.Updates do
 
     updates =
       transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        Map.merge(mu_hat, nu_hat, fn _, m, v -> m / (Nx.sqrt(v + eps_root) + eps) end)
+        deep_merge(mu_hat, nu_hat, fn m, v -> m / (Nx.sqrt(v + eps_root) + eps) end)
       end)
 
     {updates, %{mu: mu, nu: nu, count: count + 1}}
@@ -753,7 +753,7 @@ defmodule Axon.Updates do
   """
   defn apply_updates(params, updates) do
     transform({params, updates}, fn {params, updates} ->
-      Map.merge(params, updates, fn _, x, u -> Nx.add(x, u) end)
+      deep_merge(params, updates, fn x, u -> Nx.add(x, u) end)
     end)
   end
 
@@ -761,19 +761,19 @@ defmodule Axon.Updates do
 
   defnp update_moment(x, moment, decay, order) do
     transform({x, moment, decay, order}, fn {x, moment, decay, order} ->
-      Map.merge(x, moment, fn _, g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
+      deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
     end)
   end
 
   defnp bias_correction(moment, decay, count) do
     transform({moment, decay, count}, fn {moment, decay, count} ->
-      Map.new(moment, fn {k, z} -> {k, z / (1 - Nx.power(decay, count))} end)
+      deep_new(moment, fn {k, z} -> {k, z / (1 - Nx.power(decay, count))} end)
     end)
   end
 
   defnp safe_norm(x, min_norm) do
     transform({x, min_norm}, fn {x, min_norm} ->
-      Map.new(x, fn {k, g} ->
+      deep_new(x, fn {k, g} ->
         norm = Nx.LinAlg.norm(g)
         z = Nx.select(Nx.less(norm, min_norm), 1, g)
         {k, Nx.select(Nx.less(norm, min_norm), min_norm, Nx.LinAlg.norm(z))}

@@ -79,25 +79,62 @@ defmodule Axon.Shared do
   end
 
   @doc """
-  Creates a zeros-like tuple of inputs.
+  Creates a zeros-like structure which matches the structure
+  of the input.
   """
   defn zeros_like(params) do
-    transform(params, fn params ->
-      params
-      |> Enum.map(fn {k, v} -> {k, Axon.Initializers.zeros(shape: Nx.shape(v))} end)
-      |> Map.new()
-    end)
+    transform(
+      params,
+      &deep_new(&1, fn {k, x} ->
+        {k, Axon.Initializers.zeros(shape: Nx.shape(x))}
+      end)
+    )
   end
 
   @doc """
   Creates a fulls-like tuple of inputs.
   """
   defn fulls_like(params, value) do
-    transform({params, value}, fn {params, value} ->
-      params
-      |> Enum.map(fn {k, v} -> {k, Axon.Initializers.full(value, shape: Nx.shape(v))} end)
-      |> Map.new()
-    end)
+    transform(
+      params,
+      &deep_new(&1, fn {k, x} ->
+        {k, Axon.Initializers.full(value, shape: Nx.shape(x))}
+      end)
+    )
+  end
+
+  @doc """
+  Deep merges two possibly nested maps, applying fun to leaf values.
+  """
+  def deep_merge(left, right, fun) do
+    Map.merge(left, right, &deep_resolve(&1, &2, &3, fun))
+  end
+
+  defp deep_resolve(_key, left = %Nx.Tensor{}, right = %Nx.Tensor{}, fun) do
+    fun.(left, right)
+  end
+
+  defp deep_resolve(_key, left = %{}, right = %{}, fun) do
+    deep_merge(left, right, fun)
+  end
+
+  @doc """
+  Creates a new map-like structure from a possible nested map, applying `fun`
+  to each leaf.
+  """
+  def deep_new(map, fun) do
+    map
+    |> Map.new(&recur_deep_new(&1, fun))
+  end
+
+  defp recur_deep_new({key, value}, fun) do
+    case value do
+      %Nx.Tensor{} = val ->
+        fun.({key, val})
+
+      %{} = val ->
+        {key, deep_new(val, fun)}
+    end
   end
 
   @doc """

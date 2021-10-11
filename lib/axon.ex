@@ -115,13 +115,6 @@ defmodule Axon do
 
     {id, name} = unique_identifiers(op_name, name)
 
-    parameters =
-      parameters
-      |> Enum.map(fn {k, %{name: p_name} = param} ->
-        {k, %{param | name: name <> "_" <> p_name}}
-      end)
-      |> Map.new()
-
     %Axon{
       id: id,
       name: name,
