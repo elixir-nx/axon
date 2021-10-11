@@ -750,18 +750,18 @@ defmodule AxonTest do
     test "init works inside defn" do
       assert init() == %{
                "dense" => %{
-                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                  "bias" => Axon.Initializers.zeros(shape: {6})
-                }
+                 "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+                 "bias" => Axon.Initializers.zeros(shape: {6})
+               }
              }
     end
 
     test "init works outside defn" do
       assert Axon.init(model()) == %{
                "dense" => %{
-                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                  "bias" => Axon.Initializers.zeros(shape: {6})
-                }
+                 "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
+                 "bias" => Axon.Initializers.zeros(shape: {6})
+               }
              }
     end
 
