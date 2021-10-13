@@ -1,4 +1,4 @@
-defmodule Axon.Training.Process do
+defmodule Axon.Loop.Process do
   @moduledoc false
 
   # Process function which runs iteratively within a loop,
