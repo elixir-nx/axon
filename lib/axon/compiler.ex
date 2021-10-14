@@ -1,3 +1,16 @@
+defmodule Axon.CompilerError do
+  defexception [:exception, :graph]
+
+  @impl true
+  def message(%{graph: %Axon{op: op, name: name}, exception: exception}) do
+    """
+    error while building prediction for #{op} layer with name #{name}:
+
+    ** (#{inspect(exception.__struct__)}) #{Exception.message(exception)}
+    """
+  end
+end
+
 defmodule Axon.Compiler do
   @moduledoc false
   require Logger
@@ -265,7 +278,11 @@ defmodule Axon.Compiler do
         {res, cache}
 
       %{} ->
-        recur_predict_fun(graph, cache, input_map, params, inputs, mode)
+        try do
+          recur_predict_fun(graph, cache, input_map, params, inputs, mode)
+        rescue
+          e -> reraise Axon.CompilerError.exception(graph: graph, exception: e), __STACKTRACE__
+        end
     end
   end
 
