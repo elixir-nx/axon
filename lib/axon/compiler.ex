@@ -339,7 +339,7 @@ defmodule Axon.Compiler do
            op: :dense,
            name: name,
            parent: parent,
-           params: %{"kernel" => %{name: w, frozen: w_frz}} = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [use_bias: use_bias]
          },
@@ -352,12 +352,11 @@ defmodule Axon.Compiler do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
     input = Nx.as_type(res, compute)
-    w = Nx.as_type(maybe_freeze(params[name][w], w_frz), compute)
+    w = layer_param(layer_params, "kernel", params[name], compute)
 
     b =
       if use_bias do
-        %{name: b, frozen: b_frz} = layer_params["bias"]
-        Nx.as_type(maybe_freeze(params[name][b], b_frz), compute)
+        layer_param(layer_params, "bias", params[name], compute)
       else
         Nx.tensor(0.0, type: compute)
       end
@@ -373,7 +372,7 @@ defmodule Axon.Compiler do
            name: name,
            op: :bilinear,
            parent: parents,
-           params: %{"kernel" => %{name: w, frozen: w_frz}} = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [use_bias: use_bias]
          },
@@ -388,12 +387,11 @@ defmodule Axon.Compiler do
 
     input1 = Nx.as_type(res1, compute)
     input2 = Nx.as_type(res2, compute)
-    w = Nx.as_type(maybe_freeze(params[name][w], w_frz), compute)
+    w = layer_param(layer_params, "kernel", params[name], compute)
 
     b =
       if use_bias do
-        %{name: b, frozen: b_frz} = layer_params["bias"]
-        Nx.as_type(maybe_freeze(params[name][b], b_frz), compute)
+        layer_param(layer_params, "bias", params[name], compute)
       else
         Nx.tensor(0.0, type: compute)
       end
@@ -411,7 +409,7 @@ defmodule Axon.Compiler do
            name: name,
            op: :embedding,
            parent: parent,
-           params: %{"kernel" => %{name: w, frozen: w_frz}},
+           params: layer_params,
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -422,7 +420,7 @@ defmodule Axon.Compiler do
        ) do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
-    w = Nx.as_type(maybe_freeze(params[name][w], w_frz), compute)
+    w = layer_param(layer_params, "kernel", params[name], compute)
     res = Nx.as_type(apply(Axon.Layers, :embedding, [res, w]), output)
 
     {res, Map.put(cache, id, res)}
@@ -504,7 +502,7 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"kernel" => %{name: k, frozen: k_frz}} = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -519,12 +517,11 @@ defmodule Axon.Compiler do
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
     input = Nx.as_type(res, compute)
-    k = Nx.as_type(maybe_freeze(params[name][k], k_frz), compute)
+    k = layer_param(layer_params, "kernel", params[name], compute)
 
     b =
       if use_bias do
-        %{name: b, frozen: b_frz} = layer_params["bias"]
-        Nx.as_type(maybe_freeze(params[name][b], b_frz), compute)
+        layer_param(layer_params, "bias", params[name], compute)
       else
         Nx.tensor(0, type: compute)
       end
@@ -541,11 +538,7 @@ defmodule Axon.Compiler do
            op: :separable_conv2d,
            parent: parent,
            opts: opts,
-           params:
-             %{
-               "k1" => %{name: k1, frozen: k1_frz},
-               "k2" => %{name: k2, frozen: k2_frz}
-             } = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -559,16 +552,13 @@ defmodule Axon.Compiler do
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
     input = Nx.as_type(res, compute)
-    k1 = Nx.as_type(maybe_freeze(params[name][k1], k1_frz), compute)
-    k2 = Nx.as_type(maybe_freeze(params[name][k2], k2_frz), compute)
+    k1 = layer_param(layer_params, "k1", params[name], compute)
+    k2 = layer_param(layer_params, "k2", params[name], compute)
 
     {b1, b2} =
       if use_bias do
-        %{name: b1, frozen: b1_frz} = layer_params["b1"]
-        %{name: b2, frozen: b2_frz} = layer_params["b2"]
-        b1 = Nx.as_type(maybe_freeze(params[name][b1], b1_frz), compute)
-        b2 = Nx.as_type(maybe_freeze(params[name][b2], b2_frz), compute)
-        {b1, b2}
+        {layer_param(layer_params, "b1", params[name], compute),
+         layer_param(layer_params, "b2", params[name], compute)}
       else
         {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute)}
       end
@@ -585,12 +575,7 @@ defmodule Axon.Compiler do
            op: :separable_conv3d,
            parent: parent,
            opts: opts,
-           params:
-             %{
-               "k1" => %{name: k1, frozen: k1_frz},
-               "k2" => %{name: k2, frozen: k2_frz},
-               "k3" => %{name: k3, frozen: k3_frz}
-             } = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -604,19 +589,15 @@ defmodule Axon.Compiler do
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
     input = Nx.as_type(res, compute)
-    k1 = Nx.as_type(maybe_freeze(params[name][k1], k1_frz), compute)
-    k2 = Nx.as_type(maybe_freeze(params[name][k2], k2_frz), compute)
-    k3 = Nx.as_type(maybe_freeze(params[name][k3], k3_frz), compute)
+    k1 = layer_param(layer_params, "k1", params[name], compute)
+    k2 = layer_param(layer_params, "k2", params[name], compute)
+    k3 = layer_param(layer_params, "k3", params[name], compute)
 
     {b1, b2, b3} =
       if use_bias do
-        %{name: b1, frozen: b1_frz} = layer_params["b1"]
-        %{name: b2, frozen: b2_frz} = layer_params["b2"]
-        %{name: b3, frozen: b3_frz} = layer_params["b3"]
-        b1 = Nx.as_type(maybe_freeze(params[name][b1], b1_frz), compute)
-        b2 = Nx.as_type(maybe_freeze(params[name][b2], b2_frz), compute)
-        b3 = Nx.as_type(maybe_freeze(params[name][b3], b3_frz), compute)
-        {b1, b2, b3}
+        {layer_param(layer_params, "b1", params[name], compute),
+         layer_param(layer_params, "b2", params[name], compute),
+         layer_param(layer_params, "b3", params[name], compute)}
       else
         {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute), Nx.tensor(0, type: compute)}
       end
@@ -639,7 +620,7 @@ defmodule Axon.Compiler do
            op: op,
            parent: parent,
            opts: opts,
-           params: %{"gamma" => %{name: g, frozen: g_frz}, "beta" => %{name: b, frozen: b_frz}},
+           params: layer_params,
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -652,8 +633,8 @@ defmodule Axon.Compiler do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
     input = Nx.as_type(res, compute)
-    g = Nx.as_type(maybe_freeze(params[name][g], g_frz), compute)
-    b = Nx.as_type(maybe_freeze(params[name][b], b_frz), compute)
+    g = layer_param(layer_params, "gamma", params[name], compute)
+    b = layer_param(layer_params, "beta", params[name], compute)
     res = Nx.as_type(apply(Axon.Layers, op, [input, g, b, opts]), output)
 
     {res, Map.put(cache, id, res)}
@@ -667,17 +648,7 @@ defmodule Axon.Compiler do
            name: name,
            op: :lstm,
            parent: parent,
-           params:
-             %{
-               "wii" => %{name: wii, frozen: wii_frz},
-               "wif" => %{name: wif, frozen: wif_frz},
-               "wig" => %{name: wig, frozen: wig_frz},
-               "wio" => %{name: wio, frozen: wio_frz},
-               "whi" => %{name: whi, frozen: whi_frz},
-               "whf" => %{name: whf, frozen: whf_frz},
-               "whg" => %{name: whg, frozen: whg_frz},
-               "who" => %{name: who, frozen: who_frz}
-             } = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [
              activation: activation,
@@ -714,31 +685,26 @@ defmodule Axon.Compiler do
     input = Nx.as_type(res, compute)
 
     input_kernel = {
-      Nx.as_type(maybe_freeze(params[name][wii], wii_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][wif], wif_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][wig], wig_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][wio], wio_frz), compute)
+      layer_param(layer_params, "wii", params[name], compute),
+      layer_param(layer_params, "wif", params[name], compute),
+      layer_param(layer_params, "wig", params[name], compute),
+      layer_param(layer_params, "wio", params[name], compute)
     }
 
     hidden_kernel = {
-      Nx.as_type(maybe_freeze(params[name][whi], whi_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][whf], whf_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][whg], whg_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][who], who_frz), compute)
+      layer_param(layer_params, "whi", params[name], compute),
+      layer_param(layer_params, "whf", params[name], compute),
+      layer_param(layer_params, "whg", params[name], compute),
+      layer_param(layer_params, "who", params[name], compute)
     }
 
     bias =
       if use_bias do
-        %{name: bi, frozen: bi_frz} = layer_params["bi"]
-        %{name: bf, frozen: bf_frz} = layer_params["bf"]
-        %{name: bg, frozen: bg_frz} = layer_params["bg"]
-        %{name: bo, frozen: bo_frz} = layer_params["bo"]
-
         {
-          Nx.as_type(maybe_freeze(params[name][bi], bi_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bf], bf_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bg], bg_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bo], bo_frz), compute)
+          layer_param(layer_params, "bi", params[name], compute),
+          layer_param(layer_params, "bf", params[name], compute),
+          layer_param(layer_params, "bg", params[name], compute),
+          layer_param(layer_params, "bo", params[name], compute)
         }
       else
         {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute), Nx.tensor(0, type: compute),
@@ -783,11 +749,7 @@ defmodule Axon.Compiler do
            id: id,
            op: :conv_lstm,
            parent: parent,
-           params: %{
-             "wi" => %{name: wi, frozen: wi_frz},
-             "wh" => %{name: wh, frozen: wh_frz},
-             "b" => %{name: b, frozen: b_frz}
-           },
+           params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [
              hidden_state: hidden_state,
@@ -822,9 +784,9 @@ defmodule Axon.Compiler do
 
     input = Nx.as_type(res, compute)
 
-    input_kernel = {Nx.as_type(maybe_freeze(params[wi], wi_frz), compute)}
-    hidden_kernel = {Nx.as_type(maybe_freeze(params[wh], wh_frz), compute)}
-    bias = {Nx.as_type(maybe_freeze(params[b], b_frz), compute)}
+    input_kernel = {layer_param(layer_params, "wi", params, compute)}
+    hidden_kernel = {layer_param(layer_params, "wh", params, compute)}
+    bias = {layer_param(layer_params, "b", params, compute)}
 
     carry = {Nx.as_type(h, compute), Nx.as_type(c, compute)}
 
@@ -868,15 +830,7 @@ defmodule Axon.Compiler do
            name: name,
            op: :gru,
            parent: parent,
-           params:
-             %{
-               "wir" => %{name: wir, frozen: wir_frz},
-               "wiz" => %{name: wiz, frozen: wiz_frz},
-               "win" => %{name: win, frozen: win_frz},
-               "whr" => %{name: whr, frozen: whr_frz},
-               "whz" => %{name: whz, frozen: whz_frz},
-               "whn" => %{name: whn, frozen: whn_frz}
-             } = layer_params,
+           params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [
              activation: activation,
@@ -913,29 +867,24 @@ defmodule Axon.Compiler do
     input = Nx.as_type(res, compute)
 
     input_kernel = {
-      Nx.as_type(maybe_freeze(params[name][wir], wir_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][wiz], wiz_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][win], win_frz), compute)
+      layer_param(layer_params, "wir", params[name], compute),
+      layer_param(layer_params, "wiz", params[name], compute),
+      layer_param(layer_params, "win", params[name], compute)
     }
 
     hidden_kernel = {
-      Nx.as_type(maybe_freeze(params[name][whr], whr_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][whz], whz_frz), compute),
-      Nx.as_type(maybe_freeze(params[name][whn], whn_frz), compute)
+      layer_param(layer_params, "whr", params[name], compute),
+      layer_param(layer_params, "whz", params[name], compute),
+      layer_param(layer_params, "whn", params[name], compute)
     }
 
     bias =
       if use_bias do
-        %{name: br, frozen: br_frz} = layer_params["br"]
-        %{name: bz, frozen: bz_frz} = layer_params["bz"]
-        %{name: bin, frozen: bin_frz} = layer_params["bin"]
-        %{name: bhn, frozen: bhn_frz} = layer_params["bhn"]
-
         {
-          Nx.as_type(maybe_freeze(params[name][br], br_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bz], bz_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bin], bin_frz), compute),
-          Nx.as_type(maybe_freeze(params[name][bhn], bhn_frz), compute)
+          layer_param(layer_params, "br", params[name], compute),
+          layer_param(layer_params, "bz", params[name], compute),
+          layer_param(layer_params, "bin", params[name], compute),
+          layer_param(layer_params, "bhn", params[name], compute)
         }
       else
         {
@@ -1310,5 +1259,12 @@ defmodule Axon.Compiler do
     else
       cache
     end
+  end
+
+  ## Helpers
+
+  defp layer_param(layer_params, key, param_name, compute) do
+    %{name: p, frozen: frozen} = layer_params[key]
+    Nx.as_type(maybe_freeze(param_name[p], frozen), compute)
   end
 end
