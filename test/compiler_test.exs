@@ -54,12 +54,15 @@ defmodule CompilerTest do
     test "raises on bad input shape" do
       model = Axon.input({nil, 32})
       input = Nx.random_uniform({1, 16})
-
       assert {_, predict_fn} = Axon.compile(model)
 
-      assert_raise ArgumentError, ~r/invalid input shape/, fn ->
-        predict_fn.(%{}, input)
-      end
+      exception = assert_raise Axon.CompilerError, fn -> predict_fn.(%{}, input) end
+
+      assert Exception.message(exception) =~
+               "error while building prediction for input layer with name input_"
+
+      assert Exception.message(exception) =~
+               "** (ArgumentError) invalid input shape given to model"
     end
   end
 
