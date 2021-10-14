@@ -1,5 +1,6 @@
 404.html
 Axon.Activations.html
+Axon.CompilerError.html
 Axon.Initializers.html
 Axon.Layers.html
 Axon.Losses.html
@@ -20,7 +21,7 @@ dist/html/fonts/icomoon.eot
 dist/html/fonts/icomoon.svg
 dist/html/fonts/icomoon.ttf
 dist/html/fonts/icomoon.woff
-dist/search_items-867cee2e28.js
-dist/sidebar_items-f2b25cfce5.js
+dist/search_items-0f956fcea4.js
+dist/sidebar_items-0aadbad89c.js
 index.html
 search.html
