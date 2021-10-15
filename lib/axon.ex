@@ -1628,20 +1628,15 @@ defmodule Axon do
     input_dilation = List.duplicate(1, inner_rank)
     kernel_dilation = List.duplicate(1, inner_rank)
 
-    hidden_state_shape =
-      Axon.Shape.rnn_hidden_state(shape, units, "ConvLSTM")
+    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, "ConvLSTM")
 
     conv_shape = Tuple.delete_at(shape, 1)
     conv_hidden_state_shape = Tuple.delete_at(hidden_state_shape, 1)
 
-    hidden_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size)
-    input_kernel_shape =
-      Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size)
-    bias_shape =
-      Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size)
-    output_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size)
+    hidden_kernel_shape = Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size)
+    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size)
+    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size)
+    output_kernel_shape = Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size)
 
     output_shape =
       conv_hidden_state_shape

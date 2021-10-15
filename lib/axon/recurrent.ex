@@ -85,26 +85,30 @@ defmodule Axon.Recurrent do
 
   defnp rank_down(rnn_data) do
     transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] = 
+      [cell, hidden, input] =
         for tensor <- [cell, hidden, input] do
           new_shape =
             Nx.shape(tensor)
             |> Tuple.delete_at(1)
+
           Nx.reshape(tensor, new_shape)
         end
+
       {{cell, hidden}, input}
     end)
   end
 
   defnp rank_up(rnn_data) do
     transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] = 
+      [cell, hidden, input] =
         for tensor <- [cell, hidden, input] do
           new_shape =
             Nx.shape(tensor)
             |> Tuple.insert_at(1, 1)
+
           Nx.reshape(tensor, new_shape)
         end
+
       {{cell, hidden}, input}
     end)
   end
@@ -121,13 +125,14 @@ defmodule Axon.Recurrent do
     {bi} = bias
 
     {{cell, hidden}, input} = rank_down({carry, input})
-   
+
     gates =
       Nx.stack([
         conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
-        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])])
+        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
+      ])
       |> Nx.sum(axes: [0])
-      
+
     {i, g, f, o} = split_gates(gates)
 
     f = sigmoid(f + 1)
