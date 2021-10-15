@@ -1303,6 +1303,14 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of RNN hidden state.
   """
+  def rnn_hidden_state(shape, units, type) when type == "ConvLSTM" do
+    #input shape must be rank > 3 {batch_size, sequence_length, sequence_features...}"
+
+    shape
+    |> put_elem(1, 1)
+    |> put_elem(2, units)
+  end
+
   def rnn_hidden_state(shape, units, type) do
     unless Nx.rank(shape) == 3 do
       raise ArgumentError,
