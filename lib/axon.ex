@@ -1663,9 +1663,9 @@ defmodule Axon do
         {{hidden_state_shape, hidden_state_shape}, output_shape},
         %{"wi" => wi, "wh" => wh, "b" => b},
         opts[:name],
+        hidden_state: hidden_state,
         strides: strides,
         padding: padding,
-        hidden_state: hidden_state,
         hidden_state_shape: hidden_state_shape,
         recurrent_initializer: recurrent_initializer,
         unroll: unroll
