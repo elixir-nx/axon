@@ -83,6 +83,32 @@ defmodule Axon.Recurrent do
     {{new_c, new_h}, new_h}
   end
 
+  defnp rank_down(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] = 
+        for tensor <- [cell, hidden, input] do
+          new_shape =
+            Nx.shape(tensor)
+            |> Tuple.delete_at(1)
+          Nx.reshape(tensor, new_shape)
+        end
+      {{cell, hidden}, input}
+    end)
+  end
+
+  defnp rank_up(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] = 
+        for tensor <- [cell, hidden, input] do
+          new_shape =
+            Nx.shape(tensor)
+            |> Tuple.insert_at(1, 1)
+          Nx.reshape(tensor, new_shape)
+        end
+      {{cell, hidden}, input}
+    end)
+  end
+
   @doc """
   ConvLSTM Cell.
   """
@@ -94,6 +120,8 @@ defmodule Axon.Recurrent do
     {hh} = hidden_kernel
     {bi} = bias
 
+    {{cell, hidden}, input} = rank_down({carry, input})
+   
     gates =
       Nx.stack([
         conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
@@ -106,7 +134,7 @@ defmodule Axon.Recurrent do
     new_c = f * cell + sigmoid(i) * tanh(g)
     new_h = sigmoid(o) * tanh(new_c)
 
-    {{new_c, new_h}, new_h}
+    rank_up({{new_c, new_h}, new_h})
   end
 
   defnp split_gates(gates) do
