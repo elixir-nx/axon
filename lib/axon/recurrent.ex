@@ -128,6 +128,10 @@ defmodule Axon.Recurrent do
         conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])])
       |> Nx.sum(axes: [0])
       
+    transform(gates, fn g ->
+      IO.inspect Nx.shape(g)
+    end)
+
     {i, g, f, o} = split_gates(gates)
 
     f = sigmoid(f + 1)
