@@ -95,9 +95,11 @@ defmodule Axon.Recurrent do
     {bi} = bias
 
     gates =
-      conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]) +
-        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
-
+      Nx.stack([
+        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
+        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])])
+      |> Nx.sum(axes: [0])
+      
     {i, g, f, o} = split_gates(gates)
 
     f = sigmoid(f + 1)
