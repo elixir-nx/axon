@@ -764,6 +764,7 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
+           name: name,
            op: :conv_lstm,
            parent: parent,
            params: layer_params,
@@ -801,9 +802,9 @@ defmodule Axon.Compiler do
 
     input = Nx.as_type(res, compute)
 
-    input_kernel = {layer_param(layer_params, "wi", params, compute)}
-    hidden_kernel = {layer_param(layer_params, "wh", params, compute)}
-    bias = {layer_param(layer_params, "b", params, compute)}
+    input_kernel = {layer_param(layer_params, "wi", params[name], compute)}
+    hidden_kernel = {layer_param(layer_params, "wh", params[name], compute)}
+    bias = {layer_param(layer_params, "b", params[name], compute)}
 
     carry = {Nx.as_type(h, compute), Nx.as_type(c, compute)}
 
