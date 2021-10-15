@@ -1620,16 +1620,33 @@ defmodule Axon do
     strides = opts[:strides] || 1
     hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
+    inner_rank = Nx.rank(shape) - 3
+    sequence_length = elem(shape, 1)
 
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, 1)
-    strides = list_or_duplicate(:strides, strides, 1)
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+    strides = list_or_duplicate(:strides, strides, inner_rank)
+    input_dilation = List.duplicate(1, inner_rank)
+    kernel_dilation = List.duplicate(1, inner_rank)
 
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, "ConvLSTM")
-    input_kernel_shape = Axon.Shape.conv_kernel(shape, 4 * units, kernel_size)
-    hidden_kernel_shape = Axon.Shape.conv_kernel(hidden_state_shape, 4 * units, kernel_size)
-    bias_shape = Axon.Shape.conv_bias(shape, 4 * units, kernel_size)
+    hidden_state_shape =
+      Axon.Shape.rnn_hidden_state(shape, units, "ConvLSTM")
 
-    output_shape = Axon.Shape.rnn(shape, units, "ConvLSTM")
+    conv_shape = Tuple.delete_at(shape, 1)
+    conv_hidden_state_shape = Tuple.delete_at(hidden_state_shape, 1)
+
+    hidden_kernel_shape =
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size)
+    input_kernel_shape =
+      Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size)
+    bias_shape =
+      Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size)
+    output_kernel_shape =
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size)
+
+    output_shape =
+      conv_hidden_state_shape
+      |> Axon.Shape.conv(output_kernel_shape, strides, padding, input_dilation, kernel_dilation)
+      |> Tuple.insert_at(1, sequence_length)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
     recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
