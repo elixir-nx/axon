@@ -119,7 +119,6 @@ defmodule Axon.Recurrent do
   defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
-    {cell, hidden} = carry
     {ih} = input_kernel
     {hh} = hidden_kernel
     {bi} = bias
