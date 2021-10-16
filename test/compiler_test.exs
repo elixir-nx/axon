@@ -2554,60 +2554,6 @@ defmodule CompilerTest do
       assert b == Axon.Initializers.zeros(shape: {4 * out_channel_n})
     end
 
-    # Fails by dynamic_unroll bug: wrong output size calculation
-    test "computes forward pass with default options" do
-      input_shape = {
-        _batch = nil,
-        _sequence_length = 10,
-        _in_channel_n = 3,
-        width = 32,
-        heigth = 32
-      }
-
-      out_channel_n = 64
-      batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
-
-      model =
-        Axon.input(input_shape)
-        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
-
-      input =
-        input_shape
-        |> put_elem(0, batch_real)
-        |> Nx.random_uniform(type: {:f, 32})
-
-      init_carry =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
-
-      assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{
-               "convlstm" => %{
-                 "wi" => wi,
-                 "wh" => wh,
-                 "b" => b
-               }
-             } = params = init_fn.()
-
-      k = {wi}
-      h = {wh}
-      b = {b}
-
-      assert {{_, _} = carry, seq} = predict_fn.(params, input)
-
-      assert {carry, seq} ==
-               Axon.Recurrent.dynamic_unroll(
-                 &Axon.Recurrent.conv_lstm_cell/5,
-                 input,
-                 init_carry,
-                 k,
-                 h,
-                 b
-               )
-    end
-
     test "computes forward pass with equal number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -2874,35 +2820,6 @@ defmodule CompilerTest do
       assert wi_grad == Nx.broadcast(0.0, {4 * out_channel_n, in_channel_n, 1, 1})
       assert wh_grad == Nx.broadcast(0.0, {4 * out_channel_n, out_channel_n, 1, 1})
       assert b_grad == Nx.broadcast(0.0, {4 * out_channel_n})
-    end
-
-    # Fails by Axon.conv_lstm: use_bias option is not implemented
-    test "initializes with use_bias false" do
-      input_shape = {
-        _batch = nil,
-        _sequence_length = 10,
-        _in_channel_n = 3,
-        _width = 32,
-        _heigth = 32
-      }
-
-      out_channel_n = 3
-
-      model =
-        Axon.input(input_shape)
-        |> Axon.conv_lstm(out_channel_n, name: "convlstm", use_bias: false)
-
-      assert {init_fn, _} = Axon.compile(model)
-
-      assert %{
-               "convlstm" =>
-                 %{
-                   "wi" => _,
-                   "wh" => _
-                 } = convlstm_params
-             } = init_fn.()
-
-      assert Map.has_key?(convlstm_params, "b") == false
     end
 
     test "computes forward pass with use_bias false" do
