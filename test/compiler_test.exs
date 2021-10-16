@@ -2794,14 +2794,28 @@ defmodule CompilerTest do
       assert predict_fn.(params, input) == equiv_fn.(input, enc, dec)
     end
 
-
-    # TODO(seanmor5): Update this with https://github.com/elixir-nx/axon/issues/90
     test "returns zero gradient for frozen parameters" do
-      {_, out} =
-        Axon.input({nil, 2, 1})
-        |> Axon.lstm(1, name: "lstm", unroll: :static)
+      input_shape = {
+        _batch = nil,
+        sequence_length = 2,
+        in_channel_n = 3,
+        width = 4, heigth = 4
+      }
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      output_shape_real = {batch_real, sequence_length, out_channel_n, width, heigth}
+      out =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", unroll: :static)
+        |> Axon.layer(fn x, _ -> elem(x, 1) end, output_shape_real, %{})
 
       model = Axon.freeze(out)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2810,34 +2824,16 @@ defmodule CompilerTest do
       end
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii_grad,
-                 "wif" => wif_grad,
-                 "wig" => wig_grad,
-                 "wio" => wio_grad,
-                 "whi" => whi_grad,
-                 "whf" => whf_grad,
-                 "whg" => whg_grad,
-                 "who" => who_grad,
-                 "bi" => bi_grad,
-                 "bf" => bf_grad,
-                 "bg" => bg_grad,
-                 "bo" => bo_grad
+               "convlstm" => %{
+                 "wi" => wi_grad,
+                 "wh" => wh_grad,
+                 "b" => b_grad,
                }
-             } = Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 2, 1})])
+             } = Nx.Defn.jit(backward, [init_fn.(), input])
 
-      assert wii_grad == Nx.broadcast(0.0, {1, 1})
-      assert wif_grad == Nx.broadcast(0.0, {1, 1})
-      assert wig_grad == Nx.broadcast(0.0, {1, 1})
-      assert wio_grad == Nx.broadcast(0.0, {1, 1})
-      assert whi_grad == Nx.broadcast(0.0, {1, 1})
-      assert whf_grad == Nx.broadcast(0.0, {1, 1})
-      assert whg_grad == Nx.broadcast(0.0, {1, 1})
-      assert who_grad == Nx.broadcast(0.0, {1, 1})
-      assert bi_grad == Nx.broadcast(0.0, {1})
-      assert bf_grad == Nx.broadcast(0.0, {1})
-      assert bg_grad == Nx.broadcast(0.0, {1})
-      assert bo_grad == Nx.broadcast(0.0, {1})
+      assert wi_grad == Nx.broadcast(0.0, {4 * out_channel_n, in_channel_n, 1, 1})
+      assert wh_grad == Nx.broadcast(0.0, {4 * out_channel_n, out_channel_n, 1, 1})
+      assert b_grad == Nx.broadcast(0.0, {4 * out_channel_n})
     end
 
     test "initializes with use_bias false" do
