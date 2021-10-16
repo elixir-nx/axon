@@ -2803,7 +2803,6 @@ defmodule CompilerTest do
       }
       out_channel_n = 3
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
       output_shape_real = {batch_real, sequence_length, out_channel_n, width, heigth}
       out =
         Axon.input(input_shape)
@@ -2836,68 +2835,68 @@ defmodule CompilerTest do
       assert b_grad == Nx.broadcast(0.0, {4 * out_channel_n})
     end
 
+    # Fails by Axon.conv_lstm: use_bias option is not implemented
     test "initializes with use_bias false" do
-      model = Axon.input({nil, 2, 1}) |> Axon.lstm(2, name: "lstm", use_bias: false)
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        _width = 32, _heigth = 32
+      }
+      out_channel_n = 3
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", use_bias: false)
 
       assert {init_fn, _} = Axon.compile(model)
 
       assert %{
-               "lstm" =>
+               "convlstm" =>
                  %{
-                   "wii" => _,
-                   "wif" => _,
-                   "wig" => _,
-                   "wio" => _,
-                   "whi" => _,
-                   "whf" => _,
-                   "whg" => _,
-                   "who" => _
-                 } = lstm_params
+                   "wi" => _,
+                   "wh" => _,
+                 } = convlstm_params
              } = init_fn.()
 
-      assert Map.has_key?(lstm_params, "bi") == false
-      assert Map.has_key?(lstm_params, "bf") == false
-      assert Map.has_key?(lstm_params, "bg") == false
-      assert Map.has_key?(lstm_params, "bo") == false
+      assert Map.has_key?(convlstm_params, "b") == false
     end
 
     test "computes forward pass with use_bias false" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32, heigth = 32
+      }
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
       model =
-        Axon.input({nil, 2, 1})
-        |> Axon.lstm(2, name: "lstm", use_bias: false, recurrent_initializer: :zeros)
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", use_bias: false, recurrent_initializer: :zeros)
 
-      input = Nx.random_uniform({1, 2, 1})
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
                }
              } = params = init_fn.()
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
-      c = {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+      k = {wi}
+      h = {wh}
+      b = {Nx.broadcast(0, 4 * out_channel_n)}
+      c = {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       assert predict_fn.(params, input) ==
-               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, input, c, k, h, b)
+               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, input, c, k, h, b)
     end
-
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "initializes with parameter policy" do
-    # end
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "computes forward pass with output policy" do
-    # end
   end
 
   describe "gru" do
