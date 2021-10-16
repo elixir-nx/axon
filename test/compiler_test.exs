@@ -2459,7 +2459,12 @@ defmodule CompilerTest do
 
   describe "convlstm" do
     test "initializes in default case" do
-      input_shape = {_batch, _sequence_length, in_channel_n, _width, _heigth} = {nil, 10, 3, 32, 32}
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        in_channel_n = 3,
+        _width = 32, _heigth = 32
+      }
       out_channel_n = 64
       model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
 
@@ -2487,7 +2492,12 @@ defmodule CompilerTest do
     end
 
     test "initializes with custom initializers" do
-      input_shape = {_batch, _sequence_length, in_channel_n, _width, _heigth} = {nil, 10, 3, 32, 32}
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        in_channel_n = 3,
+        _width = 32, _heigth = 32
+      }
       out_channel_n = 64
       model1 = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
 
@@ -2535,145 +2545,220 @@ defmodule CompilerTest do
       assert b == Axon.Initializers.zeros(shape: {4 * out_channel_n})
     end
 
+    # Fails by dynamic_unroll bug: wrong output size calculation
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 8, 2}) |> Axon.lstm(2, name: "lstm", recurrent_initializer: :zeros)
-      input = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32, heigth = 32
+      }
+      out_channel_n = 64
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       init_carry =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = params = init_fn.()
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = {wi}
+      h = {wh}
+      b = {b}
 
       assert {{_, _} = carry, seq} = predict_fn.(params, input)
 
       assert {carry, seq} ==
                Axon.Recurrent.dynamic_unroll(
-                 &Axon.Recurrent.lstm_cell/5,
+                 &Axon.Recurrent.conv_lstm_cell/5,
                  input,
                  init_carry,
                  k,
                  h,
                  b
-               )
+                 )
     end
 
+    test "computes forward pass with equal number of input and output channels" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32, heigth = 32
+      }
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry =
+        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input)
+
+      assert {carry, seq} ==
+               Axon.Recurrent.dynamic_unroll(
+                 &Axon.Recurrent.conv_lstm_cell/5,
+                 input,
+                 init_carry,
+                 k,
+                 h,
+                 b
+                 )
+    end
+
+    # First part fails by conv_lstm_cell:
+    # no support for custon gate and activation functions
     test "computes forward pass with custom options" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32, heigth = 32
+      }
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
       model1 =
-        Axon.input({nil, 8, 2})
-        |> Axon.lstm(2,
-          name: "lstm",
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
           recurrent_initializer: :zeros,
           gate: :relu,
           activation: :sigmoid
-        )
+      )
 
-      input1 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+      input1 =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       init_carry1 =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.lstm_cell(
+        Axon.Recurrent.conv_lstm_cell(
           i,
           c,
           k,
           h,
-          b,
-          &Axon.Activations.relu/1,
-          &Axon.Activations.sigmoid/1
+          b
+          #&Axon.Activations.relu/1,
+          #&Axon.Activations.sigmoid/1
         )
       end
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = params = init_fn.()
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = {wi}
+      h = {wh}
+      b = {b}
 
       assert {{_, _} = carry, seq} = predict_fn.(params, input1)
       assert {carry, seq} == Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
 
       model2 =
-        Axon.input({nil, 8, 2})
-        |> Axon.lstm(2, name: "lstm", unroll: :static, recurrent_initializer: :zeros)
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          unroll: :static,
+          recurrent_initializer: :zeros,
+        )
 
-      input2 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
+      input2 =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       init_carry2 =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
 
-      cell_fn2 = &Axon.Recurrent.lstm_cell/5
+      cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = params = init_fn.()
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = {wi}
+      h = {wh}
+      b = {b}
 
       assert {{_, _} = carry, seq} = predict_fn.(params, input2)
       assert {carry, seq} == Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
     end
 
     test "computes forward pass with hidden state" do
-      seq = Axon.input({nil, 8, 2})
-      {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.lstm(seq, 2, name: "decode", hidden_state: carry)
-      input = Nx.random_uniform({1, 8, 2})
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32, heigth = 32
+      }
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      seq = Axon.input(input_shape)
+      carry_model =
+        seq
+        |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
+      carry = {
+        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 0) end, hidden_shape_real, %{}),
+        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 1) end, hidden_shape_real, %{}),
+      }
+
+      model = Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2682,50 +2767,33 @@ defmodule CompilerTest do
         {di, dh, db} = dec
 
         init_carry =
-          {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+          {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
 
         {carr, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
+          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, init_carry, ei, eh, eb)
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, carr, di, dh, db)
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, carr, di, dh, db)
       end
 
       assert %{
                "encode" => %{
-                 "wii" => eii,
-                 "wif" => eif,
-                 "wig" => eig,
-                 "wio" => eio,
-                 "whi" => ehi,
-                 "whf" => ehf,
-                 "whg" => ehg,
-                 "who" => eho,
-                 "bi" => ebi,
-                 "bf" => ebf,
-                 "bg" => ebg,
-                 "bo" => ebo
+                 "wi" => ei,
+                 "wh" => eh,
+                 "b" => eb,
                },
                "decode" => %{
-                 "wii" => dii,
-                 "wif" => dif,
-                 "wig" => dig,
-                 "wio" => dio,
-                 "whi" => dhi,
-                 "whf" => dhf,
-                 "whg" => dhg,
-                 "who" => dho,
-                 "bi" => dbi,
-                 "bf" => dbf,
-                 "bg" => dbg,
-                 "bo" => dbo
+                 "wi" => di,
+                 "wh" => dh,
+                 "b" => db,
                }
              } = params = init_fn.()
 
-      enc = {{eii, eif, eig, eio}, {ehi, ehf, ehg, eho}, {ebi, ebf, ebg, ebo}}
-      dec = {{dii, dif, dig, dio}, {dhi, dhf, dhg, dho}, {dbi, dbf, dbg, dbo}}
+      enc = {{ei}, {eh}, {eb}}
+      dec = {{di}, {dh}, {db}}
 
       assert predict_fn.(params, input) == equiv_fn.(input, enc, dec)
     end
+
 
     # TODO(seanmor5): Update this with https://github.com/elixir-nx/axon/issues/90
     test "returns zero gradient for frozen parameters" do
