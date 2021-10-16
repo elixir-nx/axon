@@ -3,15 +3,16 @@ defmodule Axon.Loop.Process do
 
   # Process function which runs iteratively within a loop,
   # reducing over data and accumulating process state. The process
-  # state is initialized from `:init_fn`.
+  # state is initialized from `:init` and updated at each iteration
+  # with `:update`.
 
   # Fields
   #
-  # :init_fn - Initialization of process state, loops are modeled
+  # :init - Initialization of process state, loops are modeled
   # as a reduction over some data with the process state as the
   # accumulator. This will initialize the state of the accumulator
   #
-  # :step_fn - Process function or step function. Performs processing
+  # :update - Process function or update function. Performs processing
   # and updates of the process state.
-  defstruct [:init, :step]
+  defstruct [:init, :update]
 end

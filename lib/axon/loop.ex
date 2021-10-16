@@ -1,6 +1,197 @@
 defmodule Axon.Loop do
   @moduledoc """
-  Abstractions for training machine learning models.
+  Abstraction for modeling a reduction of a dataset with an accumulated
+  state for a number of epochs. Inspired heavily by [PyTorch Ignite](https://pytorch.org/ignite/index.html)
+  The main abstraction is the `%Loop{}` struct, which controls a nested
+  reduction of the form:
+
+      Enum.reduce(1..max_epochs, state, fn epoch, state ->
+        Enum.reduce(data, state, &process_batch/2)
+      end)
+
+  `data` is assumed to be an `Enumerable` or `Stream` of input data which is
+  handled by a processing function, `process_batch`. The purpose of the loop
+  abstraction is to take away much of the boilerplate used in solving machine
+  learning tasks. Tasks such as normalizing a dataset, hyperparameter optimization,
+  or training machine learning models boil down to writing one function:
+
+      defn process_batch(batch, state) do
+        # ...do something with batch...
+        updated_state
+      end
+
+  For tasks such as training a neural network, `state` will encapsulate things
+  such as model and optimizer state. For supervised learning tasks, `process_batch`
+  might look something like:
+
+      defn process_batch({inputs, targets}, state) do
+        %{parameters: params, optimizer_state: optim_state} = state
+
+        gradients = grad(params, objective_fn.(&1, inputs, targets))
+        {updates, new_optim_state} = optimizer.(optim_state, params, gradients)
+
+        new_params = apply_updates(params, updates)
+
+        %{parameters: new_params, optimizer_state: optim_state}
+      end
+
+  `process_batch` takes a batch of `{input, target}` pairs and the current state,
+  and updates the model parameters based on the gradients received from some arbitrary
+  objective function. This function will run in a nested loop, iterating over the entire
+  dataset for `N` epochs before finally returning the trained model state. By defining
+  1 function, we've created a training loop that works for most machine learning models.
+
+  In actuality, the loop abstraction accumulates a struct, `Axon.Loop.State`, which looks
+  like (assuming `container` is a generic Elixir container of tensors, e.g. map, tuple, etc.):
+
+      %State{
+        epoch: tensor(),
+        iteration: tensor(),
+        metrics: map(string(), container()),
+        times: list(number()),
+        process_state: container()
+      }
+
+  `process_batch` takes in the batch and this state struct and returns a `process_state`, which
+  is a generic container of state accumulated at each iteration. The rest of the fields
+  in the state struct are updated automatically behind the scenes, but may be used at any
+  point within `process_batch`.
+
+  The loop must start from some initial process state, thus most tasks must also provide
+  an additional initialization function to provide some starting point for the process
+  state. For machine learning tasks, the initialization function will return things like
+  initial model parameters and optimizer state.
+
+  ## Processes
+
+  The core of the Axon loop is the process. A process is a struct which encapsulates
+  an `init` function and `update` function. `init` is an arity-0 function which provides
+  an initial process state:
+
+      init = fn ->
+        %{params: Axon.init(model)}
+      end
+
+  While `update` is the `process_batch` function mentioned earlier:
+
+      update = fn data, state ->
+        new_state = # ...do something...
+        new_state
+      end
+
+  ## Metrics
+
+  Often times you want to compute metrics assosciated with your training iterations.
+  To accomplish this, you can attach metrics to each `Axon.Loop`. Assuming a `process_batch`
+  function which looks like:
+
+      defn process_batch({inputs, targets}, state) do
+        %State{process_state: %{parameters: params, optimizer_state: optim_state}} = state
+
+        gradients = grad(params, objective_fn.(&1, inputs, targets))
+        {updates, new_optim_state} = optimizer.(optim_state, params, gradients)
+
+        new_params = apply_updates(params, updates)
+
+        # Shown for simplicity, you can optimize this by calculating preds
+        # along with the gradient calculation
+        preds = model_fn.(params, inputs)
+
+        %{
+          y_true: targets,
+          y_pred: preds,
+          parameters: new_params,
+          optimizer_state: optim_state
+        }
+      end
+
+  You can attach metrics to this by using `Axon.Loop.metric/4`:
+
+      Axon.Loop.loop(&process_batch/2)
+      |> Axon.Loop.metric("Accuracy", :accuracy, fn %{y_true: y_, y_pred: y} -> [y_, y] end)
+      |> Axon.Loop.run(data)
+
+  Because metrics work directly on `process_state`, you typically need to provide an output
+  transform to indicate which values should be passed to your metric function. By default,
+  Axon assumes a supervised training task with the fields `:y_true` and `:y_pred` present
+  in the process state. See `Axon.Loop.metric/4` for more information.
+
+  Metrics will be tracked in the loop state using the user-provided key. Metrics integrate
+  seamlessly with the supervised metrics defined in `Axon.Metrics`. You can also use metrics
+  to keep running averages of some values in the original dataset.
+
+  ## Events and Handlers
+
+  You can instrument several points in the loop using event handlers. By default, several events
+  are fired when running a loop:
+
+      events = [
+        :started,             # After loop state initialization
+        :epoch_started,       # On epoch start
+        :iteration_started,   # On iteration start
+        :iteration_completed, # On iteration complete
+        :epoch_completed,     # On epoch complete
+        :epoch_halted,        # On epoch halt, if early halted
+        :halted,              # On loop halt, if early halted
+        :completed            # On loop completion
+      ]
+
+  You can attach event handlers to events using `Axon.Loop.handle/4`:
+
+      loop
+      |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 100)
+      |> Axon.Loop.run(data)
+
+  The above will trigger `log_metrics/1` every 100 times the `:iteration_completed` event
+  is fired. Event handlers must return a tuple `{status, state}`, where `status` is an
+  atom with one of the following values:
+
+      :continue   # Continue epoch, continue looping
+      :halt_epoch # Halt the epoch, continue looping
+      :halt_loop  # Halt looping
+
+  And `state` is an updated `Axon.Loop.State` struct. Handler functions take as input
+  the current loop state.
+
+  It's important to note that event handlers are triggered in the order they are attached
+  to the loop. If you have two handlers on the same event, they will trigger in order:
+
+      loop
+      |> Axon.Loop.handle(:epoch_completed, &normalize_state/1) # Runs first
+      |> Axon.Loop.handle(:epoch_completed, &log_state/1) # Runs second
+
+  You may provide filters to filter when event handlers trigger. See `Axon.Loop.handle/4`
+  for more details on valid filters.
+
+  ## Factories
+
+  Axon loops are typically created from one of the factory functions provided in this
+  module:
+
+      * `Axon.Loop.loop/2` - Creates a loop from process function and optional initialization
+      function.
+
+      * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
+      optimizer.
+
+      * `Axon.Loop.evaluator/2` - Creates a supervised evaluator loop from model and model
+      state.
+
+  ## Running loops
+
+  In order to execute a loop, you should use `Axon.Loop.run/3`:
+
+      loop
+      |> Axon.Loop.run(data, epochs: 10)
+
+  ## Resuming loops
+
+  At times you may want to resume a loop from some previous state. You can accomplish this
+  with `Axon.Loop.from_state/2`:
+
+      loop
+      |> Axon.Loop.from_state(state)
+      |> Axon.Loop.run(data)
   """
   require Axon
   require Axon.Updates
@@ -12,14 +203,14 @@ defmodule Axon.Loop do
   alias Axon.Loop.Process
   alias Axon.Loop.State
 
-  @all_events [
+  @default_events [
     :started,
     :epoch_started,
     :iteration_started,
     :iteration_completed,
     :epoch_completed,
-    :epoch_terminated,
-    :terminated,
+    :epoch_halted,
+    :halted,
     :completed
   ]
 
@@ -29,18 +220,122 @@ defmodule Axon.Loop do
     iteration_started: [],
     iteration_completed: [],
     epoch_completed: [],
-    epoch_terminated: [],
-    terminated: [],
+    epoch_halted: [],
+    halted: [],
     completed: []
   }
 
-  defstruct [:process, metrics: %{}, handlers: @default_handlers]
+  @enforce_keys [:process]
+  defstruct [:process, :attached_state, metrics: %{}, handlers: @default_handlers]
 
-  ## Loop Factories
+  ## Factories
 
   @doc """
-  Creates a supervised trainer from a model, loss function,
+  Creates a loop from `process_fn` and an optional `init_fn`.
+
+  `process_fn` is an arity-2 function which takes a batch and state
+  and returns an updated process state:
+
+      defn process_batch(batch, %State{process_state: pstate}) do
+        pstate + 1
+      end
+
+  `init_fn` by default is a function which returns an empty map. You should
+  define your own if subsequent process state updates rely on an initial
+  process state:
+
+      defn init_process_state() do
+        0
+      end
+
+  `process_batch/2` and `init_process_state/0` are typically called from
+  within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
+  `def`, and `defn`, it is recommended that you use the stricter `defn` to define
+  both functions in order to avoid bugs or cryptic errors.
+  """
+  def loop(process_fn, init_fn \\ fn -> %{} end)
+      when is_function(process_fn, 2) and is_function(init_fn, 0) do
+    %Loop{process: %Process{init: init_fn, update: process_fn}}
+  end
+
+  @doc """
+  Creates a supervised training loop from a model, loss function,
   and optimizer.
+
+  This function is useful for training models on most standard supervised
+  learning tasks. It assumes data consists of tuples of input-target pairs,
+  e.g. `[{x0, y0}, {x1, y1}, ..., {xN, yN}]` where `x0` and `y0` are batched
+  tensors or containers of batched tensors.
+
+  It defines an initialization function which first initializes model state
+  using the given model and then initializes optimizer state using the initial
+  model state. The process function uses a differentiable objective function
+  defined with respect to the model parameters, input data, and target data
+  using the given loss function. It then updates model parameters using the
+  given optimizer in order to minimize loss with respect to the model parameters.
+
+  `model` must be an Axon struct, a valid defn container
+  of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
+  an arity-0 function which initializes the model state and `apply_fn` is
+  an arity-2 function which applies the forward pass of the model.
+
+  `loss` must be an atom which matches a function in `Axon.Losses`, a list
+  of `{loss, weight}` tuples representing a basic weighted loss function
+  for multi-output models, or an arity-2 function representing a custom loss
+  function.
+
+  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
+  initializes the optimizer state from attached parameters and `update_fn` is an
+  arity-3 function which scales gradient updates with respect to input parameters,
+  optimizer state, and gradients. See `Axon.Updates` for more information on building
+  optimizers.
+
+  This function creates a process function which outputs a map consisting of the following
+  fields for `process_state`:
+
+      %{
+        y_pred: tensor() | container(tensor()), # Model predictions for use in metrics
+        y_true: tensor() | container(tensor()), # True labels for use in metrics
+        loss: tensor(), # Running average of loss over epoch
+        model_state: container(tensor()), # Model parameters and state
+        optimizer_state: container(tensor()) # Optimizer state assosciated with each parameter
+      }
+
+  ## Examples
+
+  ### Basic usage
+
+      data = Stream.zip(input, target)
+
+      model = Axon.input({nil, 32}) |> Axon.dense(1, activation: :sigmoid)
+
+      model
+      |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
+      |> Axon.Loop.run(data)
+
+  ### Customizing Optimizer
+
+      model
+      |> Axon.Loop.trainer(:binary_cross_entropy, Axon.Optimizers.adam(0.05))
+      |> Axon.Loop.run(data)
+
+  ### Custom loss
+
+      loss_fn = fn y_true, y_pred -> Nx.cos(y_true, y_pred) end
+
+      model
+      |> Axon.Loop.trainer(loss_fn, Axon.Optimizers.rmsprop(0.01))
+      |> Axon.Loop.run(data)
+
+  ### Multiple objectives with multi-output model
+
+      model = {Axon.input({nil, 1}), Axon.input({nil, 2})}
+      loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
+
+      model
+      |> Axon.Loop.trainer(loss_weights)
+      |> Axon.Loop.run(data)
   """
   def trainer(model, loss, optimizer) do
     {init_model_fn, forward_model_fn} = build_model_fns(model)
@@ -65,7 +360,7 @@ defmodule Axon.Loop do
       {y_pred, loss_fn.(tar, y_pred)}
     end
 
-    step_fn = fn state, {inp, tar} ->
+    step_fn = fn {inp, tar}, state ->
       %State{process_state: process_state, iteration: iter} = state
       %{model_state: model_state, optimizer_state: optimizer_state, loss: loss} = process_state
 
@@ -92,13 +387,34 @@ defmodule Axon.Loop do
       }
     end
 
-    %Loop{process: %Process{init: init_fn, step: step_fn}}
+    %Loop{process: %Process{init: init_fn, update: step_fn}}
   end
 
   @doc """
   Creates a supervised evaluator from a model and model state.
+
+  An evaluator can be used for things such as testing and validation of models
+  after or during training. It assumes `model` is an Axon struct, container of
+  structs, or a tuple of `init` / `apply` functions. `model_state` must be a
+  container useable from within `model`.
+
+  The evaluator returns a process state of the form:
+
+      %{
+        y_true: labels,
+        y_pred: predictions
+      }
+
+  Such that you can attach any number of supervised metrics to the evaluation
+  loop:
+
+      model
+      |> Axon.Loop.evaluator(trained_state)
+      |> Axon.Loop.metric("Accuracy", :accuracy)
   """
   def evaluator(model, model_state) do
+    {_, forward_model_fn} = build_model_fns(model)
+
     init_fn = fn ->
       %{
         y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
@@ -106,18 +422,48 @@ defmodule Axon.Loop do
       }
     end
 
-    step_fn = fn state, {inp, tar} ->
+    step_fn = fn {inp, tar}, _ ->
       %{
         y_true: tar,
-        y_pred: Axon.predict(model, model_state, inp)
+        y_pred: forward_model_fn.(model_state, inp)
       }
     end
 
-    %Loop{process: %Process{init: init_fn, step: step_fn}}
+    %Loop{process: %Process{init: init_fn, update: step_fn}}
   end
 
   @doc """
-  Adds a metric to the given loop.
+  Adds a metric of the given name to the loop.
+
+  A metric is a function which tracks or measures some value with respect
+  to values in the process state. For example, when training classification
+  models, it's common to track the model's accuracy during training:
+
+      loop
+      |> Axon.Loop.metric(:accuracy, "Accuracy")
+
+  By default, metrics assume a supervised learning task and extract the fields
+  `[:y_true, :y_pred]` from the process state. If you wish to work on a different
+  value, you can use an output transform. An output transform is a list of keys
+  to extract from the output state, or a function which returns a flattened list
+  of values to pass to the given metric function. Values received from output
+  transforms are passed to the given metric using:
+
+      value = output_transform.(process_state)
+      apply(metric, value)
+
+  Thus, even if you want your metric to work on a container, your output transform
+  must return a list.
+
+  `metric` must be an atom which matches the name of a metric in `Axon.Metrics`, or
+  an arbitrary function which returns a tensor or container.
+
+  `name` must be a string or atom used to store the computed metric in the loop
+  state. If names conflict, the last attached metric will take precedence:
+
+      loop
+      |> Axon.Loop.metric(:mean_squared_error, "Error") # Will be overwritten
+      |> Axon.Loop.metric(:mean_absolute_error, "Error") # Will be used
   """
   def metric(
         %Loop{metrics: metric_fns} = loop,
@@ -140,76 +486,212 @@ defmodule Axon.Loop do
   end
 
   @doc """
-  Adds a handler to the given loop.
-  """
-  # TODO(seanmor5): Bikeshed on name
-  # TODO(seanmor5): Handle bad event names gracefully
-  # TODO(seanmor5): Add event filters
-  def handle(%Loop{handlers: handle_fns} = loop, event, handler) do
-    add_event_handler = fn event, handle_fns ->
-      Map.update!(handle_fns, event, fn event_funs -> [handler | event_funs] end)
-    end
+  Adds a handler function to the loop which will be triggered on `event`
+  with an optional filter.
 
-    handler_fns =
+  Events take place at different points during loop execution. The default
+  events are:
+
+      events = [
+        :started,             # After loop state initialization
+        :epoch_started,       # On epoch start
+        :iteration_started,   # On iteration start
+        :iteration_completed, # On iteration complete
+        :epoch_completed,     # On epoch complete
+        :epoch_halted,        # On epoch halt, if early halted
+        :halted,              # On loop halt, if early halted
+        :completed            # On loop completion
+      ]
+
+  Generally, event handlers are side-effecting operations which provide some
+  sort of inspection into the loop's progress. It's important to note that
+  if you define multiple handlers to be triggered on the same event, they
+  will execute in order from when they were attached to the training
+  loop:
+
+      loop
+      |> Axon.Loop.handle(:epoch_started, &normalize_process_state/1) # executes first
+      |> Axon.Loop.handle(:epoch_started, &log_process_state/1) # executes second
+
+  Thus, if you have separate handlers which alter or depend on loop state,
+  you need to ensure they are ordered correctly, or combined into a single
+  event handler for maximum control over execution.
+
+  `event` must be an atom representing the event to trigger `handler` or a
+  list of atoms indicating `handler` should be triggered on multiple events.
+  `event` may be `:all` which indicates the handler should be triggered on
+  every event during loop processing.
+
+  `handler` must be an arity-1 function which takes as input loop state and
+  returns `{status, state}`, where `status` is an atom with one of the following
+  values:
+
+      :continue   # Continue epoch, continue looping
+      :halt_epoch # Halt the epoch, continue looping
+      :halt_loop  # Halt looping
+
+  `filter` is an atom representing a valid filter predicate, a keyword of
+  predicate-value pairs, or a function which takes loop state and returns
+  a `true`, indicating the handler should run, or `false`, indicating the
+  handler should not run. Valid predicates are:
+
+      :always # Always trigger event
+      :once   # Trigger on first event firing
+
+  Valid predicate-value pairs are:
+
+      every: N # Trigger every `N` event
+      only: N # Trigger on `N` event
+  """
+  # TODO(seanmor5): Custom events
+  def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
+    filter = build_filter_fn(filter)
+
+    handle_fns =
       case event do
         [_ | _] = events ->
-          Enum.reduce(events, handle_fns, add_event_handler)
+          Enum.reduce(events, handle_fns, &add_event_handler(&1, &2, {handler, filter}))
 
         :all ->
-          Enum.reduce(@all_events, handle_fns, add_event_handler)
+          Enum.reduce(@default_events, handle_fns, &add_event_handler(&1, &2, {handler, filter}))
 
         event when is_atom(event) ->
-          add_event_handler.(event, handle_fns)
+          add_event_handler(event, handle_fns, {handler, filter})
       end
 
-    %Loop{loop | handlers: handler_fns}
+    %Loop{loop | handlers: handle_fns}
   end
 
   @doc """
-  Runs the given loop.
+  Attaches `state` to the given loop in order to resume looping
+  from a previous state.
+
+  It's important to note that a loop's attached state takes precedence
+  over defined initialization functions. Given initialization function:
+
+      defn init_state(), do: %{foo: 1, bar: 2}
+
+  And an attached state:
+
+      state = %State{process_state: %{foo: 2, bar: 3}}
+
+  `init_state/0` will never execute, and instead the initial process state
+  of `%{foo: 2, bar: 3}` will be used.
+  """
+  def from_state(%Loop{} = loop, %State{} = state) do
+    %{loop | attached_state: state}
+  end
+
+  @doc """
+  Runs the given loop on data with the given options.
+
+  `loop` must be a valid Axon.Loop struct built from one of the
+  loop factories provided in this module.
+
+  `data` must be an Enumerable or Stream which yields batches of
+  data on each iteration.
+
+  ## Options
+
+    * `:epochs` - max epochs to run loop for. Must be non-negative integer.
+      Defaults to `1`.
+    * `:iterations` - max iterations to run each epoch. Must be non-negative
+      integer. Defaults to `nil` or no max iterations.
+    * `:compiler` - Nx compiler to use to JIT compile process function. Defaults
+      to `nil` or no JIT compilation.
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations)
     {compiler, jit_opts} = Keyword.pop(opts, :compiler)
 
-    %Loop{process: process, handlers: handler_fns, metrics: metric_fns} = loop
+    %Loop{
+      process: process,
+      handlers: handler_fns,
+      metrics: metric_fns,
+      attached_state: attached_state
+    } = loop
 
-    %Process{init: init_fn, step: step_fn} = process
+    %Process{init: init_fn, update: step_fn} = process
 
     metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
-    process_state = maybe_jit(init_fn, [], compiler, jit_opts)
 
-    loop_state = %State{
-      epoch: 1,
-      iteration: 0,
-      process_state: process_state,
-      metrics: metrics,
-      times: %{}
-    }
+    loop_state =
+      case attached_state do
+        %State{} = state ->
+          state
 
-    Enum.reduce_while(1..max_epochs, loop_state, fn epoch, loop_state ->
-      fire_event(:epoch_started, handler_fns, loop_state)
+        nil ->
+          process_state = maybe_jit(init_fn, [], compiler, jit_opts)
 
-      {time, loop_state} =
-        :timer.tc(&run_epoch/8, [
-          step_fn,
-          metric_fns,
-          handler_fns,
-          loop_state,
-          data,
-          max_iterations,
-          compiler,
-          jit_opts
-        ])
+          %State{
+            epoch: 1,
+            iteration: 0,
+            process_state: process_state,
+            metrics: metrics,
+            times: %{}
+          }
+      end
 
-      new_times = Map.put(loop_state.times, Nx.to_scalar(epoch), time)
-      new_loop_state = %State{loop_state | times: new_times}
+    {status, state} =
+      case fire_event(:started, handler_fns, loop_state) do
+        {:halt_epoch, state} ->
+          {:halted, state}
 
-      fire_event(:epoch_completed, handler_fns, new_loop_state)
+        {:halt_loop, state} ->
+          {:halted, state}
 
-      {:cont, %State{new_loop_state | epoch: epoch + 1, iteration: 0}}
-    end)
+        {:continue, state} ->
+          Enum.reduce_while(1..max_epochs, {:completed, state}, fn epoch, {_, loop_state} ->
+            case fire_event(:epoch_started, handler_fns, loop_state) do
+              {:halt_epoch, state} ->
+                halt_epoch(handler_fns, state)
+
+              {:halt_loop, state} ->
+                {:halt, {:halted, state}}
+
+              {:continue, state} ->
+                {time, status_and_state} =
+                  :timer.tc(&run_epoch/8, [
+                    step_fn,
+                    metric_fns,
+                    handler_fns,
+                    state,
+                    data,
+                    max_iterations,
+                    compiler,
+                    jit_opts
+                  ])
+
+                case status_and_state do
+                  {:halt_epoch, state} ->
+                    halt_epoch(handler_fns, state)
+
+                  {:halt_loop, state} ->
+                    {:halt, {:halted, state}}
+
+                  {:continue, state} ->
+                    new_times = Map.put(state.times, Nx.to_scalar(epoch), time)
+                    new_loop_state = %State{state | times: new_times}
+
+                    case fire_event(:epoch_completed, handler_fns, new_loop_state) do
+                      {:halt_epoch, state} ->
+                        halt_epoch(handler_fns, state)
+
+                      {:halt_loop, state} ->
+                        {:halt, {:halted, state}}
+
+                      {:continue, state} ->
+                        {:cont, {:completed, %State{state | epoch: epoch + 1, iteration: 0}}}
+                    end
+                end
+            end
+          end)
+      end
+
+    {_, state} = fire_event(status, handler_fns, state)
+
+    state
   end
 
   ## Helpers
@@ -224,32 +706,99 @@ defmodule Axon.Loop do
          compiler,
          jit_opts
        ) do
-    Enum.reduce_while(data, loop_state, fn data, state ->
-      fire_event(:iteration_started, handler_fns, state)
+    Enum.reduce_while(data, {:continue, loop_state}, fn data, {_, state} ->
+      case fire_event(:iteration_started, handler_fns, state) do
+        {:halt_epoch, state} ->
+          {:halt, {:halt_epoch, state}}
 
-      batch_fn = build_batch_fn(step_fn, metric_fns)
+        {:halt_loop, state} ->
+          {:halt, {:halt_loop, state}}
 
-      %State{iteration: iters} =
-        new_state = maybe_jit(batch_fn, [state, data], compiler, jit_opts)
+        {:continue, state} ->
+          batch_fn = build_batch_fn(step_fn, metric_fns)
 
-      fire_event(:iteration_completed, handler_fns, new_state)
+          %State{iteration: iters} =
+            new_state = maybe_jit(batch_fn, [data, state], compiler, jit_opts)
 
-      if Nx.to_scalar(iters) >= max_iterations do
-        {:halt, new_state}
-      else
-        {:cont, new_state}
+          case fire_event(:iteration_completed, handler_fns, new_state) do
+            {:halt_epoch, state} ->
+              {:halt, {:halt_epoch, state}}
+
+            {:halt_loop, state} ->
+              {:halt, {:halt_loop, state}}
+
+            {:continue, state} ->
+              if Nx.to_scalar(iters) >= max_iterations do
+                {:halt, {:halt_epoch, state}}
+              else
+                {:cont, {:continue, state}}
+              end
+          end
       end
     end)
   end
 
-  defp fire_event(event, handler_fns, state) do
-    Enum.each(handler_fns[event], & &1.(state))
+  # Adds an event handler to the map of handler funs by prepending handler
+  # to the existing handler funs. Because we prepend here, we must reverse
+  # handler funs in fire_event.
+  # TODO(seanmor5): Custom events
+  defp add_event_handler(event, handle_fns, handler) do
+    Map.update!(handle_fns, event, fn event_funs -> [handler | event_funs] end)
   end
 
+  # Fires event `event` using handler_fns assosciated with the event. We
+  # must reverse handler funs in order to enforce order that handlers are
+  # attached to the loop.
+  # TODO(seanmor5): Custom events
+  defp fire_event(event, handler_fns, state) do
+    handler_fns[event]
+    |> Enum.reverse()
+    |> Enum.reduce_while({:continue, state}, fn {handler, filter}, {_, state} ->
+      if filter.(state) do
+        case handler.(state) do
+          {:continue, %State{} = state} ->
+            {:cont, {:continue, state}}
+
+          {:halt_epoch, %State{} = state} ->
+            {:halt, {:halt_epoch, state}}
+
+          {:halt_loop, %State{} = state} ->
+            {:halt, {:halt_loop, state}}
+
+          invalid ->
+            raise ArgumentError, "invalid value #{inspect(invalid)} returned from event handler" <>
+                                    " triggered on #{inspect(event)}, event handler must return" <>
+                                    " a tuple of {status, state} where status is one of :halt_epoch," <>
+                                    " :halt_loop, or :continue and state is an updated State struct"
+        end
+      else
+        {:cont, {:continue, state}}
+      end
+    end)
+  end
+
+  # Halts an epoch during looping
+  defp halt_epoch(handler_fns, loop_state) do
+    case fire_event(:epoch_halted, handler_fns, loop_state) do
+      {:halt_epoch, state} ->
+        {:cont, %State{state | epoch: state.epoch + 1, iteration: 0}}
+
+      {:halt_loop, state} ->
+        {:halt, {:halted, state}}
+
+      {:continue, state} ->
+        {:cont, state}
+    end
+  end
+
+  # Builds the overall processing function from the given process
+  # step function and metrics. We need to run both step and metric
+  # functions from within here to ensure they can be JIT compiled
+  # if that's desired
   defp build_batch_fn(step_fn, metric_fns) do
-    fn state, data ->
+    fn data, state ->
       %State{metrics: metrics, iteration: iter} = state
-      new_process_state = step_fn.(state, data)
+      new_process_state = step_fn.(data, state)
 
       new_metrics =
         metrics
@@ -315,9 +864,11 @@ defmodule Axon.Loop do
     end
   end
 
-  # Builds model init and forward functions from an Axon struct
-  # or a tuple of init / forward functions. Model functions are
-  # essentially just model init / apply functions.
+  # Builds model init and forward functions from an Axon struct,
+  # a tuple of Axon structs, or a tuple of init / forward
+  # functions. Model functions are essentially just model
+  # init / apply functions.
+  # TODO(seanmor5): Update this to support any valid defn container
   defp build_model_fns(%Axon{} = model) do
     Axon.compile(model)
   end
@@ -330,9 +881,9 @@ defmodule Axon.Loop do
   defp build_model_fns(invalid) do
     raise ArgumentError,
           "Invalid model #{inspect(invalid)}, a valid model" <>
-            " is an Axon struct, or a tuple of {init_fn, forward_fn}" <>
-            " with signatures init_fn() :: model_state, forward_fn(" <>
-            "model_state, inp) :: prediction"
+            " is an Axon struct, a container of Axon structs " <>
+            " or a tuple of {init_fn, forward_fn} with signatures" <>
+            " init_fn() :: model_state, forward_fn(model_state, inp) :: prediction"
   end
 
   # Builds optimizer init and update functions either from an atom
@@ -365,12 +916,12 @@ defmodule Axon.Loop do
   # and returns an output of arbitrary shape/type. Output transforms are field(s)
   # to extract from the process state, or a function which transforms the process
   # state before it is passed to the metric function.
+  # TODO(seanmor5): Reconsider the form of output transform
   defp build_metric_fn(metric, transform_or_fields) do
     transform_fn =
       case transform_or_fields do
         [_ | _] = fields ->
           fn output ->
-            # TODO(seanmor5): Assert map to raise a clear error
             fields
             |> Enum.reduce([], fn field, acc -> [output[field] | acc] end)
             |> Enum.reverse()
@@ -378,7 +929,6 @@ defmodule Axon.Loop do
 
         field when is_atom(field) ->
           fn output ->
-            # TODO(seanmor5): Assert map
             output[field]
           end
 
@@ -396,7 +946,6 @@ defmodule Axon.Loop do
     case metric do
       metric when is_atom(metric) ->
         fn output ->
-          # TODO(seanmor5): Flatten all containers
           output
           |> transform_fn.()
           |> then(&apply(Axon.Metrics, metric, &1))
@@ -406,7 +955,7 @@ defmodule Axon.Loop do
         fn output ->
           output
           |> transform_fn.()
-          |> metric_fn.()
+          |> then(&apply(metric_fn, &1))
         end
 
       invalid ->
@@ -415,6 +964,43 @@ defmodule Axon.Loop do
                 " is an atom which matches the name of a function in" <>
                 " Axon.Metrics or a function which takes a transformed" <>
                 " process state and returns a value"
+    end
+  end
+
+  # Builds a filter function from an atom, keyword list, or function. A
+  # valid filter is an atom which matches on of the valid predicates `:always`
+  # or `:once`, a keyword which matches one of the valid predicate-value pairs
+  # such as `every: N`, or a function which takes loop state and returns `true`
+  # or `false`.
+  #
+  # TODO(seanmor5): In order to handle custom events and predicate filters,
+  # we will need to track event firings in the loop state.
+  defp build_filter_fn(filter) do
+    case filter do
+      :always ->
+        fn _ -> true end
+
+      :once ->
+        fn
+          %State{epoch: 0, iteration: 0} -> true
+          _ -> false
+        end
+
+      [{:every, n} | _] ->
+        fn %State{iteration: iter} ->
+          Nx.remainder(iter, n) == Nx.tensor(0)
+        end
+
+      fun when is_function(fun, 1) ->
+        fun
+
+      invalid ->
+        raise ArgumentError,
+              "Invalid filter #{inspect(invalid)}, a valid filter" <>
+                " is an atom which matches a valid filter predicate" <>
+                " such as :always or :once, a keyword of predicate-value" <>
+                " pairs such as every: N, or an arity-1 function which takes" <>
+                " loop state and returns true or false"
     end
   end
 
@@ -427,5 +1013,13 @@ defmodule Axon.Loop do
     else
       fun.(args)
     end
+  end
+
+  # TODO(seanmor5): Move to metrics as a combinator
+  defp running_average(avg, value, i) do
+    avg
+    |> Nx.multiply(i)
+    |> Nx.add(value)
+    |> Nx.divide(Nx.add(i, 1))
   end
 end
