@@ -2459,149 +2459,80 @@ defmodule CompilerTest do
 
   describe "convlstm" do
     test "initializes in default case" do
-      model = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
+      input_shape = {_batch, _sequence_length, in_channel_n, _width, _heigth} = {nil, 10, 3, 32, 32}
+      out_channel_n = 64
+      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = init_fn.()
 
       # Input kernel
-      assert Nx.shape(wii) == {10, 64}
-      assert Nx.type(wii) == {:f, 32}
-      assert Nx.shape(wif) == {10, 64}
-      assert Nx.type(wif) == {:f, 32}
-      assert Nx.shape(wig) == {10, 64}
-      assert Nx.type(wig) == {:f, 32}
-      assert Nx.shape(wio) == {10, 64}
-      assert Nx.type(wio) == {:f, 32}
+      assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
+      assert Nx.type(wi) == {:f, 32}
 
       # Hidden kernel
-      assert Nx.shape(whi) == {64, 64}
-      assert Nx.type(whi) == {:f, 32}
-      assert Nx.shape(whf) == {64, 64}
-      assert Nx.type(whf) == {:f, 32}
-      assert Nx.shape(whg) == {64, 64}
-      assert Nx.type(whg) == {:f, 32}
-      assert Nx.shape(who) == {64, 64}
-      assert Nx.type(who) == {:f, 32}
+      assert Nx.shape(wh) == {4 * out_channel_n, out_channel_n, 1, 1}
+      assert Nx.type(wh) == {:f, 32}
 
       # Bias
-      assert Nx.shape(bi) == {64}
-      assert Nx.type(bi) == {:f, 32}
-      assert Nx.shape(bf) == {64}
-      assert Nx.type(bf) == {:f, 32}
-      assert Nx.shape(bg) == {64}
-      assert Nx.type(bg) == {:f, 32}
-      assert Nx.shape(bo) == {64}
-      assert Nx.type(bo) == {:f, 32}
+      assert Nx.shape(b) == {4 * out_channel_n}
+      assert Nx.type(b) == {:f, 32}
     end
 
     test "initializes with custom initializers" do
-      model1 =
-        Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", kernel_initializer: :zeros)
+      input_shape = {_batch, _sequence_length, in_channel_n, _width, _heigth} = {nil, 10, 3, 32, 32}
+      out_channel_n = 64
+      model1 = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = init_fn.()
 
       # Input kernel
-      assert wii == Axon.Initializers.zeros(shape: {10, 64})
-      assert wif == Axon.Initializers.zeros(shape: {10, 64})
-      assert wig == Axon.Initializers.zeros(shape: {10, 64})
-      assert wio == Axon.Initializers.zeros(shape: {10, 64})
+      assert wi == Axon.Initializers.zeros(shape: {4 * out_channel_n, in_channel_n, 1, 1})
 
       # Hidden kernel
-      assert whi == Axon.Initializers.zeros(shape: {64, 64})
-      assert whf == Axon.Initializers.zeros(shape: {64, 64})
-      assert whg == Axon.Initializers.zeros(shape: {64, 64})
-      assert who == Axon.Initializers.zeros(shape: {64, 64})
+      assert wh == Axon.Initializers.zeros(shape: {4 * out_channel_n, out_channel_n, 1, 1})
 
       # Bias
-      assert Nx.shape(bi) == {64}
-      assert Nx.type(bi) == {:f, 32}
-      assert Nx.shape(bf) == {64}
-      assert Nx.type(bf) == {:f, 32}
-      assert Nx.shape(bg) == {64}
-      assert Nx.type(bg) == {:f, 32}
-      assert Nx.shape(bo) == {64}
-      assert Nx.type(bo) == {:f, 32}
+      assert Nx.shape(b) == {4 * out_channel_n}
+      assert Nx.type(b) == {:f, 32}
 
-      model2 = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
+      model2 = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
 
       assert %{
-               "lstm" => %{
-                 "wii" => wii,
-                 "wif" => wif,
-                 "wig" => wig,
-                 "wio" => wio,
-                 "whi" => whi,
-                 "whf" => whf,
-                 "whg" => whg,
-                 "who" => who,
-                 "bi" => bi,
-                 "bf" => bf,
-                 "bg" => bg,
-                 "bo" => bo
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b,
                }
              } = init_fn.()
 
       # Input kernel
-      assert Nx.shape(wii) == {10, 64}
-      assert Nx.type(wii) == {:f, 32}
-      assert Nx.shape(wif) == {10, 64}
-      assert Nx.type(wif) == {:f, 32}
-      assert Nx.shape(wig) == {10, 64}
-      assert Nx.type(wig) == {:f, 32}
-      assert Nx.shape(wio) == {10, 64}
-      assert Nx.type(wio) == {:f, 32}
+      assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
+      assert Nx.type(wi) == {:f, 32}
 
       # Hidden kernel
-      assert Nx.shape(whi) == {64, 64}
-      assert Nx.type(whi) == {:f, 32}
-      assert Nx.shape(whf) == {64, 64}
-      assert Nx.type(whf) == {:f, 32}
-      assert Nx.shape(whg) == {64, 64}
-      assert Nx.type(whg) == {:f, 32}
-      assert Nx.shape(who) == {64, 64}
-      assert Nx.type(who) == {:f, 32}
+      assert Nx.shape(wh) == {4 * out_channel_n, out_channel_n, 1, 1}
+      assert Nx.type(wh) == {:f, 32}
 
       # Bias
-      assert bi == Axon.Initializers.zeros(shape: {64})
-      assert bf == Axon.Initializers.zeros(shape: {64})
-      assert bg == Axon.Initializers.zeros(shape: {64})
-      assert bo == Axon.Initializers.zeros(shape: {64})
+      assert b == Axon.Initializers.zeros(shape: {4 * out_channel_n})
     end
 
     test "computes forward pass with default options" do
