@@ -766,10 +766,11 @@ defmodule Axon.Loop do
             {:halt, {:halt_loop, state}}
 
           invalid ->
-            raise ArgumentError, "invalid value #{inspect(invalid)} returned from event handler" <>
-                                    " triggered on #{inspect(event)}, event handler must return" <>
-                                    " a tuple of {status, state} where status is one of :halt_epoch," <>
-                                    " :halt_loop, or :continue and state is an updated State struct"
+            raise ArgumentError,
+                  "invalid value #{inspect(invalid)} returned from event handler" <>
+                    " triggered on #{inspect(event)}, event handler must return" <>
+                    " a tuple of {status, state} where status is one of :halt_epoch," <>
+                    " :halt_loop, or :continue and state is an updated State struct"
         end
       else
         {:cont, {:continue, state}}
