@@ -2463,8 +2463,10 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         in_channel_n = 3,
-        _width = 32, _heigth = 32
+        _width = 32,
+        _heigth = 32
       }
+
       out_channel_n = 64
       model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
 
@@ -2474,7 +2476,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = init_fn.()
 
@@ -2496,10 +2498,15 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         in_channel_n = 3,
-        _width = 32, _heigth = 32
+        _width = 32,
+        _heigth = 32
       }
+
       out_channel_n = 64
-      model1 = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
+
+      model1 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
 
@@ -2507,7 +2514,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = init_fn.()
 
@@ -2521,7 +2528,9 @@ defmodule CompilerTest do
       assert Nx.shape(b) == {4 * out_channel_n}
       assert Nx.type(b) == {:f, 32}
 
-      model2 = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
+      model2 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
 
@@ -2529,7 +2538,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = init_fn.()
 
@@ -2551,12 +2560,17 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32, heigth = 32
+        width = 32,
+        heigth = 32
       }
+
       out_channel_n = 64
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
-      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
 
       input =
         input_shape
@@ -2564,7 +2578,8 @@ defmodule CompilerTest do
         |> Nx.random_uniform(type: {:f, 32})
 
       init_carry =
-        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2572,7 +2587,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = params = init_fn.()
 
@@ -2590,7 +2605,7 @@ defmodule CompilerTest do
                  k,
                  h,
                  b
-                 )
+               )
     end
 
     test "computes forward pass with equal number of input and output channels" do
@@ -2598,12 +2613,17 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32, heigth = 32
+        width = 32,
+        heigth = 32
       }
+
       out_channel_n = 3
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
-      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
 
       input =
         input_shape
@@ -2611,7 +2631,8 @@ defmodule CompilerTest do
         |> Nx.random_uniform(type: {:f, 32})
 
       init_carry =
-        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2619,7 +2640,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = params = init_fn.()
 
@@ -2637,7 +2658,7 @@ defmodule CompilerTest do
                  k,
                  h,
                  b
-                 )
+               )
     end
 
     # First part fails by conv_lstm_cell:
@@ -2647,11 +2668,14 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32, heigth = 32
+        width = 32,
+        heigth = 32
       }
+
       out_channel_n = 3
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
       model1 =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n,
@@ -2659,7 +2683,7 @@ defmodule CompilerTest do
           recurrent_initializer: :zeros,
           gate: :relu,
           activation: :sigmoid
-      )
+        )
 
       input1 =
         input_shape
@@ -2667,7 +2691,8 @@ defmodule CompilerTest do
         |> Nx.random_uniform(type: {:f, 32})
 
       init_carry1 =
-        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Recurrent.conv_lstm_cell(
@@ -2676,8 +2701,8 @@ defmodule CompilerTest do
           k,
           h,
           b
-          #&Axon.Activations.relu/1,
-          #&Axon.Activations.sigmoid/1
+          # &Axon.Activations.relu/1,
+          # &Axon.Activations.sigmoid/1
         )
       end
 
@@ -2687,7 +2712,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = params = init_fn.()
 
@@ -2703,7 +2728,7 @@ defmodule CompilerTest do
         |> Axon.conv_lstm(out_channel_n,
           name: "convlstm",
           unroll: :static,
-          recurrent_initializer: :zeros,
+          recurrent_initializer: :zeros
         )
 
       input2 =
@@ -2712,7 +2737,8 @@ defmodule CompilerTest do
         |> Nx.random_uniform(type: {:f, 32})
 
       init_carry2 =
-        {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
 
@@ -2722,7 +2748,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi,
                  "wh" => wh,
-                 "b" => b,
+                 "b" => b
                }
              } = params = init_fn.()
 
@@ -2739,18 +2765,22 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32, heigth = 32
+        width = 32,
+        heigth = 32
       }
+
       out_channel_n = 3
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
       seq = Axon.input(input_shape)
+
       carry_model =
         seq
         |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
+
       carry = {
         Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 0) end, hidden_shape_real, %{}),
-        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 1) end, hidden_shape_real, %{}),
+        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 1) end, hidden_shape_real, %{})
       }
 
       model = Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
@@ -2767,10 +2797,18 @@ defmodule CompilerTest do
         {di, dh, db} = dec
 
         init_carry =
-          {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+          {Axon.Initializers.zeros(shape: hidden_shape_real),
+           Axon.Initializers.zeros(shape: hidden_shape_real)}
 
         {carr, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, init_carry, ei, eh, eb)
+          Axon.Recurrent.dynamic_unroll(
+            &Axon.Recurrent.conv_lstm_cell/5,
+            inp,
+            init_carry,
+            ei,
+            eh,
+            eb
+          )
 
         Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, carr, di, dh, db)
       end
@@ -2779,12 +2817,12 @@ defmodule CompilerTest do
                "encode" => %{
                  "wi" => ei,
                  "wh" => eh,
-                 "b" => eb,
+                 "b" => eb
                },
                "decode" => %{
                  "wi" => di,
                  "wh" => dh,
-                 "b" => db,
+                 "b" => db
                }
              } = params = init_fn.()
 
@@ -2799,11 +2837,14 @@ defmodule CompilerTest do
         _batch = nil,
         sequence_length = 2,
         in_channel_n = 3,
-        width = 4, heigth = 4
+        width = 4,
+        heigth = 4
       }
+
       out_channel_n = 3
       batch_real = 1
       output_shape_real = {batch_real, sequence_length, out_channel_n, width, heigth}
+
       out =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", unroll: :static)
@@ -2826,7 +2867,7 @@ defmodule CompilerTest do
                "convlstm" => %{
                  "wi" => wi_grad,
                  "wh" => wh_grad,
-                 "b" => b_grad,
+                 "b" => b_grad
                }
              } = Nx.Defn.jit(backward, [init_fn.(), input])
 
@@ -2841,9 +2882,12 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        _width = 32, _heigth = 32
+        _width = 32,
+        _heigth = 32
       }
+
       out_channel_n = 3
+
       model =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", use_bias: false)
@@ -2854,7 +2898,7 @@ defmodule CompilerTest do
                "convlstm" =>
                  %{
                    "wi" => _,
-                   "wh" => _,
+                   "wh" => _
                  } = convlstm_params
              } = init_fn.()
 
@@ -2866,14 +2910,21 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32, heigth = 32
+        width = 32,
+        heigth = 32
       }
+
       out_channel_n = 3
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
       model =
         Axon.input(input_shape)
-        |> Axon.conv_lstm(out_channel_n, name: "convlstm", use_bias: false, recurrent_initializer: :zeros)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          use_bias: false,
+          recurrent_initializer: :zeros
+        )
 
       input =
         input_shape
@@ -2885,14 +2936,17 @@ defmodule CompilerTest do
       assert %{
                "convlstm" => %{
                  "wi" => wi,
-                 "wh" => wh,
+                 "wh" => wh
                }
              } = params = init_fn.()
 
       k = {wi}
       h = {wh}
       b = {Nx.broadcast(0, 4 * out_channel_n)}
-      c = {Axon.Initializers.zeros(shape: hidden_shape_real), Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      c =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
 
       assert predict_fn.(params, input) ==
                Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, input, c, k, h, b)
