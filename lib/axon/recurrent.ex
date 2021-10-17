@@ -120,10 +120,10 @@ defmodule Axon.Recurrent do
     {{cell, hidden}, input} = rank_down({carry, input})
 
     gates =
-      Nx.add([
+      Nx.add(
         conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
         conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
-      ])
+      )
 
     {i, g, f, o} = split_gates(gates)
 
