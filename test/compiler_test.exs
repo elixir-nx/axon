@@ -2622,7 +2622,11 @@ defmodule CompilerTest do
 
       model =
         Axon.input(input_shape)
-        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros, unroll: :static)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          recurrent_initializer: :zeros,
+          unroll: :static
+        )
 
       input =
         input_shape
