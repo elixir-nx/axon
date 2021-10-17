@@ -87,13 +87,8 @@ defmodule Axon.Recurrent do
     transform(rnn_data, fn {{cell, hidden}, input} ->
       [cell, hidden, input] =
         for tensor <- [cell, hidden, input] do
-          new_shape =
-            Nx.shape(tensor)
-            |> Tuple.delete_at(1)
-
-          Nx.reshape(tensor, new_shape)
+          Nx.squeeze(tensor, axes: [1])
         end
-
       {{cell, hidden}, input}
     end)
   end
@@ -108,7 +103,6 @@ defmodule Axon.Recurrent do
 
           Nx.reshape(tensor, new_shape)
         end
-
       {{cell, hidden}, input}
     end)
   end
