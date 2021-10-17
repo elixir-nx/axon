@@ -120,7 +120,7 @@ defmodule Axon.Compiler do
 
   @doc false
   def __jit_predict__(graph, caller, args, opts) do
-    mode = opts[:mode] || :inference
+    {mode, opts} = Keyword.pop(opts, :mode, :inference)
     fun = compile_predict(graph, mode)
     jit_or_apply(caller, fun, args, opts)
   end

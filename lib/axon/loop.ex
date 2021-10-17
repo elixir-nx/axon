@@ -1012,7 +1012,7 @@ defmodule Axon.Loop do
     if compiler do
       Nx.Defn.jit(fun, args, [compiler: compiler] ++ jit_opts)
     else
-      fun.(args)
+      apply(fun, args)
     end
   end
 
