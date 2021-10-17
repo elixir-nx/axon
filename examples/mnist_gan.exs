@@ -13,38 +13,19 @@ defmodule MNISTGAN do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.reshape({elem(shape, 0), 784})
     |> Nx.divide(255.0)
     |> Nx.to_batched_list(32)
   end
 
   defp build_generator(z_dim) do
     Axon.input({nil, z_dim})
-    |> Axon.dense(128)
-    |> Axon.batch_norm()
-    |> Axon.leaky_relu(alpha: 0.8)
-    |> Axon.dense(256)
-    |> Axon.batch_norm()
-    |> Axon.leaky_relu(alpha: 0.8)
-    |> Axon.dense(512)
-    |> Axon.batch_norm()
-    |> Axon.leaky_relu(alpha: 0.8)
-    |> Axon.dense(784)
-    |> Axon.tanh()
-    |> Axon.reshape({1, 28, 28})
+    |> Axon.dense(784, activation: :tanh)
   end
 
   defp build_discriminator(input_shape) do
     Axon.input(input_shape)
-    |> Axon.flatten()
-    |> Axon.dense(256)
-    |> Axon.relu()
-    |> Axon.dropout(rate: 0.8)
-    |> Axon.dense(256)
-    |> Axon.relu()
-    |> Axon.dropout(rate: 0.8)
-    |> Axon.dense(2)
-    |> Axon.softmax()
+    |> Axon.dense(2, activation: :softmax)
   end
 
   defnp running_average(avg, obs, i) do
@@ -162,7 +143,7 @@ defmodule MNISTGAN do
     {images, _} = Scidata.MNIST.download(transform_images: &transform_images/1)
 
     generator = build_generator(100)
-    discriminator = build_discriminator({nil, 1, 28, 28})
+    discriminator = build_discriminator({nil, 784})
 
     discriminator
     |> train_loop(generator)
