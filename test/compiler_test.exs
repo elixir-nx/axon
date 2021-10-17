@@ -2554,7 +2554,7 @@ defmodule CompilerTest do
       assert b == Axon.Initializers.zeros(shape: {4 * out_channel_n})
     end
 
-    test "computes forward pass with equal number of input and output channels" do
+    test "computes forward pass with dynamic unroll and equal number of input and output channels" do
       input_shape = {
         _batch = nil,
         _sequence_length = 10,
@@ -2598,6 +2598,59 @@ defmodule CompilerTest do
 
       assert {carry, seq} ==
                Axon.Recurrent.dynamic_unroll(
+                 &Axon.Recurrent.conv_lstm_cell/5,
+                 input,
+                 init_carry,
+                 k,
+                 h,
+                 b
+               )
+    end
+
+    test "computes forward pass with static unroll and different number of input and output channels" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 7
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros, unroll: :static)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input)
+
+      assert {carry, seq} ==
+               Axon.Recurrent.static_unroll(
                  &Axon.Recurrent.conv_lstm_cell/5,
                  input,
                  init_carry,
