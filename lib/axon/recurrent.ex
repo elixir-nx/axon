@@ -89,6 +89,7 @@ defmodule Axon.Recurrent do
         for tensor <- [cell, hidden, input] do
           Nx.squeeze(tensor, axes: [1])
         end
+
       {{cell, hidden}, input}
     end)
   end
@@ -103,6 +104,7 @@ defmodule Axon.Recurrent do
 
           Nx.reshape(tensor, new_shape)
         end
+
       {{cell, hidden}, input}
     end)
   end
