@@ -1,7 +1,10 @@
 defmodule Axon.Loop do
   @moduledoc """
   Abstraction for modeling a reduction of a dataset with an accumulated
-  state for a number of epochs. Inspired heavily by [PyTorch Ignite](https://pytorch.org/ignite/index.html)
+  state for a number of epochs.
+
+  Inspired heavily by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
+
   The main abstraction is the `%Loop{}` struct, which controls a nested
   reduction of the form:
 
@@ -61,6 +64,14 @@ defmodule Axon.Loop do
   an additional initialization function to provide some starting point for the process
   state. For machine learning tasks, the initialization function will return things like
   initial model parameters and optimizer state.
+
+  Typically, the final output of the loop is the accumulated final state; however, you
+  may optionally apply an output transform to extract specific values at the end of the
+  loop. For example, `Axon.Loop.trainer/4` by default extracts trained model state:
+
+      output_transform = fn state ->
+        state.process_state[:model_state]
+      end
 
   ## Processes
 
@@ -168,8 +179,8 @@ defmodule Axon.Loop do
   Axon loops are typically created from one of the factory functions provided in this
   module:
 
-      * `Axon.Loop.loop/2` - Creates a loop from process function and optional initialization
-      function.
+      * `Axon.Loop.loop/3` - Creates a loop from process function and optional initialization
+      functions and output transform functions.
 
       * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
@@ -226,12 +237,19 @@ defmodule Axon.Loop do
   }
 
   @enforce_keys [:process]
-  defstruct [:process, :attached_state, metrics: %{}, handlers: @default_handlers]
+  defstruct [
+    :process,
+    :attached_state,
+    :output_transform,
+    metrics: %{},
+    handlers: @default_handlers
+  ]
 
   ## Factories
 
   @doc """
-  Creates a loop from `process_fn` and an optional `init_fn`.
+  Creates a loop from `process_fn`, an optional `init_fn`, and an
+  optional `output_transform`.
 
   `process_fn` is an arity-2 function which takes a batch and state
   and returns an updated process state:
@@ -252,10 +270,18 @@ defmodule Axon.Loop do
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
+
+  `output_transform/1` applies a transformation on the final accumulated loop state.
+  This is useful for extracting specific fields from a loop and piping them into
+  additional functions.
   """
-  def loop(process_fn, init_fn \\ fn -> %{} end)
-      when is_function(process_fn, 2) and is_function(init_fn, 0) do
-    %Loop{process: %Process{init: init_fn, update: process_fn}}
+  def loop(process_fn, init_fn \\ fn -> %{} end, output_transform \\ & &1)
+      when is_function(process_fn, 2) and is_function(init_fn, 0) and
+             is_function(output_transform, 1) do
+    %Loop{
+      process: %Process{init: init_fn, update: process_fn},
+      output_transform: output_transform
+    }
   end
 
   @doc """
@@ -387,7 +413,9 @@ defmodule Axon.Loop do
       }
     end
 
-    %Loop{process: %Process{init: init_fn, update: step_fn}}
+    output_transform = fn state -> state.process_state[:model_state] end
+
+    loop(step_fn, init_fn, output_transform)
   end
 
   @doc """
@@ -429,7 +457,7 @@ defmodule Axon.Loop do
       }
     end
 
-    %Loop{process: %Process{init: init_fn, update: step_fn}}
+    loop(step_fn, init_fn)
   end
 
   @doc """
@@ -609,7 +637,8 @@ defmodule Axon.Loop do
       process: process,
       handlers: handler_fns,
       metrics: metric_fns,
-      attached_state: attached_state
+      attached_state: attached_state,
+      output_transform: output_transform
     } = loop
 
     %Process{init: init_fn, update: step_fn} = process
@@ -691,7 +720,7 @@ defmodule Axon.Loop do
 
     {_, state} = fire_event(status, handler_fns, state)
 
-    state
+    output_transform.(state)
   end
 
   ## Helpers

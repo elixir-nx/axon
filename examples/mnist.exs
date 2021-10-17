@@ -5,7 +5,7 @@ Mix.install([
   {:scidata, "~> 0.1.1"},
 ])
 
-Application.put_env(:exla, :clients, default: [platform: :cuda])
+# Application.put_env(:exla, :clients, default: [platform: :cuda])
 
 defmodule Mnist do
   require Axon
@@ -84,17 +84,14 @@ defmodule Mnist do
 
     IO.write("\n\n Training Model \n\n")
 
-    final_training_state =
+    model_state =
       model
       |> train_model({train_images, train_labels}, 5)
 
     IO.write("\n\n Testing Model \n\n")
 
-    # TODO(seanmor5): Extracting the model state like this is a little awkward,
-    # maybe we should provide an output transform applied at the end of looping
-    # and add a default one which extracts model state in trainer/4?
     model
-    |> test_model(final_training_state.process_state[:model_state], test_images, test_labels)
+    |> test_model(model_state, test_images, test_labels)
 
     IO.write("\n\n")
   end
