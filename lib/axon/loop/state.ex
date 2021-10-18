@@ -4,5 +4,13 @@ defmodule Axon.Loop.State do
   # a way in Nx/EXLA to mark `:times` as a static property which is
   # not to be touched at JIT time.
   @enforce_keys [:process_state]
-  defstruct [:process_state, epoch: 0, max_epoch: 1, iteration: 0, max_iteration: -1, metrics: %{}, times: %{}]
+  defstruct [
+    :process_state,
+    epoch: 0,
+    max_epoch: 1,
+    iteration: 0,
+    max_iteration: -1,
+    metrics: %{},
+    times: %{}
+  ]
 end

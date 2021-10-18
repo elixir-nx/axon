@@ -737,7 +737,10 @@ defmodule Axon.Loop do
 
                       {:continue, state} ->
                         max_iter = state.iteration
-                        {:cont, {:completed, %State{state | epoch: epoch + 1, iteration: 0, max_iteration: max_iter}}}
+
+                        {:cont,
+                         {:completed,
+                          %State{state | epoch: epoch + 1, iteration: 0, max_iteration: max_iter}}}
                     end
                 end
             end
@@ -813,6 +816,7 @@ defmodule Axon.Loop do
             {:continue, state} ->
               iters = Nx.to_scalar(iters)
               max_iters = Nx.to_scalar(max_iters)
+
               if iters > max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
               else
