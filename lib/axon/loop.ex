@@ -208,6 +208,9 @@ defmodule Axon.Loop do
   require Axon.Updates
   require Logger
 
+  # TODO(seanmor5): Remove when running average is gone
+  import Nx.Defn
+
   alias __MODULE__, as: Loop
   alias Axon.Loop.Process
   alias Axon.Loop.State
@@ -233,6 +236,33 @@ defmodule Axon.Loop do
     halted: [],
     completed: []
   }
+
+  @valid_axon_losses [
+    :binary_cross_entropy,
+    :categorical_cross_entropy,
+    :categorical_hinge,
+    :hinge,
+    :kl_divergence,
+    :log_cosh,
+    :mean_absolute_error,
+    :mean_squared_error,
+    :poisson,
+    :soft_margin
+  ]
+
+  @valid_axon_optimizers [
+    :adabelief,
+    :adagrad,
+    :adam,
+    :adamw,
+    :fromage,
+    :lamb,
+    :noisy_sgd,
+    :radam,
+    :rmsprop,
+    :sgd,
+    :yogi
+  ]
 
   @enforce_keys [:process]
   defstruct [
@@ -362,7 +392,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.run(data)
   """
   def trainer(model, loss, optimizer) do
-    {init_model_fn, forward_model_fn} = build_model_fns(model)
+    {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
 
@@ -435,9 +465,12 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.evaluator(trained_state)
       |> Axon.Loop.metric("Accuracy", :accuracy)
+
+  Applies an output transform which returns the map of metrics accumulated over
+  the given loop.
   """
   def evaluator(model, model_state) do
-    {_, forward_model_fn} = build_model_fns(model)
+    {_, forward_model_fn} = build_model_fns(model, :inference)
 
     init_fn = fn ->
       %{
@@ -453,7 +486,9 @@ defmodule Axon.Loop do
       }
     end
 
-    loop(step_fn, init_fn)
+    output_transform = fn state -> state.metrics end
+
+    loop(step_fn, init_fn, output_transform)
   end
 
   @doc """
@@ -619,14 +654,16 @@ defmodule Axon.Loop do
 
     * `:epochs` - max epochs to run loop for. Must be non-negative integer.
       Defaults to `1`.
+
     * `:iterations` - max iterations to run each epoch. Must be non-negative
       integer. Defaults to `nil` or no max iterations.
+
     * `:compiler` - Nx compiler to use to JIT compile process function. Defaults
       to `nil` or no JIT compilation.
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
-    {max_iterations, opts} = Keyword.pop(opts, :iterations)
+    {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {compiler, jit_opts} = Keyword.pop(opts, :compiler)
 
     %Loop{
@@ -639,24 +676,16 @@ defmodule Axon.Loop do
 
     %Process{init: init_fn, update: step_fn} = process
 
-    metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
-
     loop_state =
-      case attached_state do
-        %State{} = state ->
-          state
-
-        nil ->
-          process_state = maybe_jit(init_fn, [], compiler, jit_opts)
-
-          %State{
-            epoch: 1,
-            iteration: 0,
-            process_state: process_state,
-            metrics: metrics,
-            times: %{}
-          }
-      end
+      init_loop_state(
+        init_fn,
+        attached_state,
+        metric_fns,
+        max_epochs,
+        max_iterations,
+        compiler,
+        jit_opts
+      )
 
     {status, state} =
       case fire_event(:started, handler_fns, loop_state) do
@@ -667,7 +696,8 @@ defmodule Axon.Loop do
           {:halted, state}
 
         {:continue, state} ->
-          Enum.reduce_while(1..max_epochs, {:completed, state}, fn epoch, {_, loop_state} ->
+          Enum.reduce_while(0..(max_epochs - 1)//1, {:completed, state}, fn epoch,
+                                                                            {_, loop_state} ->
             case fire_event(:epoch_started, handler_fns, loop_state) do
               {:halt_epoch, state} ->
                 halt_epoch(handler_fns, state)
@@ -677,13 +707,12 @@ defmodule Axon.Loop do
 
               {:continue, state} ->
                 {time, status_and_state} =
-                  :timer.tc(&run_epoch/8, [
+                  :timer.tc(&run_epoch/7, [
                     step_fn,
                     metric_fns,
                     handler_fns,
                     state,
                     data,
-                    max_iterations,
                     compiler,
                     jit_opts
                   ])
@@ -707,7 +736,8 @@ defmodule Axon.Loop do
                         {:halt, {:halted, state}}
 
                       {:continue, state} ->
-                        {:cont, {:completed, %State{state | epoch: epoch + 1, iteration: 0}}}
+                        max_iter = state.iteration
+                        {:cont, {:completed, %State{state | epoch: epoch + 1, iteration: 0, max_iteration: max_iter}}}
                     end
                 end
             end
@@ -721,13 +751,41 @@ defmodule Axon.Loop do
 
   ## Helpers
 
+  defp init_loop_state(
+         init_fn,
+         attached_state,
+         metric_fns,
+         max_epochs,
+         max_iterations,
+         compiler,
+         jit_opts
+       ) do
+    case attached_state do
+      %State{} = state ->
+        state
+
+      nil ->
+        metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
+        process_state = maybe_jit(init_fn, [], compiler, jit_opts)
+
+        %State{
+          epoch: 0,
+          max_epoch: max_epochs,
+          iteration: 0,
+          max_iteration: max_iterations,
+          process_state: process_state,
+          metrics: metrics,
+          times: %{}
+        }
+    end
+  end
+
   defp run_epoch(
          step_fn,
          metric_fns,
          handler_fns,
          loop_state,
          data,
-         max_iterations,
          compiler,
          jit_opts
        ) do
@@ -742,7 +800,7 @@ defmodule Axon.Loop do
         {:continue, state} ->
           batch_fn = build_batch_fn(step_fn, metric_fns)
 
-          %State{iteration: iters} =
+          %State{iteration: iters, max_iteration: max_iters} =
             new_state = maybe_jit(batch_fn, [data, state], compiler, jit_opts)
 
           case fire_event(:iteration_completed, handler_fns, new_state) do
@@ -753,8 +811,10 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              if Nx.to_scalar(iters) >= max_iterations do
-                {:halt, {:halt_epoch, state}}
+              iters = Nx.to_scalar(iters)
+              max_iters = Nx.to_scalar(max_iters)
+              if iters > max_iters and max_iters != -1 do
+                {:halt, {:continue, state}}
               else
                 {:cont, {:continue, state}}
               end
@@ -853,7 +913,7 @@ defmodule Axon.Loop do
   # more clear error if the output shape is wrong?
   defp build_loss_fn(loss) do
     case loss do
-      loss_name when is_atom(loss_name) ->
+      loss_name when is_atom(loss_name) and loss_name in @valid_axon_losses ->
         &apply(Axon.Losses, loss_name, [&1, &2, [reduction: :mean]])
 
       loss_fn when is_function(loss, 2) ->
@@ -895,16 +955,20 @@ defmodule Axon.Loop do
   # functions. Model functions are essentially just model
   # init / apply functions.
   # TODO(seanmor5): Update this to support any valid defn container
-  defp build_model_fns(%Axon{} = model) do
-    Axon.compile(model)
+  defp build_model_fns(%Axon{} = model, mode) do
+    Axon.compile(model, mode: mode)
   end
 
-  defp build_model_fns({init_fn, forward_fn})
+  defp build_model_fns({init_fn, forward_fn}, _)
        when is_function(init_fn, 0) and is_function(forward_fn, 2) do
     {init_fn, forward_fn}
   end
 
-  defp build_model_fns(invalid) do
+  defp build_model_fns(model, mode) when is_tuple(model) do
+    Axon.compile(model, mode: mode)
+  end
+
+  defp build_model_fns(invalid, _) do
     raise ArgumentError,
           "Invalid model #{inspect(invalid)}, a valid model" <>
             " is an Axon struct, a container of Axon structs " <>
@@ -917,7 +981,8 @@ defmodule Axon.Loop do
   # match the signatures of those defined in Axon.Updates. If the
   # optimizer is an atom, it must match the name of a function in
   # Axon.Optimizers.
-  defp build_optimizer_fns(optimizer) when is_atom(optimizer) do
+  defp build_optimizer_fns(optimizer)
+       when is_atom(optimizer) and optimizer in @valid_axon_optimizers do
     # TODO(seanmor5): Fall back to optimizer defaults rather
     # than this global default.
     apply(Axon.Optimizers, optimizer, [1.0e-2])
@@ -1042,7 +1107,7 @@ defmodule Axon.Loop do
   end
 
   # TODO(seanmor5): Move to metrics as a combinator
-  defp running_average(avg, value, i) do
+  defnp running_average(avg, value, i) do
     avg
     |> Nx.multiply(i)
     |> Nx.add(value)

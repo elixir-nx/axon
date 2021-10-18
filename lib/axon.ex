@@ -1841,8 +1841,8 @@ defmodule Axon do
   Compiles the given model to `{init_fn, predict_fn}`.
   """
   @doc type: :compilation
-  def compile(model) do
-    Axon.Compiler.__compile__(model)
+  def compile(model, opts \\ []) do
+    Axon.Compiler.__compile__(model, opts)
   end
 
   @doc """

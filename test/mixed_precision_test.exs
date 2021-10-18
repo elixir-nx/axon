@@ -55,7 +55,10 @@ defmodule MixedPrecisionTest do
         Axon.Loop.trainer(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
 
       state = %State{process_state: init_fn.()}
-      pstate = Nx.Defn.jit(step_fn, [{Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})}, state])
+
+      pstate =
+        Nx.Defn.jit(step_fn, [{Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})}, state])
+
       params = pstate[:model_state]
 
       assert Nx.type(params["dense1"]["kernel"]) == {:bf, 16}

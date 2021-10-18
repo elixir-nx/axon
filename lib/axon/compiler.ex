@@ -20,8 +20,9 @@ defmodule Axon.Compiler do
   ## Init JIT Compilation
 
   @doc false
-  def __compile__(graph) do
-    {compile_init(graph), compile_predict(graph, :train)}
+  def __compile__(graph, opts) do
+    mode = opts[:mode] || :train
+    {compile_init(graph), compile_predict(graph, mode)}
   end
 
   @doc false
