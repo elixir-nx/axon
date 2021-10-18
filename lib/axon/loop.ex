@@ -9,25 +9,25 @@ defmodule Axon.Loop do
   reduction of the form:
 
       Enum.reduce(1..max_epochs, state, fn epoch, state ->
-        Enum.reduce(data, state, &process_batch/2)
+        Enum.reduce(data, state, &batch_step/2)
       end)
 
   `data` is assumed to be an `Enumerable` or `Stream` of input data which is
-  handled by a processing function, `process_batch`. The purpose of the loop
+  handled by a processing function, `batch_step`. The purpose of the loop
   abstraction is to take away much of the boilerplate used in solving machine
   learning tasks. Tasks such as normalizing a dataset, hyperparameter optimization,
   or training machine learning models boil down to writing one function:
 
-      defn process_batch(batch, state) do
+      defn batch_step(batch, state) do
         # ...do something with batch...
         updated_state
       end
 
   For tasks such as training a neural network, `state` will encapsulate things
-  such as model and optimizer state. For supervised learning tasks, `process_batch`
+  such as model and optimizer state. For supervised learning tasks, `batch_step`
   might look something like:
 
-      defn process_batch({inputs, targets}, state) do
+      defn batch_step({inputs, targets}, state) do
         %{parameters: params, optimizer_state: optim_state} = state
 
         gradients = grad(params, objective_fn.(&1, inputs, targets))
@@ -38,7 +38,7 @@ defmodule Axon.Loop do
         %{parameters: new_params, optimizer_state: optim_state}
       end
 
-  `process_batch` takes a batch of `{input, target}` pairs and the current state,
+  `batch_step` takes a batch of `{input, target}` pairs and the current state,
   and updates the model parameters based on the gradients received from some arbitrary
   objective function. This function will run in a nested loop, iterating over the entire
   dataset for `N` epochs before finally returning the trained model state. By defining
@@ -54,15 +54,15 @@ defmodule Axon.Loop do
         max_iteration: tensor(),
         metrics: map(string(), container()),
         times: list(number()),
-        process_state: container()
+        step_state: container()
       }
 
-  `process_batch` takes in the batch and the process state field and returns a `process_state`,
+  `batch_step` takes in the batch and the step state field and returns a `step_state`,
   which is a generic container of state accumulated at each iteration. The rest of the fields
   in the state struct are updated automatically behind the scenes.
 
-  The loop must start from some initial process state, thus most tasks must also provide
-  an additional initialization function to provide some starting point for the process
+  The loop must start from some initial step state, thus most tasks must also provide
+  an additional initialization function to provide some starting point for the step
   state. For machine learning tasks, the initialization function will return things like
   initial model parameters and optimizer state.
 
@@ -71,22 +71,21 @@ defmodule Axon.Loop do
   loop. For example, `Axon.Loop.trainer/4` by default extracts trained model state:
 
       output_transform = fn state ->
-        state.process_state[:model_state]
+        state.step_state[:model_state]
       end
 
-  ## Processes
+  ## Initialize and Step
 
-  The core of the Axon loop is the process. A process is a struct which encapsulates
-  an `init` function and `update` function. `init` is an arity-0 function which provides
-  an initial process state:
+  The core of the Axon loop are the init and step functions. The initialization is an
+  arity-0 function which provides an initial step state:
 
       init = fn ->
         %{params: Axon.init(model)}
       end
 
-  While `update` is the `process_batch` function mentioned earlier:
+  While the step function is the `batch_step` function mentioned earlier:
 
-      update = fn data, state ->
+      step = fn data, state ->
         new_state = # ...do something...
         new_state
       end
@@ -94,10 +93,10 @@ defmodule Axon.Loop do
   ## Metrics
 
   Often times you want to compute metrics assosciated with your training iterations.
-  To accomplish this, you can attach metrics to each `Axon.Loop`. Assuming a `process_batch`
+  To accomplish this, you can attach metrics to each `Axon.Loop`. Assuming a `batch_step`
   function which looks like:
 
-      defn process_batch({inputs, targets}, state) do
+      defn batch_step({inputs, targets}, state) do
         %{parameters: params, optimizer_state: optim_state} = state
 
         gradients = grad(params, objective_fn.(&1, inputs, targets))
@@ -119,14 +118,14 @@ defmodule Axon.Loop do
 
   You can attach metrics to this by using `Axon.Loop.metric/4`:
 
-      Axon.Loop.loop(&process_batch/2)
+      Axon.Loop.loop(&batch_step/2)
       |> Axon.Loop.metric("Accuracy", :accuracy, fn %{y_true: y_, y_pred: y} -> [y_, y] end)
       |> Axon.Loop.run(data)
 
-  Because metrics work directly on `process_state`, you typically need to provide an output
+  Because metrics work directly on `step_state`, you typically need to provide an output
   transform to indicate which values should be passed to your metric function. By default,
   Axon assumes a supervised training task with the fields `:y_true` and `:y_pred` present
-  in the process state. See `Axon.Loop.metric/4` for more information.
+  in the step state. See `Axon.Loop.metric/4` for more information.
 
   Metrics will be tracked in the loop state using the user-provided key. Metrics integrate
   seamlessly with the supervised metrics defined in `Axon.Metrics`. You can also use metrics
@@ -180,7 +179,7 @@ defmodule Axon.Loop do
   Axon loops are typically created from one of the factory functions provided in this
   module:
 
-      * `Axon.Loop.loop/3` - Creates a loop from process function and optional initialization
+      * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
       functions and output transform functions.
 
       * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
@@ -213,7 +212,6 @@ defmodule Axon.Loop do
   import Nx.Defn
 
   alias __MODULE__, as: Loop
-  alias Axon.Loop.Process
   alias Axon.Loop.State
 
   @default_events [
@@ -265,9 +263,12 @@ defmodule Axon.Loop do
     :yogi
   ]
 
-  @enforce_keys [:process]
+  @doc false
+  @derive {Inspect, only: [:metrics, :handlers]}
+  @enforce_keys [:init, :step]
   defstruct [
-    :process,
+    :init,
+    :step,
     :attached_state,
     :output_transform,
     metrics: %{},
@@ -282,7 +283,7 @@ defmodule Axon.Loop do
 
   This function is intended for more fine-grained control over the loop
   creation process. It returns a tuple of `{init_fn, step_fn}` where `init_fn`
-  is an initialization function which returns an initial process state and
+  is an initialization function which returns an initial step state and
   `step_fn` is a supervised train step constructed from `model`, `loss`,
   and `optimizer`.
 
@@ -360,7 +361,7 @@ defmodule Axon.Loop do
 
   This function is intended for more fine-grained control over the loop
   creation process. It returns a tuple of `{init_fn, step_fn}` where
-  `init_fn` returns an initial process state and `step_fn` performs a
+  `init_fn` returns an initial step state and `step_fn` performs a
   single evaluation step.
   """
   def eval_step(model, model_state) do
@@ -386,25 +387,25 @@ defmodule Axon.Loop do
   ## Loop Factories
 
   @doc """
-  Creates a loop from `process_fn`, an optional `init_fn`, and an
+  Creates a loop from `step_fn`, an optional `init_fn`, and an
   optional `output_transform`.
 
-  `process_fn` is an arity-2 function which takes a batch and state
-  and returns an updated process state:
+  `step_fn` is an arity-2 function which takes a batch and state
+  and returns an updated step state:
 
-      defn process_batch(batch, %State{process_state: pstate}) do
-        pstate + 1
+      defn batch_step(batch, step_state) do
+        step_state + 1
       end
 
   `init_fn` by default is a function which returns an empty map. You should
-  define your own if subsequent process state updates rely on an initial
-  process state:
+  define your own if subsequent step state updates rely on an initial
+  step state:
 
-      defn init_process_state() do
+      defn init_step_state() do
         0
       end
 
-  `process_batch/2` and `init_process_state/0` are typically called from
+  `step_batch/2` and `init_step_state/0` are typically called from
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
@@ -413,11 +414,12 @@ defmodule Axon.Loop do
   This is useful for extracting specific fields from a loop and piping them into
   additional functions.
   """
-  def loop(process_fn, init_fn \\ fn -> %{} end, output_transform \\ & &1)
-      when is_function(process_fn, 2) and is_function(init_fn, 0) and
+  def loop(step_fn, init_fn \\ fn -> %{} end, output_transform \\ & &1)
+      when is_function(step_fn, 2) and is_function(init_fn, 0) and
              is_function(output_transform, 1) do
     %Loop{
-      process: %Process{init: init_fn, update: process_fn},
+      init: init_fn,
+      step: step_fn,
       output_transform: output_transform
     }
   end
@@ -433,7 +435,7 @@ defmodule Axon.Loop do
 
   It defines an initialization function which first initializes model state
   using the given model and then initializes optimizer state using the initial
-  model state. The process function uses a differentiable objective function
+  model state. The step function uses a differentiable objective function
   defined with respect to the model parameters, input data, and target data
   using the given loss function. It then updates model parameters using the
   given optimizer in order to minimize loss with respect to the model parameters.
@@ -455,8 +457,8 @@ defmodule Axon.Loop do
   optimizer state, and gradients. See `Axon.Updates` for more information on building
   optimizers.
 
-  This function creates a process function which outputs a map consisting of the following
-  fields for `process_state`:
+  This function creates a step function which outputs a map consisting of the following
+  fields for `step_state`:
 
       %{
         y_pred: tensor() | container(tensor()), # Model predictions for use in metrics
@@ -503,7 +505,7 @@ defmodule Axon.Loop do
   """
   def trainer(model, loss, optimizer) do
     {init_fn, step_fn} = train_step(model, loss, optimizer)
-    output_transform = fn state -> state.process_state[:model_state] end
+    output_transform = fn state -> state.step_state[:model_state] end
     loop(step_fn, init_fn, output_transform)
   end
 
@@ -515,7 +517,7 @@ defmodule Axon.Loop do
   structs, or a tuple of `init` / `apply` functions. `model_state` must be a
   container useable from within `model`.
 
-  The evaluator returns a process state of the form:
+  The evaluator returns a step state of the form:
 
       %{
         y_true: labels,
@@ -542,20 +544,20 @@ defmodule Axon.Loop do
   Adds a metric of the given name to the loop.
 
   A metric is a function which tracks or measures some value with respect
-  to values in the process state. For example, when training classification
+  to values in the step state. For example, when training classification
   models, it's common to track the model's accuracy during training:
 
       loop
       |> Axon.Loop.metric(:accuracy, "Accuracy")
 
   By default, metrics assume a supervised learning task and extract the fields
-  `[:y_true, :y_pred]` from the process state. If you wish to work on a different
+  `[:y_true, :y_pred]` from the step state. If you wish to work on a different
   value, you can use an output transform. An output transform is a list of keys
   to extract from the output state, or a function which returns a flattened list
   of values to pass to the given metric function. Values received from output
   transforms are passed to the given metric using:
 
-      value = output_transform.(process_state)
+      value = output_transform.(step_state)
       apply(metric, value)
 
   Thus, even if you want your metric to work on a container, your output transform
@@ -616,8 +618,8 @@ defmodule Axon.Loop do
   loop:
 
       loop
-      |> Axon.Loop.handle(:epoch_started, &normalize_process_state/1) # executes first
-      |> Axon.Loop.handle(:epoch_started, &log_process_state/1) # executes second
+      |> Axon.Loop.handle(:epoch_started, &normalize_step_state/1) # executes first
+      |> Axon.Loop.handle(:epoch_started, &log_step_state/1) # executes second
 
   Thus, if you have separate handlers which alter or depend on loop state,
   you need to ensure they are ordered correctly, or combined into a single
@@ -679,9 +681,9 @@ defmodule Axon.Loop do
 
   And an attached state:
 
-      state = %State{process_state: %{foo: 2, bar: 3}}
+      state = %State{step_state: %{foo: 2, bar: 3}}
 
-  `init_state/0` will never execute, and instead the initial process state
+  `init_state/0` will never execute, and instead the initial step state
   of `%{foo: 2, bar: 3}` will be used.
   """
   def from_state(%Loop{} = loop, %State{} = state) do
@@ -705,11 +707,11 @@ defmodule Axon.Loop do
     * `:iterations` - max iterations to run each epoch. Must be non-negative
       integer. Defaults to `nil` or no max iterations.
 
-    * `:jit_compile?` - whether or not to JIT compile initialization and process
+    * `:jit_compile?` - whether or not to JIT compile initialization and step
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
-    * `:compiler` - Nx compiler to use to JIT compile process function. Defaults
+    * `:compiler` - Nx compiler to use to JIT compile step function. Defaults
       to `nil` or Nx.Defn.Evaluator.
   """
   def run(loop, data, opts \\ []) do
@@ -719,14 +721,13 @@ defmodule Axon.Loop do
     {compiler, jit_opts} = Keyword.pop(opts, :compiler, Nx.Defn.Evaluator)
 
     %Loop{
-      process: process,
+      init: init_fn,
+      step: step_fn,
       handlers: handler_fns,
       metrics: metric_fns,
       attached_state: attached_state,
       output_transform: output_transform
     } = loop
-
-    %Process{init: init_fn, update: step_fn} = process
 
     loop_state =
       init_loop_state(
@@ -824,14 +825,14 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
-        process_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
+        step_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
 
         %State{
           epoch: 0,
           max_epoch: max_epochs,
           iteration: 0,
           max_iteration: max_iterations,
-          process_state: process_state,
+          step_state: step_state,
           metrics: metrics,
           times: %{}
         }
@@ -937,26 +938,26 @@ defmodule Axon.Loop do
     end
   end
 
-  # Builds the overall processing function from the given process
+  # Builds the overall batch step function from the given
   # step function and metrics. We need to run both step and metric
   # functions from within here to ensure they can be JIT compiled
   # if that's desired
   defp build_batch_fn(step_fn, metric_fns) do
     fn data, state ->
-      %State{metrics: metrics, iteration: iter, process_state: pstate} = state
-      new_process_state = step_fn.(data, pstate)
+      %State{metrics: metrics, iteration: iter, step_state: pstate} = state
+      new_step_state = step_fn.(data, pstate)
 
       new_metrics =
         metrics
         |> Enum.zip_with(metric_fns, fn {k, avg}, {k, v} ->
-          {k, running_average(avg, v.(new_process_state), iter)}
+          {k, running_average(avg, v.(new_step_state), iter)}
         end)
         |> Map.new()
 
       %State{
         state
         | iteration: Nx.add(iter, 1),
-          process_state: new_process_state,
+          step_state: new_step_state,
           metrics: new_metrics
       }
     end
@@ -1065,7 +1066,7 @@ defmodule Axon.Loop do
   # A valid metric is an atom which matches the name of a function in
   # Axon.Metrics or a function which takes an arbitrary number of parameters
   # and returns an output of arbitrary shape/type. Output transforms are field(s)
-  # to extract from the process state, or a function which transforms the process
+  # to extract from the step state, or a function which transforms the step
   # state before it is passed to the metric function.
   # TODO(seanmor5): Reconsider the form of output transform
   defp build_metric_fn(metric, transform_or_fields) do
@@ -1090,8 +1091,8 @@ defmodule Axon.Loop do
           raise ArgumentError,
                 "Invalid output transform #{inspect(invalid)}, a valid output" <>
                   " transform is an atom or list of atoms specifying field(s)" <>
-                  " to extract from the process state, or an arity-1 function" <>
-                  " applied to the process state"
+                  " to extract from the step state, or an arity-1 function" <>
+                  " applied to the step state"
       end
 
     case metric do
@@ -1114,7 +1115,7 @@ defmodule Axon.Loop do
               "Invalid metric #{inspect(invalid)}, a valid metric" <>
                 " is an atom which matches the name of a function in" <>
                 " Axon.Metrics or a function which takes a transformed" <>
-                " process state and returns a value"
+                " step state and returns a value"
     end
   end
 

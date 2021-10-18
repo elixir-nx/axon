@@ -11,7 +11,7 @@ defmodule Axon.Loop.State do
         max_iteration: tensor(),
         metrics: map(string(), container()),
         times: list(number()),
-        process_state: container()
+        step_state: container()
       }
 
   `epoch` is the current epoch, starting at 0, of the nested loop.
@@ -32,15 +32,15 @@ defmodule Axon.Loop.State do
   `times` is a map of `%{epoch_number => value}` which maps a given epoch
   to the processing time. Defaults to an empty map.
 
-  `process_state` is the process state as defined by the loop's processing
-  initialization and update functions. `process_state` is a required field.
+  `step_state` is the step state as defined by the loop's processing
+  initialization and update functions. `step_state` is a required field.
   """
   # TODO(seanmor5): We should not send `:times` to the device. We need
   # a way in Nx/EXLA to mark `:times` as a static property which is
   # not to be touched at JIT time.
-  @enforce_keys [:process_state]
+  @enforce_keys [:step_state]
   defstruct [
-    :process_state,
+    :step_state,
     epoch: 0,
     max_epoch: 1,
     iteration: 0,

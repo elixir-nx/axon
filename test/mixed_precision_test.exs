@@ -4,7 +4,6 @@ defmodule MixedPrecisionTest do
   alias Axon.MixedPrecision.Policy
   alias Axon.MixedPrecision, as: AMP
   alias Axon.Loop
-  alias Axon.Loop.Process
 
   describe "creation and application" do
     test "create policy" do
@@ -50,7 +49,7 @@ defmodule MixedPrecisionTest do
 
       mp_model = AMP.apply_policy(model, policy, except: [:batch_norm])
 
-      %Loop{process: %Process{init: init_fn, update: step_fn}} =
+      %Loop{init: init_fn, step: step_fn} =
         Axon.Loop.trainer(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
 
       pstate =
