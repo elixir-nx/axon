@@ -57,10 +57,9 @@ defmodule Axon.Loop do
         process_state: container()
       }
 
-  `process_batch` takes in the batch and this state struct and returns a `process_state`, which
-  is a generic container of state accumulated at each iteration. The rest of the fields
-  in the state struct are updated automatically behind the scenes, but may be used at any
-  point within `process_batch`.
+  `process_batch` takes in the batch and the process state field and returns a `process_state`,
+  which is a generic container of state accumulated at each iteration. The rest of the fields
+  in the state struct are updated automatically behind the scenes.
 
   The loop must start from some initial process state, thus most tasks must also provide
   an additional initialization function to provide some starting point for the process
@@ -99,7 +98,7 @@ defmodule Axon.Loop do
   function which looks like:
 
       defn process_batch({inputs, targets}, state) do
-        %State{process_state: %{parameters: params, optimizer_state: optim_state}} = state
+        %{parameters: params, optimizer_state: optim_state} = state
 
         gradients = grad(params, objective_fn.(&1, inputs, targets))
         {updates, new_optim_state} = optimizer.(optim_state, params, gradients)
@@ -275,7 +274,116 @@ defmodule Axon.Loop do
     handlers: @default_handlers
   ]
 
-  ## Factories
+  ## Step Factories
+
+  @doc """
+  Creates a supervised train step from a model, loss function, and
+  optimizer.
+
+  This function is intended for more fine-grained control over the loop
+  creation process. It returns a tuple of `{init_fn, step_fn}` where `init_fn`
+  is an initialization function which returns an initial process state and
+  `step_fn` is a supervised train step constructed from `model`, `loss`,
+  and `optimizer`.
+
+  `model` must be an Axon struct, a valid defn container
+  of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
+  an arity-0 function which initializes the model state and `apply_fn` is
+  an arity-2 function which applies the forward pass of the model.
+
+  `loss` must be an atom which matches a function in `Axon.Losses`, a list
+  of `{loss, weight}` tuples representing a basic weighted loss function
+  for multi-output models, or an arity-2 function representing a custom loss
+  function.
+
+  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
+  initializes the optimizer state from attached parameters and `update_fn` is an
+  arity-3 function which scales gradient updates with respect to input parameters,
+  optimizer state, and gradients. See `Axon.Updates` for more information on building
+  optimizers.
+  """
+  def train_step(model, loss, optimizer) do
+    {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
+    loss_fn = build_loss_fn(loss)
+    {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
+
+    init_fn = fn ->
+      model_state = init_model_fn.()
+      optimizer_state = init_optimizer_fn.(model_state)
+
+      %{
+        i: Nx.tensor(0, backend: Nx.Defn.Expr),
+        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
+        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr),
+        loss: Nx.tensor(0.0, backend: Nx.Defn.Expr),
+        model_state: model_state,
+        optimizer_state: optimizer_state
+      }
+    end
+
+    objective_fn = fn state, inp, tar ->
+      y_pred = forward_model_fn.(state, inp)
+      {y_pred, loss_fn.(tar, y_pred)}
+    end
+
+    step_fn = fn {inp, tar}, state ->
+      %{i: i, model_state: model_state, optimizer_state: optimizer_state, loss: loss} = state
+
+      {{preds, batch_loss}, gradients} =
+        Nx.Defn.value_and_grad(
+          model_state,
+          &objective_fn.(&1, inp, tar),
+          fn x -> elem(x, 1) end
+        )
+
+      new_loss = running_average(loss, batch_loss, i)
+
+      {updates, new_optimizer_state} =
+        update_optimizer_fn.(gradients, optimizer_state, model_state)
+
+      %{
+        i: Nx.add(i, 1),
+        y_true: tar,
+        y_pred: preds,
+        loss: new_loss,
+        model_state: Axon.Updates.apply_updates(model_state, updates),
+        optimizer_state: new_optimizer_state
+      }
+    end
+
+    {init_fn, step_fn}
+  end
+
+  @doc """
+  Creates a supervised evaluation step from a model and model state.
+
+  This function is intended for more fine-grained control over the loop
+  creation process. It returns a tuple of `{init_fn, step_fn}` where
+  `init_fn` returns an initial process state and `step_fn` performs a
+  single evaluation step.
+  """
+  def eval_step(model, model_state) do
+    {_, forward_model_fn} = build_model_fns(model, :inference)
+
+    init_fn = fn ->
+      %{
+        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
+        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr)
+      }
+    end
+
+    step_fn = fn {inp, tar}, _ ->
+      %{
+        y_true: tar,
+        y_pred: forward_model_fn.(model_state, inp)
+      }
+    end
+
+    {init_fn, step_fn}
+  end
+
+  ## Loop Factories
 
   @doc """
   Creates a loop from `process_fn`, an optional `init_fn`, and an
@@ -394,55 +502,8 @@ defmodule Axon.Loop do
       |> Axon.Loop.run(data)
   """
   def trainer(model, loss, optimizer) do
-    {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
-    loss_fn = build_loss_fn(loss)
-    {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
-
-    init_fn = fn ->
-      model_state = init_model_fn.()
-      optimizer_state = init_optimizer_fn.(model_state)
-
-      %{
-        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        loss: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        model_state: model_state,
-        optimizer_state: optimizer_state
-      }
-    end
-
-    objective_fn = fn state, inp, tar ->
-      y_pred = forward_model_fn.(state, inp)
-      {y_pred, loss_fn.(tar, y_pred)}
-    end
-
-    step_fn = fn {inp, tar}, state ->
-      %State{process_state: process_state, iteration: iter} = state
-      %{model_state: model_state, optimizer_state: optimizer_state, loss: loss} = process_state
-
-      {{preds, batch_loss}, gradients} =
-        Nx.Defn.value_and_grad(
-          model_state,
-          &objective_fn.(&1, inp, tar),
-          fn x -> elem(x, 1) end
-        )
-
-      new_loss = running_average(loss, batch_loss, iter)
-
-      {updates, new_optimizer_state} =
-        update_optimizer_fn.(gradients, optimizer_state, model_state)
-
-      %{
-        y_true: tar,
-        y_pred: preds,
-        loss: new_loss,
-        model_state: Axon.Updates.apply_updates(model_state, updates),
-        optimizer_state: new_optimizer_state
-      }
-    end
-
+    {init_fn, step_fn} = train_step(model, loss, optimizer)
     output_transform = fn state -> state.process_state[:model_state] end
-
     loop(step_fn, init_fn, output_transform)
   end
 
@@ -472,24 +533,8 @@ defmodule Axon.Loop do
   the given loop.
   """
   def evaluator(model, model_state) do
-    {_, forward_model_fn} = build_model_fns(model, :inference)
-
-    init_fn = fn ->
-      %{
-        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr)
-      }
-    end
-
-    step_fn = fn {inp, tar}, _ ->
-      %{
-        y_true: tar,
-        y_pred: forward_model_fn.(model_state, inp)
-      }
-    end
-
+    {init_fn, step_fn} = eval_step(model, model_state)
     output_transform = fn state -> state.metrics end
-
     loop(step_fn, init_fn, output_transform)
   end
 
@@ -898,8 +943,8 @@ defmodule Axon.Loop do
   # if that's desired
   defp build_batch_fn(step_fn, metric_fns) do
     fn data, state ->
-      %State{metrics: metrics, iteration: iter} = state
-      new_process_state = step_fn.(data, state)
+      %State{metrics: metrics, iteration: iter, process_state: pstate} = state
+      new_process_state = step_fn.(data, pstate)
 
       new_metrics =
         metrics

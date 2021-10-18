@@ -50,7 +50,7 @@ defmodule Axon.LoopTest do
           state = %State{process_state: pstate}
 
           assert %{model_state: %{}, y_true: tar, y_pred: pred} =
-                   Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, state])
+                   Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
           assert tar == Nx.tensor([[1]])
           assert pred == Nx.tensor([[1]])
@@ -74,7 +74,7 @@ defmodule Axon.LoopTest do
       state = %State{process_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
-               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, state])
+               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
       assert tar == Nx.tensor([[1]])
       assert pred == Nx.tensor([[1]])
@@ -97,7 +97,7 @@ defmodule Axon.LoopTest do
       state = %State{process_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
-               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, state])
+               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
       assert tar == Nx.tensor([[1]])
       assert pred == Nx.tensor([[1]])
@@ -118,7 +118,7 @@ defmodule Axon.LoopTest do
       state = %State{process_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
-               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, state])
+               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
       assert tar == Nx.tensor([[1]])
       assert pred == Nx.tensor([[1]])
@@ -141,7 +141,7 @@ defmodule Axon.LoopTest do
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
                Nx.Defn.jit(update_fn, [
                  {{Nx.tensor([[1]]), Nx.tensor([[1]])}, {Nx.tensor([[2]]), Nx.tensor([[2]])}},
-                 state
+                 pstate
                ])
 
       assert tar == {Nx.tensor([[2]]), Nx.tensor([[2]])}
@@ -179,7 +179,7 @@ defmodule Axon.LoopTest do
       state = %State{process_state: pstate, metrics: %{"my_metric" => {}}}
 
       assert %{y_true: tar, y_pred: pred} =
-               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[2]])}, state])
+               Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[2]])}, pstate])
 
       assert tar == Nx.tensor([[2]])
       assert pred == Nx.tensor([[1]])
