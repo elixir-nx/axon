@@ -49,7 +49,9 @@ defmodule Axon.Loop do
 
       %State{
         epoch: tensor(),
+        max_epoch: tensor(),
         iteration: tensor(),
+        max_iteration: tensor(),
         metrics: map(string(), container()),
         times: list(number()),
         process_state: container()
