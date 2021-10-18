@@ -208,8 +208,6 @@ defmodule Axon.Loop do
   require Axon.Updates
   require Logger
 
-  import Axon.Shared
-
   alias __MODULE__, as: Loop
   alias Axon.Loop.Process
   alias Axon.Loop.State
@@ -401,8 +399,6 @@ defmodule Axon.Loop do
 
       {updates, new_optimizer_state} =
         update_optimizer_fn.(gradients, optimizer_state, model_state)
-
-      updates = deep_merge(updates, model_state, fn g, x -> Nx.as_type(g, Nx.type(x)) end)
 
       %{
         y_true: tar,
