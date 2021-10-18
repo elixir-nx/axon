@@ -658,13 +658,18 @@ defmodule Axon.Loop do
     * `:iterations` - max iterations to run each epoch. Must be non-negative
       integer. Defaults to `nil` or no max iterations.
 
+    * `:jit_compile?` - whether or not to JIT compile initialization and process
+      functions. JIT compilation must be used for gradient computations. Defaults
+      to true.
+
     * `:compiler` - Nx compiler to use to JIT compile process function. Defaults
-      to `nil` or no JIT compilation.
+      to `nil` or Nx.Defn.Evaluator.
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
-    {compiler, jit_opts} = Keyword.pop(opts, :compiler)
+    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
+    {compiler, jit_opts} = Keyword.pop(opts, :compiler, Nx.Defn.Evaluator)
 
     %Loop{
       process: process,
@@ -683,6 +688,7 @@ defmodule Axon.Loop do
         metric_fns,
         max_epochs,
         max_iterations,
+        jit_compile?,
         compiler,
         jit_opts
       )
@@ -707,12 +713,13 @@ defmodule Axon.Loop do
 
               {:continue, state} ->
                 {time, status_and_state} =
-                  :timer.tc(&run_epoch/7, [
+                  :timer.tc(&run_epoch/8, [
                     step_fn,
                     metric_fns,
                     handler_fns,
                     state,
                     data,
+                    jit_compile?,
                     compiler,
                     jit_opts
                   ])
@@ -760,6 +767,7 @@ defmodule Axon.Loop do
          metric_fns,
          max_epochs,
          max_iterations,
+         jit_compile?,
          compiler,
          jit_opts
        ) do
@@ -769,7 +777,7 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
-        process_state = maybe_jit(init_fn, [], compiler, jit_opts)
+        process_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
 
         %State{
           epoch: 0,
@@ -789,6 +797,7 @@ defmodule Axon.Loop do
          handler_fns,
          loop_state,
          data,
+         jit_compile?,
          compiler,
          jit_opts
        ) do
@@ -804,7 +813,7 @@ defmodule Axon.Loop do
           batch_fn = build_batch_fn(step_fn, metric_fns)
 
           %State{iteration: iters, max_iteration: max_iters} =
-            new_state = maybe_jit(batch_fn, [data, state], compiler, jit_opts)
+            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, compiler, jit_opts)
 
           case fire_event(:iteration_completed, handler_fns, new_state) do
             {:halt_epoch, state} ->
@@ -1102,8 +1111,8 @@ defmodule Axon.Loop do
   # JIT-compiles the given function if the given compiler is a
   # valid defn compiler, otherwise applies the function with
   # the given arguments.
-  defp maybe_jit(fun, args, compiler, jit_opts) do
-    if compiler do
+  defp maybe_jit(fun, args, jit_compile?, compiler, jit_opts) do
+    if jit_compile? do
       Nx.Defn.jit(fun, args, [compiler: compiler] ++ jit_opts)
     else
       apply(fun, args)

@@ -1,11 +1,24 @@
 Mix.install([
-  {:axon, path: "."},
-  {:exla, path: "../nx/exla"},
-  {:nx, path: "../nx/nx", override: true},
-  {:scidata, "~> 0.1.1"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:scidata, "~> 0.1.1"}
 ])
 
-# Application.put_env(:exla, :clients, default: [platform: :cuda])
+# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
+case EXLA.Client.get_supported_platforms() do
+  %{'TPU' => _} ->
+    Application.put_env(:exla, :clients, default: [platform: :tpu])
+
+  %{'CUDA' => _} ->
+    Application.put_env(:exla, :clients, default: [platform: :cuda])
+
+  %{'ROCM' => _} ->
+    Application.put_env(:exla, :clients, default: [platform: :rocm])
+
+  %{'Host' => _} ->
+    Application.put_env(:exla, :clients, default: [platform: :host])
+end
 
 defmodule Mnist do
   require Axon
@@ -18,7 +31,8 @@ defmodule Mnist do
     |> Nx.reshape({elem(shape, 0), 784})
     |> Nx.divide(255.0)
     |> Nx.to_batched_list(32)
-    |> Enum.split(1750) # Test split
+    # Test split
+    |> Enum.split(1750)
   end
 
   defp transform_labels({bin, type, _}) do
@@ -27,7 +41,8 @@ defmodule Mnist do
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
     |> Nx.to_batched_list(32)
-    |> Enum.split(1750) # Test split
+    # Test split
+    |> Enum.split(1750)
   end
 
   defp build_model(input_shape) do
@@ -37,7 +52,10 @@ defmodule Mnist do
     |> Axon.dense(10, activation: :softmax)
   end
 
-  defp log_metrics(%State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state, mode) do
+  defp log_metrics(
+         %State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state,
+         mode
+       ) do
     loss =
       case mode do
         :train ->
@@ -58,7 +76,7 @@ defmodule Mnist do
     {:continue, state}
   end
 
-  defp train_model(model, {train_images, train_labels}, epochs) do
+  defp train_model(model, train_images, train_labels, epochs) do
     model
     |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
     |> Axon.Loop.metric(:accuracy, "Accuracy")
@@ -75,18 +93,22 @@ defmodule Mnist do
   end
 
   def run do
-    {images, labels} = Scidata.MNIST.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
+    {images, labels} =
+      Scidata.MNIST.download(
+        transform_images: &transform_images/1,
+        transform_labels: &transform_labels/1
+      )
 
     {train_images, test_images} = images
     {train_labels, test_labels} = labels
 
-    model = build_model({nil, 784}) |> IO.inspect
+    model = build_model({nil, 784}) |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
     model_state =
       model
-      |> train_model({train_images, train_labels}, 5)
+      |> train_model(train_images, train_labels, 5)
 
     IO.write("\n\n Testing Model \n\n")
 
