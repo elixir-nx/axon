@@ -6,19 +6,7 @@ Mix.install([
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-case EXLA.Client.get_supported_platforms() do
-  %{'TPU' => _} ->
-    Application.put_env(:exla, :clients, default: [platform: :tpu])
-
-  %{'CUDA' => _} ->
-    Application.put_env(:exla, :clients, default: [platform: :cuda])
-
-  %{'ROCM' => _} ->
-    Application.put_env(:exla, :clients, default: [platform: :rocm])
-
-  %{'Host' => _} ->
-    Application.put_env(:exla, :clients, default: [platform: :host])
-end
+EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
 
 defmodule Fashionmist do
   require Axon

@@ -1,9 +1,11 @@
 Mix.install([
-  {:axon, github: "elixir-nx/axon", branch: "sm-new-training-engine"},
+  {:axon, github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/nx", sparse: "exla"},
   {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
   {:scidata, "~> 0.1.0"}
 ])
+
+EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
 
 defmodule MNISTGAN do
   require Axon
