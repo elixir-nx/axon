@@ -1666,7 +1666,11 @@ defmodule Axon do
         unroll: unroll
       )
 
-    output
+    new_c = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, hidden_state_shape, %{})
+    new_h = layer(output, fn x, _ -> elem(elem(x, 0), 1) end, hidden_state_shape, %{})
+    output_sequence = layer(output, fn x, _ -> elem(x, 1) end, output_shape, %{})
+
+    {{new_c, new_h}, output_sequence}
   end
 
   @doc """

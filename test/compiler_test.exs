@@ -2777,14 +2777,7 @@ defmodule CompilerTest do
       hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
       seq = Axon.input(input_shape)
 
-      carry_model =
-        seq
-        |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
-
-      carry = {
-        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 0) end, hidden_shape_real, %{}),
-        Axon.layer(carry_model, fn x, _ -> elem(elem(x, 0), 1) end, hidden_shape_real, %{})
-      }
+      {carry, _} = seq |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
 
       model = Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
 
@@ -2846,12 +2839,10 @@ defmodule CompilerTest do
 
       out_channel_n = 3
       batch_real = 1
-      output_shape_real = {batch_real, sequence_length, out_channel_n, width, heigth}
 
-      out =
+      {_, out} =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", unroll: :static)
-        |> Axon.layer(fn x, _ -> elem(x, 1) end, output_shape_real, %{})
 
       model = Axon.freeze(out)
 
