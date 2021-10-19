@@ -1303,7 +1303,7 @@ defmodule Axon.Shape do
   @doc """
   Calculates the shape of RNN hidden state.
   """
-  def rnn_hidden_state(shape, units, type) when type == "ConvLSTM" do
+  def rnn_hidden_state(shape, units, :conv_lstm) do
     # input shape must be rank > 3 {batch_size, sequence_length, spacial_dimensions...}"
 
     shape

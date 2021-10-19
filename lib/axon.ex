@@ -1416,11 +1416,11 @@ defmodule Axon do
 
     use_bias = Keyword.get(opts, :use_bias, true)
 
-    output_shape = Axon.Shape.rnn(shape, units, "LSTM")
-    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, "LSTM")
-    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, "LSTM")
-    bias_shape = Axon.Shape.rnn_bias(shape, units, "LSTM")
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, "LSTM")
+    output_shape = Axon.Shape.rnn(shape, units, :lstm)
+    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :lstm)
+    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :lstm)
+    bias_shape = Axon.Shape.rnn_bias(shape, units, :lstm)
+    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :lstm)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
     recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
@@ -1523,11 +1523,11 @@ defmodule Axon do
     hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
 
-    output_shape = Axon.Shape.rnn(shape, units, "GRU")
-    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, "GRU")
-    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, "GRU")
-    bias_shape = Axon.Shape.rnn_bias(shape, units, "GRU")
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, "GRU")
+    output_shape = Axon.Shape.rnn(shape, units, :gru)
+    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :gru)
+    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :gru)
+    bias_shape = Axon.Shape.rnn_bias(shape, units, :gru)
+    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :gru)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
     recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
@@ -1628,7 +1628,7 @@ defmodule Axon do
     input_dilation = List.duplicate(1, inner_rank)
     kernel_dilation = List.duplicate(1, inner_rank)
 
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, "ConvLSTM")
+    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :conv_lstm)
 
     conv_shape = Tuple.delete_at(shape, 1)
     conv_hidden_state_shape = Tuple.delete_at(hidden_state_shape, 1)

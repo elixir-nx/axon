@@ -2832,10 +2832,10 @@ defmodule CompilerTest do
     test "returns zero gradient for frozen parameters" do
       input_shape = {
         _batch = nil,
-        sequence_length = 2,
+        _sequence_length = 2,
         in_channel_n = 3,
-        width = 4,
-        heigth = 4
+        _width = 4,
+        _heigth = 4
       }
 
       out_channel_n = 3
