@@ -1,7 +1,7 @@
 Mix.install([
-  {:axon, path: "."},
-  {:nx, path: "../nx/nx", override: true},
-  {:exla, path: "../nx/exla"},
+  {:axon, github: "elixir-nx/axon", branch: "sm-new-training-engine"},
+  {:exla, github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
   {:scidata, "~> 0.1.0"}
 ])
 
@@ -112,7 +112,7 @@ defmodule MNISTGAN do
     {g_updates, g_optimizer_state} = optim_g.(g_grads, g_optimizer_state, g_params)
     g_params = Axon.Updates.apply_updates(g_params, g_updates)
 
-    inspect_expr(%{
+    %{
       iteration: iter + 1,
       discriminator: %{
         model_state: d_params,
@@ -124,7 +124,7 @@ defmodule MNISTGAN do
         optimizer_state: g_optimizer_state,
         loss: running_average(state[:generator][:loss], g_loss, iter)
       }
-    })
+    }
   end
 
   defp train_loop(d_model, g_model) do
