@@ -72,10 +72,10 @@ defmodule Axon do
 
       IO.inspect model
 
-      final_params =
+      model_state =
         model
-        |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
-        |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA)
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+        |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
   """
   alias __MODULE__, as: Axon
 
@@ -1705,8 +1705,8 @@ defmodule Axon do
         |> Axon.dense(1000, activation: :softmax)
 
       model
-      |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
-      |> Axon.Training.train(input, targets, epochs: 10)
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
+      |> Axon.Loop.run(data, epochs: 10)
 
   When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
   which zeros out the gradient with respect to the frozen parameter. Gradients
@@ -1841,8 +1841,8 @@ defmodule Axon do
   Compiles the given model to `{init_fn, predict_fn}`.
   """
   @doc type: :compilation
-  def compile(model) do
-    Axon.Compiler.__compile__(model)
+  def compile(model, opts \\ []) do
+    Axon.Compiler.__compile__(model, opts)
   end
 
   @doc """

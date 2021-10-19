@@ -48,8 +48,8 @@ defmodule Axon.Optimizers do
   For a simpler approach, you can also use optimizers with the training API:
 
         model
-        |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
-        |> Axon.Training.train(train_images, train_labels, epochs: 10, compiler: EXLA)
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
+        |> Axon.Loop.run(data, epochs: 10, compiler: EXLA)
 
   """
   alias Axon.Updates

@@ -1,5 +1,5 @@
 Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
 ])
 
 defmodule ResNet50 do

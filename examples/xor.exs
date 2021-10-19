@@ -1,12 +1,12 @@
-# Normally you wouldn't do this, but this is to demonstrate
-# multi input models as just using `input` many times
 Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:exla, path: "../nx/exla"}
 ])
 
 defmodule XOR do
   require Axon
+  alias Axon.Loop.State
 
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input(input_shape1)
@@ -17,33 +17,51 @@ defmodule XOR do
     |> Axon.dense(1, activation: :sigmoid)
   end
 
-  defp build_data do
-    for _ <- 1..1000 do
-      x1 = for _ <- 1..32, do: [Enum.random(0..1)]
-      x2 = for _ <- 1..32, do: [Enum.random(0..1)]
-      {Nx.tensor(x1), Nx.tensor(x2)}
-    end
+  defp batch do
+    x1 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
+    x2 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
+    y = Nx.logical_xor(x1, x2)
+    {{x1, x2}, y}
   end
 
-  defp train_model(model, {data, targets}, epochs) do
+  defp log_metrics(
+         %State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state,
+         mode
+       ) do
+    loss =
+      case mode do
+        :train ->
+          %{loss: loss} = pstate
+          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+
+        :test ->
+          ""
+      end
+
+    metrics =
+      metrics
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
+      |> Enum.join(" ")
+
+    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
+
+    {:continue, state}
+  end
+
+  defp train_model(model, data, epochs) do
     model
-    |> Axon.Training.step(:binary_cross_entropy, Axon.Optimizers.sgd(0.01))
-    |> Axon.Training.train(data, targets, epochs: epochs)
+    |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 1000)
   end
 
   def run do
-    model = build_model({:nil, 1}, {:nil, 1})
+    model = build_model({nil, 1}, {nil, 1})
+    data = Stream.repeatedly(&batch/0)
 
-    data = build_data()
+    model_state = train_model(model, data, 10)
 
-    targets =
-      for {x1, x2} <- data do
-        Nx.logical_xor(x1, x2)
-      end
-
-    final_training_state = train_model(model, {data, targets}, 10)
-
-    IO.inspect Axon.predict(model, final_training_state[:params], {Nx.tensor([[0]]), Nx.tensor([[1]])})
+    IO.inspect Axon.predict(model, model_state, {Nx.tensor([[0]]), Nx.tensor([[1]])})
   end
 end
 

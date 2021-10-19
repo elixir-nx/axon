@@ -753,7 +753,9 @@ defmodule Axon.Updates do
   """
   defn apply_updates(params, updates) do
     transform({params, updates}, fn {params, updates} ->
-      deep_merge(params, updates, fn x, u -> Nx.add(x, u) end)
+      deep_merge(params, updates, fn x, u ->
+        Nx.add(x, Nx.as_type(u, Nx.type(x)))
+      end)
     end)
   end
 

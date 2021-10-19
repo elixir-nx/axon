@@ -1,172 +1,180 @@
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:exla, github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:scidata, "~> 0.1.0"}
+])
+
+EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
+
 defmodule MNISTGAN do
   require Axon
-  require Axon.Updates
+  alias Axon.Loop.State
   import Nx.Defn
 
-  @default_defn_compiler {EXLA, keep_on_device: true}
-
-  def generator do
-    Axon.input({nil, 100})
-    |> Axon.dense(256, activation: :leaky_relu)
-    |> Axon.batch_norm()
-    |> Axon.dense(512, activation: :leaky_relu)
-    |> Axon.batch_norm()
-    |> Axon.dense(1024, activation: :leaky_relu)
-    |> Axon.batch_norm()
-    |> Axon.dense(784, activation: :tanh)
+  defp transform_images({bin, type, shape}) do
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
   end
 
-  def discriminator do
-    Axon.input({nil, 28, 28})
+  defp build_generator(z_dim) do
+    Axon.input({nil, z_dim})
+    |> Axon.dense(256)
+    |> Axon.relu()
+    |> Axon.batch_norm()
+    |> Axon.dense(512)
+    |> Axon.relu()
+    |> Axon.batch_norm()
+    |> Axon.dense(1024)
+    |> Axon.relu()
+    |> Axon.batch_norm()
+    |> Axon.dense(784)
+    |> Axon.tanh()
+    |> Axon.reshape({1, 28, 28})
+  end
+
+  defp build_discriminator(input_shape) do
+    Axon.input(input_shape)
     |> Axon.flatten()
-    |> Axon.dense(512, activation: :tanh)
-    |> Axon.dense(256, activation: :tanh)
+    |> Axon.dense(512)
+    |> Axon.relu()
+    |> Axon.dense(256)
+    |> Axon.relu()
     |> Axon.dense(2, activation: :softmax)
   end
 
-  defn generate(params, latent) do
-    Axon.predict(generator(), params, latent)
+  defnp running_average(avg, obs, i) do
+    avg
+    |> Nx.multiply(i)
+    |> Nx.add(obs)
+    |> Nx.divide(Nx.add(i, 1))
   end
 
-  defn d_loss(d_params, images, targets) do
-    preds = Axon.predict(discriminator(), d_params, images)
-    Axon.Losses.categorical_cross_entropy(preds, targets, reduction: :mean)
+  defn init(d_model, g_model, init_optim_d, init_optim_g) do
+    d_params = Axon.init(d_model)
+    g_params = Axon.init(g_model)
+
+    %{
+      iteration: Nx.tensor(0),
+      discriminator: %{
+        model_state: d_params,
+        optimizer_state: init_optim_d.(d_params),
+        loss: Nx.tensor(0.0)
+      },
+      generator: %{
+        model_state: g_params,
+        optimizer_state: init_optim_g.(g_params),
+        loss: Nx.tensor(0.0)
+      }
+    }
   end
 
-  defn update_d(params, d_optim_state, images, targets, update_fn) do
-    gradients = grad(params, &d_loss(&1, images, targets))
-    {updates, new_optim_state} = update_fn.(gradients, d_optim_state, params)
-    {Axon.Updates.apply_updates(params, updates), new_optim_state}
-  end
+  defn batch_step(d_model, g_model, optim_d, optim_g, real_images, state) do
 
-  defn g_loss(g_params, d_params, latent) do
-    valid = Nx.iota({32, 2}, axis: 1, type: {:u, 8})
-    g_preds = Axon.predict(generator(), g_params, latent)
-    d_loss(d_params, g_preds, valid)
-  end
+    iter = state[:iteration]
+    d_params = state[:discriminator][:model_state]
+    g_params = state[:generator][:model_state]
 
-  defn update_g(g_params, g_optim_state, d_params, update_fn, latent) do
-    gradients = grad(g_params, &g_loss(&1, d_params, latent))
+    # Update D
+    fake_labels = Nx.iota({32, 2}, axis: 1)
+    real_labels = Nx.reverse(fake_labels)
+    noise = Nx.random_normal({32, 100})
 
-    {updates, new_optim_state} = update_fn.(gradients, g_optim_state, g_params)
-    {Axon.Updates.apply_updates(g_params, updates), new_optim_state}
-  end
+    {d_loss, d_grads} = value_and_grad(d_params, fn params ->
+      fake_images = Axon.predict(g_model, g_params, noise, mode: :train)
 
-  def update(g_params, g_optim_state, d_params, d_optim_state, update_fn, images) do
-    valid = Nx.iota({32, 2}, axis: 1, type: {:u, 8})
-    fake = Nx.iota({32, 2}, axis: 1, type: {:u, 8}) |> Nx.reverse(axes: [1])
+      d_fake_preds = Axon.predict(d_model, params, fake_images, mode: :train)
+      d_real_preds = Axon.predict(d_model, params, real_images, mode: :train)
 
-    latent = Nx.random_normal({32, 100})
+      joint_preds = Nx.concatenate([d_fake_preds, d_real_preds], axis: 0)
+      joint_labels = Nx.concatenate([fake_labels, real_labels], axis: 0)
 
-    fake_images =
-      g_params
-      |> generate(latent)
-      |> Nx.reshape({32, 28, 28})
-
-    {new_d_params, new_d_state} =
-      d_params
-      |> update_d(d_optim_state, images, valid, update_fn)
-
-    {new_d_params, new_d_state} =
-      new_d_params
-      |> update_d(new_d_state, fake_images, fake, update_fn)
-
-    {new_g_params, new_g_state} =
-      g_params
-      |> update_g(g_optim_state, new_d_params, update_fn, latent)
-
-    {new_g_params, new_g_state, new_d_params, new_d_state}
-  end
-
-  def train_epoch(g_params, g_state, d_params, d_state, update_fn, imgs) do
-    imgs
-    |> Enum.with_index()
-    |> Enum.reduce({g_params, g_state, d_params, d_state}, fn
-      {imgs, i}, {g_params, g_state, d_params, d_state} ->
-        {new_g, g_state, new_d, d_state} =
-          update(g_params, g_state, d_params, d_state, update_fn, imgs)
-
-        IO.write("\rBatch: #{i}")
-
-        if rem(i, 50) == 0 do
-          latent = Nx.random_normal({1, 100})
-          IO.inspect Nx.to_heatmap generate(new_g, latent) |> Nx.reshape({1, 28, 28})
-        end
-
-        {new_g, g_state, new_d, d_state}
+      Axon.Losses.categorical_cross_entropy(joint_labels, joint_preds, reduction: :mean)
     end)
+
+    d_optimizer_state = state[:discriminator][:optimizer_state]
+
+    {d_updates, d_optimizer_state} = optim_d.(d_grads, d_optimizer_state, d_params)
+    d_params = Axon.Updates.apply_updates(d_params, d_updates)
+
+    # Update G
+    {g_loss, g_grads} = value_and_grad(g_params, fn params ->
+      fake_images = Axon.predict(g_model, params, noise, mode: :train)
+
+      d_preds = Axon.predict(d_model, d_params, fake_images)
+
+      Axon.Losses.categorical_cross_entropy(real_labels, d_preds, reduction: :mean)
+    end)
+
+    g_optimizer_state = state[:generator][:optimizer_state]
+
+    {g_updates, g_optimizer_state} = optim_g.(g_grads, g_optimizer_state, g_params)
+    g_params = Axon.Updates.apply_updates(g_params, g_updates)
+
+    %{
+      iteration: iter + 1,
+      discriminator: %{
+        model_state: d_params,
+        optimizer_state: d_optimizer_state,
+        loss: running_average(state[:discriminator][:loss], d_loss, iter)
+      },
+      generator: %{
+        model_state: g_params,
+        optimizer_state: g_optimizer_state,
+        loss: running_average(state[:generator][:loss], g_loss, iter)
+      }
+    }
   end
 
-  def train(imgs, g_params, g_state, d_params, d_state, update_fn, opts \\ []) do
-    epochs = opts[:epochs] || 5
+  defp train_loop(d_model, g_model) do
+    {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
+    {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
 
-    for epoch <- 1..epochs, reduce: {g_params, g_state, d_params, d_state} do
-      {g_params, g_state, d_params, d_state} ->
-        {time, {new_g_params, new_g_state, new_d_params, new_d_state}} =
-          :timer.tc(__MODULE__, :train_epoch, [g_params, g_state, d_params, d_state, update_fn, imgs])
+    step = &batch_step(d_model, g_model, optim_d, optim_g, &1, &2)
+    init = fn -> init(d_model, g_model, init_optim_d, init_optim_g) end
 
-        IO.puts("Epoch #{epoch} Time: #{time / 1_000_000}s")
-        {new_g_params, new_g_state, new_d_params, new_d_state}
-    end
+    Axon.Loop.loop(step, init)
   end
 
-  defp unzip_cache_or_download(zip) do
-    base_url = 'https://storage.googleapis.com/cvdf-datasets/mnist/'
-    path = Path.join("tmp", zip)
+  defp log_iteration(state) do
+    %State{epoch: epoch, iteration: iter, step_state: pstate} = state
 
-    data =
-      if File.exists?(path) do
-        IO.puts("Using #{zip} from tmp/\n")
-        File.read!(path)
-      else
-        IO.puts("Fetching #{zip} from https://storage.googleapis.com/cvdf-datasets/mnist/\n")
-        :inets.start()
-        :ssl.start()
+    g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:generator][:loss])])}"
+    d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:discriminator][:loss])])}"
 
-        {:ok, {_status, _response, data}} = :httpc.request(:get, {base_url ++ zip, []}, [], [])
-        File.mkdir_p!("tmp")
-        File.write!(path, data)
+    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, batch: #{Nx.to_scalar(iter)} #{g_loss} #{d_loss}")
 
-        data
-      end
-
-    :zlib.gunzip(data)
+    {:continue, state}
   end
 
-  def download(images) do
-    <<_::32, n_images::32, n_rows::32, n_cols::32, images::binary>> =
-      unzip_cache_or_download(images)
+  defp view_generated_images(model, batch_size, state) do
+    %State{step_state: pstate} = state
+    noise = Nx.random_normal({batch_size, 100})
+    preds = Axon.predict(model, pstate[:generator][:model_state], noise, compiler: EXLA)
 
-    train_images =
-      images
-      |> Nx.from_binary({:u, 8})
-      |> Nx.reshape({n_images, n_rows, n_cols})
-      |> Nx.divide(255)
-      |> Nx.to_batched_list(32)
+    preds
+    |> Nx.reshape({batch_size, 28, 28})
+    |> Nx.to_heatmap()
+    |> IO.inspect()
 
-    IO.puts("#{n_images} #{n_rows}x#{n_cols} images\n")
+    {:continue, state}
+  end
 
-    train_images
+  def run() do
+    {images, _} = Scidata.MNIST.download(transform_images: &transform_images/1)
+
+    generator = build_generator(100)
+    discriminator = build_discriminator({nil, 1, 28, 28})
+
+    discriminator
+    |> train_loop(generator)
+    |> Axon.Loop.handle(:iteration_completed, &log_iteration/1, every: 50)
+    |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
+    |> Axon.Loop.run(images, epochs: 10, compiler: EXLA)
   end
 end
 
-require Axon
-
-generator = MNISTGAN.generator() |> IO.inspect
-discriminator = MNISTGAN.discriminator() |> IO.inspect
-
-train_images = MNISTGAN.download('train-images-idx3-ubyte.gz')
-
-IO.puts("Initializing parameters...\n")
-
-{init_fn, update_fn} = Axon.Optimizers.adam(0.005)
-
-d_params = Axon.init(discriminator, compiler: EXLA)
-d_state = Nx.Defn.jit(init_fn, [d_params], compiler: EXLA)
-g_params = Axon.init(generator, compiler: EXLA)
-g_state = Nx.Defn.jit(init_fn, [g_params], compiler: EXLA)
-
-{g_params, _d_params} = MNISTGAN.train(train_images, g_params, g_state, d_params, d_state, update_fn, epochs: 10)
-
-latent = Nx.random_uniform({1, 100})
-IO.inspect Nx.to_heatmap MNISTGAN.generator(g_params, latent)
+MNISTGAN.run()

@@ -1,12 +1,17 @@
 Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-  {:exla, github: "elixir-nx/exla", sparse: "exla"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.1"},
+  {:scidata, "~> 0.1.1"}
 ])
+
+# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
+EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
 
 defmodule Mnist do
   require Axon
+
+  alias Axon.Loop.State
 
   defp transform_images({bin, type, shape}) do
     bin
@@ -14,6 +19,8 @@ defmodule Mnist do
     |> Nx.reshape({elem(shape, 0), 784})
     |> Nx.divide(255.0)
     |> Nx.to_batched_list(32)
+    # Test split
+    |> Enum.split(1750)
   end
 
   defp transform_labels({bin, type, _}) do
@@ -22,15 +29,8 @@ defmodule Mnist do
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
     |> Nx.to_batched_list(32)
-  end
-
-  defp view_images(images, {start_index, len}) do
-    images
-    |> hd()
-    |> Nx.slice_axis(start_index, len, 0)
-    |> Nx.reshape({:auto, 28, 28})
-    |> Nx.to_heatmap()
-    |> IO.inspect
+    # Test split
+    |> Enum.split(1750)
   end
 
   defp build_model(input_shape) do
@@ -40,30 +40,70 @@ defmodule Mnist do
     |> Axon.dense(10, activation: :softmax)
   end
 
-  defp train_model(model, {train_images, train_labels}, epochs) do
+  defp log_metrics(
+         %State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state,
+         mode
+       ) do
+    loss =
+      case mode do
+        :train ->
+          %{loss: loss} = pstate
+          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+
+        :test ->
+          ""
+      end
+
+    metrics =
+      metrics
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
+      |> Enum.join(" ")
+
+    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
+
+    {:continue, state}
+  end
+
+  defp train_model(model, train_images, train_labels, epochs) do
     model
-    |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005), metrics: [:accuracy])
-    |> Axon.Training.train(train_images, train_labels, epochs: epochs, compiler: EXLA, log_every: 100)
+    |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+    |> Axon.Loop.metric(:accuracy, "Accuracy")
+    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
+    |> Axon.Loop.run(Stream.zip(train_images, train_labels), epochs: epochs, compiler: EXLA)
+  end
+
+  defp test_model(model, model_state, test_images, test_labels) do
+    model
+    |> Axon.Loop.evaluator(model_state)
+    |> Axon.Loop.metric(:accuracy, "Accuracy")
+    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :test), every: 50)
+    |> Axon.Loop.run(Stream.zip(test_images, test_labels), compiler: EXLA)
   end
 
   def run do
-    {train_images, train_labels} = Scidata.MNIST.download(transform_images: &transform_images/1, transform_labels: &transform_labels/1)
+    {images, labels} =
+      Scidata.MNIST.download(
+        transform_images: &transform_images/1,
+        transform_labels: &transform_labels/1
+      )
 
-    view_images(train_images, {0, 1})
+    {train_images, test_images} = images
+    {train_labels, test_labels} = labels
 
-    model = build_model({nil, 784}) |> IO.inspect
+    model = build_model({nil, 784}) |> IO.inspect()
 
-    final_training_state =
+    IO.write("\n\n Training Model \n\n")
+
+    model_state =
       model
-      |> train_model({train_images, train_labels}, 10)
+      |> train_model(train_images, train_labels, 5)
 
-    test_images = train_images |> hd() |> Nx.slice_axis(10, 3, 0)
-    view_images(train_images, {10, 3})
+    IO.write("\n\n Testing Model \n\n")
 
     model
-    |> Axon.predict(final_training_state[:params], test_images)
-    |> Nx.argmax(axis: -1)
-    |> IO.inspect
+    |> test_model(model_state, test_images, test_labels)
+
+    IO.write("\n\n")
   end
 end
 
