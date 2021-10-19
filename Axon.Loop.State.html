@@ -7,10 +7,10 @@
     <meta name="generator" content="ExDoc v0.25.3">
     <meta name="project" content="Axon v0.1.0-dev">
 
-    <title>Axon.Training.Callbacks — Axon v0.1.0-dev</title>
+    <title>Axon.Loop.State — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
 
-    <script src="dist/sidebar_items-0aadbad89c.js"></script>
+    <script src="dist/sidebar_items-61fb6dad2a.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -80,9 +80,9 @@ Axon
     <div id="content" class="content-inner">
 
       <h1>
-Axon.Training.Callbacks <small class="app-vsn">(Axon v0.1.0-dev)</small>
+Axon.Loop.State <small class="app-vsn">(Axon v0.1.0-dev)</small>
 
-          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/training/callbacks.ex#L1" title="View Source" class="view-source" rel="help">
+          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/loop/state.ex#L1" title="View Source" class="view-source" rel="help">
             <span class="icon-code" aria-hidden="true"></span>
             <span class="sr-only">View Source</span>
           </a>
@@ -91,72 +91,25 @@ Axon.Training.Callbacks <small class="app-vsn">(Axon v0.1.0-dev)</small>
 
 
         <section id="moduledoc">
-<p>Axon training callbacks.</p>
+<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir"><span class="p" data-group-id="0413577033-1">%</span><span class="nc" data-group-id="0413577033-1">State</span><span class="p" data-group-id="0413577033-1">{</span><span class="w">
+  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="0413577033-2">(</span><span class="p" data-group-id="0413577033-2">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="0413577033-3">(</span><span class="p" data-group-id="0413577033-3">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="0413577033-4">(</span><span class="p" data-group-id="0413577033-4">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="0413577033-5">(</span><span class="p" data-group-id="0413577033-5">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="0413577033-6">(</span><span class="n">string</span><span class="p" data-group-id="0413577033-7">(</span><span class="p" data-group-id="0413577033-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="0413577033-8">(</span><span class="p" data-group-id="0413577033-8">)</span><span class="p" data-group-id="0413577033-6">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">list</span><span class="p" data-group-id="0413577033-9">(</span><span class="n">number</span><span class="p" data-group-id="0413577033-10">(</span><span class="p" data-group-id="0413577033-10">)</span><span class="p" data-group-id="0413577033-9">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="0413577033-11">(</span><span class="p" data-group-id="0413577033-11">)</span><span class="w">
+</span><span class="p" data-group-id="0413577033-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
+Defaults to 0.</p><p><code class="inline">max_epoch</code> is the maximum number of epochs the loop should run
+for. Defaults to 1.</p><p><code class="inline">iteration</code> is the current iteration of the inner loop. In supervised
+settings, this will be the current batch. Defaults to 0.</p><p><code class="inline">max_iteration</code> is the maximum number of iterations the loop should
+run a given epoch for. Defaults to -1 (no max).</p><p><code class="inline">metrics</code> is a map of <code class="inline">%{&quot;metric_name&quot; =&gt; value}</code> which accumulates metrics
+over the course of loop processing. Defaults to an empty map.</p><p><code class="inline">times</code> is a map of <code class="inline">%{epoch_number =&gt; value}</code> which maps a given epoch
+to the processing time. Defaults to an empty map.</p><p><code class="inline">step_state</code> is the step state as defined by the loop's processing
+initialization and update functions. <code class="inline">step_state</code> is a required field.</p>
         </section>
 
 
-        <section id="summary" class="details-list">
-          <h1 class="section-heading">
-            <a class="hover-link" href="#summary">
-              <span class="icon-link" aria-hidden="true"></span>
-              <span class="sr-only">Link to this section</span>
-            </a>
-            Summary
-          </h1>
-
-  <div class="summary-functions summary">
-    <h2>
-      <a href="#functions">Functions</a>
-    </h2>
-<div class="summary-row">
-  <div class="summary-signature">
-    <a href="#standard_io_logger/3">standard_io_logger(train_state, arg2, opts)</a>
-
-  </div>
-
-    <div class="summary-synopsis"><p>Standard IO Logger callback.</p></div>
-
-</div>
-
-  </div>
-
-        </section>
-
-
-        <section id="functions" class="details-list">
-          <h1 class="section-heading">
-            <a class="hover-link" href="#functions">
-              <span class="icon-link" aria-hidden="true"></span>
-              <span class="sr-only">Link to this section</span>
-            </a>
-Functions
-          </h1>
-          <div class="functions-list">
-<section class="detail" id="standard_io_logger/3">
-
-  <div class="detail-header">
-    <a href="#standard_io_logger/3" class="detail-link" title="Link to this function">
-      <span class="icon-link" aria-hidden="true"></span>
-      <span class="sr-only">Link to this function</span>
-    </a>
-    <h1 class="signature">standard_io_logger(train_state, arg2, opts)</h1>
-
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/training/callbacks.ex#L11" class="view-source" rel="help" title="View Source">
-       <span class="icon-code" aria-hidden="true"></span>
-       <span class="sr-only">View Source</span>
-     </a>
-
-
-  </div>
-
-  <section class="docstring">
-
-<p>Standard IO Logger callback.</p><p>Logs training results to standard out.</p>
-  </section>
-</section>
-
-          </div>
-        </section>
 
       <footer class="footer">
 

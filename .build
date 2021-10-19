@@ -3,6 +3,8 @@ Axon.Activations.html
 Axon.CompilerError.html
 Axon.Initializers.html
 Axon.Layers.html
+Axon.Loop.State.html
+Axon.Loop.html
 Axon.Losses.html
 Axon.Metrics.html
 Axon.MixedPrecision.html
@@ -10,8 +12,6 @@ Axon.Optimizers.html
 Axon.Recurrent.html
 Axon.Regularizers.html
 Axon.Schedules.html
-Axon.Training.Callbacks.html
-Axon.Training.html
 Axon.Updates.html
 Axon.html
 api-reference.html
@@ -21,7 +21,7 @@ dist/html/fonts/icomoon.eot
 dist/html/fonts/icomoon.svg
 dist/html/fonts/icomoon.ttf
 dist/html/fonts/icomoon.woff
-dist/search_items-0f956fcea4.js
-dist/sidebar_items-0aadbad89c.js
+dist/search_items-2760f0c152.js
+dist/sidebar_items-61fb6dad2a.js
 index.html
 search.html
