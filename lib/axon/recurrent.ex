@@ -83,20 +83,49 @@ defmodule Axon.Recurrent do
     {{new_c, new_h}, new_h}
   end
 
+  defnp rank_down(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          Nx.squeeze(tensor, axes: [1])
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
+  defnp rank_up(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          new_shape =
+            Nx.shape(tensor)
+            |> Tuple.insert_at(1, 1)
+
+          Nx.reshape(tensor, new_shape)
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
   @doc """
   ConvLSTM Cell.
   """
   defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
-    {cell, hidden} = carry
     {ih} = input_kernel
     {hh} = hidden_kernel
     {bi} = bias
 
+    {{cell, hidden}, input} = rank_down({carry, input})
+
     gates =
-      conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]) +
+      Nx.add(
+        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
         conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
+      )
 
     {i, g, f, o} = split_gates(gates)
 
@@ -104,7 +133,7 @@ defmodule Axon.Recurrent do
     new_c = f * cell + sigmoid(i) * tanh(g)
     new_h = sigmoid(o) * tanh(new_c)
 
-    {{new_c, new_h}, new_h}
+    rank_up({{new_c, new_h}, new_h})
   end
 
   defnp split_gates(gates) do

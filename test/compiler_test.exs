@@ -2457,6 +2457,468 @@ defmodule CompilerTest do
     # end
   end
 
+  describe "convlstm" do
+    test "initializes in default case" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        in_channel_n = 3,
+        _width = 32,
+        _heigth = 32
+      }
+
+      out_channel_n = 64
+      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = init_fn.()
+
+      # Input kernel
+      assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
+      assert Nx.type(wi) == {:f, 32}
+
+      # Hidden kernel
+      assert Nx.shape(wh) == {4 * out_channel_n, out_channel_n, 1, 1}
+      assert Nx.type(wh) == {:f, 32}
+
+      # Bias
+      assert Nx.shape(b) == {4 * out_channel_n}
+      assert Nx.type(b) == {:f, 32}
+    end
+
+    test "initializes with custom initializers" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        in_channel_n = 3,
+        _width = 32,
+        _heigth = 32
+      }
+
+      out_channel_n = 64
+
+      model1 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model1)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = init_fn.()
+
+      # Input kernel
+      assert wi == Axon.Initializers.zeros(shape: {4 * out_channel_n, in_channel_n, 1, 1})
+
+      # Hidden kernel
+      assert wh == Axon.Initializers.zeros(shape: {4 * out_channel_n, out_channel_n, 1, 1})
+
+      # Bias
+      assert Nx.shape(b) == {4 * out_channel_n}
+      assert Nx.type(b) == {:f, 32}
+
+      model2 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
+
+      assert {init_fn, _predict_fn} = Axon.compile(model2)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = init_fn.()
+
+      # Input kernel
+      assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
+      assert Nx.type(wi) == {:f, 32}
+
+      # Hidden kernel
+      assert Nx.shape(wh) == {4 * out_channel_n, out_channel_n, 1, 1}
+      assert Nx.type(wh) == {:f, 32}
+
+      # Bias
+      assert b == Axon.Initializers.zeros(shape: {4 * out_channel_n})
+    end
+
+    test "computes forward pass with dynamic unroll and equal number of input and output channels" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input)
+
+      assert {carry, seq} ==
+               Axon.Recurrent.dynamic_unroll(
+                 &Axon.Recurrent.conv_lstm_cell/5,
+                 input,
+                 init_carry,
+                 k,
+                 h,
+                 b
+               )
+    end
+
+    test "computes forward pass with static unroll and different number of input and output channels" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 7
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          recurrent_initializer: :zeros,
+          unroll: :static
+        )
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input)
+
+      assert {carry, seq} ==
+               Axon.Recurrent.static_unroll(
+                 &Axon.Recurrent.conv_lstm_cell/5,
+                 input,
+                 init_carry,
+                 k,
+                 h,
+                 b
+               )
+    end
+
+    # First part fails by conv_lstm_cell:
+    # no support for custon gate and activation functions
+    test "computes forward pass with custom options" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
+      model1 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          recurrent_initializer: :zeros,
+          gate: :relu,
+          activation: :sigmoid
+        )
+
+      input1 =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry1 =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      cell_fn1 = fn i, c, k, h, b ->
+        Axon.Recurrent.conv_lstm_cell(
+          i,
+          c,
+          k,
+          h,
+          b
+          # &Axon.Activations.relu/1,
+          # &Axon.Activations.sigmoid/1
+        )
+      end
+
+      assert {init_fn, predict_fn} = Axon.compile(model1)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input1)
+      assert {carry, seq} == Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+
+      model2 =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          unroll: :static,
+          recurrent_initializer: :zeros
+        )
+
+      input2 =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      init_carry2 =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
+
+      assert {init_fn, predict_fn} = Axon.compile(model2)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh,
+                 "b" => b
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {b}
+
+      assert {{_, _} = carry, seq} = predict_fn.(params, input2)
+      assert {carry, seq} == Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+    end
+
+    test "computes forward pass with hidden state" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      seq = Axon.input(input_shape)
+
+      {carry, _} =
+        seq |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
+
+      model = Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      equiv_fn = fn inp, enc, dec ->
+        {ei, eh, eb} = enc
+        {di, dh, db} = dec
+
+        init_carry =
+          {Axon.Initializers.zeros(shape: hidden_shape_real),
+           Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+        {carr, _} =
+          Axon.Recurrent.dynamic_unroll(
+            &Axon.Recurrent.conv_lstm_cell/5,
+            inp,
+            init_carry,
+            ei,
+            eh,
+            eb
+          )
+
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, carr, di, dh, db)
+      end
+
+      assert %{
+               "encode" => %{
+                 "wi" => ei,
+                 "wh" => eh,
+                 "b" => eb
+               },
+               "decode" => %{
+                 "wi" => di,
+                 "wh" => dh,
+                 "b" => db
+               }
+             } = params = init_fn.()
+
+      enc = {{ei}, {eh}, {eb}}
+      dec = {{di}, {dh}, {db}}
+
+      assert predict_fn.(params, input) == equiv_fn.(input, enc, dec)
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 2,
+        in_channel_n = 3,
+        _width = 4,
+        _heigth = 4
+      }
+
+      out_channel_n = 3
+      batch_real = 1
+
+      {_, out} =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm", unroll: :static)
+
+      model = Axon.freeze(out)
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      backward = fn params, input ->
+        Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+      end
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi_grad,
+                 "wh" => wh_grad,
+                 "b" => b_grad
+               }
+             } = Nx.Defn.jit(backward, [init_fn.(), input])
+
+      assert wi_grad == Nx.broadcast(0.0, {4 * out_channel_n, in_channel_n, 1, 1})
+      assert wh_grad == Nx.broadcast(0.0, {4 * out_channel_n, out_channel_n, 1, 1})
+      assert b_grad == Nx.broadcast(0.0, {4 * out_channel_n})
+    end
+
+    test "computes forward pass with use_bias false" do
+      input_shape = {
+        _batch = nil,
+        _sequence_length = 10,
+        _in_channel_n = 3,
+        width = 32,
+        heigth = 32
+      }
+
+      out_channel_n = 3
+      batch_real = 1
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n,
+          name: "convlstm",
+          use_bias: false,
+          recurrent_initializer: :zeros
+        )
+
+      input =
+        input_shape
+        |> put_elem(0, batch_real)
+        |> Nx.random_uniform(type: {:f, 32})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "convlstm" => %{
+                 "wi" => wi,
+                 "wh" => wh
+               }
+             } = params = init_fn.()
+
+      k = {wi}
+      h = {wh}
+      b = {Nx.broadcast(0, 4 * out_channel_n)}
+
+      c =
+        {Axon.Initializers.zeros(shape: hidden_shape_real),
+         Axon.Initializers.zeros(shape: hidden_shape_real)}
+
+      assert predict_fn.(params, input) ==
+               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, input, c, k, h, b)
+    end
+  end
+
   describe "gru" do
     test "initializes in default case" do
       model = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru")
