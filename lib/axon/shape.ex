@@ -423,8 +423,8 @@ defmodule Axon.Shape do
   def conv_transpose(parent_shape, kernel_shape, strides, padding, kernel_dilation) do
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
     names = List.duplicate(nil, Nx.rank(parent_shape))
-    input_dilation = List.duplicate(1, Nx.rank(parent_shape) - 2)
-
+    input_dilation = strides
+    one = List.duplicate(1, Nx.rank(parent_shape) - 2)
     padding = conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding)
 
     input_shape =
@@ -440,7 +440,7 @@ defmodule Axon.Shape do
         names,
         kernel_shape,
         names,
-        strides,
+        one,
         padding,
         1,
         1,
