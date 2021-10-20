@@ -1152,11 +1152,12 @@ defmodule Axon.Loop do
         &acc_fun.(&1, metric_fn.(&2), &3)
 
       invalid ->
-        raise ArgumentError, "Invalid accumulation function #{inspect(invalid)}, a valid" <>
-                                " accumulation function is an atom which matches the name" <>
-                                " of an accumulation function in Axon.Metrics, or an arity-3" <>
-                                " function which takes current accumulator, observation, and" <>
-                                " iteration and returns an updated accumulator"
+        raise ArgumentError,
+              "Invalid accumulation function #{inspect(invalid)}, a valid" <>
+                " accumulation function is an atom which matches the name" <>
+                " of an accumulation function in Axon.Metrics, or an arity-3" <>
+                " function which takes current accumulator, observation, and" <>
+                " iteration and returns an updated accumulator"
     end
   end
 
