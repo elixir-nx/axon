@@ -816,10 +816,13 @@ defmodule Axon.Loop do
 
                       {:continue, state} ->
                         max_iter = state.iteration
+                        zero_metrics = Map.new(metric_fns, fn {k, _} ->
+                          {k, 0}
+                        end)
 
                         {:cont,
                          {:completed,
-                          %State{state | epoch: epoch + 1, iteration: 0, max_iteration: max_iter}}}
+                          %State{state | epoch: epoch + 1, metrics: zero_metrics, iteration: 0, max_iteration: max_iter}}}
                     end
                 end
             end
@@ -848,7 +851,7 @@ defmodule Axon.Loop do
         state
 
       nil ->
-        metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0.0)} end)
+        metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
         step_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
 
         %State{
