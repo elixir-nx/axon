@@ -2467,7 +2467,7 @@ defmodule CompilerTest do
         _heigth = 6
       }
 
-      out_channel_n = 3
+      out_channel_n = 4
       model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
@@ -2502,7 +2502,7 @@ defmodule CompilerTest do
         _heigth = 6
       }
 
-      out_channel_n = 3
+      out_channel_n = 4
 
       model1 =
         Axon.input(input_shape)
