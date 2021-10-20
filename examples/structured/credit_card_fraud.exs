@@ -8,12 +8,12 @@ Mix.install([
 defmodule CreditCardFraud do
   alias Axon.Loop.State
 
-  defp data() do
-  	# Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
-    fname = "examples/structured/creditcard.csv"
+  # Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
+  @fname "examples/structured/creditcard.csv"
 
-    IO.puts("Loading #{fname}")
-    df = Explorer.DataFrame.read_csv!(fname, dtypes: [{"Time", :float}])
+  defp data() do
+    IO.puts("Loading #{@fname}")
+    df = Explorer.DataFrame.read_csv!(@fname, dtypes: [{"Time", :float}])
 
     {train_df, test_df} = split_train_test(df, 0.9)
 
@@ -153,13 +153,18 @@ defmodule CreditCardFraud do
     {:continue, state}
   end
 
-  defp test_model(model, model_state, test_data) do
-    model
-    |> Axon.Loop.evaluator(model_state)
+  defp metrics(loop) do
+  	loop
     |> Axon.Loop.metric(:true_positives, "tp", :running_sum)
     |> Axon.Loop.metric(:true_negatives, "tn", :running_sum)
     |> Axon.Loop.metric(:false_positives, "fp", :running_sum)
     |> Axon.Loop.metric(:false_negatives, "fn", :running_sum)
+  end
+
+  defp test_model(model, model_state, test_data) do
+    model
+    |> Axon.Loop.evaluator(model_state)
+    |> metrics()
     |> Axon.Loop.handle(:epoch_completed, &summarize/1)
     |> Axon.Loop.run(test_data, compiler: EXLA)
   end
@@ -167,10 +172,7 @@ defmodule CreditCardFraud do
   defp train_model(model, train_data) do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
-    |> Axon.Loop.metric(:true_positives, "tp", :running_sum)
-    |> Axon.Loop.metric(:true_negatives, "tn", :running_sum)
-    |> Axon.Loop.metric(:false_positives, "fp", :running_sum)
-    |> Axon.Loop.metric(:false_negatives, "fn", :running_sum)
+    |> metrics()
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 10)
     |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
   end
