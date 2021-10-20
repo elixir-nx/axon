@@ -9,6 +9,7 @@ defmodule CreditCardFraud do
   alias Axon.Loop.State
 
   defp data() do
+  	# Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
     fname = "examples/structured/creditcard.csv"
 
     IO.puts("Loading #{fname}")

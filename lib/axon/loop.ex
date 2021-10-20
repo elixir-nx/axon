@@ -816,13 +816,21 @@ defmodule Axon.Loop do
 
                       {:continue, state} ->
                         max_iter = state.iteration
-                        zero_metrics = Map.new(metric_fns, fn {k, _} ->
-                          {k, 0}
-                        end)
+
+                        zero_metrics =
+                          Map.new(metric_fns, fn {k, _} ->
+                            {k, 0}
+                          end)
 
                         {:cont,
                          {:completed,
-                          %State{state | epoch: epoch + 1, metrics: zero_metrics, iteration: 0, max_iteration: max_iter}}}
+                          %State{
+                            state
+                            | epoch: epoch + 1,
+                              metrics: zero_metrics,
+                              iteration: 0,
+                              max_iteration: max_iter
+                          }}}
                     end
                 end
             end
