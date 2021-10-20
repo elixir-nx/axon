@@ -204,11 +204,11 @@ defmodule Axon.LoopTest do
       step_fn = fn _, _ -> 1 end
 
       assert capture_log(fn ->
-        step_fn
-        |> Axon.Loop.loop()
-        |> Axon.Loop.metric(:accuracy)
-        |> Axon.Loop.metric(:accuracy)
-      end) =~ "Metric accuracy declared twice in loop."
+               step_fn
+               |> Axon.Loop.loop()
+               |> Axon.Loop.metric(:accuracy)
+               |> Axon.Loop.metric(:accuracy)
+             end) =~ "Metric accuracy declared twice in loop."
     end
   end
 
