@@ -576,9 +576,22 @@ defmodule Axon.Loop do
   def metric(
         %Loop{metrics: metric_fns} = loop,
         metric,
-        name,
+        name \\ nil,
         transform_or_fields \\ [:y_true, :y_pred]
       ) do
+    name =
+      case name do
+        nil ->
+          if is_atom(metric) do
+            Atom.to_string(metric)
+          else
+            raise ArgumentError, "must provide name if using a custom metric"
+          end
+
+        name ->
+          name
+      end
+
     case metric_fns do
       %{^name => _} ->
         Logger.warning(
