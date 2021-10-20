@@ -389,9 +389,12 @@ defmodule Axon.Layers do
         end
       )
 
+    ones = transform(Nx.rank(input), &List.duplicate(1, &1 - 2))
+
     conv(input, weight, bias,
-      strides: opts[:strides],
+      strides: ones,
       padding: padding,
+      input_dilation: strides,
       kernel_dilation: opts[:kernel_dilation]
     )
   end
