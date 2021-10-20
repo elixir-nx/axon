@@ -25,6 +25,8 @@ defmodule Axon.Metrics do
   import Nx.Defn
   import Axon.Shared
 
+  # Standard Metrics
+
   @doc ~S"""
   Computes the accuracy of the given predictions, assuming
   both targets and predictions are one-hot encoded.
@@ -81,17 +83,11 @@ defmodule Axon.Metrics do
   defn precision(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, threshold: 0.5)
+    true_positives = true_positives(y_true, y_pred, opts)
+    false_positives = false_positives(y_true, y_pred, opts)
 
-    thresholded_preds =
-      y_pred
-      |> Nx.greater(opts[:threshold])
-
-    thresholded_preds
-    |> Nx.equal(y_true)
-    |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
-    |> Nx.sum()
-    |> Nx.divide(Nx.sum(thresholded_preds) + 1.0e-16)
+    true_positives
+    |> Nx.divide(true_positives + false_positives + 1.0e-16)
   end
 
   @doc ~S"""
@@ -120,25 +116,146 @@ defmodule Axon.Metrics do
   defn recall(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
+    true_positives = true_positives(y_true, y_pred, opts)
+    false_negatives = false_negatives(y_true, y_pred, opts)
+
+    Nx.divide(true_positives, false_negatives + true_positives + 1.0e-16)
+  end
+
+  @doc """
+  Computes the number of true positive predictions with respect
+  to given targets.
+
+  ## Options
+
+    * `:threshold` - threshold for truth value of predictions.
+      Defaults to `0.5`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([1, 0, 1, 1, 0, 1, 0])
+      iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
+      iex> Axon.Metrics.true_positives(y_true, y_pred)
+      #Nx.Tensor<
+        u64
+        1
+      >
+  """
+  defn true_positives(y_true, y_pred, opts \\ []) do
+    assert_shape!(y_true, y_pred)
+
     opts = keyword!(opts, threshold: 0.5)
 
     thresholded_preds =
       y_pred
       |> Nx.greater(opts[:threshold])
 
-    true_positives =
-      thresholded_preds
-      |> Nx.equal(y_true)
-      |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
-      |> Nx.sum()
+    thresholded_preds
+    |> Nx.equal(y_true)
+    |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
+    |> Nx.sum()
+  end
 
-    false_negatives =
-      thresholded_preds
-      |> Nx.not_equal(y_true)
-      |> Nx.logical_and(Nx.equal(thresholded_preds, 0))
-      |> Nx.sum()
+  @doc """
+  Computes the number of false negative predictions with respect
+  to given targets.
 
-    Nx.divide(true_positives, false_negatives + true_positives + 1.0e-16)
+  ## Options
+
+    * `:threshold` - threshold for truth value of predictions.
+      Defaults to `0.5`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([1, 0, 1, 1, 0, 1, 0])
+      iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
+      iex> Axon.Metrics.false_negatives(y_true, y_pred)
+      #Nx.Tensor<
+        u64
+        3
+      >
+  """
+  defn false_negatives(y_true, y_pred, opts \\ []) do
+    assert_shape!(y_true, y_pred)
+
+    opts = keyword!(opts, threshold: 0.5)
+
+    thresholded_preds =
+      y_pred
+      |> Nx.greater(opts[:threshold])
+
+    thresholded_preds
+    |> Nx.not_equal(y_true)
+    |> Nx.logical_and(Nx.equal(thresholded_preds, 0))
+    |> Nx.sum()
+  end
+
+  @doc """
+  Computes the number of true negative predictions with respect
+  to given targets.
+
+  ## Options
+
+    * `:threshold` - threshold for truth value of predictions.
+      Defaults to `0.5`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([1, 0, 1, 1, 0, 1, 0])
+      iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
+      iex> Axon.Metrics.true_negatives(y_true, y_pred)
+      #Nx.Tensor<
+        u64
+        1
+      >
+  """
+  defn true_negatives(y_true, y_pred, opts \\ []) do
+    assert_shape!(y_true, y_pred)
+
+    opts = keyword!(opts, threshold: 0.5)
+
+    thresholded_preds =
+      y_pred
+      |> Nx.greater(opts[:threshold])
+
+    thresholded_preds
+    |> Nx.equal(y_true)
+    |> Nx.logical_and(Nx.equal(thresholded_preds, 0))
+    |> Nx.sum()
+  end
+
+  @doc """
+  Computes the number of false positive predictions with respect
+  to given targets.
+
+  ## Options
+
+    * `:threshold` - threshold for truth value of predictions.
+      Defaults to `0.5`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([1, 0, 1, 1, 0, 1, 0])
+      iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
+      iex> Axon.Metrics.false_positives(y_true, y_pred)
+      #Nx.Tensor<
+        u64
+        2
+      >
+  """
+  defn false_positives(y_true, y_pred, opts \\ []) do
+    assert_shape!(y_true, y_pred)
+
+    opts = keyword!(opts, threshold: 0.5)
+
+    thresholded_preds =
+      y_pred
+      |> Nx.greater(opts[:threshold])
+
+    thresholded_preds
+    |> Nx.not_equal(y_true)
+    |> Nx.logical_and(Nx.equal(thresholded_preds, 1))
+    |> Nx.sum()
   end
 
   @doc ~S"""
@@ -245,5 +362,60 @@ defmodule Axon.Metrics do
     |> Nx.subtract(y_pred)
     |> Nx.abs()
     |> Nx.mean()
+  end
+
+  # Combinators
+
+  @doc """
+  Returns a function which computes a running average given current average,
+  new observation, and current iteration.
+
+  ## Examples
+
+      iex> cur_avg = 0.5
+      iex> iteration = 1
+      iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
+      iex> y_pred = Nx.tensor([[0, 1], [1, 0], [1, 0]])
+      iex> avg_acc = Axon.Metrics.running_average(&Axon.Metrics.accuracy/2)
+      iex> avg_acc.(cur_avg, [y_true, y_pred], iteration)
+      #Nx.Tensor<
+        f32
+        0.75
+      >
+  """
+  def running_average(metric) do
+    &running_average_impl(&1, apply(metric, &2), &3)
+  end
+
+  defnp running_average_impl(avg, obs, i) do
+    avg
+    |> Nx.multiply(i)
+    |> Nx.add(obs)
+    |> Nx.divide(Nx.add(i, 1))
+  end
+
+  @doc """
+  Returns a function which computes a running sum given current sum,
+  new observation, and current iteration.
+
+  ## Examples
+
+      iex> cur_sum = 12
+      iex> iteration = 2
+      iex> y_true = Nx.tensor([0, 1, 0, 1])
+      iex> y_pred = Nx.tensor([1, 1, 0, 1])
+      iex> fps = Axon.Metrics.running_sum(&Axon.Metrics.false_positives/2)
+      iex> fps.(cur_sum, [y_true, y_pred], iteration)
+      #Nx.Tensor<
+        s64
+        13
+      >
+  """
+  def running_sum(metric) do
+    &running_sum_impl(&1, apply(metric, &2), &3)
+  end
+
+  defnp running_sum_impl(sum, obs, _) do
+    Nx.add(sum, obs)
   end
 end

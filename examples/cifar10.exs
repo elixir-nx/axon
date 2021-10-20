@@ -45,7 +45,7 @@ defmodule Cifar do
   end
 
   defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state,
+         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
          mode
        ) do
     loss =

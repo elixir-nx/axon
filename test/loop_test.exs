@@ -210,6 +210,40 @@ defmodule Axon.LoopTest do
                |> Axon.Loop.metric(:accuracy)
              end) =~ "Metric accuracy declared twice in loop."
     end
+
+    test "computes running average by default with supervised output transform" do
+      step_fn = fn _, _ -> 1 end
+
+      loop =
+        step_fn
+        |> Loop.loop()
+        |> Loop.metric(:accuracy)
+
+      assert %Loop{metrics: %{"accuracy" => avg_acc_fun}} = loop
+
+      output = %{foo: 1, y_true: Nx.tensor([1, 0, 1]), y_pred: Nx.tensor([0.8, 0.2, 0.8])}
+      cur_avg_acc = 0.5
+      i = 1
+
+      assert avg_acc_fun.(cur_avg_acc, List.wrap(output), i) == Nx.tensor(0.75)
+    end
+
+    test "computes a running sum with custom output transform" do
+      step_fn = fn _, _ -> 1 end
+
+      loop =
+        step_fn
+        |> Loop.loop()
+        |> Loop.metric(:true_positives, "tp", :running_sum, &Tuple.to_list/1)
+
+      assert %Loop{metrics: %{"tp" => sum_tp_fun}} = loop
+
+      output = {Nx.tensor([1, 0, 1]), Nx.tensor([0, 1, 1])}
+      cur_sum = 25
+      i = 10
+
+      assert sum_tp_fun.(cur_sum, List.wrap(output), i) == Nx.tensor(26)
+    end
   end
 
   describe "looping" do
