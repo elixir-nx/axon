@@ -2463,11 +2463,11 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         in_channel_n = 3,
-        _width = 32,
-        _heigth = 32
+        _width = 6,
+        _heigth = 6
       }
 
-      out_channel_n = 64
+      out_channel_n = 3
       model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
@@ -2498,11 +2498,11 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         in_channel_n = 3,
-        _width = 32,
-        _heigth = 32
+        _width = 6,
+        _heigth = 6
       }
 
-      out_channel_n = 64
+      out_channel_n = 3
 
       model1 =
         Axon.input(input_shape)
@@ -2559,8 +2559,8 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32,
-        heigth = 32
+        width = 6,
+        heigth = 6
       }
 
       out_channel_n = 3
@@ -2612,8 +2612,8 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32,
-        heigth = 32
+        width = 6,
+        heigth = 6
       }
 
       out_channel_n = 7
@@ -2671,8 +2671,8 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32,
-        heigth = 32
+        width = 6,
+        heigth = 6
       }
 
       out_channel_n = 3
@@ -2768,8 +2768,8 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32,
-        heigth = 32
+        width = 6,
+        heigth = 6
       }
 
       out_channel_n = 3
@@ -2876,8 +2876,8 @@ defmodule CompilerTest do
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
-        width = 32,
-        heigth = 32
+        width = 6,
+        heigth = 6
       }
 
       out_channel_n = 3

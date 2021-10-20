@@ -1,5 +1,6 @@
 defmodule Axon.LoopTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   alias Axon.Loop
   alias Axon.Loop.State
@@ -172,6 +173,42 @@ defmodule Axon.LoopTest do
       assert pred == Nx.tensor([[1]])
 
       assert transform.(state) == %{"my_metric" => {}}
+    end
+  end
+
+  describe "metrics" do
+    test "uses default names with out of the box metrics" do
+      step_fn = fn _, _ -> 1 end
+
+      loop =
+        step_fn
+        |> Loop.loop()
+        |> Loop.metric(:accuracy)
+
+      %Loop{metrics: metrics} = loop
+
+      assert Map.has_key?(metrics, "accuracy")
+    end
+
+    test "raises when no name provided for custom metric" do
+      step_fn = fn _, _ -> 1 end
+
+      assert_raise ArgumentError, ~r/must provide/, fn ->
+        step_fn
+        |> Loop.loop()
+        |> Loop.metric(&Axon.Metrics.accuracy/2)
+      end
+    end
+
+    test "warns on duplicate metrics" do
+      step_fn = fn _, _ -> 1 end
+
+      assert capture_log(fn ->
+               step_fn
+               |> Axon.Loop.loop()
+               |> Axon.Loop.metric(:accuracy)
+               |> Axon.Loop.metric(:accuracy)
+             end) =~ "Metric accuracy declared twice in loop."
     end
   end
 
