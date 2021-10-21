@@ -209,7 +209,7 @@ defmodule Axon.Losses do
 
     weights =
       transform({y_true, opts[:class_weights]}, fn
-        {y_true, nil} ->
+        {_, nil} ->
           nil
 
         {y_true, [_ | _] = class_weights} ->
