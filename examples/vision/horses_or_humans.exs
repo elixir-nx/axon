@@ -6,6 +6,7 @@ Mix.install([
   {:nx, path: "../nx/nx", override: true}
 ])
 
+EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
@@ -28,6 +29,7 @@ defmodule HorsesOrHumans do
       {Nx.stack(inp), Nx.stack(labels)}
     end)
     |> Stream.map(&augment/1)
+    |> Stream.cycle()
   end
 
   defnp augment({inp, labels}) do
@@ -107,7 +109,7 @@ defmodule HorsesOrHumans do
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
     |> Axon.Loop.metric(:accuracy)
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
-    |> Axon.Loop.run(data, epochs: epochs, compiler: EXLA)
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 500, compiler: EXLA)
   end
 
   def run() do
