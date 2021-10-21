@@ -1,9 +1,9 @@
 Mix.install([
   {:flow, "~> 1.0"},
   {:pixels, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "sm-horses-humans"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:nx, path: "../nx/nx", override: true}
 ])
 
 
@@ -112,7 +112,7 @@ defmodule HorsesOrHumans do
 
   def run() do
     model = build_model({nil, 4, 300, 300}) |> IO.inspect
-    optimizer = Axon.Optimizers.rmsprop(1.0e-4)
+    optimizer = Axon.Optimizers.adam(1.0e-4)
     centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
 
     data = data()
