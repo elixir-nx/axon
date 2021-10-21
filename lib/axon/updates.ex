@@ -729,6 +729,37 @@ defmodule Axon.Updates do
   end
 
   @doc """
+  Composes two updates. This is useful for extending optimizers
+  without having to reimplement them. For example, you can implement
+  gradient centralization:
+
+      import Axon.Updates
+
+      Axon.Updates.compose(Axon.Updates.centralize(), Axon.Optimizers.rmsprop(1.0e-4))
+
+  This is equivalent to:
+
+      Axon.Updates.compose()
+      |> Axon.Updates.scale_by_rms()
+  """
+  def compose({init_fn1, apply_fn1}, {init_fn2, apply_fn2}) do
+    init_fn = fn params ->
+      state = init_fn1.(params)
+      Tuple.insert_at(state, 0, init_fn2.(params))
+    end
+
+    apply_fn = fn updates, state, params ->
+      this_state = elem(state, 0)
+      other_state = Tuple.delete_at(state, 0)
+      {updates, new_other_state} = apply_fn1.(updates, other_state, params)
+      {updates, new_this_state} = apply_fn2.(updates, this_state, params)
+      {updates, Tuple.insert_at(new_other_state, 0, new_this_state)}
+    end
+
+    {init_fn, apply_fn}
+  end
+
+  @doc """
   Represents a stateful update.
   """
   def stateful({parent_init_fn, parent_apply_fn} \\ identity(), init_fn, apply_fn) do

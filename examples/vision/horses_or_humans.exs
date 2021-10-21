@@ -112,11 +112,15 @@ defmodule HorsesOrHumans do
 
   def run() do
     model = build_model({nil, 4, 300, 300}) |> IO.inspect
-    optimizer = Axon.Optimizers.adam(1.0e-4)
+    optimizer = Axon.Optimizers.rmsprop(1.0e-4)
+    centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
 
     data = data()
 
-    IO.write("\n\nTraining Model\n\n")
+    IO.write("\n\nTraining model without gradient centralization\n\n")
+    train_model(model, data, optimizer, 10)
+
+    IO.write("\n\nTraining model with gradient centralization\n\n")
     train_model(model, data, optimizer, 10)
   end
 end
