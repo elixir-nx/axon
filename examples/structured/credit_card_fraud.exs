@@ -15,7 +15,7 @@ defmodule CreditCardFraud do
     IO.puts("Loading #{@fname}")
     df = Explorer.DataFrame.read_csv!(@fname, dtypes: [{"Time", :float}])
 
-    {train_df, test_df} = split_train_test(df, 0.9)
+    {train_df, test_df} = split_train_test(df, 0.8)
 
     IO.puts("Training Samples: #{inspect(Explorer.DataFrame.n_rows(train_df))}")
     IO.puts("Testing Samples: #{inspect(Explorer.DataFrame.n_rows(test_df))}")
@@ -86,7 +86,7 @@ defmodule CreditCardFraud do
       case mode do
         :train ->
           %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+          "Loss: #{:io_lib.format('~.8f', [Nx.to_scalar(loss)])}"
 
         :test ->
           ""
@@ -153,12 +153,12 @@ defmodule CreditCardFraud do
     |> Axon.Loop.run(test_data, compiler: EXLA)
   end
 
-  defp train_model(model, train_data) do
+  defp train_model(model, loss, optimizer, train_data) do
     model
-    |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
+    |> Axon.Loop.trainer(loss, optimizer)
     |> metrics()
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 10)
-    |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
+    |> Axon.Loop.run(train_data, epochs: 30, compiler: EXLA)
   end
 
   def run() do
@@ -183,9 +183,21 @@ defmodule CreditCardFraud do
     IO.write("\n\n")
 
     model = build_model(30)
+    loss = &Axon.Losses.binary_cross_entropy(
+      &1,
+      &2,
+      negative_weight: 1 / legit,
+      positive_weight: 1 / fraud,
+      reduction: :mean
+    )
+    # The loss is very small, so we need to also change these numerical
+    # stability terms because they end up impacting training rather
+    # significantly. Be careful adjusting as it may result in NaN/Inf
+    # poisoning or poor training convergence.
+    optimizer = Axon.Optimizers.adam(1.0e-2, eps: 1.0e-8, eps_root: 1.0e-9)
 
     model
-    |> train_model(batched_train)
+    |> train_model(loss, optimizer, batched_train)
     |> then(&test_model(model, &1, batched_test))
   end
 end
