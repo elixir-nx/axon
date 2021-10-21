@@ -257,8 +257,10 @@ defmodule Axon.Losses do
             weights ->
               Nx.sum(loss) / Nx.sum(weights)
           end
+
         {:sum, _, loss} ->
           Nx.sum(loss)
+
         {:none, _, loss} ->
           loss
       end
