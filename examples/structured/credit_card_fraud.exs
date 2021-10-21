@@ -1,7 +1,7 @@
 Mix.install([
-  {:axon, "~> 0.1.0-dev", path: "."},
-  {:exla, path: "../nx/exla"},
-  {:nx, path: "../nx/nx", override: true},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, path: "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
   {:explorer, "~> 0.1.0-dev", github: "elixir-nx/explorer"}
 ])
 
