@@ -50,37 +50,21 @@ defmodule CreditCardFraud do
     {features, targets}
   end
 
+  defp normalize(name),
+    do: fn df -> Explorer.Series.divide(df[name], Explorer.Series.max(df[name])) end
+
   defp normalize_data(df) do
     df
     |> Explorer.DataFrame.names()
-    |> Map.new(fn name ->
-      normalized =
-        df
-        |> Explorer.DataFrame.pull(name)
-        |> then(&Explorer.Series.divide(&1, Explorer.Series.max(&1)))
-
-      {name, normalized}
-    end)
-    |> Explorer.DataFrame.from_map()
+    |> Map.new(&{&1, normalize(&1)})
+    |> then(&Explorer.DataFrame.mutate(df, &1))
   end
 
   defp df_to_tensor(df) do
     df
     |> Explorer.DataFrame.names()
-    |> Enum.reduce(:first, fn
-      name, :first ->
-        df
-        |> Explorer.DataFrame.pull(name)
-        |> Explorer.Series.to_tensor()
-        |> Nx.new_axis(1)
-
-      name, tensor ->
-        df
-        |> Explorer.DataFrame.pull(name)
-        |> Explorer.Series.to_tensor()
-        |> Nx.new_axis(1)
-        |> then(&Nx.concatenate([tensor, &1], axis: 1))
-    end)
+    |> Enum.map(&Explorer.Series.to_tensor(df[&1]) |> Nx.new_axis(-1))
+    |> Nx.concatenate(axis: 1)
   end
 
   defp build_model(num_features) do
@@ -135,11 +119,11 @@ defmodule CreditCardFraud do
     IO.write("\n\n")
 
     legit_transactions_declined = Nx.to_scalar(metrics["fp"])
-    legit_transactions_accepeted = Nx.to_scalar(metrics["tn"])
+    legit_transactions_accepted = Nx.to_scalar(metrics["tn"])
     fraud_transactions_accepted = Nx.to_scalar(metrics["fn"])
     fraud_transactions_declined = Nx.to_scalar(metrics["tp"])
     total_fraud = fraud_transactions_declined + fraud_transactions_accepted
-    total_legit = legit_transactions_declined + legit_transactions_accepeted
+    total_legit = legit_transactions_declined + legit_transactions_accepted
 
     fraud_denial_percent = 100 * (fraud_transactions_declined / total_fraud)
     legit_denial_percent = 100 * (legit_transactions_declined / total_legit)
