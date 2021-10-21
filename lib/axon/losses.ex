@@ -74,6 +74,12 @@ defmodule Axon.Losses do
     * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
       Defaults to `:none`.
 
+    * `:negative_weights` - class weight for `0` class useful for scaling loss
+      by importance of class. Defaults to `1.0`.
+
+    * `:positive_weights` - class weight for `1` class useful for scaling loss
+      by importance of class. Defaults to `1.0`.
+
   ## Examples
 
       iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
@@ -104,12 +110,43 @@ defmodule Axon.Losses do
   defn binary_cross_entropy(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, reduction: :none)
+    opts = keyword!(opts, positive_weight: nil, negative_weight: nil, reduction: :none)
 
-    loss = Nx.mean(-xlogy(y_true, y_pred) - xlogy(1 - y_true, 1 - y_pred), axes: [-1])
+    # The default value of both weights mathematically is 1.0, but we've
+    # initialized them to `nil` so we can match here and avoid this calculation
+    # altogether if necessary. If either of them is set, then we need to set
+    # both and perform this whole thing. If neither is set, we set this to
+    # nil and then avoid the weighted avg later on.
+    weights =
+      transform({y_true, opts[:positive_weight], opts[:negative_weight]}, fn
+        {_, nil, nil} ->
+          nil
+
+        {y_true, pos, nil} ->
+          Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
+
+        {y_true, nil, neg} ->
+          Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
+
+        {y_true, pos, neg} ->
+          Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
+      end)
+
+    loss_before_avg = -xlogy(y_true, y_pred) - xlogy(1 - y_true, 1 - y_pred)
+
+    # Rather than add a redundant multiplication here if there are no weights,
+    # we'll match on the weights value above.
+    possibly_weighted_avg_loss =
+      transform({loss_before_avg, weights}, fn
+        {loss, nil} ->
+          Nx.mean(loss, axes: [-1])
+
+        {loss, weights} ->
+          Nx.mean(weights * loss)
+      end)
 
     transform(
-      {opts[:reduction], loss},
+      {opts[:reduction], possibly_weighted_avg_loss},
       fn
         {:mean, loss} -> Nx.mean(loss)
         {:sum, loss} -> Nx.sum(loss)
@@ -132,6 +169,11 @@ defmodule Axon.Losses do
 
     * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
       Defaults to `:none`.
+
+    * `:class_weights` - 1-D weights tensor corresponding to weight of each
+      class useful for scaling loss according to importance of class. Tensor
+      size must match number of classes in dataset. Defaults to `1.0` for all
+      classes.
 
   ## Examples
 
@@ -163,20 +205,64 @@ defmodule Axon.Losses do
   defn categorical_cross_entropy(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, reduction: :none)
+    opts = keyword!(opts, class_weights: nil, reduction: :none)
 
-    loss =
+    weights =
+      transform({y_true, opts[:class_weights]}, fn
+        {_, nil} ->
+          nil
+
+        {y_true, [_ | _] = class_weights} ->
+          unless Elixir.Kernel.==(length(class_weights), elem(Nx.shape(y_true), 1)) do
+            raise ArgumentError,
+                  "expected class weights to be a 1-dimensional list" <>
+                    " with size equal to the number of classes present" <>
+                    " in dataset, got #{inspect(class_weights)} for data" <>
+                    " with #{inspect(elem(Nx.shape(y_true), 1))} classes"
+          end
+
+          Nx.take(Nx.tensor(class_weights, backend: Nx.Defn.Expr), Nx.argmax(y_true, axis: 1))
+
+        {_, invalid} ->
+          raise ArgumentError,
+                "expected class weights to be a 1-dimensional list" <>
+                  " with size equal to the number of classes present" <>
+                  " in dataset, got #{inspect(invalid)} for data" <>
+                  " with #{inspect(elem(Nx.shape(y_true), 1))} classes"
+      end)
+
+    loss_before_avg =
       y_true
       |> xlogy(y_pred)
-      |> Nx.sum(axes: [-1])
       |> Nx.negate()
+      |> Nx.sum(axes: [-1])
+
+    possibly_weighted_avg_loss =
+      transform({weights, loss_before_avg}, fn
+        {nil, loss} ->
+          loss
+
+        {weights, loss} ->
+          weights * loss
+      end)
 
     transform(
-      {opts[:reduction], loss},
+      {opts[:reduction], weights, possibly_weighted_avg_loss},
       fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
+        {:mean, weights, loss} ->
+          case weights do
+            nil ->
+              Nx.mean(loss)
+
+            weights ->
+              Nx.sum(loss) / Nx.sum(weights)
+          end
+
+        {:sum, _, loss} ->
+          Nx.sum(loss)
+
+        {:none, _, loss} ->
+          loss
       end
     )
   end
