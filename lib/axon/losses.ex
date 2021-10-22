@@ -64,6 +64,14 @@ defmodule Axon.Losses do
 
   $$l_i = -\frac{1}{2}(\hat{y_i} \cdot \log(y_i) + (1 - \hat{y_i}) \cdot \log(1 - y_i))$$
 
+  Binary cross-entropy loss is most often used in binary classification problems.
+  By default, it expects `y_pred` to encode probabilities from `[0.0, 1.0]`, typically
+  as the output of the sigmoid function or another function which squeezes values
+  between 0 and 1. You may optionally set `from_logits: true` to specify that values
+  are being sent as non-normalized values (e.g. weights with possibly infinite range).
+  In this case, input values will be encoded as probabilities by applying the logistic
+  sigmoid function before computing loss.
+
   ## Argument Shapes
 
     * `y_true` - $\(d_0, d_1, ..., d_n\)$
@@ -79,6 +87,8 @@ defmodule Axon.Losses do
 
     * `:positive_weights` - class weight for `1` class useful for scaling loss
       by importance of class. Defaults to `1.0`.
+
+    * `:from_logits` - whether `y_pred` is a logits tensor. Defaults to `false`.
 
   ## Examples
 
@@ -110,7 +120,24 @@ defmodule Axon.Losses do
   defn binary_cross_entropy(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, positive_weight: nil, negative_weight: nil, reduction: :none)
+    opts =
+      keyword!(opts,
+        positive_weight: nil,
+        negative_weight: nil,
+        reduction: :none,
+        from_logits: false
+      )
+
+    # If y_pred is sent as a logits tensor, we need to encode input values
+    # as probabilities by applying the element-wise logistic sigmoid.
+    y_pred =
+      transform({y_pred, opts[:from_logits]}, fn {y_pred, logits} ->
+        if logits do
+          Nx.logistic(y_pred)
+        else
+          y_pred
+        end
+      end)
 
     # The default value of both weights mathematically is 1.0, but we've
     # initialized them to `nil` so we can match here and avoid this calculation
@@ -160,6 +187,14 @@ defmodule Axon.Losses do
 
   $$l_i = -\sum_i^C \hat{y_i} \cdot \log(y_i)$$
 
+  Categorical cross-entropy is typically used for multi-class classifcation problems.
+  By default, it expects `y_pred` to encode a probability distribution along the last
+  axis. You can specify `from_logits: true` to indicate `y_pred` is a logits tensor.
+      
+      # Batch size of 3 with 3 target classes
+      y_true = Nx.tensor([0, 2, 1])
+      y_pred = Nx.tensor([[0.2, 0.8, 0.0], [0.1, 0.2, 0.7], [0.1, 0.2, 0.7]])
+
   ## Argument Shapes
 
     * `y_true` - $\(d_0, d_1, ..., d_n\)$
@@ -170,10 +205,12 @@ defmodule Axon.Losses do
     * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
       Defaults to `:none`.
 
-    * `:class_weights` - 1-D weights tensor corresponding to weight of each
+    * `:class_weights` - 1-D list corresponding to weight of each
       class useful for scaling loss according to importance of class. Tensor
       size must match number of classes in dataset. Defaults to `1.0` for all
       classes.
+
+    * `:from_logits` - whether `y_pred` is a logits tensor. Defaults to `false`.
 
   ## Examples
 
@@ -205,15 +242,33 @@ defmodule Axon.Losses do
   defn categorical_cross_entropy(y_true, y_pred, opts \\ []) do
     assert_shape!(y_true, y_pred)
 
-    opts = keyword!(opts, class_weights: nil, reduction: :none)
+    opts = keyword!(opts, class_weights: nil, reduction: :none, from_logits: false)
 
+    # If y_pred is a logits tensor, we need to compute softmax along
+    # last dimension in order to encode a probability distribution
+    y_pred =
+      transform({y_pred, opts[:from_logits]}, fn {y_pred, logits} ->
+        if logits do
+          Axon.Activations.softmax(y_pred, axis: -1)
+        else
+          y_pred
+        end
+      end)
+
+    # As with binary cross entropy, we try to avoid the weights calculations
+    # if they are unnecessary. We also have to do some input validation to
+    # ensure the passed weights are correct for the given targets. The length
+    # of the weights list must match the size of the last dimension of the targets.
     weights =
       transform({y_true, opts[:class_weights]}, fn
         {_, nil} ->
           nil
 
         {y_true, [_ | _] = class_weights} ->
-          unless Elixir.Kernel.==(length(class_weights), elem(Nx.shape(y_true), 1)) do
+          unless Elixir.Kernel.==(
+                   length(class_weights),
+                   elem(Nx.shape(y_true), Nx.rank(y_true) - 1)
+                 ) do
             raise ArgumentError,
                   "expected class weights to be a 1-dimensional list" <>
                     " with size equal to the number of classes present" <>
