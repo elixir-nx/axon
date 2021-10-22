@@ -16,6 +16,14 @@ defmodule Axon.LossesTest do
              ) ==
                Nx.tensor(0.5468282103538513)
     end
+
+    test "supports from_logits" do
+      y_true = Nx.tensor([0, 1, 0, 1, 0])
+      y_pred = Nx.tensor([15.0, -10.0, 6.0, 2.0, -1.0])
+
+      assert Axon.Losses.binary_cross_entropy(y_true, y_pred, from_logits: true, reduction: :mean) ==
+               Nx.tensor(6.293759822845459)
+    end
   end
 
   describe "categorical_cross_entropy" do
@@ -38,6 +46,17 @@ defmodule Axon.LossesTest do
                class_weights: weights,
                reduction: :sum
              ) == Nx.tensor(0.4216810464859009)
+    end
+
+    test "supports from_logits" do
+      y_true = Nx.tensor([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+      y_pred = Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+
+      assert Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+               from_logits: true,
+               reduction: :mean
+             ) ==
+               Nx.tensor(7.562242031097412)
     end
   end
 end
