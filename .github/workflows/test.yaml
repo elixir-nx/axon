@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install ONNX
-        run: pip install numpy onnx onnxruntime
+        run: pip3 install numpy onnx onnxruntime
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
