@@ -3416,4 +3416,62 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, input) == Nx.sin(input)
     end
   end
+
+  describe "cond" do
+    test "initializes with no params" do
+      inp = Axon.input({nil, 1})
+      on_true = Axon.relu(inp)
+      on_false = Axon.sigmoid(inp)
+      cond_fn = fn x -> Nx.all?(x) end
+      model = Axon.cond(inp, cond_fn, on_true, on_false)
+
+      assert {init_fn, _} = Axon.compile(model)
+      assert %{} == init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      inp = Axon.input({nil, 2})
+      on_true = Axon.relu(inp)
+      on_false = Axon.sigmoid(inp)
+      cond_fn = fn x -> Nx.all?(x) end
+
+      input_1 = Nx.tensor([[1.0, 1.0]])
+      input_2 = Nx.tensor([[0.0, 0.0]])
+
+      model = Axon.cond(inp, cond_fn, on_true, on_false)
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input_1) == Axon.Activations.relu(input_1)
+      assert predict_fn.(%{}, input_2) == Axon.Activations.sigmoid(input_2)
+    end
+
+    test "computes forward pass with output policy" do
+      inp = Axon.input({nil, 1, 32})
+      on_true = Axon.relu(inp)
+      on_false = Axon.sigmoid(inp)
+      cond_fn = fn x -> Nx.all?(x) end
+      model1 = Axon.cond(inp, cond_fn, on_true, on_false)
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model1, policy)
+
+      input1_1 = Nx.random_uniform({1, 1, 32})
+
+      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(%{}, input1_1)) == {:bf, 16}
+    end
+
+    test "raises on bad condition" do
+      inp = Axon.input({nil, 1, 10})
+      on_true = Axon.relu(inp)
+      on_false = Axon.sigmoid(inp)
+      cond_fn = fn x -> Nx.equal(x, 1) end
+
+      model = Axon.cond(inp, cond_fn, on_true, on_false)
+
+      assert_raise Axon.CompilerError, ~r/error while building prediction/, fn ->
+        {_, predict_fn} = Axon.compile(model)
+        predict_fn.(%{}, Nx.random_uniform({1, 1, 10}))
+      end
+    end
+  end
 end
