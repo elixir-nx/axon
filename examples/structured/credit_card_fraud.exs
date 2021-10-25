@@ -1,5 +1,5 @@
 Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:axon, path: "."},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
   {:nx, path: "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
   {:explorer, "~> 0.1.0-dev", github: "elixir-nx/explorer"}
@@ -190,11 +190,8 @@ defmodule CreditCardFraud do
       positive_weight: 1 / fraud,
       reduction: :mean
     )
-    # The loss is very small, so we need to also change these numerical
-    # stability terms because they end up impacting training rather
-    # significantly. Be careful adjusting as it may result in NaN/Inf
-    # poisoning or poor training convergence.
-    optimizer = Axon.Optimizers.adam(1.0e-2, eps: 1.0e-8, eps_root: 1.0e-9)
+
+    optimizer = Axon.Optimizers.adam(1.0e-2)
 
     model
     |> train_model(loss, optimizer, batched_train)
