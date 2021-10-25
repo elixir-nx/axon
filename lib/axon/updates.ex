@@ -135,7 +135,7 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale_by_adam(x, %{mu: mu, nu: nu, count: count}, _params, opts \\ []) do
-    opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 1.0e-9)
+    opts = keyword!(opts, b1: 0.9, b2: 0.999, eps: 1.0e-8, eps_root: 1.0e-15)
     b1 = opts[:b1]
     b2 = opts[:b2]
     eps = opts[:eps]

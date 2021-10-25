@@ -127,18 +127,6 @@ defmodule Axon.Losses do
         reduction: :none,
         from_logits: false
       )
-
-    # If y_pred is sent as a logits tensor, we need to encode input values
-    # as probabilities by applying the element-wise logistic sigmoid.
-    y_pred =
-      transform({y_pred, opts[:from_logits]}, fn {y_pred, logits} ->
-        if logits do
-          Nx.logistic(y_pred)
-        else
-          y_pred
-        end
-      end)
-
     # The default value of both weights mathematically is 1.0, but we've
     # initialized them to `nil` so we can match here and avoid this calculation
     # altogether if necessary. If either of them is set, then we need to set
@@ -159,7 +147,31 @@ defmodule Axon.Losses do
           Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
       end)
 
-    loss_before_avg = -xlogy(y_true, y_pred) - xlogy(1 - y_true, 1 - y_pred)
+    loss_before_avg =
+      transform({opts[:from_logits], y_true, y_pred}, fn
+        {true, y_true, y_pred} ->
+          sigmoid_cross_entropy_from_logits(y_true, y_pred)
+
+        {false, y_true, y_pred} ->
+          case y_pred do
+            %Nx.Tensor{data: %Nx.Defn.Expr{op: :logistic}} ->
+              # This is the path Keras takes when the output is a sigmoid
+              # and it seems to be the more numerically stable path in those
+              # cases, so we do the same thing here
+              sigmoid_cross_entropy_from_logits(y_true, y_pred)
+
+            _ ->
+              # Otherwise we compute BCE with this path
+              eps = 1.0e-7
+              y_pred = Nx.clip(y_pred, eps, 1 - eps)
+
+              # Compute cross entropy loss
+              p = y_true * Nx.log(y_pred + eps)
+              not_p = (1 - y_true) * Nx.log(1 - y_pred + eps)
+
+              Nx.negate(p + not_p)
+          end
+      end)
 
     # Rather than add a redundant multiplication here if there are no weights,
     # we'll match on the weights value above.
@@ -180,6 +192,12 @@ defmodule Axon.Losses do
         {:none, loss} -> loss
       end
     )
+  end
+
+  defnp sigmoid_cross_entropy_from_logits(y_true, y_pred) do
+    log_p = Axon.Activations.log_sigmoid(y_pred)
+    log_not_p = Axon.Activations.log_sigmoid(-y_pred)
+    -y_true * log_p - (1 - y_true) * log_not_p
   end
 
   @doc ~S"""
