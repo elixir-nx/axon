@@ -7,7 +7,7 @@ Axon consists of the following components:
   * Functional API – A low-level API of numerical definitions (defn) of which all other APIs build on.
   * Model Creation API – A high-level model creation API which manages model initialization and application.
   * Optimization API – An API for creating and using first-order optimization techniques based on the [Optax](https://github.com/deepmind/optax) library.
-  * Training API – An API for quickly training models, inspired by [PyTorch Lightning](https://www.pytorchlightning.ai/).
+  * Training API – An API for quickly training models, inspired by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
 
 Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network.
 
@@ -74,21 +74,27 @@ Both macros are valid inside `defn`, meaning you can easily integrate model exec
 
 Axon currently has support for:
 
-* Linear layers (dense)
+* Linear layers (dense, bilinear, embedding)
 * Dropout layers (dropout, feature_alpha_dropout, alpha_dropout, spatial_dropout)
-* Convolutional Layers (conv, depthwise_conv, separable_conv2d, separable_conv3d)
+* Convolutional Layers (conv, conv_transpose, depthwise_conv, separable_conv2d, separable_conv3d)
+* Recurrent Layers (gru, lstm, conv_lstm)
 * Normalization Layers (batch_norm, layer_norm, group_norm, instance_norm)
-* Pooling Layers (max_pool, avg_pool, lp_pool, adaptive_max_pool, adaptive_avg_pool)
+* Pooling Layers (max_pool, avg_pool, lp_pool, adaptive_max_pool, adaptive_avg_pool, adaptive_lp_pool, global_max_pool, global_avg_pool, global_lp_pool)
 * Activation Layers (every function in Axon.Activations)
-* Utilities/combinators (flatten, add, multiply, subtract, concatenate)
+* Utilities/combinators (flatten, add, multiply, subtract, concatenate, pad, nx, reshape, transpose)
 
 with plans to support recurrent layers, attention layers, and many more. Our goal is to maintain an API that is productive, extensible, and on par with other modern deep learning frameworks. If there is functionality you need to see that’s not included on the roadmap, feel free to open an issue.
 
 ### Optimization and training
 
-The purpose of the training API is to provide conveniences and common routines for implementing training loops. The API is partly inspired by the excellent PyTorch Lightning library.
+The purpose of the training API is to provide conveniences and common routines for implementing training loops. The API is inspired by the excellent PyTorch Ignite library.
 
-Currently the Axon training API consists of 2 methods: `Axon.Training.step` and `Axon.Training.train`. In practice, you can use these methods to train an Axon model like this:
+The general pattern for training a model is:
+  
+  1) Define model
+  2) Define loop using one of the factory methods (here `Axon.Loop.trainer/3`)
+  3) Instrument loop with metrics and event handlers
+  4) Run loop on data
 
 ```elixir
 model =
@@ -96,10 +102,12 @@ model =
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 
-trained_params =
+model_state =
   model
-  |> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
-  |> Axon.Training.train(inputs, targets, epochs: 10, compiler: EXLA)
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+  |> Axon.Loop.metric(:accuracy)
+  |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 50)
+  |> Axon.Loop.run(data, epochs: 10, compiler: EXLA)
 ```
 
 The step expects an optimizer as argument. The following are currently supported:
@@ -118,13 +126,7 @@ The step expects an optimizer as argument. The following are currently supported
 
 It’s important to note that optimization API does not directly depend on Axon models. You can use the API to optimize any differentiable objective function.
 
-Axon.Training.train implements a common training loop which initializes the training state and iterates through the training set for some given number of epochs. It returns the final training state for serialization and potential use in inference workloads. Currently, the Axon training API is rather limited; however, there are plans to extend it. In the immediate future, we plan to support:
-
-* Validation and Testing Integration
-* Logging to tools like TensorBoard
-* Inclusion of Train/Validate/Test Metrics
-
-Additionally, we would love to explore more advanced things like distributed training. We are also seeking ways to improve the performance of our training loops by running them entirely on native accelerators.
+In the future we plan to support distributed training loops. We are also seeking ways to improve the performance of our training loops by running them entirely on native accelerators.
 
 ## Installation
 
