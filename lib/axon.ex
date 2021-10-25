@@ -1214,7 +1214,7 @@ defmodule Axon do
     expr = Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
     output_shape = Tuple.insert_at(expr.shape, 0, batch_size)
 
-    layer(x, fun, output_shape, %{}, opts[:name])
+    layer(x, :nx, output_shape, %{}, opts[:name], fun: fun)
   end
 
   @doc """

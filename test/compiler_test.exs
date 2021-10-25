@@ -3406,4 +3406,14 @@ defmodule CompilerTest do
       assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
     end
   end
+
+  describe "nx" do
+    test "computes special nx functions" do
+      model = Axon.input({nil, 10}) |> Axon.nx(&Nx.sin/1)
+      input = Nx.random_uniform({1, 10})
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input) == Nx.sin(input)
+    end
+  end
 end
