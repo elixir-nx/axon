@@ -1320,4 +1320,47 @@ defmodule Axon.Shape do
 
     {elem(shape, 0), 1, units}
   end
+
+  @doc """
+  Calculates the base shape and slice size of a split operation.
+
+  ## Examples
+
+      iex> Axon.Shape.split({nil, 1, 10}, 2, -1)
+      {5, {nil, 1, 5}}
+
+      iex> Axon.Shape.split({32, 1, 10}, 16, 0)
+      {2, {2, 1, 10}}
+
+  ### Error cases
+
+      iex> Axon.Shape.split({nil, 1, 10}, 2, 0)
+      ** (ArgumentError) cannot split along batch dimension with dynamic batch size, please provide a static (non-nil) batch size
+
+      iex> Axon.Shape.split({nil, 5, 10}, 2, 1)
+      ** (ArgumentError) unable to create 2 even splits along axis 1 of size 5
+  """
+  def split(shape, n, axis) do
+    nil_names = List.duplicate(nil, Nx.rank(shape))
+    non_nil_shape = if elem(shape, 0) == nil, do: put_elem(shape, 0, 1), else: shape
+
+    axis = Nx.Shape.normalize_axis(non_nil_shape, axis, nil_names)
+
+    if axis == 0 and elem(shape, 0) == nil do
+      raise ArgumentError,
+            "cannot split along batch dimension with dynamic" <>
+              " batch size, please provide a static (non-nil)" <>
+              " batch size"
+    end
+
+    unless rem(elem(shape, axis), n) == 0 do
+      raise ArgumentError,
+            "unable to create #{n} even splits along axis #{axis}" <>
+              " of size #{elem(shape, axis)}"
+    end
+
+    slice_size = div(elem(shape, axis), n)
+
+    {slice_size, put_elem(shape, axis, slice_size)}
+  end
 end
