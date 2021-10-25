@@ -1387,6 +1387,27 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a conditional layer which conditionally executes
+  `true_graph` or `false_graph` based on the condition `cond_fn`
+  at runtime.
+
+  `cond_fn` is an arity-1 function executed on the output of the
+  parent graph. It must return a boolean scalar tensor (e.g. 1 or 0).
+
+  The shapes of `true_graph` and `false_graph` must be equal.
+  """
+  def cond(
+        %Axon{} = parent,
+        cond_fn,
+        %Axon{output_shape: out_shape} = true_graph,
+        %Axon{output_shape: out_shape} = false_graph,
+        opts \\ []
+      )
+      when is_function(cond_fn, 1) do
+    layer([parent, true_graph, false_graph], :cond, out_shape, %{}, opts[:name], cond: cond_fn)
+  end
+
+  @doc """
   Adds a long short-term memory (LSTM) layer to the network.
 
   LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input

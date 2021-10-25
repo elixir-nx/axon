@@ -1709,4 +1709,15 @@ defmodule Axon.Layers do
     new_shape = transform(Nx.shape(x), &Axon.Shape.flatten/1)
     Nx.reshape(x, new_shape)
   end
+
+  @doc false
+  # Internal helper for constructing conditional layers without
+  # needing to use the if-macros in Axon.Compiler
+  defn cond(cond_expr, on_true_expr, on_false_expr) do
+    if cond_expr do
+      on_true_expr
+    else
+      on_false_expr
+    end
+  end
 end

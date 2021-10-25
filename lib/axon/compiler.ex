@@ -14,6 +14,7 @@ end
 defmodule Axon.Compiler do
   @moduledoc false
   require Logger
+  require Nx.Defn.Kernel
 
   import Axon.Shared
 
@@ -1095,6 +1096,46 @@ defmodule Axon.Compiler do
     res = Nx.as_type(apply(Nx, :concatenate, [inps, [axis: axis]]), output)
 
     {res, Map.put(cache, id, res)}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           id: id,
+           op: :cond,
+           parent: parents,
+           opts: [cond: cond_fn],
+           policy: %{compute: compute, output: output}
+         },
+         cache,
+         input_map,
+         params,
+         inputs,
+         mode
+       ) do
+    {exprs, cache} =
+      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+
+    [cond_input_expr, true_expr, false_expr] = exprs
+
+    cond_expr = cond_fn.(cond_input_expr)
+    cond_rank = Nx.rank(cond_expr)
+    cond_type = Nx.type(cond_expr)
+
+    unless cond_rank == 0 and cond_type == {:u, 8} do
+      raise Axon.CompilerError,
+            "cond_fn must return a scalar-boolean tensor" <>
+              " got result with rank #{inspect(cond_rank)} and" <>
+              " type #{inspect(cond_type)}"
+    end
+
+    res =
+      Axon.Layers.cond(
+        Nx.all?(cond_expr),
+        Nx.as_type(true_expr, compute),
+        Nx.as_type(false_expr, compute)
+      )
+
+    {Nx.as_type(res, output), Map.put(cache, id, res)}
   end
 
   ## Special Layers
