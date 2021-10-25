@@ -14,7 +14,6 @@ end
 defmodule Axon.Compiler do
   @moduledoc false
   require Logger
-  require Nx.Defn.Kernel
 
   import Axon.Shared
 
