@@ -3474,4 +3474,28 @@ defmodule CompilerTest do
       end
     end
   end
+
+  describe "split" do
+    test "initializes with no parameters" do
+      model = Axon.input({nil, 10}) |> Axon.split(5)
+
+      assert {init_fn, _} = Axon.compile(model)
+      assert init_fn.() == %{}
+    end
+
+    test "computes forward pass with default options" do
+      model = Axon.input({nil, 10}) |> Axon.split(5)
+      input = Nx.iota({1, 10}, type: {:f, 32})
+
+      assert {_, predict_fn} = Axon.compile(model)
+
+      assert predict_fn.(%{}, input) == {
+               Nx.tensor([[0.0, 1.0]]),
+               Nx.tensor([[2.0, 3.0]]),
+               Nx.tensor([[4.0, 5.0]]),
+               Nx.tensor([[6.0, 7.0]]),
+               Nx.tensor([[8.0, 9.0]])
+             }
+    end
+  end
 end

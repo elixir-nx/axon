@@ -1408,6 +1408,28 @@ defmodule Axon do
   end
 
   @doc """
+  Splits input graph into a container of `n` input graphs
+  along the given axis.
+  """
+  def split(%Axon{output_shape: shape} = parent, n, opts \\ []) do
+    axis = opts[:axis] || -1
+    {slice_size, split_shape} = Axon.Shape.split(shape, n, axis)
+
+    splits =
+      for i <- 0..(n - 1) do
+        layer(
+          parent,
+          fn x, _ -> Nx.slice_axis(x, i * slice_size, slice_size, axis) end,
+          split_shape,
+          %{},
+          opts[:name]
+        )
+      end
+
+    List.to_tuple(splits)
+  end
+
+  @doc """
   Adds a long short-term memory (LSTM) layer to the network.
 
   LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
