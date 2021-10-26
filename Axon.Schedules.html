@@ -10,7 +10,7 @@
     <title>Axon.Schedules — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
 
-    <script src="dist/sidebar_items-09e55d8436.js"></script>
+    <script src="dist/sidebar_items-1aef5747f5.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -122,7 +122,7 @@ any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inl
     </h2>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#constant/2">constant(arg1, opts \\ [])</a>
+    <a href="#constant/1">constant(opts \\ [])</a>
 
   </div>
 
@@ -131,7 +131,7 @@ any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inl
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#cosine_decay/2">cosine_decay(step, opts \\ [])</a>
+    <a href="#cosine_decay/1">cosine_decay(opts \\ [])</a>
 
   </div>
 
@@ -140,7 +140,7 @@ any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inl
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#exponential_decay/2">exponential_decay(step, opts \\ [])</a>
+    <a href="#exponential_decay/1">exponential_decay(opts \\ [])</a>
 
   </div>
 
@@ -149,7 +149,7 @@ any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inl
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#polynomial_decay/2">polynomial_decay(step, opts \\ [])</a>
+    <a href="#polynomial_decay/1">polynomial_decay(opts \\ [])</a>
 
   </div>
 
@@ -171,18 +171,18 @@ any supported <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.html"><code class="inl
 Functions
           </h1>
           <div class="functions-list">
-<section class="detail" id="constant/2">
+<section class="detail" id="constant/1">
 
-    <span id="constant/1"></span>
+    <span id="constant/0"></span>
 
   <div class="detail-header">
-    <a href="#constant/2" class="detail-link" title="Link to this function">
+    <a href="#constant/1" class="detail-link" title="Link to this function">
       <span class="icon-link" aria-hidden="true"></span>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature">constant(arg1, opts \\ [])</h1>
+    <h1 class="signature">constant(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L140" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -192,26 +192,26 @@ Functions
 
   <section class="docstring">
 
-<p>Constant schedule.</p><p>$$\gamma(t) = \gamma_0$$</p><h2 id="constant/2-options" class="section-heading">
-  <a href="#constant/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+<p>Constant schedule.</p><p>$$\gamma(t) = \gamma_0$$</p><h2 id="constant/1-options" class="section-heading">
+  <a href="#constant/1-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
 </h2>
 <ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$ in above formulation.
 Defaults to <code class="inline">1.0e-2</code></li></ul>
   </section>
 </section>
-<section class="detail" id="cosine_decay/2">
+<section class="detail" id="cosine_decay/1">
 
-    <span id="cosine_decay/1"></span>
+    <span id="cosine_decay/0"></span>
 
   <div class="detail-header">
-    <a href="#cosine_decay/2" class="detail-link" title="Link to this function">
+    <a href="#cosine_decay/1" class="detail-link" title="Link to this function">
       <span class="icon-link" aria-hidden="true"></span>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature">cosine_decay(step, opts \\ [])</h1>
+    <h1 class="signature">cosine_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L107" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -221,32 +221,32 @@ Defaults to <code class="inline">1.0e-2</code></li></ul>
 
   <section class="docstring">
 
-<p>Cosine decay schedule.</p><p>$$\gamma(t) = \gamma_0 <em> (1 - \alpha)</em>(\frac{1}{2}(1 + \cos{\pi \frac{t}{k}})) + \alpha$$</p><h2 id="cosine_decay/2-options" class="section-heading">
-  <a href="#cosine_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+<p>Cosine decay schedule.</p><p>$$\gamma(t) = \gamma_0 <em> (1 - \alpha)</em>(\frac{1}{2}(1 + \cos{\pi \frac{t}{k}})) + \alpha$$</p><h2 id="cosine_decay/1-options" class="section-heading">
+  <a href="#cosine_decay/1-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
 </h2>
 <ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$  in above formulation.
 Defaults to <code class="inline">1.0e-2</code></li><li><code class="inline">:decay_steps</code> - number of steps to apply decay for.
 $k$ in above formulation. Defaults to <code class="inline">10</code></li><li><code class="inline">:alpha</code> - minium value of multiplier adjusting learning rate.
-$\alpha$ in above formulation. Defaults to <code class="inline">0.0</code></li></ul><h2 id="cosine_decay/2-references" class="section-heading">
-  <a href="#cosine_decay/2-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+$\alpha$ in above formulation. Defaults to <code class="inline">0.0</code></li></ul><h2 id="cosine_decay/1-references" class="section-heading">
+  <a href="#cosine_decay/1-references" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   References
 </h2>
 <ul><li><a href="https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx">SGDR: Stochastic Gradient Descent with Warm Restarts</a></li></ul>
   </section>
 </section>
-<section class="detail" id="exponential_decay/2">
+<section class="detail" id="exponential_decay/1">
 
-    <span id="exponential_decay/1"></span>
+    <span id="exponential_decay/0"></span>
 
   <div class="detail-header">
-    <a href="#exponential_decay/2" class="detail-link" title="Link to this function">
+    <a href="#exponential_decay/1" class="detail-link" title="Link to this function">
       <span class="icon-link" aria-hidden="true"></span>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature">exponential_decay(step, opts \\ [])</h1>
+    <h1 class="signature">exponential_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L44" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -256,8 +256,8 @@ $\alpha$ in above formulation. Defaults to <code class="inline">0.0</code></li><
 
   <section class="docstring">
 
-<p>Exponential decay schedule.</p><p>$$\gamma(t) = \gamma_0 * r^{\frac{t}{k}}$$</p><h2 id="exponential_decay/2-options" class="section-heading">
-  <a href="#exponential_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+<p>Exponential decay schedule.</p><p>$$\gamma(t) = \gamma_0 * r^{\frac{t}{k}}$$</p><h2 id="exponential_decay/1-options" class="section-heading">
+  <a href="#exponential_decay/1-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
 </h2>
 <ul><li><code class="inline">:init_value</code> - inital value. $\gamma$ in above formulation.
@@ -266,18 +266,18 @@ Defaults to <code class="inline">0.95</code></li><li><code class="inline">:trans
 formulation. Defaults to <code class="inline">10</code></li><li><code class="inline">:transition_begin</code> - step to begin transition. Defaults to <code class="inline">0</code></li><li><code class="inline">:staircase</code> - discretize outputs. Defaults to <code class="inline">false</code></li></ul>
   </section>
 </section>
-<section class="detail" id="polynomial_decay/2">
+<section class="detail" id="polynomial_decay/1">
 
-    <span id="polynomial_decay/1"></span>
+    <span id="polynomial_decay/0"></span>
 
   <div class="detail-header">
-    <a href="#polynomial_decay/2" class="detail-link" title="Link to this function">
+    <a href="#polynomial_decay/1" class="detail-link" title="Link to this function">
       <span class="icon-link" aria-hidden="true"></span>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature">polynomial_decay(step, opts \\ [])</h1>
+    <h1 class="signature">polynomial_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L0" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/schedules.ex#L165" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -287,8 +287,8 @@ formulation. Defaults to <code class="inline">10</code></li><li><code class="inl
 
   <section class="docstring">
 
-<p>Polynomial schedule.</p><p>$$\gamma(t) = (\gamma_0 - \gamma_n) * (1 - \frac{t}{k})^p$$</p><h2 id="polynomial_decay/2-options" class="section-heading">
-  <a href="#polynomial_decay/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+<p>Polynomial schedule.</p><p>$$\gamma(t) = (\gamma_0 - \gamma_n) * (1 - \frac{t}{k})^p$$</p><h2 id="polynomial_decay/1-options" class="section-heading">
+  <a href="#polynomial_decay/1-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
 </h2>
 <ul><li><code class="inline">:init_value</code> - initial value. $\gamma_0$ in above formulation.
