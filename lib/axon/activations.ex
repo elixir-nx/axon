@@ -377,6 +377,22 @@ defmodule Axon.Activations do
   """
   defn log_sigmoid(x), do: -softplus(-x)
 
+  @doc """
+  Log-softmax activation.
+  """
+  defn log_softmax(x, opts \\ []) do
+    opts = keyword!(opts, axis: 1)
+
+    shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+
+    shifted
+    |> Nx.exp()
+    |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+    |> Nx.log()
+    |> Nx.negate()
+    |> Nx.add(shifted)
+  end
+
   @doc ~S"""
   Mish activation.
 
@@ -476,20 +492,22 @@ defmodule Axon.Activations do
       iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970285415649, 0.9525741338729858]
+        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970881462097, 0.9525741338729858]
       >
 
       iex> Axon.Activations.sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.26953125, 0.119140625, 0.047607421875],
-          [0.73046875, 0.87890625, 0.953125]
+          [0.267578125, 0.119140625, 0.04736328125],
+          [0.73046875, 0.87890625, 0.94921875]
         ]
       >
 
   """
   defn sigmoid(x) do
+    # Cache logits so they are available in certain calculations,
+    # e.g. binary_cross_entropy and categorical_cross_entropy
     transform(Nx.logistic(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
   end
 
@@ -623,10 +641,15 @@ defmodule Axon.Activations do
       |> Nx.subtract(max_val)
       |> Nx.exp()
 
-    stable_exp
-    |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
-    |> reciprocal()
-    |> Nx.multiply(stable_exp)
+    res =
+      stable_exp
+      |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+      |> reciprocal()
+      |> Nx.multiply(stable_exp)
+
+    # Cache logits so they are available in certain calculations,
+    # e.g. binary_cross_entropy and categorical_cross_entropy
+    transform(res, &Nx.Defn.Expr.metadata(&1, %{logits: x}))
   end
 
   @doc ~S"""
