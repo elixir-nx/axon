@@ -41,7 +41,11 @@ defmodule Axon.Schedules do
     * `:staircase` - discretize outputs. Defaults to `false`
 
   """
-  defn exponential_decay(step, opts \\ []) do
+  def exponential_decay(opts \\ []) do
+    &apply_exponential_decay(&1, opts)
+  end
+
+  defnp apply_exponential_decay(step, opts \\ []) do
     opts =
       keyword!(opts,
         init_value: 1.0e-2,
@@ -100,7 +104,11 @@ defmodule Axon.Schedules do
     * [SGDR: Stochastic Gradient Descent with Warm Restarts](https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx)
 
   """
-  defn cosine_decay(step, opts \\ []) do
+  def cosine_decay(opts \\ []) do
+    &apply_cosine_decay(&1, opts)
+  end
+
+  defnp apply_cosine_decay(step, opts \\ []) do
     opts = keyword!(opts, init_value: 1.0e-2, decay_steps: 10, alpha: 0.0)
     init_value = opts[:init_value]
     decay_steps = opts[:decay_steps]
@@ -129,7 +137,11 @@ defmodule Axon.Schedules do
       Defaults to `1.0e-2`
 
   """
-  defn constant(_step, opts \\ []) do
+  def constant(opts \\ []) do
+    &apply_constant(&1, opts)
+  end
+
+  defnp apply_constant(_step, opts \\ []) do
     opts = keyword!(opts, init_value: 0.01)
     Nx.tensor(opts[:init_value])
   end
@@ -150,7 +162,11 @@ defmodule Axon.Schedules do
       $k$ in above formulation. Defaults to `10`
 
   """
-  defn polynomial_decay(step, opts \\ []) do
+  def polynomial_decay(opts \\ []) do
+    &apply_polynomial_decay(&1, opts)
+  end
+
+  defnp apply_polynomial_decay(step, opts \\ []) do
     opts =
       keyword!(opts,
         init_value: 1.0e-2,

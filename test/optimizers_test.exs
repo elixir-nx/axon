@@ -24,6 +24,15 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.adabelief(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
   end
 
   describe "adagrad" do
@@ -38,6 +47,15 @@ defmodule OptimizersTest do
 
     test "correctly optimizes simple loss with custom options" do
       optimizer = Axon.Optimizers.adagrad(@learning_rate, eps: 1.0e-3)
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.adagrad(Axon.Schedules.constant(init_value: @learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -64,6 +82,15 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.adam(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
   end
 
   describe "adamw" do
@@ -78,6 +105,15 @@ defmodule OptimizersTest do
 
     test "correctly optimizes simple loss with custom options" do
       optimizer = Axon.Optimizers.adamw(@learning_rate, decay: 0.9)
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.adamw(Axon.Schedules.constant(init_value: @learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -104,6 +140,12 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "raises with schedule" do
+      assert_raise ArgumentError, ~r/fromage/, fn ->
+        Axon.Optimizers.fromage(Axon.Schedules.constant(init_value: @learning_rate))
+      end
+    end
   end
 
   describe "lamb" do
@@ -124,9 +166,18 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.lamb(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor([1.0])}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
   end
 
-  describe "noise_sgd" do
+  describe "noisy_sgd" do
     test "correctly optimizes simple loss with default options" do
       optimizer = Axon.Optimizers.noisy_sgd(@learning_rate)
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
@@ -141,6 +192,15 @@ defmodule OptimizersTest do
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor([1.0])}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.noisy_sgd(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
@@ -161,6 +221,15 @@ defmodule OptimizersTest do
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor([1.0])}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.radam(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
@@ -206,6 +275,15 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.rmsprop(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
   end
 
   describe "sgd" do
@@ -226,6 +304,15 @@ defmodule OptimizersTest do
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.sgd(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
   end
 
   describe "yogi" do
@@ -243,6 +330,15 @@ defmodule OptimizersTest do
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor([1.0])}
+
+      check_optimizer!(optimizer, loss_fn, x0, num_steps)
+    end
+
+    test "correctly optimizes simple loss with schedule" do
+      optimizer = Axon.Optimizers.yogi(Axon.Schedules.constant(init_value: @learning_rate))
+      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
+      num_steps = @iterations
+      x0 = %{"x0" => Nx.tensor(1.0)}
 
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end

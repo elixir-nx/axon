@@ -369,7 +369,7 @@ defmodule Axon.Updates do
         deep_new(x, fn {k, x} -> {k, x * step_size} end)
       end)
 
-    {updates, {count + 1}}
+    {updates, %{count: count + 1}}
   end
 
   @doc """
