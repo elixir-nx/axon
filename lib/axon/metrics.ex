@@ -28,8 +28,11 @@ defmodule Axon.Metrics do
   # Standard Metrics
 
   @doc ~S"""
-  Computes the accuracy of the given predictions, assuming
-  both targets and predictions are one-hot encoded.
+  Computes the accuracy of the given predictions.
+
+  If the size of the last axis is 1, it performs a binary
+  accuracy computation with a threshold of 0.5. Otherwise,
+  computes categorical accuracy.
 
   ## Argument Shapes
 
@@ -48,10 +51,19 @@ defmodule Axon.Metrics do
   defn accuracy(y_true, y_pred) do
     assert_shape!(y_true, y_pred)
 
-    y_true
-    |> Nx.argmax(axis: -1)
-    |> Nx.equal(Nx.argmax(y_pred, axis: -1))
-    |> Nx.mean()
+    transform({y_true, y_pred}, fn {y_true, y_pred} ->
+      if elem(Nx.shape(y_pred), Nx.rank(y_pred) - 1) == 1 do
+        y_pred
+        |> Nx.greater(0.5)
+        |> Nx.equal(y_true)
+        |> Nx.mean()
+      else
+        y_true
+        |> Nx.argmax(axis: -1)
+        |> Nx.equal(Nx.argmax(y_pred, axis: -1))
+        |> Nx.mean()
+      end
+    end)
   end
 
   # defndelegate mean_squared_error(y_true, y_pred), to: Axon.Losses
