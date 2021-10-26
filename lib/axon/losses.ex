@@ -127,6 +127,7 @@ defmodule Axon.Losses do
         reduction: :none,
         from_logits: false
       )
+
     # The default value of both weights mathematically is 1.0, but we've
     # initialized them to `nil` so we can match here and avoid this calculation
     # altogether if necessary. If either of them is set, then we need to set

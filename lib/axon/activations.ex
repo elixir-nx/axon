@@ -476,20 +476,25 @@ defmodule Axon.Activations do
       iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970881462097, 0.9525741338729858]
+        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970285415649, 0.9525741338729858]
       >
 
       iex> Axon.Activations.sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.267578125, 0.119140625, 0.04736328125],
-          [0.73046875, 0.87890625, 0.94921875]
+          [0.26953125, 0.119140625, 0.047607421875],
+          [0.73046875, 0.87890625, 0.953125]
         ]
       >
 
   """
-  defn sigmoid(x), do: Nx.logistic(x)
+  defn sigmoid(x) do
+    custom_grad(
+      Nx.divide(1, Nx.add(1, Nx.exp(Nx.negate(x)))),
+      fn g, ans -> [{x, g * ans * (1 - ans)}] end
+    )
+  end
 
   @doc ~S"""
   Sigmoid weighted linear unit activation.
@@ -651,14 +656,26 @@ defmodule Axon.Activations do
 
   """
   defn softplus(x) do
-    stable = Nx.max(0.0, x)
+    amax = Nx.max(x, 0.0)
+    delta = Nx.subtract(x, 0.0)
 
-    x
-    |> Nx.abs()
-    |> Nx.negate()
-    |> Nx.exp()
-    |> Nx.log1p()
-    |> Nx.add(stable)
+    custom_grad(
+      delta
+      |> Nx.abs()
+      |> Nx.negate()
+      |> Nx.exp()
+      |> Nx.log1p()
+      |> Nx.add(amax),
+      fn g, ans ->
+        g =
+          Nx.add(
+            Nx.multiply(ans, Nx.exp(Nx.subtract(g, ans))),
+            Nx.multiply(amax, Nx.exp(Nx.subtract(amax, ans)))
+          )
+
+        [{x, g}]
+      end
+    )
   end
 
   @doc ~S"""
