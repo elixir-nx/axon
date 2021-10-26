@@ -155,11 +155,12 @@ defmodule Axon.Losses do
 
         {false, y_true, y_pred} ->
           case y_pred do
-            %Nx.Tensor{data: %Nx.Defn.Expr{op: :logistic}} ->
+            %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
               # This is the path Keras takes when the output is a sigmoid
               # and it seems to be the more numerically stable path in those
-              # cases, so we do the same thing here
-              sigmoid_cross_entropy_from_logits(y_true, y_pred)
+              # cases, so we cache logits as metadata in sigmoid and then use
+              # the logits to compute cross entropy here
+              sigmoid_cross_entropy_from_logits(y_true, logits)
 
             _ ->
               # Otherwise we compute BCE with this path
@@ -196,6 +197,7 @@ defmodule Axon.Losses do
   end
 
   defnp sigmoid_cross_entropy_from_logits(y_true, y_pred) do
+    y_true = Nx.as_type(y_true, Nx.type(y_pred))
     log_p = Axon.Activations.log_sigmoid(y_pred)
     log_not_p = Axon.Activations.log_sigmoid(-y_pred)
     -y_true * log_p - (1 - y_true) * log_not_p
@@ -209,7 +211,7 @@ defmodule Axon.Losses do
   Categorical cross-entropy is typically used for multi-class classifcation problems.
   By default, it expects `y_pred` to encode a probability distribution along the last
   axis. You can specify `from_logits: true` to indicate `y_pred` is a logits tensor.
-      
+
       # Batch size of 3 with 3 target classes
       y_true = Nx.tensor([0, 2, 1])
       y_pred = Nx.tensor([[0.2, 0.8, 0.0], [0.1, 0.2, 0.7], [0.1, 0.2, 0.7]])

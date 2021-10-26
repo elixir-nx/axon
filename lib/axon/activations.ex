@@ -490,10 +490,7 @@ defmodule Axon.Activations do
 
   """
   defn sigmoid(x) do
-    custom_grad(
-      Nx.divide(1, Nx.add(1, Nx.exp(Nx.negate(x)))),
-      fn g, ans -> [{x, g * ans * (1 - ans)}] end
-    )
+    transform(Nx.logistic(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
   end
 
   @doc ~S"""
@@ -656,26 +653,14 @@ defmodule Axon.Activations do
 
   """
   defn softplus(x) do
-    amax = Nx.max(x, 0.0)
-    delta = Nx.subtract(x, 0.0)
+    stable = Nx.max(0.0, x)
 
-    custom_grad(
-      delta
-      |> Nx.abs()
-      |> Nx.negate()
-      |> Nx.exp()
-      |> Nx.log1p()
-      |> Nx.add(amax),
-      fn g, ans ->
-        g =
-          Nx.add(
-            Nx.multiply(ans, Nx.exp(Nx.subtract(g, ans))),
-            Nx.multiply(amax, Nx.exp(Nx.subtract(amax, ans)))
-          )
-
-        [{x, g}]
-      end
-    )
+    x
+    |> Nx.abs()
+    |> Nx.negate()
+    |> Nx.exp()
+    |> Nx.log1p()
+    |> Nx.add(stable)
   end
 
   @doc ~S"""
