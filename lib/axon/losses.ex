@@ -257,6 +257,10 @@ defmodule Axon.Losses do
 
     * `:from_logits` - whether `y_pred` is a logits tensor. Defaults to `false`.
 
+    * `:sparse` - whether `y_true` encodes a "sparse" tensor. In this case the
+      inputs are integer values corresponding to the target class. Defaults to
+      `false`.
+
   ## Examples
 
       iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
@@ -278,6 +282,14 @@ defmodule Axon.Losses do
       iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
       iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
       iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :sum)
+      #Nx.Tensor<
+        f32
+        2.3538784980773926
+      >
+
+      iex> y_true = Nx.tensor([1, 2], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+      iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :sum, sparse: true)
       #Nx.Tensor<
         f32
         2.3538784980773926
