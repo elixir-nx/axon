@@ -765,79 +765,92 @@ defmodule Axon.Loop do
         jit_opts
       )
 
-    {status, state} =
+    final_metrics_map =
+      for i <- 0..(max_epochs - 1) do
+        {i, Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, backend: Nx.Defn.Expr)} end)}
+      end
+      |> Map.new()
+
+    {status, final_metrics, state} =
       case fire_event(:started, handler_fns, loop_state) do
         {:halt_epoch, state} ->
-          {:halted, state}
+          {:halted, final_metrics_map, state}
 
         {:halt_loop, state} ->
-          {:halted, state}
+          {:halted, final_metrics_map, state}
 
         {:continue, state} ->
-          Enum.reduce_while(0..(max_epochs - 1)//1, {:completed, state}, fn epoch,
-                                                                            {_, loop_state} ->
-            case fire_event(:epoch_started, handler_fns, loop_state) do
-              {:halt_epoch, state} ->
-                halt_epoch(handler_fns, state)
+          Enum.reduce_while(
+            0..(max_epochs - 1)//1,
+            {:completed, final_metrics_map, state},
+            fn epoch, {_, final_metrics_map, loop_state} ->
+              case fire_event(:epoch_started, handler_fns, loop_state) do
+                {:halt_epoch, state} ->
+                  halt_epoch(handler_fns, state)
 
-              {:halt_loop, state} ->
-                {:halt, {:halted, state}}
+                {:halt_loop, state} ->
+                  {:halt, {:halted, final_metrics_map, state}}
 
-              {:continue, state} ->
-                {time, status_and_state} =
-                  :timer.tc(&run_epoch/8, [
-                    step_fn,
-                    metric_fns,
-                    handler_fns,
-                    state,
-                    data,
-                    jit_compile?,
-                    compiler,
-                    jit_opts
-                  ])
+                {:continue, state} ->
+                  {time, status_and_state} =
+                    :timer.tc(&run_epoch/8, [
+                      step_fn,
+                      metric_fns,
+                      handler_fns,
+                      state,
+                      data,
+                      jit_compile?,
+                      compiler,
+                      jit_opts
+                    ])
 
-                case status_and_state do
-                  {:halt_epoch, state} ->
-                    halt_epoch(handler_fns, state)
+                  case status_and_state do
+                    {:halt_epoch, state} ->
+                      halt_epoch(handler_fns, state)
 
-                  {:halt_loop, state} ->
-                    {:halt, {:halted, state}}
+                    {:halt_loop, state} ->
+                      {:halt, {:halted, final_metrics_map, state}}
 
-                  {:continue, state} ->
-                    new_times = Map.put(state.times, Nx.to_scalar(epoch), time)
-                    new_loop_state = %State{state | times: new_times}
+                    {:continue, state} ->
+                      new_times = Map.put(state.times, Nx.to_scalar(epoch), time)
+                      new_loop_state = %State{state | times: new_times}
 
-                    case fire_event(:epoch_completed, handler_fns, new_loop_state) do
-                      {:halt_epoch, state} ->
-                        halt_epoch(handler_fns, state)
+                      case fire_event(:epoch_completed, handler_fns, new_loop_state) do
+                        {:halt_epoch, state} ->
+                          halt_epoch(handler_fns, state)
 
-                      {:halt_loop, state} ->
-                        {:halt, {:halted, state}}
+                        {:halt_loop, state} ->
+                          {:halt, {:halted, final_metrics_map, state}}
 
-                      {:continue, state} ->
-                        max_iter = state.iteration
+                        {:continue, state} ->
+                          max_iter = state.iteration
 
-                        zero_metrics =
-                          Map.new(metric_fns, fn {k, _} ->
-                            {k, 0}
-                          end)
+                          zero_metrics =
+                            Map.new(metric_fns, fn {k, _} ->
+                              {k, 0}
+                            end)
 
-                        {:cont,
-                         {:completed,
-                          %State{
-                            state
-                            | epoch: epoch + 1,
-                              metrics: zero_metrics,
-                              iteration: 0,
-                              max_iteration: max_iter
-                          }}}
-                    end
-                end
+                          final_metrics_map =
+                            Map.update!(final_metrics_map, epoch, fn _ -> state.metrics end)
+
+                          {:cont,
+                           {:completed, final_metrics_map,
+                            %State{
+                              state
+                              | epoch: epoch + 1,
+                                metrics: zero_metrics,
+                                iteration: 0,
+                                max_iteration: max_iter
+                            }}}
+                      end
+                  end
+              end
             end
-          end)
+          )
       end
 
     {_, state} = fire_event(status, handler_fns, state)
+    state = %State{state | metrics: final_metrics}
 
     output_transform.(state)
   end
