@@ -70,7 +70,7 @@ defmodule Axon.Optimizers do
   """
   def adabelief(learning_rate, opts \\ []) do
     Updates.scale_by_belief(opts)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -86,7 +86,7 @@ defmodule Axon.Optimizers do
   """
   def adagrad(learning_rate, opts \\ []) do
     Updates.scale_by_rss(opts)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -105,7 +105,7 @@ defmodule Axon.Optimizers do
   """
   def adam(learning_rate, opts \\ []) do
     Updates.scale_by_adam(opts)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -124,7 +124,7 @@ defmodule Axon.Optimizers do
 
     Updates.scale_by_adam(opts)
     |> Updates.add_decayed_weights(decay: decay)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -139,6 +139,12 @@ defmodule Axon.Optimizers do
     * [On the distance between two neural networks and the stability of learning](https://proceedings.neurips.cc/paper/2020/file/f4b31bee138ff5f7b84ce1575a738f95-Paper.pdf)
   """
   def fromage(learning_rate, opts \\ []) do
+    if is_function(learning_rate) do
+      raise ArgumentError,
+            "fromage optimizer does not support learning rate schedule," <>
+              " please provide a scalar learning rate"
+    end
+
     mult = Nx.divide(1, Nx.sqrt(Nx.add(1, Nx.power(learning_rate, 2))))
 
     Updates.scale_by_trust_ratio(opts)
@@ -169,7 +175,7 @@ defmodule Axon.Optimizers do
     Updates.scale_by_adam(opts)
     |> Updates.add_decayed_weights(decay: decay)
     |> Updates.scale_by_trust_ratio(min_norm: min_norm)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -181,7 +187,7 @@ defmodule Axon.Optimizers do
     * `:gamma` - used to compute variance of noise distribution. Defaults to `0.55`
   """
   def noisy_sgd(learning_rate, opts \\ []) do
-    Updates.scale(-learning_rate)
+    scale_by_learning_rate(learning_rate)
     |> Updates.add_noise(opts)
   end
 
@@ -202,7 +208,7 @@ defmodule Axon.Optimizers do
   """
   def radam(learning_rate, opts \\ []) do
     Updates.scale_by_radam(opts)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
   end
 
   @doc """
@@ -229,7 +235,7 @@ defmodule Axon.Optimizers do
       else
         Updates.scale_by_rms(opts)
       end
-      |> Updates.scale(-learning_rate)
+      |> scale_by_learning_rate(learning_rate)
 
     if momentum,
       do: Updates.trace(combinator, decay: momentum, nesterov: nesterov?),
@@ -251,9 +257,9 @@ defmodule Axon.Optimizers do
 
     if momentum do
       Updates.trace(decay: momentum, nesterov: nesterov?)
-      |> Updates.scale(-learning_rate)
+      |> scale_by_learning_rate(learning_rate)
     else
-      Updates.scale(-learning_rate)
+      scale_by_learning_rate(learning_rate)
     end
   end
 
@@ -274,6 +280,18 @@ defmodule Axon.Optimizers do
   """
   def yogi(learning_rate, opts \\ []) do
     Updates.scale_by_yogi(opts)
-    |> Updates.scale(-learning_rate)
+    |> scale_by_learning_rate(learning_rate)
+  end
+
+  ## Helpers
+
+  defp scale_by_learning_rate(combinator \\ Updates.identity(), lr)
+
+  defp scale_by_learning_rate(combinator, schedule) when is_function(schedule, 1) do
+    Updates.scale_by_schedule(combinator, fn count -> Nx.negate(schedule.(count)) end)
+  end
+
+  defp scale_by_learning_rate(combinator, lr) do
+    Updates.scale(combinator, -lr)
   end
 end
