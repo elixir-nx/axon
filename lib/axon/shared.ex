@@ -157,29 +157,6 @@ defmodule Axon.Shared do
 
   # TODO: These should be contained somewhere else, like another library
 
-  defn logaddexp(x1, x2) do
-    amax = Nx.max(x1, x2)
-    delta = Nx.subtract(x1, x2)
-
-    custom_grad(
-      delta
-      |> Nx.abs()
-      |> Nx.negate()
-      |> Nx.exp()
-      |> Nx.log1p()
-      |> Nx.add(amax),
-      fn g, ans ->
-        g =
-          Nx.add(
-            Nx.multiply(ans, Nx.exp(Nx.subtract(g, ans))),
-            Nx.multiply(ans, Nx.exp(Nx.subtract(g, ans)))
-          )
-
-        [{x1, g}]
-      end
-    )
-  end
-
   defn logsumexp(x, opts \\ []) do
     opts = keyword!(opts, axes: [], keep_axes: false)
 
