@@ -58,6 +58,7 @@ defmodule Axon.Losses do
 
   import Nx.Defn
   import Axon.Shared
+  require Logger
 
   @doc ~S"""
   Binary cross-entropy loss function.
@@ -97,7 +98,7 @@ defmodule Axon.Losses do
       iex> Axon.Losses.binary_cross_entropy(y_true, y_pred)
       #Nx.Tensor<
         f32[3]
-        [0.8644828796386719, 0.5150601863861084, 0.4598664939403534]
+        [0.8644826412200928, 0.5150600075721741, 0.45986634492874146]
       >
 
       iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
@@ -105,7 +106,7 @@ defmodule Axon.Losses do
       iex> Axon.Losses.binary_cross_entropy(y_true, y_pred, reduction: :mean)
       #Nx.Tensor<
         f32
-        0.6131365299224854
+        0.613136351108551
       >
 
       iex> y_true = Nx.tensor([[0, 1], [1, 0], [1, 0]])
@@ -113,7 +114,7 @@ defmodule Axon.Losses do
       iex> Axon.Losses.binary_cross_entropy(y_true, y_pred, reduction: :sum)
       #Nx.Tensor<
         f32
-        1.839409589767456
+        1.8394089937210083
       >
 
   """
@@ -127,6 +128,7 @@ defmodule Axon.Losses do
         reduction: :none,
         from_logits: false
       )
+
     # The default value of both weights mathematically is 1.0, but we've
     # initialized them to `nil` so we can match here and avoid this calculation
     # altogether if necessary. If either of them is set, then we need to set
@@ -147,18 +149,43 @@ defmodule Axon.Losses do
           Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
       end)
 
+    # Merge types before computing loss to prevent under/overflow. This
+    # can especially happen when targets are encoded as u8 tensors. We
+    # need to do it after the weights though because weights require the
+    # integer representation
+    {y_true, y_pred} =
+      transform({y_true, y_pred}, fn {y_true, y_pred} ->
+        merged_type = Nx.Type.merge(Nx.type(y_true), Nx.type(y_pred))
+        {Nx.as_type(y_true, merged_type), Nx.as_type(y_pred, merged_type)}
+      end)
+
     loss_before_avg =
       transform({opts[:from_logits], y_true, y_pred}, fn
         {true, y_true, y_pred} ->
-          sigmoid_cross_entropy_from_logits(y_true, y_pred)
+          logits =
+            case y_pred do
+              %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
+                Logger.warning(
+                  "Axon.Losses.binary_cross_entropy/3 received from_logits: true" <>
+                    " but y_pred was produced from sigmoid or softmax activation"
+                )
+
+                logits
+
+              _ ->
+                y_pred
+            end
+
+          sigmoid_cross_entropy_from_logits(y_true, logits)
 
         {false, y_true, y_pred} ->
           case y_pred do
-            %Nx.Tensor{data: %Nx.Defn.Expr{op: :logistic}} ->
+            %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
               # This is the path Keras takes when the output is a sigmoid
               # and it seems to be the more numerically stable path in those
-              # cases, so we do the same thing here
-              sigmoid_cross_entropy_from_logits(y_true, y_pred)
+              # cases, so we cache logits as metadata in sigmoid and then use
+              # the logits to compute cross entropy here
+              sigmoid_cross_entropy_from_logits(y_true, logits)
 
             _ ->
               # Otherwise we compute BCE with this path
@@ -208,7 +235,7 @@ defmodule Axon.Losses do
   Categorical cross-entropy is typically used for multi-class classifcation problems.
   By default, it expects `y_pred` to encode a probability distribution along the last
   axis. You can specify `from_logits: true` to indicate `y_pred` is a logits tensor.
-      
+
       # Batch size of 3 with 3 target classes
       y_true = Nx.tensor([0, 2, 1])
       y_pred = Nx.tensor([[0.2, 0.8, 0.0], [0.1, 0.2, 0.7], [0.1, 0.2, 0.7]])
@@ -262,17 +289,6 @@ defmodule Axon.Losses do
 
     opts = keyword!(opts, class_weights: nil, reduction: :none, from_logits: false)
 
-    # If y_pred is a logits tensor, we need to compute softmax along
-    # last dimension in order to encode a probability distribution
-    y_pred =
-      transform({y_pred, opts[:from_logits]}, fn {y_pred, logits} ->
-        if logits do
-          Axon.Activations.softmax(y_pred, axis: -1)
-        else
-          y_pred
-        end
-      end)
-
     # As with binary cross entropy, we try to avoid the weights calculations
     # if they are unnecessary. We also have to do some input validation to
     # ensure the passed weights are correct for the given targets. The length
@@ -305,10 +321,36 @@ defmodule Axon.Losses do
       end)
 
     loss_before_avg =
-      y_true
-      |> xlogy(y_pred)
-      |> Nx.negate()
-      |> Nx.sum(axes: [-1])
+      transform({opts[:from_logits], y_true, y_pred}, fn
+        {true, y_true, y_pred} ->
+          logits =
+            case y_pred do
+              %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
+                Logger.warning(
+                  "Axon.Losses.categorical_cross_entropy/3 received from_logits: true" <>
+                    " but y_pred was produced from sigmoid or softmax activation"
+                )
+
+                logits
+
+              _ ->
+                y_pred
+            end
+
+          softmax_cross_entropy_from_logits(y_true, logits)
+
+        {false, y_true, y_pred} ->
+          case y_pred do
+            %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
+              softmax_cross_entropy_from_logits(y_true, logits)
+
+            _ ->
+              y_true
+              |> xlogy(y_pred)
+              |> Nx.negate()
+              |> Nx.sum(axes: [-1])
+          end
+      end)
 
     possibly_weighted_avg_loss =
       transform({weights, loss_before_avg}, fn
@@ -338,6 +380,10 @@ defmodule Axon.Losses do
           loss
       end
     )
+  end
+
+  defnp softmax_cross_entropy_from_logits(y_true, y_pred) do
+    -Nx.sum(y_true * Axon.Activations.log_softmax(y_pred, axis: -1), axes: [-1])
   end
 
   @doc ~S"""

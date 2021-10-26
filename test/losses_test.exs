@@ -14,7 +14,7 @@ defmodule Axon.LossesTest do
                negative_weight: neg,
                reduction: :mean
              ) ==
-               Nx.tensor(0.5468282103538513)
+               Nx.tensor(0.546828031539917)
     end
 
     test "supports from_logits" do
@@ -22,7 +22,7 @@ defmodule Axon.LossesTest do
       y_pred = Nx.tensor([15.0, -10.0, 6.0, 2.0, -1.0])
 
       assert Axon.Losses.binary_cross_entropy(y_true, y_pred, from_logits: true, reduction: :mean) ==
-               Nx.tensor(6.293759822845459)
+               Nx.tensor(6.2885422706604)
     end
   end
 

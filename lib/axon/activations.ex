@@ -377,6 +377,22 @@ defmodule Axon.Activations do
   """
   defn log_sigmoid(x), do: -softplus(-x)
 
+  @doc """
+  Log-softmax activation.
+  """
+  defn log_softmax(x, opts \\ []) do
+    opts = keyword!(opts, axis: 1)
+
+    shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+
+    shifted
+    |> Nx.exp()
+    |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+    |> Nx.log()
+    |> Nx.negate()
+    |> Nx.add(shifted)
+  end
+
   @doc ~S"""
   Mish activation.
 
@@ -489,7 +505,11 @@ defmodule Axon.Activations do
       >
 
   """
-  defn sigmoid(x), do: Nx.logistic(x)
+  defn sigmoid(x) do
+    # Cache logits so they are available in certain calculations,
+    # e.g. binary_cross_entropy and categorical_cross_entropy
+    transform(Nx.logistic(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+  end
 
   @doc ~S"""
   Sigmoid weighted linear unit activation.
@@ -621,10 +641,15 @@ defmodule Axon.Activations do
       |> Nx.subtract(max_val)
       |> Nx.exp()
 
-    stable_exp
-    |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
-    |> reciprocal()
-    |> Nx.multiply(stable_exp)
+    res =
+      stable_exp
+      |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+      |> reciprocal()
+      |> Nx.multiply(stable_exp)
+
+    # Cache logits so they are available in certain calculations,
+    # e.g. binary_cross_entropy and categorical_cross_entropy
+    transform(res, &Nx.Defn.Expr.metadata(&1, %{logits: x}))
   end
 
   @doc ~S"""
