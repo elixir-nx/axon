@@ -257,6 +257,10 @@ defmodule Axon.Losses do
 
     * `:from_logits` - whether `y_pred` is a logits tensor. Defaults to `false`.
 
+    * `:sparse` - whether `y_true` encodes a "sparse" tensor. In this case the
+      inputs are integer values corresponding to the target class. Defaults to
+      `false`.
+
   ## Examples
 
       iex> y_true = Nx.tensor([[0, 1, 0], [0, 0, 1]], type: {:s, 8})
@@ -283,11 +287,17 @@ defmodule Axon.Losses do
         2.3538784980773926
       >
 
+      iex> y_true = Nx.tensor([1, 2], type: {:s, 8})
+      iex> y_pred = Nx.tensor([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
+      iex> Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :sum, sparse: true)
+      #Nx.Tensor<
+        f32
+        2.3538784980773926
+      >
+
   """
   defn categorical_cross_entropy(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
-
-    opts = keyword!(opts, class_weights: nil, reduction: :none, from_logits: false)
+    opts = keyword!(opts, class_weights: nil, reduction: :none, from_logits: false, sparse: false)
 
     # As with binary cross entropy, we try to avoid the weights calculations
     # if they are unnecessary. We also have to do some input validation to
@@ -321,8 +331,8 @@ defmodule Axon.Losses do
       end)
 
     loss_before_avg =
-      transform({opts[:from_logits], y_true, y_pred}, fn
-        {true, y_true, y_pred} ->
+      transform({opts[:from_logits], opts[:sparse], y_true, y_pred}, fn
+        {true, sparse, y_true, y_pred} ->
           logits =
             case y_pred do
               %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
@@ -337,18 +347,45 @@ defmodule Axon.Losses do
                 y_pred
             end
 
-          softmax_cross_entropy_from_logits(y_true, logits)
+          softmax_cross_entropy_from_logits(y_true, logits, sparse: sparse)
 
-        {false, y_true, y_pred} ->
+        {false, sparse, y_true, y_pred} ->
           case y_pred do
             %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
               softmax_cross_entropy_from_logits(y_true, logits)
 
             _ ->
-              y_true
-              |> xlogy(y_pred)
-              |> Nx.negate()
-              |> Nx.sum(axes: [-1])
+              case sparse do
+                true ->
+                  # If y_true is not at least rank 2, add a new axis to select
+                  # one index per value along the batch axis
+                  y_true =
+                    if Nx.rank(y_true) < 2 do
+                      Nx.new_axis(y_true, -1)
+                    else
+                      y_true
+                    end
+
+                  # Now we need to ensure the last axis is size 1, e.g. 1 value
+                  # per index in the batch axis
+                  unless Elixir.Kernel.==(elem(Nx.shape(y_true), Nx.rank(y_true) - 1), 1) do
+                    raise ArgumentError,
+                          "target values must have size 1 in last dimension," <>
+                            " got shape #{inspect(Nx.shape(y_true))}"
+                  end
+
+                  y_pred
+                  |> Nx.take_along_axis(y_true, axis: -1)
+                  |> Nx.log()
+                  |> Nx.negate()
+                  |> Nx.sum(axes: [-1])
+
+                false ->
+                  y_true
+                  |> xlogy(y_pred)
+                  |> Nx.negate()
+                  |> Nx.sum(axes: [-1])
+              end
           end
       end)
 
@@ -382,8 +419,38 @@ defmodule Axon.Losses do
     )
   end
 
-  defnp softmax_cross_entropy_from_logits(y_true, y_pred) do
-    -Nx.sum(y_true * Axon.Activations.log_softmax(y_pred, axis: -1), axes: [-1])
+  defnp softmax_cross_entropy_from_logits(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, sparse: false)
+
+    transform({opts[:sparse], y_true, y_pred}, fn
+      {true, y_true, y_pred} ->
+        # If y_true is not at least rank 2, add a new axis to select
+        # one index per value along the batch axis
+        y_true =
+          if Nx.rank(y_true) < 2 do
+            Nx.new_axis(y_true, -1)
+          else
+            y_true
+          end
+
+        # Now we need to ensure the last axis is size 1, e.g. 1 value
+        # per index in the batch axis
+        unless Elixir.Kernel.==(elem(Nx.shape(y_true), Nx.rank(y_true) - 1), 1) do
+          raise ArgumentError,
+                "target values must have size 1 in last dimension," <>
+                  " got shape #{inspect(Nx.shape(y_true))}"
+        end
+
+        # Finally compute the loss of values taken from targets
+        # along last axis
+        -Nx.sum(
+          Nx.take_along_axis(Axon.Activations.log_softmax(y_pred, axis: -1), y_true, axis: -1),
+          axes: [-1]
+        )
+
+      {false, y_true, y_pred} ->
+        -Nx.sum(y_true * Axon.Activations.log_softmax(y_pred, axis: -1), axes: [-1])
+    end)
   end
 
   @doc ~S"""

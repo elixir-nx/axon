@@ -58,5 +58,61 @@ defmodule Axon.LossesTest do
              ) ==
                Nx.tensor(7.562242031097412)
     end
+
+    test "supports sparse 1-d targets, from logits" do
+      y_true = Nx.tensor([1, 0, 2])
+      y_pred = Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+
+      assert Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+               from_logits: true,
+               sparse: true,
+               reduction: :mean
+             ) ==
+               Nx.tensor(7.562242031097412)
+    end
+
+    test "supports sparse 2-d targets, from logits" do
+      y_true = Nx.tensor([[1], [0], [2]])
+      y_pred = Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+
+      assert Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+               from_logits: true,
+               sparse: true,
+               reduction: :mean
+             ) ==
+               Nx.tensor(7.562242031097412)
+    end
+
+    test "supports sparse 1-d targets, from softmax" do
+      y_true = Nx.tensor([1, 0, 2])
+
+      y_pred =
+        Axon.Activations.softmax(
+          Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+        )
+
+      assert Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+               from_logits: false,
+               sparse: true,
+               reduction: :mean
+             ) ==
+               Nx.tensor(7.562242031097412)
+    end
+
+    test "supports sparse 2-d targets, from softmax" do
+      y_true = Nx.tensor([[1], [0], [2]])
+
+      y_pred =
+        Axon.Activations.softmax(
+          Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+        )
+
+      assert Axon.Losses.categorical_cross_entropy(y_true, y_pred,
+               from_logits: false,
+               sparse: true,
+               reduction: :mean
+             ) ==
+               Nx.tensor(7.562242031097412)
+    end
   end
 end
