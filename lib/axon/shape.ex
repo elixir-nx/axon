@@ -1363,4 +1363,36 @@ defmodule Axon.Shape do
 
     {slice_size, put_elem(shape, axis, slice_size)}
   end
+
+  @doc """
+  Checks if input shapes are broadcast compatible and returns
+  the output shape of the element-wise operation.
+
+  ## Examples
+
+      iex> Axon.Shape.element_wise([{1, 128}, {128, 128}])
+      {128, 128}
+
+      iex> Axon.Shape.element_wise([{1, 32, 1}, {28, 1, 1}, {28, 1, 14}])
+      {28, 32, 14}
+
+      iex> Axon.Shape.element_wise([{nil, 32}, {nil, 32}])
+      {nil, 32}
+
+  ### Error cases
+
+      iex> Axon.Shape.element_wise([{128, 1}, {nil, 32}])
+      ** (ArgumentError) cannot broadcast tensor of dimensions {nil, 32} to {128, 1}
+
+  """
+  def element_wise([first | rest]) do
+    Enum.reduce(rest, first, fn shape, target_shape ->
+      lnames = List.duplicate(nil, tuple_size(shape))
+      rnames = List.duplicate(nil, tuple_size(target_shape))
+      # TODO(seanmor5): If this fails, I wonder if it's better to rescue
+      # and re-raise with Axon specific messages?
+      {out_shape, _} = Nx.Shape.binary_broadcast(shape, lnames, target_shape, rnames)
+      out_shape
+    end)
+  end
 end

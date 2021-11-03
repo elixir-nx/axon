@@ -681,7 +681,7 @@ defmodule AxonTest do
 
     test "raises on bad shapes" do
       for op <- @element_wise_layers do
-        assert_raise ArgumentError, ~r/all input shapes must match/, fn ->
+        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
           apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 64})]])
         end
       end
