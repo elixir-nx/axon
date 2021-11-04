@@ -3302,6 +3302,18 @@ defmodule CompilerTest do
         assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
       end
     end
+
+    test "computes forward pass with broadcasting" do
+      inp1 = Nx.random_uniform({1, 1})
+      inp2 = Nx.random_uniform({1, 2})
+
+      for op <- @binary_layers do
+        model = apply(Axon, op, [Axon.input({nil, 1}), Axon.input({nil, 2})])
+
+        assert {_, predict_fn} = Axon.compile(model)
+        assert predict_fn.(%{}, {inp1, inp2}) == apply(Nx, op, [inp1, inp2])
+      end
+    end
   end
 
   describe "concatenate" do

@@ -1339,7 +1339,11 @@ defmodule Axon do
     Adds a #{op} layer to the network.
 
     This layer performs an element-wise #{Atom.to_string(op)} operation
-    on input layers. All input layers must be the same shape.
+    on input layers. All input layers must be capable of being
+    broadcast together.
+
+    If one shape has a static batch size, all other shapes must have a
+    static batch size as well.
 
     ## Options
 
@@ -1347,15 +1351,17 @@ defmodule Axon do
 
     """
     @doc type: :composition
-    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y, opts) do
-      Axon.layer([x, y], unquote(op), shape, %{}, opts[:name])
+    def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
+      output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
+      Axon.layer([x, y], unquote(op), output_shape, %{}, opts[:name])
     end
 
     @doc """
     Adds a #{op} layer to the network.
 
     This layer performs an element-wise #{Atom.to_string(op)} operation
-    on all input layers. All input layers must be the same shape.
+    on all input layers. All input layers must be capable of being
+    broadcast together.
 
     ## Options
 
@@ -1363,22 +1369,19 @@ defmodule Axon do
 
     """
     @doc type: :composition
-    def unquote(op)([%Axon{output_shape: shape} | rest] = inputs, opts)
-        when is_list(inputs) and is_list(opts) do
-      output_shape =
-        Enum.reduce(rest, shape, fn %Axon{output_shape: shape}, acc ->
-          unless shape == acc do
-            raise ArgumentError, "all input shapes must match"
-          end
-
-          shape
+    def unquote(op)(inputs, opts) when is_list(inputs) and is_list(opts) do
+      shapes =
+        Enum.map(inputs, fn
+          %Axon{output_shape: shape} -> shape
+          invalid -> raise ArgumentError, "invalid input #{inspect(invalid)}"
         end)
 
+      output_shape = Axon.Shape.element_wise(shapes)
       layer(inputs, unquote(op), output_shape, %{}, [], opts[:name])
     end
 
     @doc false
-    def unquote(op)(%Axon{output_shape: shape} = x, %Axon{output_shape: shape} = y) do
+    def unquote(op)(%Axon{} = x, %Axon{} = y) do
       unquote(op)(x, y, [])
     end
 
