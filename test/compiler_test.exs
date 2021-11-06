@@ -541,6 +541,18 @@ defmodule CompilerTest do
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
+
+    test "computes forward pass with channels last" do
+      for pool <- @pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, kernel_size: {2}]])
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [kernel_size: {2}, strides: [2], channels: :last]])
+      end
+    end
   end
 
   @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool, :adaptive_lp_pool]
@@ -616,6 +628,20 @@ defmodule CompilerTest do
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
+
+    test "computes forward pass with channels last" do
+      for pool <- @adaptive_pooling_layers do
+        model =
+          apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, output_size: {27}]])
+
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [output_size: {27}, channels: :last]])
+      end
+    end
   end
 
   @global_pooling_layers [:global_max_pool, :global_avg_pool, :global_lp_pool]
@@ -671,6 +697,27 @@ defmodule CompilerTest do
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+      end
+    end
+
+    test "computes forward pass with channels last" do
+      for pool <- @global_pooling_layers do
+        model1 = apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, keep_axes: true]])
+
+        model2 =
+          apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, keep_axes: false]])
+
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: true, channels: :last]])
+
+        assert {_, predict_fn} = Axon.compile(model2)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: false, channels: :last]])
       end
     end
   end
@@ -896,6 +943,15 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.conv(input, k, Nx.tensor(0))
     end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.conv(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.conv(input, k, b, channels: :last)
+    end
   end
 
   describe "depthwise convolution" do
@@ -1054,6 +1110,17 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.depthwise_conv(input, k, Nx.tensor(0))
     end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.depthwise_conv(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.depthwise_conv(input, k, b, channels: :last)
+    end
   end
 
   describe "convolution transpose" do
@@ -1211,6 +1278,17 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.conv_transpose(input, k, Nx.tensor(0))
+    end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.conv_transpose(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.conv_transpose(input, k, b, channels: :last)
     end
   end
 
@@ -1406,6 +1484,21 @@ defmodule CompilerTest do
 
       assert predict_fn.(params, input) ==
                Axon.Layers.separable_conv2d(input, k1, Nx.tensor(0), k2, Nx.tensor(0))
+    end
+
+    test "computes forward pass with channels last" do
+      model =
+        Axon.input({nil, 3, 3, 6}) |> Axon.separable_conv2d(2, name: "conv", channels: :last)
+
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2, "bias_1" => b1, "bias_2" => b2}} =
+               params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.separable_conv2d(input, k1, b1, k2, b2, channels: :last)
     end
   end
 
@@ -1648,6 +1741,29 @@ defmodule CompilerTest do
                  k3,
                  Nx.tensor(0)
                )
+    end
+
+    test "computes forward pass with channels last" do
+      model =
+        Axon.input({nil, 3, 3, 3, 6}) |> Axon.separable_conv3d(2, name: "conv", channels: :last)
+
+      input = Nx.random_uniform({1, 3, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "conv" => %{
+                 "kernel_1" => k1,
+                 "kernel_2" => k2,
+                 "kernel_3" => k3,
+                 "bias_1" => b1,
+                 "bias_2" => b2,
+                 "bias_3" => b3
+               }
+             } = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.separable_conv3d(input, k1, b1, k2, b2, k3, b3, channels: :last)
     end
   end
 

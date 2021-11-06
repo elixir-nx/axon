@@ -281,28 +281,37 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3})
+      iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3}, :first)
       {32, 3, 3, 3}
 
-      iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2})
+      iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2}, :first)
       {64, 3, 2}
 
-      iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
+      iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first)
       {32, 1, 2, 1, 3}
+
+      iex> Axon.Shape.conv_kernel({nil, 28, 3}, 64, {2}, :last)
+      {64, 3, 2}
 
   ### Error cases
 
-      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2})
+      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2}, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def conv_kernel(input_shape, output_filters, kernel_size) do
+  def conv_kernel(input_shape, output_filters, kernel_size, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    input_channels = elem(input_shape, 1)
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
     List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
   end
 
@@ -315,21 +324,24 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3})
+      iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3}, :first)
       {32}
 
-      iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2})
+      iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2}, :first)
       {64}
 
-      iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3})
+      iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first)
       {32}
+
+      iex> Axon.Shape.conv_bias({nil, 28, 3}, 64, {2}, :last)
+      {64}
 
   ### Error cases
 
-      iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2})
+      iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2}, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def conv_bias(input_shape, output_filters, kernel_size) do
+  def conv_bias(input_shape, output_filters, kernel_size, _channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
@@ -346,17 +358,38 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
+      iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1], :first)
       {nil, 64, 75, 75}
 
-      iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
+      iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1], :first)
       {32, 64, 31, 62}
 
-      iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2])
+      iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2], :first)
       {nil, 32, 30}
+
+      iex> Axon.Shape.conv({nil, 28, 28, 3}, {64, 3, 4, 4}, [1, 1], :valid, [1, 1], [2, 2], :last)
+      {nil, 22, 22, 64}
   """
-  def conv(parent_shape, kernel_shape, strides, padding, input_dilation, kernel_dilation) do
+  def conv(
+        parent_shape,
+        kernel_shape,
+        strides,
+        padding,
+        input_dilation,
+        kernel_dilation,
+        channels
+      ) do
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
+
+    in_out_permutation =
+      if channels == :first do
+        permutation
+      else
+        rank = tuple_size(parent_shape) - 1
+        spatial = Enum.to_list(1..(rank - 1)//1)
+        [0, rank | spatial]
+      end
+
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
@@ -379,9 +412,9 @@ defmodule Axon.Shape do
         1,
         input_dilation,
         kernel_dilation,
+        in_out_permutation,
         permutation,
-        permutation,
-        permutation
+        in_out_permutation
       )
 
     put_elem(shape, 0, elem(parent_shape, 0))
@@ -396,14 +429,19 @@ defmodule Axon.Shape do
   the input bias shape is a vector, otherwise we'll just
   attempt to let it broadcast itself.
   """
-  def conv_bias_reshape(input_shape, spatial_rank) do
+  def conv_bias_reshape(input_shape, spatial_rank, channels) do
     case input_shape do
       {} ->
         {}
 
       {shape} ->
         spatial_dims = List.duplicate(1, spatial_rank)
-        List.to_tuple([1, shape | spatial_dims])
+
+        if channels == :first do
+          List.to_tuple([1, shape | spatial_dims])
+        else
+          List.to_tuple([1 | spatial_dims] ++ [shape])
+        end
 
       shape when is_tuple(shape) ->
         shape
@@ -417,11 +455,24 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv_transpose({nil, 3, 3}, {6, 3, 2}, [1], :valid, [1])
+      iex> Axon.Shape.conv_transpose({nil, 3, 3}, {6, 3, 2}, [1], :valid, [1], :first)
       {nil, 6, 4}
+
+      iex> Axon.Shape.conv_transpose({nil, 3, 3}, {6, 3, 2}, [1], :valid, [1], :last)
+      {nil, 4, 6}
   """
-  def conv_transpose(parent_shape, kernel_shape, strides, padding, kernel_dilation) do
+  def conv_transpose(parent_shape, kernel_shape, strides, padding, kernel_dilation, channels) do
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
+
+    in_out_permutation =
+      if channels == :first do
+        permutation
+      else
+        rank = tuple_size(parent_shape) - 1
+        spatial = Enum.to_list(1..(rank - 1)//1)
+        [0, rank | spatial]
+      end
+
     names = List.duplicate(nil, Nx.rank(parent_shape))
     input_dilation = strides
     one = List.duplicate(1, Nx.rank(parent_shape) - 2)
@@ -446,9 +497,9 @@ defmodule Axon.Shape do
         1,
         input_dilation,
         kernel_dilation,
+        in_out_permutation,
         permutation,
-        permutation,
-        permutation
+        in_out_permutation
       )
 
     put_elem(shape, 0, elem(parent_shape, 0))
@@ -514,28 +565,37 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 224, 224}, 3, {3, 3})
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 224, 224}, 3, {3, 3}, :first)
       {9, 1, 3, 3}
 
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 28}, 2, {2})
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 3, 28}, 2, {2}, :first)
       {6, 1, 2}
 
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3}, :first)
       {1, 1, 2, 1, 3}
+
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 28, 3}, 2, {2}, :last)
+      {6, 1, 2}
 
   ### Error cases
 
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 28, 28}, 32, {2})
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 28, 28}, 32, {2}, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def depthwise_conv_kernel(input_shape, channel_multiplier, kernel_size) do
+  def depthwise_conv_kernel(input_shape, channel_multiplier, kernel_size, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    input_channels = elem(input_shape, 1)
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
     List.to_tuple([input_channels * channel_multiplier, 1 | Tuple.to_list(kernel_size)])
   end
 
@@ -548,28 +608,38 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3})
+      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 224, 224}, 3, {3, 3}, :first)
       {9}
 
-      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2})
+      iex> Axon.Shape.depthwise_conv_bias({nil, 3, 28}, 2, {2}, :first)
       {6}
 
-      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3})
+      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 32, 32, 10}, 1, {2, 1, 3}, :first)
       {1}
+
+      iex> Axon.Shape.depthwise_conv_bias({nil, 28, 3}, 2, {2}, :last)
+      {6}
 
   ### Error cases
 
-      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 28, 28}, 2, {2})
+      iex> Axon.Shape.depthwise_conv_bias({nil, 1, 28, 28}, 2, {2}, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def depthwise_conv_bias(input_shape, channel_multiplier, kernel_size) do
+  def depthwise_conv_bias(input_shape, channel_multiplier, kernel_size, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {elem(input_shape, 1) * channel_multiplier}
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
+    {input_channels * channel_multiplier}
   end
 
   @doc """
@@ -579,13 +649,13 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.depthwise_conv({nil, 3, 224, 224}, {9, 1, 7, 7}, [3, 3], :same, [1, 1], [1, 1])
+      iex> Axon.Shape.depthwise_conv({nil, 3, 224, 224}, {9, 1, 7, 7}, [3, 3], :same, [1, 1], [1, 1], :first)
       {nil, 9, 75, 75}
 
-      iex> Axon.Shape.depthwise_conv({32, 3, 32, 32}, {9, 1, 2, 2}, [1, 1], :valid, [1, 2], [1, 1])
+      iex> Axon.Shape.depthwise_conv({32, 3, 32, 32}, {9, 1, 2, 2}, [1, 1], :valid, [1, 2], [1, 1], :first)
       {32, 9, 31, 62}
 
-      iex> Axon.Shape.depthwise_conv({nil, 3, 32}, {9, 1, 2}, [1], :valid, [1], [2])
+      iex> Axon.Shape.depthwise_conv({nil, 3, 32}, {9, 1, 2}, [1], :valid, [1], [2], :first)
       {nil, 9, 30}
   """
   def depthwise_conv(
@@ -594,9 +664,20 @@ defmodule Axon.Shape do
         strides,
         padding,
         input_dilation,
-        kernel_dilation
+        kernel_dilation,
+        channels
       ) do
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
+
+    in_out_permutation =
+      if channels == :first do
+        permutation
+      else
+        rank = tuple_size(parent_shape) - 1
+        spatial = Enum.to_list(1..(rank - 1)//1)
+        [0, rank | spatial]
+      end
+
     names = List.duplicate(nil, Nx.rank(parent_shape))
 
     # Account for possibly nil batch dimension
@@ -607,7 +688,12 @@ defmodule Axon.Shape do
         put_elem(parent_shape, 0, 1)
       end
 
-    input_channels = elem(parent_shape, 1)
+    input_channels =
+      if channels == :first do
+        elem(parent_shape, 1)
+      else
+        elem(parent_shape, tuple_size(parent_shape) - 1)
+      end
 
     {shape, _, _} =
       Nx.Shape.conv(
@@ -621,9 +707,9 @@ defmodule Axon.Shape do
         1,
         input_dilation,
         kernel_dilation,
+        in_out_permutation,
         permutation,
-        permutation,
-        permutation
+        in_out_permutation
       )
 
     put_elem(shape, 0, elem(parent_shape, 0))
@@ -639,33 +725,40 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 1)
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 1, :first)
       {9, 1, 3, 1}
 
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 2)
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 2, :first)
       {9, 1, 1, 3}
 
   ### Error cases
 
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1)
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
 
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3)
+      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3, :first)
       ** (ArgumentError) invalid kernel number
   """
-  def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num) do
+  def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
+    idx =
+      if channels == :first do
+        1
+      else
+        tuple_size(input_shape) - 1
+      end
+
     cond do
       num == 1 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, elem(kernel_size, 0), 1}
+        {elem(input_shape, idx) * channel_multiplier, 1, elem(kernel_size, 0), 1}
 
       num == 2 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, 1, elem(kernel_size, 1)}
+        {elem(input_shape, idx) * channel_multiplier, 1, 1, elem(kernel_size, 1)}
 
       true ->
         raise ArgumentError, "invalid kernel number"
@@ -681,25 +774,32 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3})
+      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 3, {3, 3}, :first)
       {9}
 
-      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3})
+      iex> Axon.Shape.separable_conv2d_bias({nil, 3, 32, 32}, 4, {3, 3}, :first)
       {12}
 
   ### Error cases
 
-      iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28}, 2, {2})
+      iex> Axon.Shape.separable_conv2d_bias({nil, 1, 28, 28}, 2, {2}, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size) do
+  def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {elem(input_shape, 1) * channel_multiplier}
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
+    {input_channels * channel_multiplier}
   end
 
   @doc """
@@ -712,36 +812,43 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 3, {3, 3, 3}, 1)
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 3, {3, 3, 3}, 1, :first)
       {9, 1, 3, 1, 1}
 
-      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 2)
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 2, :first)
       {12, 1, 1, 3, 1}
 
-      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 3)
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 3, :first)
       {12, 1, 1, 1, 3}
 
   ### Error cases
 
-      iex> Axon.Shape.separable_conv3d_kernel({nil, 1, 28, 28, 3}, 3, {2}, 1)
+      iex> Axon.Shape.separable_conv3d_kernel({nil, 1, 28, 28, 3}, 3, {2}, 1, :first)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (3)
   """
-  def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num) do
+  def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
+    idx =
+      if channels == :first do
+        1
+      else
+        tuple_size(input_shape) - 1
+      end
+
     cond do
       num == 1 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, elem(kernel_size, 0), 1, 1}
+        {elem(input_shape, idx) * channel_multiplier, 1, elem(kernel_size, 0), 1, 1}
 
       num == 2 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, 1, elem(kernel_size, 1), 1}
+        {elem(input_shape, idx) * channel_multiplier, 1, 1, elem(kernel_size, 1), 1}
 
       num == 3 ->
-        {elem(input_shape, 1) * channel_multiplier, 1, 1, 1, elem(kernel_size, 2)}
+        {elem(input_shape, idx) * channel_multiplier, 1, 1, 1, elem(kernel_size, 2)}
     end
   end
 
@@ -751,28 +858,35 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2})
+      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 224, 224, 3}, 3, {3, 3, 2}, :first)
       {9}
 
-      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2})
+      iex> Axon.Shape.separable_conv3d_bias({nil, 3, 32, 32, 3}, 2, {2, 3, 2}, :first)
       {6}
 
-      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1})
+      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1}, :first)
       {5}
 
   ### Error cases
 
-      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 2, {2, 2})
+      iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 2, {2, 2}, :first)
       ** (ArgumentError) kernel size must have same rank (2) as number of spatial dimensions in the input (3)
   """
-  def separable_conv3d_bias(input_shape, channel_multiplier, kernel_size) do
+  def separable_conv3d_bias(input_shape, channel_multiplier, kernel_size, channels) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
               " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
     end
 
-    {elem(input_shape, 1) * channel_multiplier}
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
+    {input_channels * channel_multiplier}
   end
 
   @doc """
@@ -782,13 +896,13 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid)
+      iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid, :first)
       {nil, 3, 31, 16}
 
-      iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same)
+      iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same, :first)
       {32, 1, 28, 28}
   """
-  def pool(parent_shape, kernel_size, strides, padding) do
+  def pool(parent_shape, kernel_size, strides, padding, channels) do
     # Account for possibly nil batch dimension
     input_shape =
       if elem(parent_shape, 0) do
@@ -807,7 +921,13 @@ defmodule Axon.Shape do
     kernel_size =
       kernel_size
       |> Tuple.insert_at(0, 1)
-      |> Tuple.insert_at(0, 1)
+
+    kernel_size =
+      if channels == :first do
+        Tuple.insert_at(kernel_size, 0, 1)
+      else
+        Tuple.append(kernel_size, 1)
+      end
 
     strides = [1, 1 | strides]
 
@@ -831,25 +951,39 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.global_pool({nil, 3, 2, 1, 1}, false)
+      iex> Axon.Shape.global_pool({nil, 3, 2, 1, 1}, false, :first)
       {nil, 3}
 
-      iex> Axon.Shape.global_pool({nil, 3, 1}, true)
+      iex> Axon.Shape.global_pool({nil, 3, 1}, true, :first)
       {nil, 3, 1}
 
-      iex> Axon.Shape.global_pool({nil, 1, 3, 3, 2, 4, 2}, true)
+      iex> Axon.Shape.global_pool({nil, 1, 3, 3, 2, 4, 2}, true, :first)
       {nil, 1, 1, 1, 1, 1, 1}
+
+      iex> Axon.Shape.global_pool({nil, 28, 28, 3}, true, :last)
+      {nil, 1, 1, 3}
+
+      iex> Axon.Shape.global_pool({nil, 28, 28, 3}, false, :last)
+      {nil, 3}
   """
-  def global_pool(parent_shape, keep_axes) do
+  def global_pool(parent_shape, keep_axes, channels) do
     for i <- 1..(Nx.rank(parent_shape) - 2), reduce: parent_shape do
       new_shape ->
         # Delete last element or replace last element with 1
         last_elem = tuple_size(new_shape)
 
-        if keep_axes do
-          put_elem(new_shape, last_elem - i, 1)
+        if channels == :first do
+          if keep_axes do
+            put_elem(new_shape, last_elem - i, 1)
+          else
+            Tuple.delete_at(new_shape, last_elem - 1)
+          end
         else
-          Tuple.delete_at(new_shape, last_elem - 1)
+          if keep_axes do
+            put_elem(new_shape, i, 1)
+          else
+            Tuple.delete_at(new_shape, 1)
+          end
         end
     end
   end
@@ -863,7 +997,7 @@ defmodule Axon.Shape do
   across batch or channel dimensions, so we just specify
   a size of `1` for each of those.
   """
-  def pool_window_size(window, spatial_rank) do
+  def pool_window_size(window, spatial_rank, channels) do
     spatial_dims =
       case window do
         x when is_integer(x) ->
@@ -878,7 +1012,11 @@ defmodule Axon.Shape do
                   " , got #{inspect(x)}"
       end
 
-    List.to_tuple([1, 1 | spatial_dims])
+    if channels == :first do
+      List.to_tuple([1, 1 | spatial_dims])
+    else
+      List.to_tuple([1 | spatial_dims] ++ [1])
+    end
   end
 
   @doc """
@@ -887,22 +1025,29 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.adaptive_pool({nil, 3, 32, 32}, {27, 27})
+      iex> Axon.Shape.adaptive_pool({nil, 3, 32, 32}, {27, 27}, :first)
       {nil, 3, 27, 27}
 
-      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {25, 25})
+      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {25, 25}, :first)
       {nil, 1, 25, 25}
 
   ### Error cases
 
-      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {30, 30})
+      iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {30, 30}, :first)
       ** (ArgumentError) invalid output size for adaptive pool operation for input with shape {nil, 1, 28, 28} and output size {30, 30} each dimension of output size must be greater than or equal to spatial dimension of input
   """
-  def adaptive_pool(parent_shape, output_size) do
+  def adaptive_pool(parent_shape, output_size, channels) do
+    idx =
+      if channels == :first do
+        1
+      else
+        tuple_size(parent_shape) - 1
+      end
+
     valid_output_size? =
       parent_shape
       |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(idx - 1)
       |> Tuple.to_list()
       |> Enum.zip(Tuple.to_list(output_size))
       |> Enum.all?(&(elem(&1, 0) >= elem(&1, 1)))
@@ -916,7 +1061,13 @@ defmodule Axon.Shape do
               " dimension of input"
     end
 
-    List.to_tuple([elem(parent_shape, 0), elem(parent_shape, 1) | Tuple.to_list(output_size)])
+    if channels == :first do
+      List.to_tuple([elem(parent_shape, 0), elem(parent_shape, idx) | Tuple.to_list(output_size)])
+    else
+      List.to_tuple(
+        [elem(parent_shape, 0) | Tuple.to_list(output_size)] ++ [elem(parent_shape, idx)]
+      )
+    end
   end
 
   @doc """
@@ -931,11 +1082,18 @@ defmodule Axon.Shape do
 
   This preserves the size of the channel/batch dimension.
   """
-  def adaptive_pool_window_strides(input_shape, output_spatial, spatial_rank) do
+  def adaptive_pool_window_strides(input_shape, output_spatial, spatial_rank, channels) do
+    idx =
+      if channels == :first do
+        1
+      else
+        tuple_size(input_shape) - 1
+      end
+
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(idx - 1)
       |> Tuple.to_list()
 
     output_spatial =
@@ -956,7 +1114,11 @@ defmodule Axon.Shape do
       input_spatial
       |> Enum.zip_with(output_spatial, &Kernel.div/2)
 
-    [1, 1 | strides]
+    if channels == :first do
+      [1, 1 | strides]
+    else
+      [1 | strides] ++ [1]
+    end
   end
 
   @doc """
@@ -971,11 +1133,24 @@ defmodule Axon.Shape do
 
   This preserves the size of the channel/batch dimension.
   """
-  def adaptive_pool_window_size(input_shape, [_, _ | stride], output_spatial, spatial_rank) do
+  def adaptive_pool_window_size(
+        input_shape,
+        [_, _ | stride],
+        output_spatial,
+        spatial_rank,
+        channels
+      ) do
+    idx =
+      if channels == :first do
+        1
+      else
+        tuple_size(input_shape) - 1
+      end
+
     input_spatial =
       input_shape
       |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
+      |> Tuple.delete_at(idx - 1)
       |> Tuple.to_list()
 
     output_spatial =
@@ -999,7 +1174,11 @@ defmodule Axon.Shape do
       |> Enum.zip()
       |> Enum.map(fn {input, output, s} -> input - (output - 1) * s end)
 
-    List.to_tuple([1, 1 | output_size])
+    if channels == :first do
+      List.to_tuple([1, 1 | output_size])
+    else
+      List.to_tuple([1 | output_size] ++ [1])
+    end
   end
 
   @doc """

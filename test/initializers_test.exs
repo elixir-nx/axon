@@ -7,12 +7,12 @@ defmodule Axon.InitializersTest do
       t1 = Axon.Initializers.orthogonal(shape: {3, 3})
       identity_left_t1 = t1 |> Nx.transpose() |> Nx.dot(t1)
 
-      assert Nx.all_close?(identity_left_t1, Nx.eye(identity_left_t1), atol: 1.0e-3, rtol: 1.0e-3) ==
+      assert Nx.all_close(identity_left_t1, Nx.eye(identity_left_t1), atol: 1.0e-3, rtol: 1.0e-3) ==
                Nx.tensor(1, type: {:u, 8})
 
       identity_right_t1 = t1 |> Nx.dot(t1 |> Nx.transpose())
 
-      assert Nx.all_close?(identity_right_t1, Nx.eye(identity_right_t1),
+      assert Nx.all_close(identity_right_t1, Nx.eye(identity_right_t1),
                atol: 1.0e-3,
                rtol: 1.0e-3
              ) ==
@@ -22,13 +22,13 @@ defmodule Axon.InitializersTest do
 
       identity_left_t2 = t2 |> Nx.transpose() |> Nx.dot(t2)
 
-      assert Nx.all_close?(identity_left_t2, Nx.eye(identity_left_t2), atol: 1.0e-3, rtol: 1.0e-3) ==
+      assert Nx.all_close(identity_left_t2, Nx.eye(identity_left_t2), atol: 1.0e-3, rtol: 1.0e-3) ==
                Nx.tensor(1, type: {:u, 8})
 
       # Since the matrix is "tall", it's transpose will only be it's left inverse
       identity_right_t2 = t2 |> Nx.dot(Nx.transpose(t2))
 
-      assert Nx.all_close?(identity_right_t2, Nx.eye(identity_right_t2),
+      assert Nx.all_close(identity_right_t2, Nx.eye(identity_right_t2),
                atol: 1.0e-3,
                rtol: 1.0e-3
              ) ==
