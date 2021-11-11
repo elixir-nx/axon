@@ -615,7 +615,7 @@ defmodule Axon.Activations do
     opts = keyword!(opts, axis: 1)
 
     transform({x, opts}, fn {x, opts} ->
-      if Nx.rank(x) <= opts[:axis] do
+      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
         raise ArgumentError, "softmax axis must be within rank of tensor"
       end
     end)
