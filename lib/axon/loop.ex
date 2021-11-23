@@ -345,6 +345,7 @@ defmodule Axon.Loop do
         update_optimizer_fn.(gradients, optimizer_state, model_state)
 
       %{
+        state |
         i: Nx.add(i, 1),
         y_true: tar,
         y_pred: preds,
