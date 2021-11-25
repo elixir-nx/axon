@@ -259,5 +259,73 @@ defmodule Axon.LoopTest do
 
       assert pstate == %{}
     end
+
+    test "propagates user-defined numerical data inside step_state" do
+      Nx.tensor(0)
+      Axon.input({nil, 1})
+      |> Axon.dense(1)
+      |> Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Loop.handle(
+        :epoch_completed,
+        fn(%State{step_state: pstate} = state) ->
+          {
+            :continue, %State{
+              state
+              | step_state: case pstate[:counter] do
+                nil -> Map.put(pstate, :counter, 0)
+                counter -> %{pstate | counter: Nx.to_scalar(counter) + 1}
+              end
+            }
+          }
+        end
+      )
+      |> Loop.handle(
+        :completed,
+        fn(%State{step_state: %{counter: counter}} = state) ->
+          assert 4 = counter
+
+          {:continue, state}
+        end
+      )
+      |> Loop.run(
+        [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
+        epochs: 5
+      )
+    end
+
+    test "propagates user-defined numerical data inside step_state when it is nested into a tuple" do
+      Nx.tensor(0)
+      Axon.input({nil, 1})
+      |> Axon.dense(1)
+      |> Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Loop.handle(
+        :epoch_completed,
+        fn(%State{step_state: pstate} = state) ->
+          {
+            :continue, %State{
+              state
+              | step_state: case pstate[:counter] do
+                nil -> Map.put(pstate, :counter, {{0}, 0})
+                {{counter}, _} -> 
+                  next_counter_value = Nx.to_scalar(counter) + 1
+                  %{pstate | counter: {{next_counter_value}, next_counter_value}}
+              end
+            }
+          }
+        end
+      )
+      |> Loop.handle(
+        :completed,
+        fn(%State{step_state: %{counter: counter}} = state) ->
+          assert {{4}, 4} = counter
+
+          {:continue, state}
+        end
+      )
+      |> Loop.run(
+        [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
+        epochs: 5
+      )
+    end
   end
 end
