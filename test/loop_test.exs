@@ -261,8 +261,6 @@ defmodule Axon.LoopTest do
     end
 
     test "propagates user-defined numerical data inside step_state" do
-      Nx.tensor(0)
-
       Axon.input({nil, 1})
       |> Axon.dense(1)
       |> Loop.trainer(:binary_cross_entropy, :sgd)
@@ -297,8 +295,6 @@ defmodule Axon.LoopTest do
     end
 
     test "propagates user-defined numerical data inside step_state when it is nested into a tuple" do
-      Nx.tensor(0)
-
       Axon.input({nil, 1})
       |> Axon.dense(1)
       |> Loop.trainer(:binary_cross_entropy, :sgd)
