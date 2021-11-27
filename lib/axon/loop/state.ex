@@ -39,6 +39,9 @@ defmodule Axon.Loop.State do
   # a way in Nx/EXLA to mark `:times` as a static property which is
   # not to be touched at JIT time.
   @enforce_keys [:step_state]
+  @derive {Nx.Container,
+           containers: [:step_state, :epoch, :max_epoch, :iteration, :max_iteration, :metrics],
+           keep: [:times]}
   defstruct [
     :step_state,
     epoch: 0,
