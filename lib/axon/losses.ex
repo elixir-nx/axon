@@ -1045,18 +1045,18 @@ defmodule Axon.Losses do
     s_max = elem(Nx.shape(y_true), 1) - 1
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
-    {loss, _, _, _, _, _} =
-      while {loss, b = 0, y_true, y_pred, s_max, b_size}, b < b_size do
+    {loss, _, _, _} =
+      while {loss, b = 0, y_true, y_pred}, b < b_size do
         #t_max = elem(Nx.shape(y_pred), 1) - 1
         #Get boundaries for available node paths.
         st_lims = get_limits(y_true[b], s_max, t_max, opts[:blank])
         #Iterate node tree backwards.
         s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
-        {loss_b, _, _, _} = 
-          while {loss_b = 0.0, s = st_lims[0][0], st_lims, s_pred0}, s <= st_lims[0][1] do
-            {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, st_lims, s_pred0}
+        {loss_b, _, _} = 
+          while {loss_b = 0.0, s = st_lims[0][0], s_pred0}, s <= st_lims[0][1] do
+            {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0}
           end
-      {Nx.put_slice(loss, [b], Nx.reshape(-Nx.log(loss_b), {1})), b + 1, y_true, y_pred, s_max, b_size}
+      {Nx.put_slice(loss, [b], Nx.reshape(-Nx.log(loss_b), {1})), b + 1, y_true, y_pred}
       end
     transform(
       {opts[:reduction], loss},
@@ -1077,14 +1077,14 @@ defmodule Axon.Losses do
       end
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     #Iterate target to get upper boundary values for each sequence step.
-    {st_max, s_fin, t_fin, _, _, _} =
-      while {st_max, s = 1, t = 1, y_true, s_max, t_max}, t <= t_max and s <= s_max - 2 do
+    {st_max, s_fin, t_fin, _} =
+      while {st_max, s = 1, t = 1, y_true}, t <= t_max and s <= s_max - 2 do
         s =
           cond do
             y_true[s] != y_true[s + 2] -> s + 2
             :true -> s + 1
           end
-        {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true, s_max, t_max}
+        {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true}
       end
     #transform({s_fin, s_max}, fn {s_fin, s_max} ->
       #unless Elixir.Kernel.==(s_fin, s_max - 1) do
@@ -1100,10 +1100,10 @@ defmodule Axon.Losses do
           st_max
         :true ->
           st_min = Nx.broadcast(0, {t_max + 1})
-          {st_min, _, _, _, _} = 
-            while {st_min, dt = 1, t_fin, t_max, st_max}, dt <= t_fin do
+          {st_min, _, _} = 
+            while {st_min, dt = 1, st_max}, dt <= t_fin do
 
-              {Nx.put_slice(st_min, [t_max - dt + 1], Nx.reshape(st_max[t_fin - dt], {1})), dt + 1, t_fin, t_max, st_max}
+              {Nx.put_slice(st_min, [t_max - dt + 1], Nx.reshape(st_max[t_fin - dt], {1})), dt + 1, st_max}
             end
           st_min
       end
