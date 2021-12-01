@@ -1042,14 +1042,13 @@ defmodule Axon.Losses do
     opts = keyword!(opts, blank: 0, reduction: :none)
     # eps = Nx.tensor([1.0e-7])
     b_size = elem(Nx.shape(y_true), 0)
-    s_max = elem(Nx.shape(y_true), 1) - 1
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
 
     {loss, _, _, _} =
       while {loss, b = 0, y_true, y_pred}, b < b_size do
         # Get boundaries for available node paths.
-        st_lims = get_limits(y_true[b], s_max, t_max, opts[:blank])
+        st_lims = get_limits(y_true[b], t_max, opts[:blank])
         # Iterate node tree backwards.
         s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
 
@@ -1072,7 +1071,7 @@ defmodule Axon.Losses do
     )
   end
 
-  defn get_limits(y_true, s_max, t_max, blank) do
+  defn get_limits(y_true, t_max, blank) do
     y_true_bb = Nx.concatenate([y_true, Nx.reshape(blank, {1})])
     # Get `trimmed` tagret length.
     {s_max, _} =
@@ -1082,7 +1081,7 @@ defmodule Axon.Losses do
 
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
-    {st_max, s_fin, t_fin, _} =
+    {st_max, _, t_fin, _} =
       while {st_max, s = 1, t = 1, y_true}, t <= t_max and s <= s_max - 2 do
         s =
           cond do
