@@ -1055,7 +1055,8 @@ defmodule Axon.Losses do
           while {loss_b = 0.0, s = st_lims[0][0], s_pred0}, s <= st_lims[0][1] do
             {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0}
           end
-      {Nx.put_slice(loss, [b], Nx.reshape(-Nx.log(loss_b), {1})), b + 1, y_true, y_pred}
+        loss_b = -Nx.log(loss_b)
+        {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, y_pred}
       end
     transform(
       {opts[:reduction], loss},
