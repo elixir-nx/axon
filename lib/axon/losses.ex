@@ -1047,7 +1047,6 @@ defmodule Axon.Losses do
     loss = Nx.broadcast(0.0, {b_size})
     {loss, _, _, _} =
       while {loss, b = 0, y_true, y_pred}, b < b_size do
-        #t_max = elem(Nx.shape(y_pred), 1) - 1
         #Get boundaries for available node paths.
         st_lims = get_limits(y_true[b], s_max, t_max, opts[:blank])
         #Iterate node tree backwards.
