@@ -1056,10 +1056,8 @@ defmodule Axon.Losses do
           while {loss_b = 0.0, s = st_lims[0][0], st_lims, s_pred0}, s <= st_lims[0][1] do
             {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, st_lims, s_pred0}
           end
-        #-Nx.log(loss)
       {Nx.put_slice(loss, [b], Nx.reshape(-Nx.log(loss_b), {1})), b + 1, y_true, y_pred, s_max, b_size}
       end
-    #loss
     transform(
       {opts[:reduction], loss},
       fn
@@ -1068,8 +1066,6 @@ defmodule Axon.Losses do
         {:none, loss} -> loss
       end
     )
-    #s_pred0
-    #st_lims
   end
 
   defn get_limits(y_true, s_max, t_max, blank) do
@@ -1122,9 +1118,9 @@ defmodule Axon.Losses do
         path_prob = 
           cond do
             s + d < s_lims_prev[0] or s + d > s_lims_prev[1] ->
-              path_prob #Nx.put_slice(path_prob, [d], Nx.tensor([0.0]))
+              path_prob
             d == 2 and y_true[s] == y_true[s + d] ->
-              path_prob #Nx.put_slice(path_prob, [d], Nx.tensor([0.0]))
+              path_prob
             :true ->
               Nx.put_slice(path_prob, [d], Nx.reshape(Nx.exp(prob_prev[s + d]), {1}))
           end
