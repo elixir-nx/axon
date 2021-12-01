@@ -40,8 +40,8 @@ defmodule Axon.Loop.State do
   # not to be touched at JIT time.
   @enforce_keys [:step_state]
   @derive {Nx.Container,
-           containers: [:step_state, :epoch, :max_epoch, :iteration, :max_iteration, :metrics],
-           reset: [:times]}
+           containers: [:step_state, :epoch, :max_epoch, :iteration, :max_iteration, :metrics]
+          }
   defstruct [
     :step_state,
     epoch: 0,
