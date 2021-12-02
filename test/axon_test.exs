@@ -844,4 +844,15 @@ defmodule AxonTest do
              """
     end
   end
+
+  describe "container" do
+    defn container(model) do
+      Axon.predict(model, %{}, Nx.tensor([[1.0]]))
+    end
+
+    test "correctly derives container" do
+      model = Axon.input({nil, 1})
+      assert container(model) == Nx.tensor([[1.0]])
+    end
+  end
 end

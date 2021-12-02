@@ -5,7 +5,7 @@ Mix.install([
   {:scidata, "~> 0.1.0"}
 ])
 
-EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule MNISTGAN do
   require Axon

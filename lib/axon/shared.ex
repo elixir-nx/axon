@@ -69,16 +69,6 @@ defmodule Axon.Shared do
   end
 
   @doc """
-  Applies fun to arg.
-  """
-  defn apply_map(args, fun) do
-    transform(
-      {args, fun},
-      fn {args, fun} -> Nx.Defn.Tree.composite(args, fun) end
-    )
-  end
-
-  @doc """
   Creates a zeros-like structure which matches the structure
   of the input.
   """

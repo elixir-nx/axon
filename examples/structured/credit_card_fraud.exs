@@ -5,6 +5,8 @@ Mix.install([
   {:explorer, "~> 0.1.0-dev", github: "elixir-nx/explorer"}
 ])
 
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+
 defmodule CreditCardFraud do
   alias Axon.Loop.State
 
