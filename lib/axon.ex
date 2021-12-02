@@ -84,8 +84,7 @@ defmodule Axon do
   @doc false
   @derive {
     Nx.Container,
-    containers: [],
-    keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+    containers: [], keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
   }
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
 
