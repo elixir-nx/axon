@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.25.5">
+    <meta name="generator" content="ExDoc v0.26.0">
     <meta name="project" content="Axon v0.1.0-dev">
 
     <title>Axon.Loop.State — Axon v0.1.0-dev</title>
-    <link rel="stylesheet" href="dist/elixir-d1506dba1db7cdc5483e.css" />
+    <link rel="stylesheet" href="dist/elixir-b5076885a795c65e636c.css" />
 
     <script src="dist/sidebar_items-8284f7a6b1.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-7b632b26f13d5e0d20e1.js"></script>
+    <script async src="dist/app-a404e1e870b77c874f9e.js"></script>
 
 
   </head>
@@ -54,10 +54,10 @@
 
   <div class="sidebar-header">
     <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName">
+      <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
       </a>
-      <strong class="sidebar-projectVersion">
+      <strong class="sidebar-projectVersion" translate="no">
         v0.1.0-dev
       </strong>
     </div>
@@ -79,27 +79,29 @@ Axon
   <div class="content-outer">
     <div id="content" class="content-inner">
 
-      <h1>
-Axon.Loop.State <small class="app-vsn">(Axon v0.1.0-dev)</small>
+<h1>
+  <span translate="no">Axon.Loop.State</span> 
+  <small class="app-vsn" translate="no">(Axon v0.1.0-dev)</small>
 
-          <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/loop/state.ex#L1" title="View Source" class="view-source" rel="help">
-            <span class="icon-code" aria-hidden="true"></span>
-            <span class="sr-only">View Source</span>
-          </a>
-
-      </h1>
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/loop/state.ex#L1" title="View Source" class="view-source" rel="help">
+      <span class="icon-code" aria-hidden="true"></span>
+      <span class="sr-only">View Source</span>
+    </a>
 
 
-        <section id="moduledoc">
-<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir"><span class="p" data-group-id="7303164280-1">%</span><span class="nc" data-group-id="7303164280-1">State</span><span class="p" data-group-id="7303164280-1">{</span><span class="w">
-  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="7303164280-2">(</span><span class="p" data-group-id="7303164280-2">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="7303164280-3">(</span><span class="p" data-group-id="7303164280-3">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="7303164280-4">(</span><span class="p" data-group-id="7303164280-4">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="7303164280-5">(</span><span class="p" data-group-id="7303164280-5">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="7303164280-6">(</span><span class="n">string</span><span class="p" data-group-id="7303164280-7">(</span><span class="p" data-group-id="7303164280-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="7303164280-8">(</span><span class="p" data-group-id="7303164280-8">)</span><span class="p" data-group-id="7303164280-6">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">list</span><span class="p" data-group-id="7303164280-9">(</span><span class="n">number</span><span class="p" data-group-id="7303164280-10">(</span><span class="p" data-group-id="7303164280-10">)</span><span class="p" data-group-id="7303164280-9">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="7303164280-11">(</span><span class="p" data-group-id="7303164280-11">)</span><span class="w">
-</span><span class="p" data-group-id="7303164280-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
+</h1>
+
+
+  <section id="moduledoc">
+<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir"><span class="p" data-group-id="1140954424-1">%</span><span class="nc" data-group-id="1140954424-1">State</span><span class="p" data-group-id="1140954424-1">{</span><span class="w">
+  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="1140954424-2">(</span><span class="p" data-group-id="1140954424-2">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="1140954424-3">(</span><span class="p" data-group-id="1140954424-3">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="1140954424-4">(</span><span class="p" data-group-id="1140954424-4">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">tensor</span><span class="p" data-group-id="1140954424-5">(</span><span class="p" data-group-id="1140954424-5">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="1140954424-6">(</span><span class="n">string</span><span class="p" data-group-id="1140954424-7">(</span><span class="p" data-group-id="1140954424-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="1140954424-8">(</span><span class="p" data-group-id="1140954424-8">)</span><span class="p" data-group-id="1140954424-6">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">list</span><span class="p" data-group-id="1140954424-9">(</span><span class="n">number</span><span class="p" data-group-id="1140954424-10">(</span><span class="p" data-group-id="1140954424-10">)</span><span class="p" data-group-id="1140954424-9">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="1140954424-11">(</span><span class="p" data-group-id="1140954424-11">)</span><span class="w">
+</span><span class="p" data-group-id="1140954424-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
 Defaults to 0.</p><p><code class="inline">max_epoch</code> is the maximum number of epochs the loop should run
 for. Defaults to 1.</p><p><code class="inline">iteration</code> is the current iteration of the inner loop. In supervised
 settings, this will be the current batch. Defaults to 0.</p><p><code class="inline">max_iteration</code> is the maximum number of iterations the loop should
@@ -107,7 +109,7 @@ run a given epoch for. Defaults to -1 (no max).</p><p><code class="inline">metri
 over the course of loop processing. Defaults to an empty map.</p><p><code class="inline">times</code> is a map of <code class="inline">%{epoch_number =&gt; value}</code> which maps a given epoch
 to the processing time. Defaults to an empty map.</p><p><code class="inline">step_state</code> is the step state as defined by the loop's processing
 initialization and update functions. <code class="inline">step_state</code> is a required field.</p>
-        </section>
+  </section>
 
 
 
@@ -116,12 +118,12 @@ initialization and update functions. <code class="inline">step_state</code> is a
         <p>
           <span class="line">
             Built using
-            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.5) for the
-            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.26.0) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>.
           </span>
           <span class="line">
             Designed by
-            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire" translate="no">Friedel Ziegelmayer</a>.
           </span>
         </p>
         <p>
@@ -131,15 +133,11 @@ initialization and update functions. <code class="inline">step_state</code> is a
           <button class="line footer-button display-shortcuts-help">
             Display keyboard shortcuts
           </button>
-          <button class="line footer-button night-mode-toggle">
-            Toggle night mode
-          </button>
           <button class="line footer-button display-quick-switch">
             Go to a HexDocs package
           </button>
-          <button class="line footer-button tooltips-toggle">
-            <span class="tooltips-option-disable">Disable tooltips</span>
-            <span class="tooltips-option-enable">Enable tooltips</span>
+          <button class="line footer-button display-settings">
+            Settings
           </button>
         </p>
       </footer>
