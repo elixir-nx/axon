@@ -130,7 +130,7 @@ defmodule Axon.LossesTest do
                Nx.tensor([8.08701229095459, 8.934309959411621])
     end
 
-    test "padding blanks doesn't contribute" do
+    test "trailing blanks doesn't contribute" do
       y_true1 =
         Nx.tensor([
           [0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0, 0, 0],
