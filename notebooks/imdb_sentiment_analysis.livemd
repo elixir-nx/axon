@@ -1,0 +1,122 @@
+# IMDB Sentiment Analysis
+
+## Dependencies
+
+```elixir
+Mix.install([
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/exla", sparse: "exla"},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:scidata, "~> 0.1.2"}
+])
+```
+
+## Data
+
+```elixir
+%{review: reviews, sentiment: sentiment} = Scidata.IMDBReviews.download()
+
+max_seq_len = 64
+
+pad_or_slice_to_length = fn x ->
+  # This will be slow in a JIT :(
+  n = Nx.size(x)
+
+  if n < max_seq_len do
+    padding = [{0, max_seq_len - n, 0}]
+    Nx.pad(x, 0, padding)
+  else
+    Nx.slice_axis(x, 0, max_seq_len, 0)
+  end
+end
+
+{reviews, sentiment} =
+  reviews
+  |> Enum.zip(sentiment)
+  |> Enum.map(fn {review, sentiment} ->
+    # byte level model for fun and profit :)
+    review =
+      review
+      |> Nx.from_binary({:u, 8})
+      |> then(&Nx.Defn.jit(pad_or_slice_to_length, [&1], compiler: EXLA))
+
+    sentiment = Nx.tensor([sentiment], type: {:u, 8})
+    {review, sentiment}
+  end)
+  |> Enum.shuffle()
+  |> Enum.unzip()
+
+review_batches =
+  reviews
+  |> Nx.stack()
+  |> Nx.to_batched_list(32)
+
+sentiment_batches =
+  sentiment
+  |> Nx.stack()
+  |> Nx.to_batched_list(32)
+
+data = Stream.zip(review_batches, sentiment_batches)
+```
+
+## Model
+
+```elixir
+model =
+  Axon.input({nil, max_seq_len})
+  |> Axon.embedding(256, 256)
+  |> Axon.gru(64)
+  |> then(fn {_state, seq} -> seq end)
+  |> Axon.global_avg_pool()
+  |> Axon.dense(128)
+  |> Axon.dropout(rate: 0.2)
+  |> Axon.dense(1, activation: :sigmoid)
+```
+
+## Training
+
+```elixir
+log_metrics = fn
+  %Axon.Loop.State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state ->
+    %{loss: loss} = pstate
+    loss = "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+
+    metrics =
+      metrics
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
+      |> Enum.join(" ")
+
+    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
+
+    {:continue, state}
+end
+
+model_state =
+  model
+  |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
+  |> Axon.Loop.metric(:accuracy)
+  |> Axon.Loop.handle(:iteration_completed, log_metrics, every: 50)
+  |> Axon.Loop.run(data, epochs: 10, compiler: EXLA)
+```
+
+## Evaluation
+
+```elixir
+require Axon
+
+predict_review = fn review ->
+  review_tensor = review |> Nx.from_binary({:u, 8}) |> pad_or_slice_to_length.() |> Nx.new_axis(0)
+  pred = Axon.predict(model, model_state, review_tensor)
+
+  sentiment =
+    if Nx.all?(pred) == Nx.tensor(1, type: {:u, 8}) do
+      "positive"
+    else
+      "negative"
+    end
+
+  IO.write("sentiment is: #{sentiment}")
+end
+
+predict_review.("This movie rocks!")
+```
