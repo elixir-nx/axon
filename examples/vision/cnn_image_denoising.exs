@@ -5,11 +5,11 @@ Mix.install([
   {:scidata, "~> 0.1.0"}
 ])
 
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+
 defmodule MnistDenoising do
   import Nx.Defn
   alias Axon.Loop.State
-
-  @default_defn_compiler EXLA
 
   @noise_factor 0.4
   @batch_size 32
@@ -22,7 +22,6 @@ defmodule MnistDenoising do
     noisy_train_images = Stream.map(train_images, &add_noise/1)
     noisy_test_images = Stream.map(test_images, &add_noise/1)
     train_data = Stream.zip(train_images, noisy_train_images)
-    test_data = Stream.zip(test_images, noisy_test_images)
 
     # Display normal versus noisy image
     train_images |> Enum.take(1) |> hd() |> display_image()
@@ -35,7 +34,7 @@ defmodule MnistDenoising do
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
       |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
-      |> Axon.Loop.run(data, epochs: @epochs, compiler: EXLA)
+      |> Axon.Loop.run(train_data, epochs: @epochs, compiler: EXLA)
 
     # Predict on batches of test images
     test = noisy_test_images |> Enum.take(1) |> hd()
