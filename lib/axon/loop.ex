@@ -345,12 +345,13 @@ defmodule Axon.Loop do
         update_optimizer_fn.(gradients, optimizer_state, model_state)
 
       %{
-        i: Nx.add(i, 1),
-        y_true: tar,
-        y_pred: preds,
-        loss: new_loss,
-        model_state: Axon.Updates.apply_updates(model_state, updates),
-        optimizer_state: new_optimizer_state
+        state
+        | i: Nx.add(i, 1),
+          y_true: tar,
+          y_pred: preds,
+          loss: new_loss,
+          model_state: Axon.Updates.apply_updates(model_state, updates),
+          optimizer_state: new_optimizer_state
       }
     end
 
