@@ -26,6 +26,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # EXLA is a test-only dependency for testing models and training
+      # under JIT
+      {:exla, "~> 0.1.0-dev", exla_opts()},
       {:nx, "~> 0.1.0-dev", nx_opts()},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:table_rex, "~> 3.1.1"}
@@ -37,6 +40,14 @@ defmodule Axon.MixProject do
       [path: path, override: true]
     else
       [github: "elixir-nx/nx", sparse: "nx", override: true]
+    end
+  end
+
+  defp exla_opts do
+    if path = System.get_env("AXON_EXLA_PATH") do
+      [path: path, only: :test]
+    else
+      [github: "elixir-nx/nx", sparse: "exla", only: :test]
     end
   end
 
