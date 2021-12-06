@@ -735,11 +735,11 @@ defmodule Axon.Updates do
 
       import Axon.Updates
 
-      Axon.Updates.compose(Axon.Updates.centralize(), Axon.Optimizers.rmsprop(1.0e-4))
+      Axon.Updates.compose(Axon.Updates.centralize(), Axon.Optimizers.rmsprop())
 
   This is equivalent to:
 
-      Axon.Updates.compose()
+      Axon.Updates.centralize()
       |> Axon.Updates.scale_by_rms()
   """
   def compose({init_fn1, apply_fn1}, {init_fn2, apply_fn2}) do

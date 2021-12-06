@@ -3,10 +3,10 @@ Mix.install([
   {:pixels, "~> 0.1.0"},
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "sm-horses-humans"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, path: "../nx/nx", override: true}
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx"}
 ])
 
-EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
