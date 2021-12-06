@@ -2,9 +2,13 @@ defmodule CompilerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
   import AxonTestUtil
-
   require Axon
   alias Axon.MixedPrecision, as: AMP
+
+  setup do
+    Nx.Defn.default_options(compiler: test_compiler())
+    :ok
+  end
 
   describe "input" do
     test "single input, single output" do
@@ -12,8 +16,8 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 1}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-      assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) == input
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input) == input
     end
 
     test "multi-input, multi-output" do
@@ -23,8 +27,8 @@ defmodule CompilerTest do
         {Nx.random_uniform({1, 1}, type: {:f, 32}), Nx.random_uniform({1, 2}, type: {:f, 32})}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-      assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) == input
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input) == input
     end
 
     test "multi-input, multi-output nested" do
@@ -34,8 +38,8 @@ defmodule CompilerTest do
         {Nx.random_uniform({1, 1}, type: {:f, 32}), {Nx.random_uniform({1, 2}, type: {:f, 32})}}
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-      assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) == input1
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input1) == input1
 
       model2 =
         {{Axon.input({nil, 1}), Axon.input({nil, 2})}, Axon.input({nil, 3}),
@@ -48,8 +52,8 @@ defmodule CompilerTest do
            Nx.random_uniform({1, 6}, type: {:f, 32})}}}
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-      assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) == input2
+      assert %{} = init_fn.()
+      assert predict_fn.(%{}, input2) == input2
     end
 
     test "raises on bad input shape" do
@@ -74,7 +78,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _} = Axon.compile(model)
 
-      assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+      assert %{} == init_fn.()
     end
 
     @tag capture_log: true
@@ -82,7 +86,7 @@ defmodule CompilerTest do
       model = Axon.constant(Nx.tensor(1.0))
 
       assert {_, predict_fn} = Axon.compile(model)
-      assert Nx.Defn.jit(predict_fn, [%{}, {}], compiler: test_compiler()) == Nx.tensor(1.0)
+      assert predict_fn.(%{}, {}) == Nx.tensor(1.0)
     end
 
     @tag capture_log: true
@@ -90,7 +94,7 @@ defmodule CompilerTest do
       model = Axon.add(Axon.constant(Nx.tensor(1.0)), Axon.constant(Nx.tensor(2.0)))
 
       assert {_, predict_fn} = Axon.compile(model)
-      assert Nx.Defn.jit(predict_fn, [%{}, {}], compiler: test_compiler()) == Nx.tensor(3.0)
+      assert predict_fn.(%{}, {}) == Nx.tensor(3.0)
     end
 
     @tag capture_log: true
@@ -100,9 +104,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {_, predict_fn} = Axon.compile(mp_model)
-
-      assert Nx.Defn.jit(predict_fn, [%{}, {}], compiler: test_compiler()) ==
-               Nx.tensor(1.0, type: {:bf, 16})
+      assert predict_fn.(%{}, {}) == Nx.tensor(1.0, type: {:bf, 16})
     end
 
     test "warns on constant only network" do
@@ -124,7 +126,7 @@ defmodule CompilerTest do
         model = Axon.input({nil, 32}) |> Axon.activation(activation)
 
         assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+        assert %{} = init_fn.()
       end
     end
 
@@ -134,11 +136,7 @@ defmodule CompilerTest do
         input = Nx.random_uniform({1, 1})
 
         assert {_init_fn, predict_fn} = Axon.compile(model)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Activations, activation, [&1]), [input],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input) == apply(Axon.Activations, activation, [input])
       end
     end
 
@@ -149,10 +147,8 @@ defmodule CompilerTest do
 
         assert {_, predict_fn} = Axon.compile(model)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Activations, activation, [&1, [alpha: 0.8]]), [input],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input) ==
+                 apply(Axon.Activations, activation, [input, [alpha: 0.8]])
       end
     end
 
@@ -163,13 +159,7 @@ defmodule CompilerTest do
         mp_model = AMP.apply_policy(model, policy)
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-        assert Nx.type(
-                 Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1})],
-                   compiler: test_compiler()
-                 )
-               ) == {:bf, 16}
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1}))) == {:bf, 16}
       end
     end
   end
@@ -179,10 +169,7 @@ defmodule CompilerTest do
       model = Axon.input({nil, 1}) |> Axon.dense(1, name: "dense")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
-
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -193,10 +180,7 @@ defmodule CompilerTest do
       model1 = Axon.input({nil, 1}) |> Axon.dense(1, name: "dense", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
-
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert kernel == Axon.Initializers.zeros(shape: {1, 1})
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
@@ -204,10 +188,7 @@ defmodule CompilerTest do
       model2 = Axon.input({nil, 1}) |> Axon.dense(1, name: "dense", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
-
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert bias == Axon.Initializers.zeros(shape: {1})
@@ -218,12 +199,8 @@ defmodule CompilerTest do
       input = Nx.iota({1, 1}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.dense/3, [input, kernel, bias], compiler: test_compiler())
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.dense(input, kernel, bias)
     end
 
     test "returns zero gradient for frozen parameters" do
@@ -239,9 +216,7 @@ defmodule CompilerTest do
       end
 
       assert %{"dense" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 1})],
-                 compiler: test_compiler()
-               )
+               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 1})])
 
       assert kernel_grad == Nx.broadcast(0.0, {1, 1})
       assert bias_grad == Nx.broadcast(0.0, {1})
@@ -253,10 +228,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, _} = Axon.compile(mp_model)
-
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
@@ -267,25 +239,14 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, predict_fn} = Axon.compile(mp_model)
-
-      assert %{"dense" => %{"kernel" => _, "bias" => _}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.type(
-               Nx.Defn.jit(predict_fn, [params, Nx.random_uniform({1, 2})],
-                 compiler: test_compiler()
-               )
-             ) == {:bf, 16}
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 2}))) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model = Axon.input({nil, 2}) |> Axon.dense(1, name: "dense", use_bias: false)
 
       assert {init_fn, _} = Axon.compile(model)
-
-      assert %{"dense" => %{"kernel" => _} = dense_params} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"dense" => %{"kernel" => _} = dense_params} = init_fn.()
       assert Map.has_key?(dense_params, "bias") == false
     end
 
@@ -294,14 +255,8 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{"dense" => %{"kernel" => k}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.dense/3, [input, k, Nx.tensor(0.0)],
-                 compiler: test_compiler()
-               )
+      assert %{"dense" => %{"kernel" => k}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.dense(input, k, Nx.tensor(0.0))
     end
   end
 
@@ -312,10 +267,7 @@ defmodule CompilerTest do
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
-
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -328,10 +280,7 @@ defmodule CompilerTest do
       model1 = Axon.bilinear(input1, input2, 1, name: "bilinear", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
-
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert kernel == Axon.Initializers.zeros(shape: {1, 1, 2})
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
@@ -339,10 +288,7 @@ defmodule CompilerTest do
       model2 = Axon.bilinear(input1, input2, 1, name: "bilinear", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
-
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert bias == Axon.Initializers.zeros(shape: {1})
@@ -357,14 +303,10 @@ defmodule CompilerTest do
       input2 = Nx.iota({1, 2}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
 
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, {input1, input2}], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.bilinear/4, [input1, input2, kernel, bias],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(params, {input1, input2}) ==
+               Axon.Layers.bilinear(input1, input2, kernel, bias)
     end
 
     test "computes forward pass with constant" do
@@ -376,14 +318,9 @@ defmodule CompilerTest do
       input2 = Nx.iota({2, 1}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
 
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input1], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.bilinear/4, [input1, input2, kernel, bias],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(params, input1) == Axon.Layers.bilinear(input1, input2, kernel, bias)
     end
 
     test "returns zero gradient for frozen parameters" do
@@ -398,14 +335,10 @@ defmodule CompilerTest do
       end
 
       assert %{"bilinear" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(
-                 backward,
-                 [
-                   init_fn.(),
-                   {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})}
-                 ],
-                 compiler: test_compiler()
-               )
+               Nx.Defn.jit(backward, [
+                 init_fn.(),
+                 {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})}
+               ])
 
       assert kernel_grad == Nx.broadcast(0.0, {1, 1, 2})
       assert bias_grad == Nx.broadcast(0.0, {1})
@@ -419,10 +352,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, _} = Axon.compile(mp_model)
-
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
@@ -436,15 +366,8 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(mp_model)
 
-      assert %{"bilinear" => %{"kernel" => _, "bias" => _}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
       assert Nx.type(
-               Nx.Defn.jit(
-                 predict_fn,
-                 [params, {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})}],
-                 compiler: test_compiler()
-               )
+               predict_fn.(init_fn.(), {Nx.random_uniform({1, 1}), Nx.random_uniform({1, 2})})
              ) == {:bf, 16}
     end
 
@@ -454,10 +377,7 @@ defmodule CompilerTest do
       model = Axon.bilinear(input1, input2, 1, name: "bilinear", use_bias: false)
 
       assert {init_fn, _} = Axon.compile(model)
-
-      assert %{"bilinear" => %{"kernel" => _} = bilinear_params} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"bilinear" => %{"kernel" => _} = bilinear_params} = init_fn.()
       assert Map.has_key?(bilinear_params, "bias") == false
     end
 
@@ -470,14 +390,10 @@ defmodule CompilerTest do
       inp2 = Nx.random_uniform({1, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.()
 
-      assert %{"bilinear" => %{"kernel" => k}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, {inp1, inp2}], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.bilinear/4, [inp1, inp2, k, Nx.tensor(0.0)],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(params, {inp1, inp2}) ==
+               Axon.Layers.bilinear(inp1, inp2, k, Nx.tensor(0.0))
     end
   end
 
@@ -486,10 +402,7 @@ defmodule CompilerTest do
       model = Axon.input({nil, 1}) |> Axon.embedding(1, 1, name: "embedding")
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
-
-      assert %{"embedding" => %{"kernel" => kernel}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
     end
@@ -500,10 +413,7 @@ defmodule CompilerTest do
         |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
-
-      assert %{"embedding" => %{"kernel" => kernel}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.()
       assert kernel == Axon.Initializers.zeros(shape: {1, 1})
     end
 
@@ -515,12 +425,8 @@ defmodule CompilerTest do
       input = Nx.tensor([[0]])
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{"embedding" => %{"kernel" => kernel}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.embedding/2, [input, kernel], compiler: test_compiler())
+      assert %{"embedding" => %{"kernel" => kernel}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.embedding(input, kernel)
     end
 
     test "returns zero gradient for frozen parameters" do
@@ -536,7 +442,7 @@ defmodule CompilerTest do
       end
 
       assert %{"embedding" => %{"kernel" => kernel_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(), Nx.tensor([[0]])], compiler: test_compiler())
+               Nx.Defn.jit(backward, [init_fn.(), Nx.tensor([[0]])])
 
       assert kernel_grad == Nx.broadcast(0.0, {1, 1})
     end
@@ -547,10 +453,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, _} = Axon.compile(mp_model)
-
-      assert %{"embedding" => %{"kernel" => kernel}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.()
       assert Nx.type(kernel) == {:bf, 16}
     end
 
@@ -560,13 +463,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, predict_fn} = Axon.compile(mp_model)
-
-      assert %{"embedding" => %{"kernel" => _}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.type(
-               Nx.Defn.jit(predict_fn, [params, Nx.tensor([[0, 0]])], compiler: test_compiler())
-             ) == {:bf, 16}
+      assert Nx.type(predict_fn.(init_fn.(), Nx.tensor([[0, 0]]))) == {:bf, 16}
     end
   end
 
@@ -578,7 +475,7 @@ defmodule CompilerTest do
         model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
 
         assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+        assert %{} = init_fn.()
       end
     end
 
@@ -590,31 +487,19 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, default_options]), [input1],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, default_options])
 
         model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, default_options]), [input2],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, default_options])
 
         model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, default_options]), [input3],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, default_options])
       end
     end
 
@@ -625,44 +510,30 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts1]), [input1],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
 
         opts2 = [kernel_size: 2, strides: 2, padding: :same]
         model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}), opts2])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts2]), [input2],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, opts2])
 
         opts3 = [kernel_size: {2, 1, 2}, strides: [1, 2, 1], padding: [{0, 1}, {1, 1}, {0, 2}]]
         model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}), opts3])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts3]), [input3],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, opts3])
       end
     end
 
     test "lp_pool computes forward pass with custom norm" do
       model = Axon.input({nil, 1, 32}) |> Axon.lp_pool(norm: 3)
       input = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
-      opts = [kernel_size: {1}, norm: 3]
-      assert {_, predict_fn} = Axon.compile(model)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.lp_pool(&1, opts), [input], compiler: test_compiler())
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input) == Axon.Layers.lp_pool(input, kernel_size: {1}, norm: 3)
     end
 
     test "computes forward pass with output policy" do
@@ -672,13 +543,7 @@ defmodule CompilerTest do
         mp_model = AMP.apply_policy(model, policy)
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-        assert Nx.type(
-                 Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1, 32})],
-                   compiler: test_compiler()
-                 )
-               ) == {:bf, 16}
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
 
@@ -686,14 +551,11 @@ defmodule CompilerTest do
       for pool <- @pooling_layers do
         model = apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, kernel_size: {2}]])
         inp = Nx.random_uniform({1, 32, 1})
-        opts = [kernel_size: {2}, strides: [2], channels: :last]
 
         assert {_, predict_fn} = Axon.compile(model)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, inp], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts]), [inp],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [kernel_size: {2}, strides: [2], channels: :last]])
       end
     end
   end
@@ -706,7 +568,7 @@ defmodule CompilerTest do
         model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
 
         assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+        assert %{} = init_fn.()
       end
     end
 
@@ -716,31 +578,23 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, [output_size: 32]]), [input1],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, [output_size: 32]])
 
         model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, [output_size: {8, 4}]]), [input2],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input2) ==
+                 apply(Axon.Layers, pool, [input2, [output_size: {8, 4}]])
 
         model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, [output_size: {8, 4, 2}]]), [input3],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input3) ==
+                 apply(Axon.Layers, pool, [input3, [output_size: {8, 4, 2}]])
       end
     end
 
@@ -751,33 +605,21 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts1]), [input1],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
 
         opts2 = [output_size: {2, 3}]
         model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}), opts2])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts2]), [input2],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2, opts2])
 
         opts3 = [output_size: {4, 3, 1}]
         model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}), opts3])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts3]), [input3],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3, opts3])
       end
     end
 
@@ -788,8 +630,7 @@ defmodule CompilerTest do
         mp_model = AMP.apply_policy(model, policy)
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-        assert Nx.type(Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1, 32})])) == {:bf, 16}
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
 
@@ -802,12 +643,8 @@ defmodule CompilerTest do
 
         assert {_, predict_fn} = Axon.compile(model)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, inp], compiler: test_compiler()) ==
-                 Nx.Defn.jit(
-                   &apply(Axon.Layers, pool, [&1, [output_size: {27}, channels: :last]]),
-                   [inp],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [output_size: {27}, channels: :last]])
       end
     end
   end
@@ -820,7 +657,7 @@ defmodule CompilerTest do
         model = apply(Axon, pool, [Axon.input({nil, 1, 32})])
 
         assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+        assert %{} = init_fn.()
       end
     end
 
@@ -830,25 +667,19 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1]), [input1], compiler: test_compiler())
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1])
 
         model2 = apply(Axon, pool, [Axon.input({nil, 1, 2, 2})])
         input2 = Nx.random_uniform({1, 1, 2, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1]), [input2], compiler: test_compiler())
+        assert predict_fn.(%{}, input2) == apply(Axon.Layers, pool, [input2])
 
         model3 = apply(Axon, pool, [Axon.input({nil, 1, 2, 2, 1})])
         input3 = Nx.random_uniform({1, 1, 2, 2, 1}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1]), [input3], compiler: test_compiler())
+        assert predict_fn.(%{}, input3) == apply(Axon.Layers, pool, [input3])
       end
     end
 
@@ -859,11 +690,7 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-
-        assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-                 Nx.Defn.jit(&apply(Axon.Layers, pool, [&1, opts1]), [input1],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, input1) == apply(Axon.Layers, pool, [input1, opts1])
       end
     end
 
@@ -873,8 +700,8 @@ defmodule CompilerTest do
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {_, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1, 2})])) == {:bf, 16}
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
       end
     end
 
@@ -889,21 +716,13 @@ defmodule CompilerTest do
 
         assert {_, predict_fn} = Axon.compile(model1)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, inp], compiler: test_compiler()) ==
-                 Nx.Defn.jit(
-                   &apply(Axon.Layers, pool, [&1, [keep_axes: true, channels: :last]]),
-                   [inp],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: true, channels: :last]])
 
         assert {_, predict_fn} = Axon.compile(model2)
 
-        assert Nx.Defn.jit(predict_fn, [%{}, inp], compiler: test_compiler()) ==
-                 Nx.Defn.jit(
-                   &apply(Axon.Layers, pool, [&1, [keep_axes: false, channels: :last]]),
-                   [inp],
-                   compiler: test_compiler()
-                 )
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: false, channels: :last]])
       end
     end
   end
@@ -916,7 +735,7 @@ defmodule CompilerTest do
         model = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
 
         assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+        assert %{} = init_fn.()
       end
     end
 
@@ -926,7 +745,7 @@ defmodule CompilerTest do
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model1)
-        result1 = Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler())
+        result1 = predict_fn.(%{}, input1)
 
         assert Nx.shape(result1) == {1, 1, 32}
         assert Nx.type(result1) == {:f, 32}
@@ -935,7 +754,7 @@ defmodule CompilerTest do
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model2)
-        result2 = Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler())
+        result2 = predict_fn.(%{}, input2)
 
         assert Nx.shape(result2) == {1, 1, 8, 4}
         assert Nx.type(result2) == {:f, 32}
@@ -944,7 +763,7 @@ defmodule CompilerTest do
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
         assert {_, predict_fn} = Axon.compile(model3)
-        result3 = Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler())
+        result3 = predict_fn.(%{}, input3)
 
         assert Nx.shape(result3) == {1, 1, 8, 4, 2}
         assert Nx.type(result3) == {:f, 32}
@@ -959,7 +778,7 @@ defmodule CompilerTest do
 
         assert {_, predict_fn} = Axon.compile(model1)
 
-        result = Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler())
+        result = predict_fn.(%{}, input1)
 
         assert Nx.shape(result) == {1, 1, 32}
         assert Nx.type(result) == {:f, 32}
@@ -972,13 +791,8 @@ defmodule CompilerTest do
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {_, predict_fn} = Axon.compile(mp_model)
-
-        assert Nx.type(
-                 Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1, 32})],
-                   compiler: test_compiler()
-                 )
-               ) == {:bf, 16}
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
 
@@ -987,7 +801,7 @@ defmodule CompilerTest do
         model = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
         input = Nx.random_uniform({1, 1, 32})
 
-        assert Axon.predict(model, %{}, input, compiler: test_compiler()) == input
+        assert Axon.predict(model, %{}, input) == input
       end
     end
   end
@@ -997,10 +811,7 @@ defmodule CompilerTest do
       model = Axon.input({nil, 3, 32, 32}) |> Axon.conv(64, name: "conv")
 
       assert {init_fn, _} = Axon.compile(model)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {64, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {64}
@@ -1012,10 +823,7 @@ defmodule CompilerTest do
         Axon.input({nil, 3, 32, 32}) |> Axon.conv(32, name: "conv", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert kernel == Axon.Initializers.zeros(shape: {32, 3, 1, 1})
       assert Nx.shape(bias) == {32}
       assert Nx.type(bias) == {:f, 32}
@@ -1024,10 +832,7 @@ defmodule CompilerTest do
         Axon.input({nil, 3, 32, 32}) |> Axon.conv(32, name: "conv", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert bias == Axon.Initializers.zeros(shape: {32})
@@ -1038,34 +843,22 @@ defmodule CompilerTest do
       input1 = Nx.random_uniform({1, 1, 2}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input1], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv/3, [input1, kernel, bias], compiler: test_compiler())
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input1) == Axon.Layers.conv(input1, kernel, bias)
 
       model2 = Axon.input({nil, 1, 2, 2}) |> Axon.conv(3, name: "conv")
       input2 = Nx.random_uniform({1, 1, 2, 2}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input2], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv/3, [input2, kernel, bias], compiler: test_compiler())
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input2) == Axon.Layers.conv(input2, kernel, bias)
 
       model3 = Axon.input({nil, 1, 2, 2, 2}) |> Axon.conv(4, name: "conv")
       input3 = Nx.random_uniform({1, 1, 2, 2, 2}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.compile(model3)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input3], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv/3, [input3, kernel, bias], compiler: test_compiler())
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input3) == Axon.Layers.conv(input3, kernel, bias)
     end
 
     test "computes forward pass with custom options" do
@@ -1074,14 +867,8 @@ defmodule CompilerTest do
       input1 = Nx.random_uniform({1, 1, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model1)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input1], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv(&1, &2, &3, opts1), [input1, kernel, bias],
-                 compiler: test_compiler()
-               )
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input1) == Axon.Layers.conv(input1, kernel, bias, opts1)
 
       opts2 = [strides: [1, 2], padding: [{0, 1}, {1, 2}], kernel_dilation: 2]
 
@@ -1090,14 +877,8 @@ defmodule CompilerTest do
       input2 = Nx.random_uniform({1, 1, 4, 4})
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input2], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv(&1, &2, &3, opts2), [input2, kernel, bias],
-                 compiler: test_compiler()
-               )
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input2) == Axon.Layers.conv(input2, kernel, bias, opts2)
 
       opts3 = [strides: [2, 1, 1]]
 
@@ -1108,14 +889,8 @@ defmodule CompilerTest do
       input3 = Nx.random_uniform({1, 1, 2, 2, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model3)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input3], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv(&1, &2, &3, opts3), [input3, kernel, bias],
-                 compiler: test_compiler()
-               )
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert predict_fn.(params, input3) == Axon.Layers.conv(input3, kernel, bias, opts3)
     end
 
     test "returns zero gradient for frozen parameters" do
@@ -1131,9 +906,7 @@ defmodule CompilerTest do
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 1, 32})],
-                 compiler: test_compiler()
-               )
+               Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 1, 32})])
 
       assert kernel_grad == Nx.broadcast(0.0, {1, 1, 1})
       assert bias_grad == Nx.broadcast(0.0, {1})
@@ -1145,10 +918,7 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, _} = Axon.compile(mp_model)
-
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
@@ -1159,23 +929,14 @@ defmodule CompilerTest do
       mp_model = AMP.apply_policy(model, policy)
 
       assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.type(
-               Nx.Defn.jit(predict_fn, [params, Nx.random_uniform({1, 1, 32})],
-                 compiler: test_compiler()
-               )
-             ) == {:bf, 16}
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model = Axon.input({nil, 1, 2}) |> Axon.conv(1, name: "conv", use_bias: false)
 
       assert {init_fn, _} = Axon.compile(model)
-
-      assert %{"conv" => %{"kernel" => _} = conv_params} =
-               Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
+      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.()
       assert Map.has_key?(conv_params, "bias") == false
     end
 
@@ -1184,14 +945,8 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 1, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{"conv" => %{"kernel" => k}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv/3, [input, k, Nx.tensor(0)],
-                 compiler: test_compiler()
-               )
+      assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.conv(input, k, Nx.tensor(0))
     end
 
     test "computes forward pass with channels last" do
@@ -1199,14 +954,8 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 3, 3, 6})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
-
-      assert %{"conv" => %{"kernel" => k, "bias" => b}} =
-               params = Nx.Defn.jit(init_fn, [], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [params, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Layers.conv(&1, &2, &3, channels: :last), [input, k, b],
-                 compiler: test_compiler()
-               )
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.conv(input, k, b, channels: :last)
     end
   end
 
@@ -3692,7 +3441,7 @@ defmodule CompilerTest do
     test "initializes with no params" do
       model = Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
       assert {init_fn, _} = Axon.compile(model)
-      assert %{} == Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+      assert %{} == init_fn.()
     end
 
     test "computes forward pass with default options" do
@@ -3702,10 +3451,8 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.compile(model1)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, {input1_1, input1_2}], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Nx.concatenate([&1, &2], axis: 1), [input1_1, input1_2],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(%{}, {input1_1, input1_2}) ==
+               Nx.concatenate([input1_1, input1_2], axis: 1)
 
       model2 =
         Axon.concatenate([Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})])
@@ -3716,12 +3463,19 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.compile(model2)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, {input2_1, input2_2, input2_3}],
-               compiler: test_compiler()
-             ) ==
-               Nx.Defn.jit(&Nx.concatenate([&1, &2, &3], axis: 1), [input2_1, input2_2, input2_3],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(%{}, {input2_1, input2_2, input2_3}) ==
+               Nx.concatenate([input2_1, input2_2, input2_3], axis: 1)
+    end
+
+    test "computes forward pass with custom options" do
+      model1 = Axon.concatenate(Axon.input({nil, 1, 32}), Axon.input({nil, 1, 32}), axis: 1)
+      input1_1 = Nx.random_uniform({1, 1, 32})
+      input1_2 = Nx.random_uniform({1, 1, 32})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+
+      assert predict_fn.(%{}, {input1_1, input1_2}) ==
+               Nx.concatenate([input1_1, input1_2], axis: 1)
     end
 
     test "computes forward pass with output policy" do
@@ -3732,7 +3486,7 @@ defmodule CompilerTest do
       input1_2 = Nx.random_uniform({1, 1, 32})
 
       assert {_, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(Nx.Defn.jit(predict_fn, [%{}, {input1_1, input1_2}])) == {:bf, 16}
+      assert Nx.type(predict_fn.(%{}, {input1_1, input1_2})) == {:bf, 16}
     end
   end
 
@@ -3740,7 +3494,7 @@ defmodule CompilerTest do
     test "initializes with no params" do
       model = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}])
       assert {init_fn, _} = Axon.compile(model)
-      assert %{} == Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+      assert %{} == init_fn.()
     end
 
     test "computes forward pass with default options" do
@@ -3748,33 +3502,31 @@ defmodule CompilerTest do
       input1 = Nx.random_uniform({1, 3, 3})
 
       assert {_, predict_fn} = Axon.compile(model1)
-
-      assert Nx.Defn.jit(predict_fn, [%{}, input1], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Nx.pad(&1, 0, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}]), [input1],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(%{}, input1) == Nx.pad(input1, 0, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}])
 
       model2 = Axon.input({nil, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}])
       input2 = Nx.random_uniform({1, 3, 3, 3})
 
       assert {_, predict_fn} = Axon.compile(model2)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, input2], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Nx.pad(&1, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}]), [input2],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(%{}, input2) ==
+               Nx.pad(input2, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}])
 
       model3 = Axon.input({nil, 3, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}, {1, 0}])
       input3 = Nx.random_uniform({1, 3, 3, 3, 3})
 
       assert {_, predict_fn} = Axon.compile(model3)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, input3], compiler: test_compiler()) ==
-               Nx.Defn.jit(
-                 &Nx.pad(&1, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}, {1, 0, 0}]),
-                 [input3],
-                 compiler: test_compiler()
-               )
+      assert predict_fn.(%{}, input3) ==
+               Nx.pad(input3, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}, {1, 0, 0}])
+    end
+
+    test "computes forward pass with custom options" do
+      model = Axon.input({nil, 3, 3}) |> Axon.pad([{1, 0}], 2)
+      input = Nx.random_uniform({1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model)
+      assert predict_fn.(%{}, input) == Nx.pad(input, 2, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}])
     end
 
     test "computes forward pass with output policy" do
@@ -3784,9 +3536,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 3, 3})
 
       assert {_, predict_fn} = Axon.compile(mp_model)
-
-      assert Nx.type(Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler())) ==
-               {:bf, 16}
+      assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
     end
   end
 
@@ -3796,9 +3546,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 10})
 
       assert {_, predict_fn} = Axon.compile(model)
-
-      assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Nx.sin/1, [input], compiler: test_compiler())
+      assert predict_fn.(%{}, input) == Nx.sin(input)
     end
   end
 
@@ -3811,7 +3559,7 @@ defmodule CompilerTest do
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
       assert {init_fn, _} = Axon.compile(model)
-      assert %{} == Nx.Defn.jit(init_fn, [], compiler: test_compiler())
+      assert %{} == init_fn.()
     end
 
     test "computes forward pass with default options" do
@@ -3826,12 +3574,8 @@ defmodule CompilerTest do
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
       assert {_, predict_fn} = Axon.compile(model)
-
-      assert Nx.Defn.jit(predict_fn, [%{}, input_1], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Activations.relu/1, [input_1], compiler: test_compiler())
-
-      assert Nx.Defn.jit(predict_fn, [%{}, input_2], compiler: test_compiler()) ==
-               Nx.Defn.jit(&Axon.Activations.sigmoid/1, [input_2], compiler: test_compiler())
+      assert predict_fn.(%{}, input_1) == Axon.Activations.relu(input_1)
+      assert predict_fn.(%{}, input_2) == Axon.Activations.sigmoid(input_2)
     end
 
     test "computes forward pass with output policy" do
@@ -3846,9 +3590,7 @@ defmodule CompilerTest do
       input1_1 = Nx.random_uniform({1, 1, 32})
 
       assert {_, predict_fn} = Axon.compile(mp_model)
-
-      assert Nx.type(Nx.Defn.jit(predict_fn, [%{}, input1_1], compiler: test_compiler())) ==
-               {:bf, 16}
+      assert Nx.type(predict_fn.(%{}, input1_1)) == {:bf, 16}
     end
 
     test "raises on bad condition" do
@@ -3861,7 +3603,7 @@ defmodule CompilerTest do
 
       assert_raise Axon.CompilerError, ~r/error while building prediction/, fn ->
         {_, predict_fn} = Axon.compile(model)
-        Nx.Defn.jit(predict_fn, [%{}, Nx.random_uniform({1, 1, 10})], compiler: test_compiler())
+        predict_fn.(%{}, Nx.random_uniform({1, 1, 10}))
       end
     end
   end
@@ -3871,7 +3613,7 @@ defmodule CompilerTest do
       model = Axon.input({nil, 10}) |> Axon.split(5)
 
       assert {init_fn, _} = Axon.compile(model)
-      assert Nx.Defn.jit(init_fn, [], compiler: test_compiler()) == %{}
+      assert init_fn.() == %{}
     end
 
     test "computes forward pass with default options" do
@@ -3880,7 +3622,7 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.compile(model)
 
-      assert Nx.Defn.jit(predict_fn, [%{}, input], compiler: test_compiler()) == {
+      assert predict_fn.(%{}, input) == {
                Nx.tensor([[0.0, 1.0]]),
                Nx.tensor([[2.0, 3.0]]),
                Nx.tensor([[4.0, 5.0]]),

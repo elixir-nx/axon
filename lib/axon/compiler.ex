@@ -32,15 +32,18 @@ defmodule Axon.Compiler do
   end
 
   defp compile_init(graph) when is_tuple(graph) do
-    fn ->
-      graph
-      |> Tuple.to_list()
-      |> Enum.reduce(%{}, &to_init_fun/2)
-      |> Map.new(fn {k, v} ->
-        v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
-        {k, v}
-      end)
-    end
+    init_fn =
+      fn ->
+        graph
+        |> Tuple.to_list()
+        |> Enum.reduce(%{}, &to_init_fun/2)
+        |> Map.new(fn {k, v} ->
+          v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
+          {k, v}
+        end)
+      end
+
+    fn -> Nx.Defn.jit_or_apply(init_fn, []) end
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -158,18 +161,21 @@ defmodule Axon.Compiler do
       )
     end
 
-    fn params, inputs ->
-      inputs = maybe_flatten(inputs)
-      {expr, _} = to_predict_fun(graph, %{}, input_map, params, inputs, mode)
+    predict_fn =
+      fn params, inputs ->
+        inputs = maybe_flatten(inputs)
+        {expr, _} = to_predict_fun(graph, %{}, input_map, params, inputs, mode)
 
-      case expr do
-        [_ | _] = exprs ->
-          do_recur_to_tuple(exprs, [])
+        case expr do
+          [_ | _] = exprs ->
+            do_recur_to_tuple(exprs, [])
 
-        expr ->
-          expr
+          expr ->
+            expr
+        end
       end
-    end
+
+    &Nx.Defn.jit_or_apply(predict_fn, [&1, &2])
   end
 
   defp maybe_flatten(inputs) when is_tuple(inputs) do
