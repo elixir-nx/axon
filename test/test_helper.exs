@@ -1,6 +1,11 @@
 ExUnit.start()
 
 defmodule AxonTestUtil do
+  def test_compiler do
+    use_exla? = System.get_env("USE_EXLA")
+    if use_exla?, do: EXLA, else: Nx.Defn.Evaluator
+  end
+
   def check_optimizer!(optimizer, loss, x0, num_steps) do
     check_optimizer_functions!(optimizer)
     check_optimizer_run!(optimizer, loss, x0, num_steps)

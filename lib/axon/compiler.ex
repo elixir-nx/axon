@@ -32,7 +32,7 @@ defmodule Axon.Compiler do
   end
 
   defp compile_init(graph) when is_tuple(graph) do
-    fn ->
+    init_fn = fn ->
       graph
       |> Tuple.to_list()
       |> Enum.reduce(%{}, &to_init_fun/2)
@@ -41,6 +41,8 @@ defmodule Axon.Compiler do
         {k, v}
       end)
     end
+
+    fn -> Nx.Defn.jit_or_apply(init_fn, []) end
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -158,7 +160,7 @@ defmodule Axon.Compiler do
       )
     end
 
-    fn params, inputs ->
+    predict_fn = fn params, inputs ->
       inputs = maybe_flatten(inputs)
       {expr, _} = to_predict_fun(graph, %{}, input_map, params, inputs, mode)
 
@@ -170,6 +172,8 @@ defmodule Axon.Compiler do
           expr
       end
     end
+
+    &Nx.Defn.jit_or_apply(predict_fn, [&1, &2])
   end
 
   defp maybe_flatten(inputs) when is_tuple(inputs) do
