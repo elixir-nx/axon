@@ -1,9 +1,9 @@
 Mix.install([
   {:flow, "~> 1.0"},
   {:pixels, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "sm-horses-humans"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx"}
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
 
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
@@ -16,8 +16,6 @@ defmodule HorsesOrHumans do
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
-
-  @default_defn_compiler EXLA
 
   def data() do
     Path.wildcard(@directories)
@@ -88,7 +86,7 @@ defmodule HorsesOrHumans do
       case mode do
         :train ->
           %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+          "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
 
         :test ->
           ""
@@ -96,10 +94,10 @@ defmodule HorsesOrHumans do
 
     metrics =
       metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
       |> Enum.join(" ")
 
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
+    IO.write("\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}")
 
     {:continue, state}
   end
@@ -109,7 +107,7 @@ defmodule HorsesOrHumans do
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
     |> Axon.Loop.metric(:accuracy)
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
-    |> Axon.Loop.run(data, epochs: epochs, iterations: 500, compiler: EXLA)
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 100, compiler: EXLA)
   end
 
   def run() do
@@ -123,7 +121,7 @@ defmodule HorsesOrHumans do
     train_model(model, data, optimizer, 10)
 
     IO.write("\n\nTraining model with gradient centralization\n\n")
-    train_model(model, data, optimizer, 10)
+    train_model(model, data, centralized_optimizer, 10)
   end
 end
 
