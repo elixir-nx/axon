@@ -569,12 +569,12 @@ defmodule Axon.Updates do
 
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
-      deep_new(x, fn z ->
+      deep_new(x, fn {k, z} ->
         if Nx.rank(z) > 1 do
           axes = tl(Nx.axes(z))
-          z - Nx.mean(z, axes: axes, keep_axes: true)
+          {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
         else
-          z
+          {k, z}
         end
       end)
     end)
