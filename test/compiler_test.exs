@@ -256,7 +256,9 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"dense" => %{"kernel" => k}} = params = init_fn.()
-      assert predict_fn.(params, input) == Axon.Layers.dense(input, k, Nx.tensor(0.0))
+
+      assert Nx.all_close(predict_fn.(params, input), Axon.Layers.dense(input, k, Nx.tensor(0.0))) ==
+               Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -392,8 +394,10 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.()
 
-      assert predict_fn.(params, {inp1, inp2}) ==
+      assert Nx.all_close(
+               predict_fn.(params, {inp1, inp2}),
                Axon.Layers.bilinear(inp1, inp2, k, Nx.tensor(0.0))
+             ) == Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -2407,8 +2411,11 @@ defmodule CompilerTest do
       h = {whi, whf, whg, who}
       b = {bi, bf, bg, bo}
 
-      assert {{_, _} = carry, seq} = predict_fn.(params, input2)
-      assert {carry, seq} == Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+      assert {{c1, c2}, seq} = predict_fn.(params, input2)
+      {{c1_static, c2_static}, seq_static} = Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+      assert Nx.all_close(c1, c1_static) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(c2, c2_static) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(seq, seq_static) == Nx.tensor(1, type: {:u, 8})
     end
 
     test "computes forward pass with hidden state" do
@@ -3397,7 +3404,11 @@ defmodule CompilerTest do
         input1_1 = Nx.random_uniform({1, 32})
         input1_2 = Nx.random_uniform({1, 32})
         assert {_, predict_fn} = Axon.compile(model1)
-        assert predict_fn.(%{}, {input1_1, input1_2}) == apply(Nx, op, [input1_1, input1_2])
+
+        assert Nx.all_close(
+                 predict_fn.(%{}, {input1_1, input1_2}),
+                 apply(Nx, op, [input1_1, input1_2])
+               ) == Nx.tensor(1, type: {:u, 8})
 
         model2 =
           apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]])
@@ -3407,8 +3418,10 @@ defmodule CompilerTest do
         input2_3 = Nx.random_uniform({1, 32})
         assert {_, predict_fn} = Axon.compile(model2)
 
-        assert predict_fn.(%{}, {input2_1, input2_2, input2_3}) ==
+        assert Nx.all_close(
+                 predict_fn.(%{}, {input2_1, input2_2, input2_3}),
                  apply(Nx, op, [apply(Nx, op, [input2_1, input2_2]), input2_3])
+               ) == Nx.tensor(1, type: {:u, 8})
       end
     end
 
@@ -3546,7 +3559,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 10})
 
       assert {_, predict_fn} = Axon.compile(model)
-      assert predict_fn.(%{}, input) == Nx.sin(input)
+      assert Nx.all_close(predict_fn.(%{}, input), Nx.sin(input)) == Nx.tensor(1, type: {:u, 8})
     end
   end
 
