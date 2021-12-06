@@ -2412,7 +2412,10 @@ defmodule CompilerTest do
       b = {bi, bf, bg, bo}
 
       assert {{c1, c2}, seq} = predict_fn.(params, input2)
-      {{c1_static, c2_static}, seq_static} = Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+
+      {{c1_static, c2_static}, seq_static} =
+        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+
       assert Nx.all_close(c1, c1_static) == Nx.tensor(1, type: {:u, 8})
       assert Nx.all_close(c2, c2_static) == Nx.tensor(1, type: {:u, 8})
       assert Nx.all_close(seq, seq_static) == Nx.tensor(1, type: {:u, 8})
