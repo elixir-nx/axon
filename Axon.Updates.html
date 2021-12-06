@@ -10,7 +10,7 @@
     <title>Axon.Updates — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-b5076885a795c65e636c.css" />
 
-    <script src="dist/sidebar_items-8284f7a6b1.js"></script>
+    <script src="dist/sidebar_items-8c477a36b2.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -97,16 +97,16 @@ Axon
 usually by scaling or shifting the input with respect
 to some input state. Update methods are composed
 to create more advanced optimization methods such as AdaGrad
-or Adam. Each update returns a tuple:</p><pre><code class="makeup elixir"><span class="p" data-group-id="2811159726-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="2811159726-1">}</span></code></pre><p>Which represent a state initialization and state update
+or Adam. Each update returns a tuple:</p><pre><code class="makeup elixir"><span class="p" data-group-id="8979163274-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="8979163274-1">}</span></code></pre><p>Which represent a state initialization and state update
 function respectively. While each method in the Updates
 API is a regular Elixir function, the two methods they
 return are implemented as <code class="inline">defn</code>, so they can be accelerated
 using any Nx backend or compiler.</p><p>Update methods are just combinators that can be arbitrarily
 composed to create complex optimizers. For example, the Adam
-optimizer in Axon.Optimizers is implemented as:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">adam</span><span class="p" data-group-id="7050766846-1">(</span><span class="n">learning_rate</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="7050766846-2">[</span><span class="p" data-group-id="7050766846-2">]</span><span class="p" data-group-id="7050766846-1">)</span><span class="w"> </span><span class="k" data-group-id="7050766846-3">do</span><span class="w">
-  </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale_by_adam</span><span class="p" data-group-id="7050766846-4">(</span><span class="n">opts</span><span class="p" data-group-id="7050766846-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale</span><span class="p" data-group-id="7050766846-5">(</span><span class="o">-</span><span class="n">learning_rate</span><span class="p" data-group-id="7050766846-5">)</span><span class="w">
-</span><span class="k" data-group-id="7050766846-3">end</span></code></pre><p>Updates are maps of updates, often associated with parameters of
+optimizer in Axon.Optimizers is implemented as:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">adam</span><span class="p" data-group-id="9342405022-1">(</span><span class="n">learning_rate</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="9342405022-2">[</span><span class="p" data-group-id="9342405022-2">]</span><span class="p" data-group-id="9342405022-1">)</span><span class="w"> </span><span class="k" data-group-id="9342405022-3">do</span><span class="w">
+  </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale_by_adam</span><span class="p" data-group-id="9342405022-4">(</span><span class="n">opts</span><span class="p" data-group-id="9342405022-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale</span><span class="p" data-group-id="9342405022-5">(</span><span class="o">-</span><span class="n">learning_rate</span><span class="p" data-group-id="9342405022-5">)</span><span class="w">
+</span><span class="k" data-group-id="9342405022-3">end</span></code></pre><p>Updates are maps of updates, often associated with parameters of
 the same names. Using <a href="#apply_updates/2"><code class="inline">Axon.Updates.apply_updates/2</code></a> will merge updates
 and parameters by adding associated parameters and updates.</p><h2 id="module-custom-combinators" class="section-heading">
   <a href="#module-custom-combinators" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
@@ -114,41 +114,41 @@ and parameters by adding associated parameters and updates.</p><h2 id="module-cu
 </h2>
 <p>You can create your own combinators using the <a href="#stateless/2"><code class="inline">stateless/2</code></a> and
 <a href="#stateful/3"><code class="inline">stateful/3</code></a> primitives. Every update method in this module is
-implemented in terms of one of these two primitives.</p><p><a href="#stateless/2"><code class="inline">stateless/2</code></a> represents a stateless update:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">scale</span><span class="p" data-group-id="4857272720-1">(</span><span class="n">combinator</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">identity</span><span class="p" data-group-id="4857272720-2">(</span><span class="p" data-group-id="4857272720-2">)</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="4857272720-1">)</span><span class="w"> </span><span class="k" data-group-id="4857272720-3">do</span><span class="w">
-  </span><span class="n">stateless</span><span class="p" data-group-id="4857272720-4">(</span><span class="n">combinator</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_scale</span><span class="p" data-group-id="4857272720-5">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="4857272720-5">)</span><span class="p" data-group-id="4857272720-4">)</span><span class="w">
-</span><span class="k" data-group-id="4857272720-3">end</span><span class="w">
+implemented in terms of one of these two primitives.</p><p><a href="#stateless/2"><code class="inline">stateless/2</code></a> represents a stateless update:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">scale</span><span class="p" data-group-id="7886535623-1">(</span><span class="n">combinator</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">identity</span><span class="p" data-group-id="7886535623-2">(</span><span class="p" data-group-id="7886535623-2">)</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="7886535623-1">)</span><span class="w"> </span><span class="k" data-group-id="7886535623-3">do</span><span class="w">
+  </span><span class="n">stateless</span><span class="p" data-group-id="7886535623-4">(</span><span class="n">combinator</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_scale</span><span class="p" data-group-id="7886535623-5">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="7886535623-5">)</span><span class="p" data-group-id="7886535623-4">)</span><span class="w">
+</span><span class="k" data-group-id="7886535623-3">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_scale</span><span class="p" data-group-id="4857272720-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="4857272720-6">)</span><span class="w"> </span><span class="k" data-group-id="4857272720-7">do</span><span class="w">
-  </span><span class="n">transform</span><span class="p" data-group-id="4857272720-8">(</span><span class="w">
-    </span><span class="p" data-group-id="4857272720-9">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="4857272720-9">}</span><span class="p">,</span><span class="w">
-    </span><span class="k" data-group-id="4857272720-10">fn</span><span class="w"> </span><span class="p" data-group-id="4857272720-11">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="4857272720-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-      </span><span class="n">deep_new</span><span class="p" data-group-id="4857272720-12">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="4857272720-13">fn</span><span class="w"> </span><span class="p" data-group-id="4857272720-14">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p" data-group-id="4857272720-14">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="4857272720-15">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="4857272720-15">)</span><span class="w"> </span><span class="k" data-group-id="4857272720-13">end</span><span class="p" data-group-id="4857272720-12">)</span><span class="w">
-    </span><span class="k" data-group-id="4857272720-10">end</span><span class="w">
-  </span><span class="p" data-group-id="4857272720-8">)</span><span class="w">
-</span><span class="k" data-group-id="4857272720-7">end</span></code></pre><p>Notice how the function given to <a href="#stateless/2"><code class="inline">stateless/2</code></a> is defined within <code class="inline">defn</code>.
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_scale</span><span class="p" data-group-id="7886535623-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7886535623-6">)</span><span class="w"> </span><span class="k" data-group-id="7886535623-7">do</span><span class="w">
+  </span><span class="n">transform</span><span class="p" data-group-id="7886535623-8">(</span><span class="w">
+    </span><span class="p" data-group-id="7886535623-9">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7886535623-9">}</span><span class="p">,</span><span class="w">
+    </span><span class="k" data-group-id="7886535623-10">fn</span><span class="w"> </span><span class="p" data-group-id="7886535623-11">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7886535623-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+      </span><span class="n">deep_new</span><span class="p" data-group-id="7886535623-12">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="7886535623-13">fn</span><span class="w"> </span><span class="p" data-group-id="7886535623-14">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p" data-group-id="7886535623-14">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="7886535623-15">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7886535623-15">)</span><span class="w"> </span><span class="k" data-group-id="7886535623-13">end</span><span class="p" data-group-id="7886535623-12">)</span><span class="w">
+    </span><span class="k" data-group-id="7886535623-10">end</span><span class="w">
+  </span><span class="p" data-group-id="7886535623-8">)</span><span class="w">
+</span><span class="k" data-group-id="7886535623-7">end</span></code></pre><p>Notice how the function given to <a href="#stateless/2"><code class="inline">stateless/2</code></a> is defined within <code class="inline">defn</code>.
 This is what allows the anonymous functions returned by <a href="Axon.Updates.html#content"><code class="inline">Axon.Updates</code></a>
-to be used inside <code class="inline">defn</code>.</p><p><a href="#stateful/3"><code class="inline">stateful/3</code></a> represents a stateful update and follows the same pattern:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">my_stateful_update</span><span class="p" data-group-id="0895928373-1">(</span><span class="n">updates</span><span class="p" data-group-id="0895928373-1">)</span><span class="w"> </span><span class="k" data-group-id="0895928373-2">do</span><span class="w">
-  </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">stateful</span><span class="p" data-group-id="0895928373-3">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">init_my_update</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_my_update</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="0895928373-3">)</span><span class="w">
-</span><span class="k" data-group-id="0895928373-2">end</span><span class="w">
+to be used inside <code class="inline">defn</code>.</p><p><a href="#stateful/3"><code class="inline">stateful/3</code></a> represents a stateful update and follows the same pattern:</p><pre><code class="makeup elixir"><span class="kd">def</span><span class="w"> </span><span class="nf">my_stateful_update</span><span class="p" data-group-id="5904116938-1">(</span><span class="n">updates</span><span class="p" data-group-id="5904116938-1">)</span><span class="w"> </span><span class="k" data-group-id="5904116938-2">do</span><span class="w">
+  </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">stateful</span><span class="p" data-group-id="5904116938-3">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">init_my_update</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_my_update</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="5904116938-3">)</span><span class="w">
+</span><span class="k" data-group-id="5904116938-2">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">init_my_update</span><span class="p" data-group-id="0895928373-4">(</span><span class="n">params</span><span class="p" data-group-id="0895928373-4">)</span><span class="w"> </span><span class="k" data-group-id="0895928373-5">do</span><span class="w">
-  </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zeros_like</span><span class="p" data-group-id="0895928373-6">(</span><span class="n">params</span><span class="p" data-group-id="0895928373-6">)</span><span class="w">
-  </span><span class="p" data-group-id="0895928373-7">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="0895928373-7">}</span><span class="w">
-</span><span class="k" data-group-id="0895928373-5">end</span><span class="w">
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">init_my_update</span><span class="p" data-group-id="5904116938-4">(</span><span class="n">params</span><span class="p" data-group-id="5904116938-4">)</span><span class="w"> </span><span class="k" data-group-id="5904116938-5">do</span><span class="w">
+  </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zeros_like</span><span class="p" data-group-id="5904116938-6">(</span><span class="n">params</span><span class="p" data-group-id="5904116938-6">)</span><span class="w">
+  </span><span class="p" data-group-id="5904116938-7">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="5904116938-7">}</span><span class="w">
+</span><span class="k" data-group-id="5904116938-5">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_my_update</span><span class="p" data-group-id="0895928373-8">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="0895928373-8">)</span><span class="w"> </span><span class="k" data-group-id="0895928373-9">do</span><span class="w">
-  </span><span class="n">new_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deep_new</span><span class="p" data-group-id="0895928373-10">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="0895928373-11">fn</span><span class="w"> </span><span class="p" data-group-id="0895928373-12">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p" data-group-id="0895928373-12">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="0895928373-13">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="0895928373-14">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p" data-group-id="0895928373-14">)</span><span class="p" data-group-id="0895928373-13">}</span><span class="w"> </span><span class="k" data-group-id="0895928373-11">end</span><span class="p" data-group-id="0895928373-10">)</span><span class="w">
-  </span><span class="n">updates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transform</span><span class="p" data-group-id="0895928373-15">(</span><span class="p" data-group-id="0895928373-16">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="0895928373-16">}</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="0895928373-17">fn</span><span class="w"> </span><span class="p" data-group-id="0895928373-18">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="0895928373-18">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-    </span><span class="n">deep_merge</span><span class="p" data-group-id="0895928373-19">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="0895928373-20">fn</span><span class="w"> </span><span class="bp">_</span><span class="p">,</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="0895928373-21">(</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p" data-group-id="0895928373-21">)</span><span class="w"> </span><span class="k" data-group-id="0895928373-20">end</span><span class="p" data-group-id="0895928373-19">)</span><span class="w">
-  </span><span class="k" data-group-id="0895928373-17">end</span><span class="p" data-group-id="0895928373-15">)</span><span class="w">
-  </span><span class="p" data-group-id="0895928373-22">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0895928373-23">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="0895928373-23">}</span><span class="p" data-group-id="0895928373-22">}</span><span class="w">
-</span><span class="k" data-group-id="0895928373-9">end</span></code></pre><p>State associated with individual parameters should have keys that match the
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_my_update</span><span class="p" data-group-id="5904116938-8">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="5904116938-8">)</span><span class="w"> </span><span class="k" data-group-id="5904116938-9">do</span><span class="w">
+  </span><span class="n">new_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deep_new</span><span class="p" data-group-id="5904116938-10">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="5904116938-11">fn</span><span class="w"> </span><span class="p" data-group-id="5904116938-12">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p" data-group-id="5904116938-12">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="5904116938-13">{</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="5904116938-14">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p" data-group-id="5904116938-14">)</span><span class="p" data-group-id="5904116938-13">}</span><span class="w"> </span><span class="k" data-group-id="5904116938-11">end</span><span class="p" data-group-id="5904116938-10">)</span><span class="w">
+  </span><span class="n">updates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transform</span><span class="p" data-group-id="5904116938-15">(</span><span class="p" data-group-id="5904116938-16">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="5904116938-16">}</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="5904116938-17">fn</span><span class="w"> </span><span class="p" data-group-id="5904116938-18">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="5904116938-18">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="n">deep_merge</span><span class="p" data-group-id="5904116938-19">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="5904116938-20">fn</span><span class="w"> </span><span class="bp">_</span><span class="p">,</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="5904116938-21">(</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p" data-group-id="5904116938-21">)</span><span class="w"> </span><span class="k" data-group-id="5904116938-20">end</span><span class="p" data-group-id="5904116938-19">)</span><span class="w">
+  </span><span class="k" data-group-id="5904116938-17">end</span><span class="p" data-group-id="5904116938-15">)</span><span class="w">
+  </span><span class="p" data-group-id="5904116938-22">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5904116938-23">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="5904116938-23">}</span><span class="p" data-group-id="5904116938-22">}</span><span class="w">
+</span><span class="k" data-group-id="5904116938-9">end</span></code></pre><p>State associated with individual parameters should have keys that match the
 keys of the parameter. For example, if you have parameters <code class="inline">%{kernel: kernel}</code>
 with associated states <code class="inline">mu</code> and <code class="inline">nu</code> representing the first and second moments,
-your state should look something like:</p><pre><code class="makeup elixir"><span class="p" data-group-id="5033965172-1">%{</span><span class="w">
-  </span><span class="ss">mu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5033965172-2">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_mu</span><span class="p" data-group-id="5033965172-2">}</span><span class="w">
-  </span><span class="ss">nu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5033965172-3">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_nu</span><span class="p" data-group-id="5033965172-3">}</span><span class="w">
-</span><span class="p" data-group-id="5033965172-1">}</span></code></pre>
+your state should look something like:</p><pre><code class="makeup elixir"><span class="p" data-group-id="9213737558-1">%{</span><span class="w">
+  </span><span class="ss">mu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9213737558-2">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_mu</span><span class="p" data-group-id="9213737558-2">}</span><span class="w">
+  </span><span class="ss">nu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9213737558-3">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_nu</span><span class="p" data-group-id="9213737558-3">}</span><span class="w">
+</span><span class="p" data-group-id="9213737558-1">}</span></code></pre>
   </section>
 
 
@@ -223,6 +223,18 @@ your state should look something like:</p><pre><code class="makeup elixir"><span
         </div>
 
           <div class="summary-synopsis"><p>Clips input using input global norm.</p></div>
+
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#compose/2" translate="no">compose(arg1, arg2)</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Composes two updates. This is useful for extending optimizers
+without having to reimplement them. For example, you can implement
+gradient centralization</p></div>
 
       </div>
 
@@ -538,6 +550,33 @@ to <code class="inline">2.0</code></li></ul>
 </h2>
 <ul><li><code class="inline">:max_norm</code> - maximum norm value of input. Defaults to
 <code class="inline">1.0</code></li></ul>
+  </section>
+</section>
+<section class="detail" id="compose/2">
+
+  <div class="detail-header">
+    <a href="#compose/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">compose(arg1, arg2)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L745" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Composes two updates. This is useful for extending optimizers
+without having to reimplement them. For example, you can implement
+gradient centralization:</p><pre><code class="makeup elixir"><span class="kn">import</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="w">
+
+</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">compose</span><span class="p" data-group-id="5191371007-1">(</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="5191371007-2">(</span><span class="p" data-group-id="5191371007-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">rmsprop</span><span class="p" data-group-id="5191371007-3">(</span><span class="p" data-group-id="5191371007-3">)</span><span class="p" data-group-id="5191371007-1">)</span></code></pre><p>This is equivalent to:</p><pre><code class="makeup elixir"><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="1713762912-1">(</span><span class="p" data-group-id="1713762912-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">scale_by_rms</span><span class="p" data-group-id="1713762912-2">(</span><span class="p" data-group-id="1713762912-2">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="identity/0">
@@ -891,7 +930,7 @@ to <code class="inline">2.0</code></li></ul>
     </a>
     <h1 class="signature" translate="no">stateful(arg \\ identity(), init_fn, apply_fn)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L734" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L765" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
