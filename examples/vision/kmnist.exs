@@ -1,7 +1,3 @@
-# Title: Kuzushiji MNIST
-
-# ── Section ──
-
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
