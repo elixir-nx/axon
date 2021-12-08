@@ -40,35 +40,10 @@ defmodule Fashionmist do
     |> Nx.to_batched_list(32)
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp train_model(model, train_images, epochs) do
     model
     |> Axon.Loop.trainer(:mean_squared_error, :adam)
     |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
     |> Axon.Loop.run(Stream.zip(train_images, train_images), epochs: epochs, compiler: EXLA)
   end
 

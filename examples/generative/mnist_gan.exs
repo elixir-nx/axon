@@ -145,9 +145,7 @@ defmodule MNISTGAN do
     g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:generator][:loss])])}"
     d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:discriminator][:loss])])}"
 
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, batch: #{Nx.to_scalar(iter)} #{g_loss} #{d_loss}")
-
-    {:continue, state}
+    "\rEpoch: #{Nx.to_scalar(epoch)}, batch: #{Nx.to_scalar(iter)} #{g_loss} #{d_loss}"
   end
 
   defp view_generated_images(model, batch_size, state) do
@@ -171,7 +169,7 @@ defmodule MNISTGAN do
 
     discriminator
     |> train_loop(generator)
-    |> Axon.Loop.handle(:iteration_completed, &log_iteration/1, every: 50)
+    |> Axon.Loop.log(&log_iteration/1, :stdio, every: 50)
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
     |> Axon.Loop.run(images, epochs: 10, compiler: EXLA)
   end

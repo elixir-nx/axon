@@ -504,11 +504,37 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.trainer(loss_weights)
       |> Axon.Loop.run(data)
+
+  ## Options
+
+    * `:log` - training loss and metric log interval. Set to 0 to silence
+      training logs. Defaults to 50
   """
-  def trainer(model, loss, optimizer) do
+  def trainer(model, loss, optimizer, opts \\ []) do
+    log_interval = opts[:log] || 50
     {init_fn, step_fn} = train_step(model, loss, optimizer)
     output_transform = fn state -> state.step_state[:model_state] end
-    loop(step_fn, init_fn, output_transform)
+    loop = loop(step_fn, init_fn, output_transform)
+
+    if log_interval > 0 do
+      loop
+      |> log(:iteration_completed, &train_log_message_fn/1, :stdio, every: log_interval)
+    else
+      loop
+    end
+  end
+
+  defp train_log_message_fn(state) do
+    %State{metrics: metrics, epoch: epoch, iteration: iter, step_state: step_state} = state
+    %{loss: loss} = step_state
+    loss = "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
+
+    metrics =
+      metrics
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
+      |> Enum.join(" ")
+
+    "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}"
   end
 
   @doc """
@@ -696,6 +722,37 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which logs the given message produced
+  by `message_fn` to the given IO device every `event` satisfying
+  `filter`.
+
+  In most cases, this is useful for inspecting the contents of
+  the loop state at intermediate stages. For example, the default
+  `trainer` loop factory attaches IO logging of epoch, batch, loss
+  and metrics.
+
+  It's also possible to log loop state to files by changing the
+  given IO device. By default, the IO device is `:stdio`.
+
+  `message_fn` should take the loop state and return a binary
+  representing the message to be written to the IO device.
+  """
+  def log(%Loop{} = loop, event, message_fn, device \\ :stdio, filter \\ :always)
+      when is_function(message_fn, 1) do
+    log_fn = fn %State{} = state ->
+      # TODO: Should we rescue here and terminate the loop
+      # with an error gracefully, or just let the entire thing
+      # crash?
+      msg = message_fn.(state)
+      IO.write(device, msg)
+      {:continue, state}
+    end
+
+    loop
+    |> handle(event, log_fn, filter)
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
@@ -813,7 +870,7 @@ defmodule Axon.Loop do
                       {:halt, {:halted, final_metrics_map, state}}
 
                     {:continue, state} ->
-                      new_times = Map.put(state.times, Nx.to_scalar(epoch), time)
+                      new_times = Map.put(state.times, Nx.to_number(epoch), time)
                       new_loop_state = %State{state | times: new_times}
 
                       case fire_event(:epoch_completed, handler_fns, new_loop_state) do
@@ -918,8 +975,8 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              iters = Nx.to_scalar(iters)
-              max_iters = Nx.to_scalar(max_iters)
+              iters = Nx.to_number(iters)
+              max_iters = Nx.to_number(max_iters)
 
               if iters > max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
