@@ -740,12 +740,15 @@ defmodule Axon.Loop do
   def log(%Loop{} = loop, event, message_fn, device \\ :stdio, filter \\ :always)
       when is_function(message_fn, 1) do
     log_fn = fn %State{} = state ->
-      # TODO: Should we rescue here and terminate the loop
-      # with an error gracefully, or just let the entire thing
-      # crash?
-      msg = message_fn.(state)
-      IO.write(device, msg)
-      {:continue, state}
+      try do
+        msg = message_fn.(state)
+        IO.write(device, msg)
+        {:continue, state}
+      rescue
+        error ->
+          Logger.error("Something went wrong #{inspect(error)}")
+          {:halt_loop, state}
+      end
     end
 
     loop
