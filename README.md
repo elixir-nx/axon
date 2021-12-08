@@ -158,6 +158,10 @@ def deps do
 end
 ```
 
+## Sponsors
+
+<a href="https://dockyard.com"><img src="sponsors/dockyard.png" width=200 alt="DockYard"></a>
+
 ## License
 
 Copyright (c) 2021 Sean Moriarity
