@@ -1044,8 +1044,9 @@ defmodule Axon.Losses do
     opts = keyword!(opts, blank: 0, reduction: :none)
     eps = Nx.tensor(1.0e-7)
     b_size = elem(Nx.shape(y_true), 0)
-    #shape check(s)
+    # shape check(s)
     b_size_pred = elem(Nx.shape(y_pred), 0)
+
     transform(
       {b_size, b_size_pred},
       fn {b_size_true, b_size_pred} ->
@@ -1056,6 +1057,7 @@ defmodule Axon.Losses do
         end
       end
     )
+
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
 
@@ -1075,6 +1077,7 @@ defmodule Axon.Losses do
           Nx.add(loss_b, eps)
           |> Nx.log()
           |> Nx.abs()
+
         {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, y_pred}
       end
 

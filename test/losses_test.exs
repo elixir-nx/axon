@@ -165,7 +165,8 @@ defmodule Axon.LossesTest do
           ]
         ])
 
-      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) == Nx.tensor([10.772387504577637])
+      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) ==
+               Nx.tensor([10.772387504577637])
     end
   end
 end
