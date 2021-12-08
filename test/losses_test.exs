@@ -126,8 +126,8 @@ defmodule Axon.LossesTest do
 
       y_pred = Nx.broadcast(-1.6094379425048828, {2, 10, 5})
 
-      assert Axon.Losses.ctcloss(y_true, y_pred) ==
-               Nx.tensor([8.08701229095459, 8.934309959411621])
+      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) ==
+               Nx.tensor([8.08642292022705, 8.933040618896484])
     end
 
     test "trailing blanks doesn't contribute" do
@@ -140,8 +140,8 @@ defmodule Axon.LossesTest do
       y_true2 = Nx.tensor([[0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0], [0, 2, 0, 2, 0, 4, 0, 1, 0, 0, 0]])
       y_pred = Nx.broadcast(-1.6094379425048828, {2, 10, 5})
 
-      loss1 = Axon.Losses.ctcloss(y_true1, y_pred)
-      loss2 = Axon.Losses.ctcloss(y_true2, y_pred)
+      loss1 = Axon.Losses.connectionist_temporal_classification(y_true1, y_pred)
+      loss2 = Axon.Losses.connectionist_temporal_classification(y_true2, y_pred)
 
       assert loss1 == loss2
     end
@@ -165,7 +165,7 @@ defmodule Axon.LossesTest do
           ]
         ])
 
-      assert Axon.Losses.ctcloss(y_true, y_pred) == Nx.tensor([10.782031059265137])
+      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) == Nx.tensor([10.772387504577637])
     end
   end
 end

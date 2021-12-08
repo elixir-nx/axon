@@ -1042,7 +1042,7 @@ defmodule Axon.Losses do
   """
   defn connectionist_temporal_classification(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, blank: 0, reduction: :none)
-    # eps = Nx.tensor([1.0e-7])
+    eps = Nx.tensor(1.0e-7)
     b_size = elem(Nx.shape(y_true), 0)
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
@@ -1059,7 +1059,10 @@ defmodule Axon.Losses do
             {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0}
           end
 
-        loss_b = -Nx.log(loss_b)
+        loss_b =
+          Nx.add(loss_b, eps)
+          |> Nx.log()
+          |> Nx.abs()
         {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, y_pred}
       end
 
@@ -1148,7 +1151,7 @@ defmodule Axon.Losses do
 
   # Get iteration values for acceptable nodes at a sequence step.
   defn get_prob(prob_prev, s_lims, s_lims_prev, y_true, y_pred) do
-    # eps = Nx.tensor(1.0e-7)
+    eps = Nx.tensor(1.0e-7)
     # Process nodes one-by-one from lower to upper bound.
     {t_prob, _, _, _, _} =
       while {prob_prev, s = s_lims[0], y_true, y_pred, s_lims_prev}, s <= s_lims[1] do
@@ -1156,7 +1159,7 @@ defmodule Axon.Losses do
         path_prob =
           get_path_prob(s, y_true, prob_prev, s_lims_prev)
           |> Nx.sum()
-          # |> Nx.add(eps)
+          |> Nx.add(eps)
           |> Nx.log()
 
         # Add `node probability` part
