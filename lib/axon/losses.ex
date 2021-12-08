@@ -1027,6 +1027,8 @@ defmodule Axon.Losses do
 
   @doc """
   WIP
+  Connectionist Temporal Classification loss.
+
   y_pred should be log_softmax output of shape (B, T, D),
   y_true should be of shape (B, S),
   where
@@ -1038,7 +1040,7 @@ defmodule Axon.Losses do
   blank, each initial character should be separated with blanks,
   double blanks mark the end of target sequence.
   """
-  defn ctcloss(y_true, y_pred, opts \\ []) do
+  defn connectionist_temporal_classification(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, blank: 0, reduction: :none)
     # eps = Nx.tensor([1.0e-7])
     b_size = elem(Nx.shape(y_true), 0)
