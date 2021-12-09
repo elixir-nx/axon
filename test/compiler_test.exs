@@ -3376,7 +3376,10 @@ defmodule CompilerTest do
       c = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
       {{carry}, output} = predict_fn.(params, input)
-      {{s_carry}, s_output} = Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+
+      {{s_carry}, s_output} =
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+
       assert Nx.all_close(carry, s_carry) == Nx.tensor(1, type: {:u, 8})
       assert Nx.all_close(output, s_output) == Nx.tensor(1, type: {:u, 8})
     end
