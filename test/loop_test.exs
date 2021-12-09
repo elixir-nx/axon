@@ -274,7 +274,7 @@ defmodule Axon.LoopTest do
               | step_state:
                   case pstate[:counter] do
                     nil -> Map.put(pstate, :counter, 0)
-                    counter -> %{pstate | counter: Nx.to_scalar(counter) + 1}
+                    counter -> %{pstate | counter: Nx.to_number(counter) + 1}
                   end
             }
           }
@@ -311,7 +311,7 @@ defmodule Axon.LoopTest do
                       Map.put(pstate, :counter, {{0}, 0})
 
                     {{counter}, _} ->
-                      next_counter_value = Nx.to_scalar(counter) + 1
+                      next_counter_value = Nx.to_number(counter) + 1
                       %{pstate | counter: {{next_counter_value}, next_counter_value}}
                   end
             }
