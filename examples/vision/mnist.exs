@@ -2,7 +2,7 @@ Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.1"}
+  {:scidata, "~> 0.1.3"}
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
@@ -55,8 +55,7 @@ defmodule Mnist do
   end
 
   def run do
-    {images, labels} =
-      Scidata.MNIST.download()
+    {images, labels} = Scidata.MNIST.download()
 
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)

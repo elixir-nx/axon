@@ -8,17 +8,17 @@ Mix.install([
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule MnistDenoising do
+  require Axon
   import Nx.Defn
-  alias Axon.Loop.State
 
   @noise_factor 0.4
   @batch_size 32
   @epochs 25
 
   def run do
-    {{train_images, test_images}, _} =
-      Scidata.MNIST.download(transform_images: &transform_images/1)
+    {images, _} = Scidata.MNIST.download()
 
+    {train_images, test_images} = transform_images(images)
     noisy_train_images = Stream.map(train_images, &add_noise/1)
     noisy_test_images = Stream.map(test_images, &add_noise/1)
     train_data = Stream.zip(train_images, noisy_train_images)

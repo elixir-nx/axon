@@ -2,7 +2,7 @@ Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/exla", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.1"},
+  {:scidata, "~> 0.1.3"},
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
@@ -48,7 +48,9 @@ defmodule Fashionmist do
   end
 
   def run do
-    {train_images, _} = Scidata.FashionMNIST.download(transform_images: &transform_images/1)
+    {images, _} = Scidata.FashionMNIST.download()
+
+    train_images = transform_images(images)
 
     model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
 

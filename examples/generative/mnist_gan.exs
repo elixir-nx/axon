@@ -2,7 +2,7 @@ Mix.install([
   {:axon, github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/nx", sparse: "exla"},
   {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.0"}
+  {:scidata, "~> 0.1.3"}
 ])
 
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
@@ -162,14 +162,15 @@ defmodule MNISTGAN do
   end
 
   def run() do
-    {images, _} = Scidata.MNIST.download(transform_images: &transform_images/1)
+    {train_images, _} = Scidata.MNIST.download()
+    images = transform_images(train_images)
 
     generator = build_generator(100)
     discriminator = build_discriminator({nil, 1, 28, 28})
 
     discriminator
     |> train_loop(generator)
-    |> Axon.Loop.log(&log_iteration/1, :stdio, every: 50)
+    |> Axon.Loop.log(:iteration_completed, &log_iteration/1, :stdio, every: 50)
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
     |> Axon.Loop.run(images, epochs: 10, compiler: EXLA)
   end
