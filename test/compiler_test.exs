@@ -3375,8 +3375,13 @@ defmodule CompilerTest do
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
       c = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
-      assert predict_fn.(params, input) ==
-               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+      {{carry}, output} = predict_fn.(params, input)
+
+      {{s_carry}, s_output} =
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+
+      assert Nx.all_close(carry, s_carry) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(output, s_output) == Nx.tensor(1, type: {:u, 8})
     end
 
     # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90

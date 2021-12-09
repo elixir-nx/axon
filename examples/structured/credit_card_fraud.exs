@@ -80,43 +80,6 @@ defmodule CreditCardFraud do
     |> Axon.sigmoid()
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.8f', [Nx.to_scalar(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} ->
-        v =
-          case Nx.type(v) do
-            {:f, _} ->
-              :io_lib.format('~.5f', [Nx.to_scalar(v)])
-
-            _ ->
-              :io_lib.format('~7.. B', [Nx.to_scalar(v)])
-          end
-
-        "#{k}: #{v}"
-      end)
-      |> Enum.join(" ")
-
-    epoch = :io_lib.format('~3.. B', [Nx.to_scalar(epoch)])
-    batch = :io_lib.format('~3.. B', [Nx.to_scalar(iter)])
-    IO.write("\rEpoch: #{epoch}, Batch: #{batch}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp summarize(%State{metrics: metrics} = state) do
     IO.write("\n\n")
 

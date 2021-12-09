@@ -33,7 +33,6 @@ defmodule MnistDenoising do
     model_state =
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
-      |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
       |> Axon.Loop.run(train_data, epochs: @epochs, compiler: EXLA)
 
     # Predict on batches of test images
@@ -44,30 +43,6 @@ defmodule MnistDenoising do
     test |> display_image()
     IO.write("\n\nDenoised Prediction\n\n")
     preds |> display_image()
-  end
-
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
-
-    {:continue, state}
   end
 
   defp transform_images({bin, type, shape}) do
