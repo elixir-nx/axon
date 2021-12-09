@@ -746,7 +746,11 @@ defmodule Axon.Loop do
         {:continue, state}
       rescue
         error ->
-          Logger.error("Something went wrong #{inspect(error)}")
+          Logger.error(
+            "Error on Axon.Loop.log/5 callback: " <>
+              Exception.format(:error, error, __STACKTRACE__)
+          )
+
           {:halt_loop, state}
       end
     end
