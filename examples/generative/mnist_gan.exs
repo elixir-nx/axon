@@ -162,8 +162,8 @@ defmodule MNISTGAN do
   end
 
   def run() do
-    {train_images, _} = Scidata.MNIST.download()
-    images = transform_images(train_images)
+    {images, _} = Scidata.MNIST.download()
+    train_images = transform_images(images)
 
     generator = build_generator(100)
     discriminator = build_discriminator({nil, 1, 28, 28})
@@ -172,7 +172,7 @@ defmodule MNISTGAN do
     |> train_loop(generator)
     |> Axon.Loop.log(:iteration_completed, &log_iteration/1, :stdio, every: 50)
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
-    |> Axon.Loop.run(images, epochs: 10, compiler: EXLA)
+    |> Axon.Loop.run(train_images, epochs: 10, compiler: EXLA)
   end
 end
 
