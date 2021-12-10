@@ -512,29 +512,38 @@ defmodule Axon.Loop do
   """
   def trainer(model, loss, optimizer, opts \\ []) do
     log_interval = opts[:log] || 50
-    {init_fn, step_fn} = train_step(model, loss, optimizer)
+    # Build loss now so we can use it as a metric
+    loss_fn = build_loss_fn(loss)
+    {init_fn, step_fn} = train_step(model, loss_fn, optimizer)
     output_transform = fn state -> state.step_state[:model_state] end
-    loop = loop(step_fn, init_fn, output_transform)
+
+    loop =
+      step_fn
+      |> loop(init_fn, output_transform)
+      |> metric(loss_fn, "loss")
 
     if log_interval > 0 do
       loop
-      |> log(:iteration_completed, &train_log_message_fn/1, :stdio, every: log_interval)
+      |> log(:iteration_completed, &supervised_log_message_fn/1, :stdio, every: log_interval)
+      |> log(:epoch_completed, fn _ -> "\n" end, :stdio)
     else
       loop
     end
   end
 
-  defp train_log_message_fn(state) do
-    %State{metrics: metrics, epoch: epoch, iteration: iter, step_state: step_state} = state
-    %{loss: loss} = step_state
-    loss = "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
+  defp supervised_log_message_fn(state, log_epochs \\ true) do
+    %State{metrics: metrics, epoch: epoch, iteration: iter} = state
 
     metrics =
       metrics
       |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
       |> Enum.join(" ")
 
-    "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}"
+    if log_epochs do
+      "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{metrics}"
+    else
+      "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
+    end
   end
 
   @doc """
@@ -566,6 +575,7 @@ defmodule Axon.Loop do
     {init_fn, step_fn} = eval_step(model, model_state)
     output_transform = fn state -> state.metrics end
     loop(step_fn, init_fn, output_transform)
+    |> log(:iteration_completed, &supervised_log_message_fn(&1, false), :stdio)
   end
 
   @doc """
@@ -641,7 +651,9 @@ defmodule Axon.Loop do
     end
 
     metric_fn = build_metric_fn(metric, accumulate, transform_or_fields)
-    %Loop{loop | metrics: Map.put(metric_fns, name, metric_fn)}
+    # For internal use we keep the raw metric as well as the compiled metric
+    # function
+    %Loop{loop | metrics: Map.put(metric_fns, name, {metric_fn, metric})}
   end
 
   @doc """
@@ -757,6 +769,66 @@ defmodule Axon.Loop do
 
     loop
     |> handle(event, log_fn, filter)
+  end
+
+  @doc """
+  Adds a handler function which tests the performance of `model`
+  against the given validation set.
+
+  This handler assumes the loop state matches the state initialized
+  in a supervised training loop. Typically, you'd call this immediately
+  after creating a supervised training loop:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.validate(model, validation_data)
+
+  Please note that you must pass the same (or an equivalent) model
+  into this method so it can be used during the validation loop. The
+  metrics which are computed are those which are present BEFORE the
+  validation handler was added to the loop. For the following loop:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.metric(:mean_absolute_error)
+      |> Axon.Loop.validate(model, validation_data)
+      |> Axon.Loop.metric(:binary_cross_entropy)
+
+  only `:mean_absolute_error` will be computed at validation time.
+
+  The returned loop state is altered to contain validation
+  metrics for use in later handlers such as early stopping and model
+  checkpoints. Since the order of execution of event handlers is in
+  the same order they are declared in the training loop, you MUST call
+  this method before any other handler which expects or may use
+  validation metrics.
+  """
+  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data, opts \\ []) do
+    validation_step = fn %State{metrics: metrics, step_state: step_state} = state ->
+      %{model_state: model_state} = step_state
+
+      metrics =
+        model
+        |> evaluator(model_state)
+        |> then(
+          &Enum.reduce(metric_fns, &1, fn {k, {_, v}}, loop ->
+            # These metric functions are built with an accumulator
+            # so we our validation metric accumulation function just
+            # needs to be the identity function 
+            metric(loop, v, k)
+          end)
+        )
+        |> log(:completed, fn _ -> "\n" end)
+        |> run(validation_data, opts)
+        |> Map.new(fn {k, v} ->
+          {"validation_#{k}", v}
+        end)
+        |> Map.merge(metrics, fn _, _, v -> v end)
+
+      {:continue, %{state | metrics: metrics}}
+    end
+
+    handle(loop, :epoch_completed, validation_step)
   end
 
   @doc """
@@ -1060,8 +1132,20 @@ defmodule Axon.Loop do
 
       new_metrics =
         metrics
-        |> Enum.zip_with(metric_fns, fn {k, avg}, {k, v} ->
-          {k, v.(avg, List.wrap(new_step_state), iter)}
+        |> Enum.zip_with(metric_fns, fn {k, avg}, {k, {v, _}} ->
+          # In some instances the metric is actually present in the
+          # step state e.g. in a supervised training loop when we
+          # are computing loss but it's already computed as a part
+          # of the step state, so we need to check here
+          metric = String.to_atom(k)
+
+          case pstate do
+            %{^metric => value} ->
+              {k, value}
+
+            %{} ->
+              {k, v.(avg, List.wrap(new_step_state), iter)}
+          end
         end)
         |> Map.new()
 
@@ -1215,12 +1299,12 @@ defmodule Axon.Loop do
             |> then(&apply(Axon.Metrics, metric, &1))
           end
 
-        metric_fn when is_function(metric) ->
+        metric_fn when is_function(metric, 2) ->
           fn output ->
             output
             |> transform_fn.()
             |> then(&apply(metric_fn, &1))
-            |> List.wrap()
+            # |> List.wrap()
           end
 
         invalid ->
