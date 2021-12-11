@@ -804,7 +804,7 @@ defmodule Axon.Loop do
   this method before any other handler which expects or may use
   validation metrics.
   """
-  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data, opts \\ []) do
+  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data) do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
@@ -817,7 +817,7 @@ defmodule Axon.Loop do
           end)
         )
         |> log(:completed, fn _ -> "\n" end)
-        |> run(validation_data, opts)
+        |> run(validation_data)
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)
@@ -870,17 +870,14 @@ defmodule Axon.Loop do
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
-    * `:compiler` - Nx compiler to use to JIT compile step function. By default
-      the compiler set by `Nx.Defn.default_options` is used. If none is set, this
-      will be `Nx.Defn.Evaluator`. 
+    Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
+    options are set, the default options set with `Nx.Defn.default_options` are
+    used.
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
-    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {compiler, jit_opts} = Keyword.pop(opts, :compiler, nil)
-    compiler = compiler || Keyword.get(Nx.Defn.default_options(), :compiler)
-    compiler = compiler || Nx.Defn.Evaluator
+    {jit_compile?, jit_opts} = Keyword.pop(opts, :jit_compile?, true)
 
     %Loop{
       init: init_fn,
@@ -899,7 +896,6 @@ defmodule Axon.Loop do
         max_epochs,
         max_iterations,
         jit_compile?,
-        compiler,
         jit_opts
       )
 
@@ -931,14 +927,13 @@ defmodule Axon.Loop do
 
                 {:continue, state} ->
                   {time, status_and_state} =
-                    :timer.tc(&run_epoch/8, [
+                    :timer.tc(&run_epoch/7, [
                       step_fn,
                       metric_fns,
                       handler_fns,
                       state,
                       data,
                       jit_compile?,
-                      compiler,
                       jit_opts
                     ])
 
@@ -1000,7 +995,6 @@ defmodule Axon.Loop do
          max_epochs,
          max_iterations,
          jit_compile?,
-         compiler,
          jit_opts
        ) do
     case attached_state do
@@ -1009,7 +1003,7 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
-        step_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
+        step_state = maybe_jit(init_fn, [], jit_compile?, jit_opts)
 
         %State{
           epoch: 0,
@@ -1030,7 +1024,6 @@ defmodule Axon.Loop do
          loop_state,
          data,
          jit_compile?,
-         compiler,
          jit_opts
        ) do
     Enum.reduce_while(data, {:continue, loop_state}, fn data, {_, state} ->
@@ -1045,7 +1038,7 @@ defmodule Axon.Loop do
           batch_fn = build_batch_fn(step_fn, metric_fns)
 
           %State{iteration: iters, max_iteration: max_iters} =
-            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, compiler, jit_opts)
+            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, jit_opts)
 
           case fire_event(:iteration_completed, handler_fns, new_state) do
             {:halt_epoch, state} ->
@@ -1371,12 +1364,11 @@ defmodule Axon.Loop do
     end
   end
 
-  # JIT-compiles the given function if the given compiler is a
-  # valid defn compiler, otherwise applies the function with
-  # the given arguments.
-  defp maybe_jit(fun, args, jit_compile?, compiler, jit_opts) do
+  # JIT-compiles the given function if jit_compile? is true
+  # otherwise just applies the function with the given arguments
+  defp maybe_jit(fun, args, jit_compile?, jit_opts) do
     if jit_compile? do
-      Nx.Defn.jit(fun, args, [compiler: compiler] ++ jit_opts)
+      Nx.Defn.jit(fun, args, jit_opts)
     else
       apply(fun, args)
     end
