@@ -219,7 +219,7 @@ defmodule Axon.LoopTest do
         |> Loop.loop()
         |> Loop.metric(:accuracy)
 
-      assert %Loop{metrics: %{"accuracy" => avg_acc_fun}} = loop
+      assert %Loop{metrics: %{"accuracy" => {avg_acc_fun, _}}} = loop
 
       output = %{foo: 1, y_true: Nx.tensor([1, 0, 1]), y_pred: Nx.tensor([0.8, 0.2, 0.8])}
       cur_avg_acc = 0.5
@@ -236,7 +236,7 @@ defmodule Axon.LoopTest do
         |> Loop.loop()
         |> Loop.metric(:true_positives, "tp", :running_sum, &Tuple.to_list/1)
 
-      assert %Loop{metrics: %{"tp" => sum_tp_fun}} = loop
+      assert %Loop{metrics: %{"tp" => {sum_tp_fun, _}}} = loop
 
       output = {Nx.tensor([1, 0, 1]), Nx.tensor([0, 1, 1])}
       cur_sum = 25
