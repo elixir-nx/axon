@@ -805,7 +805,7 @@ defmodule Axon.Loop do
   validation metrics.
   """
   def validate(%Loop{metrics: metric_fns} = loop, model, validation_data, opts \\ []) do
-    validation_step = fn %State{metrics: metrics, step_state: step_state} = state ->
+    validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
       metrics =
@@ -813,9 +813,6 @@ defmodule Axon.Loop do
         |> evaluator(model_state)
         |> then(
           &Enum.reduce(metric_fns, &1, fn {k, {_, v}}, loop ->
-            # These metric functions are built with an accumulator
-            # so we our validation metric accumulation function just
-            # needs to be the identity function 
             metric(loop, v, k)
           end)
         )
@@ -829,7 +826,7 @@ defmodule Axon.Loop do
       {:continue, %{state | metrics: metrics}}
     end
 
-    handle(loop, :epoch_completed, validation_step)
+    handle(loop, :epoch_completed, validation_loop)
   end
 
   @doc """
@@ -873,14 +870,17 @@ defmodule Axon.Loop do
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
-    * `:compiler` - Nx compiler to use to JIT compile step function. Defaults
-      to `nil` or Nx.Defn.Evaluator.
+    * `:compiler` - Nx compiler to use to JIT compile step function. By default
+      the compiler set by `Nx.Defn.default_options` is used. If none is set, this
+      will be `Nx.Defn.Evaluator`. 
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {compiler, jit_opts} = Keyword.pop(opts, :compiler, Nx.Defn.Evaluator)
+    {compiler, jit_opts} = Keyword.pop(opts, :compiler, nil)
+    compiler = compiler || Keyword.get(Nx.Defn.default_options(), :compiler)
+    compiler = compiler || Nx.Defn.Evaluator
 
     %Loop{
       init: init_fn,
