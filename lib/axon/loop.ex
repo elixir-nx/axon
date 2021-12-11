@@ -574,6 +574,7 @@ defmodule Axon.Loop do
   def evaluator(model, model_state) do
     {init_fn, step_fn} = eval_step(model, model_state)
     output_transform = fn state -> state.metrics end
+
     loop(step_fn, init_fn, output_transform)
     |> log(:iteration_completed, &supervised_log_message_fn(&1, false), :stdio)
   end
@@ -1304,6 +1305,7 @@ defmodule Axon.Loop do
             output
             |> transform_fn.()
             |> then(&apply(metric_fn, &1))
+
             # |> List.wrap()
           end
 
