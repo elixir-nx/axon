@@ -2,7 +2,7 @@ Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/exla", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.1"}
+  {:scidata, "~> 0.1.3"}
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
@@ -10,7 +10,6 @@ EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule Cifar do
   require Axon
-  alias Axon.Loop.State
 
   defp transform_images({bin, type, shape}) do
     bin
@@ -59,14 +58,10 @@ defmodule Cifar do
   end
 
   def run do
-    {images, labels} =
-      Scidata.CIFAR10.download(
-        transform_images: &transform_images/1,
-        transform_labels: &transform_labels/1
-      )
+    {images, labels} = Scidata.CIFAR10.download()
 
-    {train_images, test_images} = images
-    {train_labels, test_labels} = labels
+    {train_images, test_images} = transform_images(images)
+    {train_labels, test_labels} = transform_labels(labels)
 
     model = build_model({nil, 3, 32, 32}) |> IO.inspect()
 
