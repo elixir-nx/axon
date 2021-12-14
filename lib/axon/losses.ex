@@ -1110,14 +1110,6 @@ defmodule Axon.Losses do
         {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true}
       end
 
-    # transform({s_fin, s_max}, fn {s_fin, s_max} ->
-    # unless Elixir.Kernel.==(s_fin, s_max - 1) do
-    # raise ArgumentError, 
-    # "either prediction sequence is too short for label sequence" <>
-    # " or label sequence has double blank characters"
-    # end
-    # end)
-    # Get lower boundary values based on upper boundary values.
     st_min =
       cond do
         t_fin == t_max + 1 ->
