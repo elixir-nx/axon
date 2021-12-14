@@ -1026,19 +1026,17 @@ defmodule Axon.Losses do
   end
 
   @doc """
-  WIP
   Connectionist Temporal Classification loss.
 
-  y_pred should be log_softmax output of shape (B, T, D),
-  y_true should be of shape (B, S),
-  where
-  B - batch size,
-  T - sequence length,
-  D - dictionary size, including blank
-  S - maximum target length
-  y_true nas to be preencoded, its first and last characters should be
-  blank, each initial character should be separated with blanks,
-  double blanks mark the end of target sequence.
+  ## Argument Shapes
+
+    * `y_true` - $\(B, S\)$
+    * `y_pred` - $\(B, T, D\)$
+
+  ## Options
+
+  * `:reduction` - reduction mode. One of `:sum` or `:none`.
+    Defaults to `:none`.
   """
   defn connectionist_temporal_classification(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, blank: 0, reduction: :none)
