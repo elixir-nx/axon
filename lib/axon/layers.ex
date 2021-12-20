@@ -1748,9 +1748,15 @@ defmodule Axon.Layers do
           ]
         ]
       >
+
+  ### Error cases
+
+      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {4, 4}, method: :foo)
+      ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(img, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    opts = keyword!(opts, [:shape, method: :nearest])
     output_shape = opts[:shape]
 
     # Input must be a batch of 2D images
@@ -1775,8 +1781,10 @@ defmodule Axon.Layers do
       {img, shape, :nearest} ->
         resize_nearest(img, shape)
 
-      _ ->
-        raise ArgumentError, "invalid resize method"
+      {_, _, method} ->
+        raise ArgumentError,
+              "invalid resize method #{inspect(method)}, resize method" <>
+                " must be one of :nearest"
     end)
   end
 

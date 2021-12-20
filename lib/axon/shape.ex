@@ -1574,4 +1574,20 @@ defmodule Axon.Shape do
       out_shape
     end)
   end
+
+  @doc """
+  Computes the output shape after a resize layer.
+  """
+  def resize(input_shape, output_shape) do
+    case {input_shape, output_shape} do
+      {{n, c, _, _}, {h, w}} ->
+        {n, c, h, w}
+
+      {{_, _, _, _}, invalid} ->
+        raise ArgumentError, "invalid output shape #{inspect(invalid)}"
+
+      {invalid, _} ->
+        raise ArgumentError, "invalid input shape #{inspect(invalid)}"
+    end
+  end
 end

@@ -1029,6 +1029,28 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
+           op: :resize,
+           parent: parent,
+           policy: %{compute: compute, output: output},
+           opts: [shape: shape, method: method]
+         },
+         cache,
+         input_map,
+         params,
+         inputs,
+         mode
+       ) do
+    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+
+    inp = Nx.as_type(res, compute)
+    res = Nx.as_type(Axon.Layers.resize(inp, shape: shape, method: method), output)
+
+    {res, Map.put(cache, id, res)}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           id: id,
            op: :transpose,
            parent: parent,
            opts: [permutation: permutation, constant: is_constant_reshape?],
