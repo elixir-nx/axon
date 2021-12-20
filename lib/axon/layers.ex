@@ -1720,78 +1720,79 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Upsamples image.
+  Resizes a batch of images to the given shape using one of a
+  number of sampling methods.
+
+  Requires input option `:shape` which should be a tuple
+  `{height, width}` specifying the resized spatial dimensions of
+  the input images. The result is a tensor of resized images with
+  the same batch size and channels as the input with resized spatial
+  dimensions across all images.
+
+  Supported reize methods are `:nearest`
+
+  ## Examples
+
+      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {4, 4})
+      #Nx.Tensor<
+        f32[1][1][4][4]
+        [
+          [
+            [
+              [0.0, 1.0, 1.0, 2.0],
+              [3.0, 4.0, 4.0, 5.0],
+              [3.0, 4.0, 4.0, 5.0],
+              [6.0, 7.0, 7.0, 8.0]
+            ]
+          ]
+        ]
+      >
   """
-  defn upsample(img, opts \\ []) do
-    opts = keyword!(opts, resize_rate: 2)
-    delta = 0.5 / opts[:resize_rate]
-    {batch_size, channels, nrows, ncols} = Nx.shape(img)
+  defn resize(img, opts \\ []) do
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    output_shape = opts[:shape]
 
-    rows = linspace(delta, nrows - delta, opts[:resize_rate] * nrows)
-    cols = linspace(delta, ncols - delta, opts[:resize_rate] * ncols)
+    # Input must be a batch of 2D images
+    assert_shape_pattern(img, {n, c, h, w} when n > 0 and c > 0 and h > 0 and w > 0)
 
-    {mesh_rows, mesh_cols} = meshgrid(rows, cols)
+    # Output must be 2D image (height x width) shape, this
+    # method cannot resize channels or touch batch size
+    output_shape =
+      transform({img, output_shape}, fn
+        {img, {h, w}} ->
+          {n, c, _, _} = Nx.shape(img)
+          {n, c, h, w}
 
-    img_resize_vec = interpolate_bilinear(img, flatten_all(mesh_rows), flatten_all(mesh_cols))
+        invalid ->
+          raise ArgumentError,
+                "invalid output shape #{inspect(invalid)}" <>
+                  " expected output shape to be a tuple of" <>
+                  " {height, width}"
+      end)
 
-    Nx.reshape(img_resize_vec, {batch_size, channels, Nx.size(rows), Nx.size(cols)})
-  end
+    transform({img, output_shape, opts[:method]}, fn
+      {img, shape, :nearest} ->
+        resize_nearest(img, shape)
 
-  defnp flatten_all(inp) do
-    size = Nx.size(inp)
-    Nx.reshape(inp, {size})
-  end
-
-  defnp interpolate_bilinear(img, rows, cols) do
-    col_lo = Nx.floor(cols) |> Nx.as_type({:s, 64})
-    col_hi = col_lo + 1
-    row_lo = Nx.floor(rows) |> Nx.as_type({:s, 64})
-    row_hi = row_lo + 1
-
-    ia = slice_grid(img, row_lo, col_lo)
-    ib = slice_grid(img, row_hi, col_lo)
-    ic = slice_grid(img, row_lo, col_hi)
-    id = slice_grid(img, row_hi, col_hi)
-
-    wa = Nx.new_axis((col_hi - cols) * (row_hi - rows), -1)
-    wb = Nx.new_axis((col_hi - cols) * (rows - row_lo), -1)
-    wc = Nx.new_axis((cols - col_lo) * (row_hi - rows), -1)
-    wd = Nx.new_axis((cols - col_lo) * (rows - row_lo), -1)
-
-    wa * ia + wb * ib + wc * ic + wd * id
-  end
-
-  defnp slice_grid(img, row, col) do
-    {batch_size, channels, nrows, ncols} = Nx.shape(img)
-    row = Nx.clip(row, 0, nrows - 1)
-    col = Nx.clip(col, 0, ncols - 1)
-    transform({img, row, col, batch_size, channels}, fn {img, row, col, batch_size, channels} ->
-      {n} = Nx.shape(row)
-      {m} = Nx.shape(col)
-      slices =
-        for i <- (0..n - 1) do
-          row = Nx.slice(row, [i], [1]) |> Nx.squeeze()
-          col = Nx.slice(col, [i], [1]) |> Nx.squeeze()
-          Nx.slice(img, [0, 0, row, col], [batch_size, channels, 1, 1])
-        end
-      Nx.concatenate(slices, axis: 2)
+      _ ->
+        raise ArgumentError, "invalid resize method"
     end)
   end
 
-  defn linspace(start, stop, steps \\ 50) do
-    ramp = (stop - start) / steps
-    Nx.iota({steps}) * ramp
-  end
+  defnp resize_nearest(img, output_shape) do
+    {_, _, h1, w1} = Nx.shape(img)
+    {n, c, h2, w2} = Nx.shape(output_shape)
 
-  defn meshgrid(rows, cols) do
-    rows = Nx.new_axis(rows, 1)
-    cols = Nx.new_axis(cols, 0)
-    shape = transform({rows, cols}, fn {rows, cols} ->
-      {n, 1} = Nx.shape(rows)
-      {1, m} = Nx.shape(cols)
-      {n, m}
-    end)
+    height_offsets = (Nx.iota({h2}) + 0.5) * h1 / h2
+    height_offsets = height_offsets |> Nx.floor() |> Nx.as_type({:s, 32})
+    height_offsets = Nx.reshape(height_offsets, {1, 1, h2, 1}) |> Nx.broadcast({n, c, h2, w1})
+    width_offsets = (Nx.iota({w2}) + 0.5) * w1 / w2
+    width_offsets = width_offsets |> Nx.floor() |> Nx.as_type({:s, 32})
+    width_offsets = Nx.reshape(width_offsets, {1, 1, 1, w2}) |> Nx.broadcast({n, c, h2, w2})
 
-    {Nx.broadcast(rows, shape), Nx.broadcast(cols, shape)}
+    img
+    |> Nx.take_along_axis(height_offsets, axis: 2)
+    |> Nx.take_along_axis(width_offsets, axis: 3)
   end
 end
