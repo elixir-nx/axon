@@ -1749,6 +1749,20 @@ defmodule Axon.Layers do
         ]
       >
 
+      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {2, 2})
+      #Nx.Tensor<
+        f32[1][1][2][2]
+        [
+          [
+            [
+              [0.0, 2.0],
+              [6.0, 8.0]
+            ]
+          ]
+        ]
+      >
+
   ### Error cases
 
       iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
