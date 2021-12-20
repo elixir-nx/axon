@@ -1578,16 +1578,32 @@ defmodule Axon.Shape do
   @doc """
   Computes the output shape after a resize layer.
   """
-  def resize(input_shape, output_shape) do
-    case {input_shape, output_shape} do
-      {{n, c, _, _}, {h, w}} ->
-        {n, c, h, w}
+  def resize(input_shape, output_shape, channels) do
+    unless Nx.rank(input_shape) >= 3 do
+      raise ArgumentError, "input shape must be at least rank 3"
+    end
 
-      {{_, _, _, _}, invalid} ->
-        raise ArgumentError, "invalid output shape #{inspect(invalid)}"
+    unless Nx.rank(output_shape) == Nx.rank(input_shape) - 2 do
+      raise ArgumentError,
+            "output shape must be equal to number of" <>
+              " spatial dimensions in the input"
+    end
 
-      {invalid, _} ->
-        raise ArgumentError, "invalid input shape #{inspect(invalid)}"
+    spatial_dimensions =
+      case channels do
+        :first ->
+          Enum.to_list(2..(Nx.rank(input_shape) - 1))
+
+        :last ->
+          Enum.to_list(1..(Nx.rank(output_shape) - 2))
+
+        invalid ->
+          raise ArgumentError, "invalid channel configuration #{inspect(invalid)}"
+      end
+
+    for {d, i} <- Enum.with_index(spatial_dimensions), reduce: input_shape do
+      shape ->
+        put_elem(shape, d, elem(output_shape, i))
     end
   end
 end

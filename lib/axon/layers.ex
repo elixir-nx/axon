@@ -1720,16 +1720,15 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Resizes a batch of images to the given shape using one of a
+  Resizes a batch of tensors to the given shape using one of a
   number of sampling methods.
 
-  Requires input option `:shape` which should be a tuple
-  `{height, width}` specifying the resized spatial dimensions of
-  the input images. The result is a tensor of resized images with
-  the same batch size and channels as the input with resized spatial
-  dimensions across all images.
+  Requires input option `:shape` which should be a tuple specifying
+  the resized spatial dimensions of the input tensor. Input tensor
+  must be at least rank 3, with fixed `batch` and `channel` dimensions.
+  Resizing will upsample or downsample using the given resize method.
 
-  Supported reize methods are `:nearest`
+  Supported reize methods are `:nearest`.
 
   ## Examples
 
@@ -1749,15 +1748,36 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
-      iex> Axon.Layers.resize(img, shape: {2, 2})
+      iex> img = Nx.iota({1, 1, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {2})
       #Nx.Tensor<
-        f32[1][1][2][2]
+        f32[1][1][2]
+        [
+          [
+            [0.0, 2.0]
+          ]
+        ]
+      >
+
+      iex> img = Nx.iota({1, 2, 2, 2, 1}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {1, 3, 2})
+      #Nx.Tensor<
+        f32[1][2][1][3][2]
         [
           [
             [
-              [0.0, 2.0],
-              [6.0, 8.0]
+              [
+                [2.0, 2.0],
+                [3.0, 3.0],
+                [3.0, 3.0]
+              ]
+            ],
+            [
+              [
+                [6.0, 6.0],
+                [7.0, 7.0],
+                [7.0, 7.0]
+              ]
             ]
           ]
         ]
@@ -1769,52 +1789,73 @@ defmodule Axon.Layers do
       iex> Axon.Layers.resize(img, shape: {4, 4}, method: :foo)
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
-  defn resize(img, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest])
+  defn resize(input, opts \\ []) do
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
     output_shape = opts[:shape]
 
-    # Input must be a batch of 2D images
-    assert_shape_pattern(img, {n, c, h, w} when n > 0 and c > 0 and h > 0 and w > 0)
+    # Input must be at least rank 3
+    transform(Nx.rank(input), fn rank ->
+      unless rank > 3 do
+        raise ArgumentError, "input rank must be at least 3, got #{inspect(rank)}"
+      end
+    end)
 
-    # Output must be 2D image (height x width) shape, this
-    # method cannot resize channels or touch batch size
-    output_shape =
-      transform({img, output_shape}, fn
-        {img, {h, w}} ->
-          {n, c, _, _} = Nx.shape(img)
-          {n, c, h, w}
+    spatial_dimensions =
+      transform({Nx.rank(input), opts[:channels]}, fn
+        {rank, :first} ->
+          Enum.to_list(2..(rank - 1))
 
-        invalid ->
-          raise ArgumentError,
-                "invalid output shape #{inspect(invalid)}" <>
-                  " expected output shape to be a tuple of" <>
-                  " {height, width}"
+        {rank, :last} ->
+          Enum.to_list(1..(rank - 2))
       end)
 
-    transform({img, output_shape, opts[:method]}, fn
-      {img, shape, :nearest} ->
-        resize_nearest(img, shape)
+    output_shape =
+      transform({input, spatial_dimensions, output_shape}, fn {input, spatial_dimensions,
+                                                               output_shape} ->
+        unless Nx.rank(output_shape) == Nx.rank(input) - 2 do
+          raise ArgumentError,
+                "invalid output shape #{inspect(output_shape)}, expected output" <>
+                  " output shape to have same rank as spatial dimensions of" <>
+                  " the input tensor"
+        end
 
-      {_, _, method} ->
+        for {d, i} <- Enum.with_index(spatial_dimensions), reduce: Nx.shape(input) do
+          shape ->
+            put_elem(shape, d, elem(output_shape, i))
+        end
+      end)
+
+    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
+      {img, shape, spatial_dimensions, :nearest} ->
+        resize_nearest(img, shape, spatial_dimensions)
+
+      {_, _, _, method} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
                 " must be one of :nearest"
     end)
   end
 
-  defnp resize_nearest(img, output_shape) do
-    {_, _, h1, w1} = Nx.shape(img)
-    {n, c, h2, w2} = Nx.shape(output_shape)
+  defnp resize_nearest(input, output_shape, spatial_dimensions) do
+    transform({input, output_shape, spatial_dimensions}, fn {input, output_shape,
+                                                             spatial_dimensions} ->
+      ones = List.duplicate(1, Nx.rank(input)) |> List.to_tuple()
 
-    height_offsets = (Nx.iota({h2}) + 0.5) * h1 / h2
-    height_offsets = height_offsets |> Nx.floor() |> Nx.as_type({:s, 32})
-    height_offsets = Nx.reshape(height_offsets, {1, 1, h2, 1}) |> Nx.broadcast({n, c, h2, w1})
-    width_offsets = (Nx.iota({w2}) + 0.5) * w1 / w2
-    width_offsets = width_offsets |> Nx.floor() |> Nx.as_type({:s, 32})
-    width_offsets = Nx.reshape(width_offsets, {1, 1, 1, w2}) |> Nx.broadcast({n, c, h2, w2})
+      for d <- spatial_dimensions, reduce: input do
+        input ->
+          input_shape = Nx.shape(input)
+          input_size = elem(input_shape, d)
+          output_size = elem(output_shape, d)
+          offset = (Nx.iota({output_size}) + 0.5) * input_size / output_size
+          offset = offset |> Nx.floor() |> Nx.as_type({:s, 32})
 
-    img
-    |> Nx.take_along_axis(height_offsets, axis: 2)
-    |> Nx.take_along_axis(width_offsets, axis: 3)
+          offset =
+            offset
+            |> Nx.reshape(put_elem(ones, d, output_size))
+            |> Nx.broadcast(put_elem(input_shape, d, output_size))
+
+          Nx.take_along_axis(input, offset, axis: d)
+      end
+    end)
   end
 end

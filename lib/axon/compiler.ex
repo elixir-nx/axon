@@ -1032,7 +1032,7 @@ defmodule Axon.Compiler do
            op: :resize,
            parent: parent,
            policy: %{compute: compute, output: output},
-           opts: [shape: shape, method: method]
+           opts: [shape: shape, method: method, channels: channels]
          },
          cache,
          input_map,
@@ -1043,7 +1043,12 @@ defmodule Axon.Compiler do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
     inp = Nx.as_type(res, compute)
-    res = Nx.as_type(Axon.Layers.resize(inp, shape: shape, method: method), output)
+
+    res =
+      Nx.as_type(
+        Axon.Layers.resize(inp, shape: shape, method: method, channels: channels),
+        output
+      )
 
     {res, Map.put(cache, id, res)}
   end
