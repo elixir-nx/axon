@@ -1382,6 +1382,37 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a resize layer to the network.
+
+  Resizing can be used for interpolation or upsampling input
+  values in a neural network. For example, you can use this
+  layer as an upsampling layer within a GAN.
+
+  Resize shape must be a tuple representing the resized spatial
+  dimensions of the input tensor.
+
+  Compiles to `Axon.Layers.resize/2`.
+
+  ## Options
+
+    * `:name` - Layer name.
+    * `:method` - Resize method. Defaults to `:nearest`.
+    * `:channels` - Channels configuration. Defaults to `:first`.
+  """
+  @doc type: :shape
+  def resize(%Axon{output_shape: shape} = x, resize_shape, opts \\ []) do
+    method = opts[:method] || :nearest
+    channels = opts[:channels] || :first
+    output_shape = Axon.Shape.resize(shape, resize_shape, channels)
+
+    layer(x, :resize, output_shape, %{}, opts[:name],
+      shape: resize_shape,
+      method: method,
+      channels: channels
+    )
+  end
+
+  @doc """
   Adds a concatenate layer to the network.
 
   This layer will concatenate inputs along the last

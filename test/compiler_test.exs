@@ -2134,6 +2134,32 @@ defmodule CompilerTest do
     end
   end
 
+  describe "resize" do
+    test "initializes with no params" do
+      model = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      model1 = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+      input1 = Nx.random_uniform({1, 1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+      assert predict_fn.(%{}, input1) == Axon.Layers.resize(input1, shape: {4, 4})
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 3, 3}))) == {:bf, 16}
+    end
+  end
+
   describe "lstm" do
     test "initializes in default case" do
       model = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
