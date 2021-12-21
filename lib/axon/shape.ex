@@ -1511,6 +1511,9 @@ defmodule Axon.Shape do
       iex> Axon.Shape.split({32, 1, 10}, 16, 0)
       {2, {2, 1, 10}}
 
+      iex> Axon.Shape.split({32, 1, 10}, [8, 2], -1)
+      {10, [{32, 1, 8}, {32, 1, 2}]}
+
   ### Error cases
 
       iex> Axon.Shape.split({nil, 1, 10}, 2, 0)
@@ -1518,7 +1521,35 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.split({nil, 5, 10}, 2, 1)
       ** (ArgumentError) unable to create 2 even splits along axis 1 of size 5
+
+      iex> Axon.Shape.split({32, 1, 10}, [8, 1], -1)
+      ** (ArgumentError) unable to create 2 splits along axis 2 of size 10
   """
+  def split(shape, n, axis) when is_list(n) do
+    nil_names = List.duplicate(nil, Nx.rank(shape))
+    non_nil_shape = if elem(shape, 0) == nil, do: put_elem(shape, 0, 1), else: shape
+
+    axis = Nx.Shape.normalize_axis(non_nil_shape, axis, nil_names)
+
+    if axis == 0 and elem(shape, 0) == nil do
+      raise ArgumentError,
+            "cannot split along batch dimension with dynamic" <>
+              " batch size, please provide a static (non-nil)" <>
+              " batch size"
+    end
+
+    total_slices_size = Enum.sum(n)
+    unless elem(shape, axis) == total_slices_size do
+      raise ArgumentError,
+            "unable to create #{Enum.count(n)} splits along axis #{axis}" <>
+              " of size #{elem(shape, axis)}"
+    end
+
+    slices = for slice <- n, do: put_elem(shape, axis, slice)
+
+    {total_slices_size, slices}
+  end
+
   def split(shape, n, axis) do
     nil_names = List.duplicate(nil, Nx.rank(shape))
     non_nil_shape = if elem(shape, 0) == nil, do: put_elem(shape, 0, 1), else: shape
