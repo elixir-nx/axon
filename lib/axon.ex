@@ -1528,7 +1528,7 @@ defmodule Axon do
   end
 
   @doc """
-  Splits input graph into a container of `m` input graphs along the given axis
+  Splits input graph into a container of `m` other input graphs 
   In case `n` is a number the input graph is split in n slices with the same size
   In case `n` is a list the input graph is split in Enum.count slices with the 
   size of the i-th element of the list.
@@ -1538,9 +1538,9 @@ defmodule Axon do
 
   def split(%Axon{output_shape: shape} = parent, n, opts) when is_list(n) do
     axis = opts[:axis] || -1
-    #TODO: A check on names?
-    names = opts[:name] 
+    names = opts[:name] || []
     {_, split_shapes} = Axon.Shape.split(shape, n, axis)
+    
     splits =
       for {slice, i} <- n|>Enum.with_index do
         layer(
