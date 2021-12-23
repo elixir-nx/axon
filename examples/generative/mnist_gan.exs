@@ -142,10 +142,10 @@ defmodule MNISTGAN do
   defp log_iteration(state) do
     %State{epoch: epoch, iteration: iter, step_state: pstate} = state
 
-    g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:generator][:loss])])}"
-    d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:discriminator][:loss])])}"
+    g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_number(pstate[:generator][:loss])])}"
+    d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_number(pstate[:discriminator][:loss])])}"
 
-    "\rEpoch: #{Nx.to_scalar(epoch)}, batch: #{Nx.to_scalar(iter)} #{g_loss} #{d_loss}"
+    "\rEpoch: #{Nx.to_number(epoch)}, batch: #{Nx.to_number(iter)} #{g_loss} #{d_loss}"
   end
 
   defp view_generated_images(model, batch_size, state) do
