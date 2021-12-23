@@ -32,7 +32,7 @@ defmodule XOR do
       case mode do
         :train ->
           %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
+          "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
 
         :test ->
           ""
@@ -40,10 +40,10 @@ defmodule XOR do
 
     metrics =
       metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
       |> Enum.join(" ")
 
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
+    IO.write("\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}")
 
     {:continue, state}
   end
