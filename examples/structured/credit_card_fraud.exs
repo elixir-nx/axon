@@ -103,7 +103,7 @@ defmodule CreditCardFraud do
   end
 
   defp metrics(loop) do
-  	loop
+    loop
     |> Axon.Loop.metric(:true_positives, "tp", :running_sum)
     |> Axon.Loop.metric(:true_negatives, "tn", :running_sum)
     |> Axon.Loop.metric(:false_positives, "fp", :running_sum)
