@@ -24,34 +24,9 @@ defmodule XOR do
     {{x1, x2}, y}
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp train_model(model, data, epochs) do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
     |> Axon.Loop.run(data, epochs: epochs, iterations: 1000)
   end
 
