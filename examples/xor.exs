@@ -6,7 +6,6 @@ Mix.install([
 
 defmodule XOR do
   require Axon
-  alias Axon.Loop.State
 
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input(input_shape1)
