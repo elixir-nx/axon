@@ -83,10 +83,10 @@ defmodule CreditCardFraud do
   defp summarize(%State{metrics: metrics} = state) do
     IO.write("\n\n")
 
-    legit_transactions_declined = Nx.to_scalar(metrics["fp"])
-    legit_transactions_accepted = Nx.to_scalar(metrics["tn"])
-    fraud_transactions_accepted = Nx.to_scalar(metrics["fn"])
-    fraud_transactions_declined = Nx.to_scalar(metrics["tp"])
+    legit_transactions_declined = Nx.to_number(metrics["fp"])
+    legit_transactions_accepted = Nx.to_number(metrics["tn"])
+    fraud_transactions_accepted = Nx.to_number(metrics["fn"])
+    fraud_transactions_declined = Nx.to_number(metrics["tp"])
     total_fraud = fraud_transactions_declined + fraud_transactions_accepted
     total_legit = legit_transactions_declined + legit_transactions_accepted
 
@@ -103,7 +103,7 @@ defmodule CreditCardFraud do
   end
 
   defp metrics(loop) do
-  	loop
+    loop
     |> Axon.Loop.metric(:true_positives, "tp", :running_sum)
     |> Axon.Loop.metric(:true_negatives, "tn", :running_sum)
     |> Axon.Loop.metric(:false_positives, "fp", :running_sum)
@@ -130,7 +130,7 @@ defmodule CreditCardFraud do
     {train_inputs, train_targets} = train
     {test_inputs, test_targets} = test
 
-    fraud = Nx.sum(train_targets) |> Nx.to_scalar()
+    fraud = Nx.sum(train_targets) |> Nx.to_number()
     legit = Nx.size(train_targets) - fraud
 
     batched_train_inputs = Nx.to_batched_list(train_inputs, 2048)
