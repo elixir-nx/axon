@@ -1289,8 +1289,10 @@ defmodule Axon do
     * `name` - Layer name.
 
   """
+  def nx(input, fun, opts \\ [])
+
   @doc type: :special
-  def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
+  def nx(%Axon{output_shape: shape} = x, fun, opts) when is_function(fun, 1) do
     # Some shape rules will not like nil batch shape
     batch_size = elem(shape, 0)
     shape = Tuple.delete_at(shape, 0)
@@ -1301,6 +1303,28 @@ defmodule Axon do
     output_shape = Tuple.insert_at(expr.shape, 0, batch_size)
 
     layer(x, :nx, output_shape, %{}, opts[:name], fun: fun)
+  end
+
+  def nx(inputs, fun, opts) when is_tuple(inputs) and is_function(fun, 1) do
+    params =
+      inputs
+      |> Tuple.to_list()
+      |> Enum.with_index(fn %Axon{output_shape: shape}, i ->
+        shape =
+          if Nx.rank(shape) > 0 and elem(shape, 0) == nil do
+            Tuple.delete_at(shape, 0)
+          else
+            shape
+          end
+
+        Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, i)
+      end)
+      |> List.to_tuple()
+
+    expr = Nx.Defn.jit(fun, [params], compiler: Axon.Defn)
+    output_shape = Tuple.insert_at(expr.shape, 0, nil)
+
+    layer(inputs, :nx, output_shape, %{}, opts[:name], fun: fun)
   end
 
   @doc """
