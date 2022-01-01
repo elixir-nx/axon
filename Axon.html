@@ -10,7 +10,7 @@
     <title>Axon — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-b5076885a795c65e636c.css" />
 
-    <script src="dist/sidebar_items-b7cb6e510a.js"></script>
+    <script src="dist/sidebar_items-251e15be60.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -97,52 +97,52 @@ Axon
 so every neural network can be JIT or AOT compiled using
 any Nx compiler, or even transformed into high-level neural
 network formats like TensorFlow Lite and ONNX.</p><p>All Axon models start with an input layer, specifying the
-expected input shape of the training data:</p><pre><code class="makeup elixir"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2965483699-1">(</span><span class="p" data-group-id="2965483699-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="2965483699-2">}</span><span class="p" data-group-id="2965483699-1">)</span></code></pre><p>Notice you can specify the batch dimension as <code class="inline">nil</code>. You can
+expected input shape of the training data:</p><pre><code class="makeup elixir"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="4822885007-1">(</span><span class="p" data-group-id="4822885007-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="4822885007-2">}</span><span class="p" data-group-id="4822885007-1">)</span></code></pre><p>Notice you can specify the batch dimension as <code class="inline">nil</code>. You can
 then compose inputs with other layers:</p><pre><code class="makeup elixir"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">input</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6636592212-1">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="6636592212-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="6636592212-2">(</span><span class="p" data-group-id="6636592212-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="6636592212-3">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="p" data-group-id="6636592212-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6636592212-4">(</span><span class="mi">64</span><span class="p" data-group-id="6636592212-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">tanh</span><span class="p" data-group-id="6636592212-5">(</span><span class="p" data-group-id="6636592212-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6636592212-6">(</span><span class="mi">10</span><span class="p" data-group-id="6636592212-6">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="6636592212-7">(</span><span class="ss">:softmax</span><span class="p" data-group-id="6636592212-7">)</span></code></pre><p>You can inspect the model for a nice summary:</p><pre><code class="makeup elixir"><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="7606669689-1">(</span><span class="n">model</span><span class="p" data-group-id="7606669689-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9945497878-1">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="9945497878-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="9945497878-2">(</span><span class="p" data-group-id="9945497878-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9945497878-3">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="p" data-group-id="9945497878-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9945497878-4">(</span><span class="mi">64</span><span class="p" data-group-id="9945497878-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">tanh</span><span class="p" data-group-id="9945497878-5">(</span><span class="p" data-group-id="9945497878-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9945497878-6">(</span><span class="mi">10</span><span class="p" data-group-id="9945497878-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="9945497878-7">(</span><span class="ss">:softmax</span><span class="p" data-group-id="9945497878-7">)</span></code></pre><p>You can inspect the model for a nice summary:</p><pre><code class="makeup elixir"><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="5704172223-1">(</span><span class="n">model</span><span class="p" data-group-id="5704172223-1">)</span><span class="w">
 
 </span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">-</span><span class="w">
                   </span><span class="nc">Model</span><span class="w">
 </span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">==</span><span class="w">
  </span><span class="nc">Layer</span><span class="w">                       </span><span class="nc">Shape</span><span class="w">        </span><span class="nc">Parameters</span><span class="w">
 </span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">===</span><span class="o">==</span><span class="w">
- </span><span class="n">input_1</span><span class="w"> </span><span class="p" data-group-id="7606669689-2">(</span><span class="n">input</span><span class="p" data-group-id="7606669689-2">)</span><span class="w">             </span><span class="p" data-group-id="7606669689-3">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="7606669689-3">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
- </span><span class="n">dense_2</span><span class="w"> </span><span class="p" data-group-id="7606669689-4">(</span><span class="n">dense</span><span class="p" data-group-id="7606669689-4">)</span><span class="w">             </span><span class="p" data-group-id="7606669689-5">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="7606669689-5">}</span><span class="w">   </span><span class="mi">100480</span><span class="w">
- </span><span class="n">relu_3</span><span class="w"> </span><span class="p" data-group-id="7606669689-6">(</span><span class="n">relu</span><span class="p" data-group-id="7606669689-6">)</span><span class="w">               </span><span class="p" data-group-id="7606669689-7">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="7606669689-7">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
- </span><span class="n">batch_norm_4</span><span class="w"> </span><span class="p" data-group-id="7606669689-8">(</span><span class="n">batch_norm</span><span class="p" data-group-id="7606669689-8">)</span><span class="w">   </span><span class="p" data-group-id="7606669689-9">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="7606669689-9">}</span><span class="w">   </span><span class="mi">256</span><span class="w">
- </span><span class="n">dropout_5</span><span class="w"> </span><span class="p" data-group-id="7606669689-10">(</span><span class="n">dropout</span><span class="p" data-group-id="7606669689-10">)</span><span class="w">         </span><span class="p" data-group-id="7606669689-11">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="7606669689-11">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
- </span><span class="n">dense_6</span><span class="w"> </span><span class="p" data-group-id="7606669689-12">(</span><span class="n">dense</span><span class="p" data-group-id="7606669689-12">)</span><span class="w">             </span><span class="p" data-group-id="7606669689-13">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="7606669689-13">}</span><span class="w">    </span><span class="mi">8256</span><span class="w">
- </span><span class="n">tanh_7</span><span class="w"> </span><span class="p" data-group-id="7606669689-14">(</span><span class="n">tanh</span><span class="p" data-group-id="7606669689-14">)</span><span class="w">               </span><span class="p" data-group-id="7606669689-15">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="7606669689-15">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
- </span><span class="n">dense_8</span><span class="w"> </span><span class="p" data-group-id="7606669689-16">(</span><span class="n">dense</span><span class="p" data-group-id="7606669689-16">)</span><span class="w">             </span><span class="p" data-group-id="7606669689-17">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="7606669689-17">}</span><span class="w">    </span><span class="mi">650</span><span class="w">
- </span><span class="n">softmax_9</span><span class="w"> </span><span class="p" data-group-id="7606669689-18">(</span><span class="n">softmax</span><span class="p" data-group-id="7606669689-18">)</span><span class="w">         </span><span class="p" data-group-id="7606669689-19">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="7606669689-19">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
+ </span><span class="n">input_1</span><span class="w"> </span><span class="p" data-group-id="5704172223-2">(</span><span class="n">input</span><span class="p" data-group-id="5704172223-2">)</span><span class="w">             </span><span class="p" data-group-id="5704172223-3">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="5704172223-3">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_2</span><span class="w"> </span><span class="p" data-group-id="5704172223-4">(</span><span class="n">dense</span><span class="p" data-group-id="5704172223-4">)</span><span class="w">             </span><span class="p" data-group-id="5704172223-5">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="5704172223-5">}</span><span class="w">   </span><span class="mi">100480</span><span class="w">
+ </span><span class="n">relu_3</span><span class="w"> </span><span class="p" data-group-id="5704172223-6">(</span><span class="n">relu</span><span class="p" data-group-id="5704172223-6">)</span><span class="w">               </span><span class="p" data-group-id="5704172223-7">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="5704172223-7">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">batch_norm_4</span><span class="w"> </span><span class="p" data-group-id="5704172223-8">(</span><span class="n">batch_norm</span><span class="p" data-group-id="5704172223-8">)</span><span class="w">   </span><span class="p" data-group-id="5704172223-9">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="5704172223-9">}</span><span class="w">   </span><span class="mi">256</span><span class="w">
+ </span><span class="n">dropout_5</span><span class="w"> </span><span class="p" data-group-id="5704172223-10">(</span><span class="n">dropout</span><span class="p" data-group-id="5704172223-10">)</span><span class="w">         </span><span class="p" data-group-id="5704172223-11">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p" data-group-id="5704172223-11">}</span><span class="w">   </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_6</span><span class="w"> </span><span class="p" data-group-id="5704172223-12">(</span><span class="n">dense</span><span class="p" data-group-id="5704172223-12">)</span><span class="w">             </span><span class="p" data-group-id="5704172223-13">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="5704172223-13">}</span><span class="w">    </span><span class="mi">8256</span><span class="w">
+ </span><span class="n">tanh_7</span><span class="w"> </span><span class="p" data-group-id="5704172223-14">(</span><span class="n">tanh</span><span class="p" data-group-id="5704172223-14">)</span><span class="w">               </span><span class="p" data-group-id="5704172223-15">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="5704172223-15">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
+ </span><span class="n">dense_8</span><span class="w"> </span><span class="p" data-group-id="5704172223-16">(</span><span class="n">dense</span><span class="p" data-group-id="5704172223-16">)</span><span class="w">             </span><span class="p" data-group-id="5704172223-17">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="5704172223-17">}</span><span class="w">    </span><span class="mi">650</span><span class="w">
+ </span><span class="n">softmax_9</span><span class="w"> </span><span class="p" data-group-id="5704172223-18">(</span><span class="n">softmax</span><span class="p" data-group-id="5704172223-18">)</span><span class="w">         </span><span class="p" data-group-id="5704172223-19">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="5704172223-19">}</span><span class="w">    </span><span class="mi">0</span><span class="w">
 </span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">--</span><span class="o">-</span></code></pre><p>Under the hood, Axon models are represented as Elixir structs. You
 can initialize and apply models using the macros <a href="#init/2"><code class="inline">Axon.init/2</code></a> and
-<a href="#predict/4"><code class="inline">Axon.predict/4</code></a>:</p><pre><code class="makeup elixir"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">init</span><span class="p" data-group-id="4823740987-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="4823740987-1">)</span><span class="w">
+<a href="#predict/4"><code class="inline">Axon.predict/4</code></a>:</p><pre><code class="makeup elixir"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">init</span><span class="p" data-group-id="7703820907-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="7703820907-1">)</span><span class="w">
 
-</span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="4823740987-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="4823740987-2">)</span></code></pre><p><a href="#predict/4"><code class="inline">Axon.predict/4</code></a> by default runs in inference mode, which performs certain
+</span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="7703820907-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="7703820907-2">)</span></code></pre><p><a href="#predict/4"><code class="inline">Axon.predict/4</code></a> by default runs in inference mode, which performs certain
 optimizations and removes layers such as dropout layers. If constructing
 a training step using <a href="#predict/4"><code class="inline">Axon.predict/4</code></a>, be sure to specify <code class="inline">mode: :train</code>.</p><p>Both <a href="#init/2"><code class="inline">Axon.init/2</code></a> and <a href="#predict/4"><code class="inline">Axon.predict/4</code></a> can be used from within
 Nx defn or outside.</p><p>Combining the Axon model creation API with the optimization and training
 APIs, you can create and train neural networks with ease:</p><pre><code class="makeup elixir"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="0403892162-1">(</span><span class="p" data-group-id="0403892162-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="0403892162-2">}</span><span class="p" data-group-id="0403892162-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0403892162-3">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="0403892162-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer_norm</span><span class="p" data-group-id="0403892162-4">(</span><span class="p" data-group-id="0403892162-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="0403892162-5">(</span><span class="p" data-group-id="0403892162-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0403892162-6">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="0403892162-6">)</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5213011077-1">(</span><span class="p" data-group-id="5213011077-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="5213011077-2">}</span><span class="p" data-group-id="5213011077-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5213011077-3">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="5213011077-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer_norm</span><span class="p" data-group-id="5213011077-4">(</span><span class="p" data-group-id="5213011077-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="5213011077-5">(</span><span class="p" data-group-id="5213011077-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5213011077-6">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="5213011077-6">)</span><span class="w">
 
 </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="w"> </span><span class="n">model</span><span class="w">
 
 </span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">model</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="0403892162-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adamw</span><span class="p" data-group-id="0403892162-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="0403892162-8">)</span><span class="p" data-group-id="0403892162-7">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="0403892162-9">(</span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="0403892162-9">)</span></code></pre>
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="5213011077-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adamw</span><span class="p" data-group-id="5213011077-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="5213011077-8">)</span><span class="p" data-group-id="5213011077-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="5213011077-9">(</span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="5213011077-9">)</span></code></pre>
   </section>
 
 
@@ -329,6 +329,16 @@ APIs, you can create and train neural networks with ease:</p><pre><code class="m
         </div>
 
           <div class="summary-synopsis"><p>Adds a Log-sigmoid activation layer to the network.</p></div>
+
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#log_softmax/2" translate="no">log_softmax(x, opts \\ [])</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Adds a Log-softmax activation layer to the network.</p></div>
 
       </div>
 
@@ -1089,9 +1099,9 @@ Layers: Special
 
 <p>Adds a constant layer to the network.</p><p>Constant layers encapsulate Nx tensors in an Axon layer for ease
 of use with other Axon layers. They can be used interchangeably
-with other Axon layers:</p><pre><code class="makeup elixir"><span class="n">inp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6644596963-1">(</span><span class="p" data-group-id="6644596963-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="6644596963-2">}</span><span class="p" data-group-id="6644596963-1">)</span><span class="w">
-</span><span class="n">my_constant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">constant</span><span class="p" data-group-id="6644596963-3">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="6644596963-4">(</span><span class="p" data-group-id="6644596963-5">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="6644596963-5">}</span><span class="p" data-group-id="6644596963-4">)</span><span class="p" data-group-id="6644596963-3">)</span><span class="w">
-</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="6644596963-6">(</span><span class="n">inp</span><span class="p">,</span><span class="w"> </span><span class="n">my_constant</span><span class="p" data-group-id="6644596963-6">)</span></code></pre><p>Constant layers will be cast according to the mixed precision policy.
+with other Axon layers:</p><pre><code class="makeup elixir"><span class="n">inp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="3229033449-1">(</span><span class="p" data-group-id="3229033449-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="3229033449-2">}</span><span class="p" data-group-id="3229033449-1">)</span><span class="w">
+</span><span class="n">my_constant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">constant</span><span class="p" data-group-id="3229033449-3">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="3229033449-4">(</span><span class="p" data-group-id="3229033449-5">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="3229033449-5">}</span><span class="p" data-group-id="3229033449-4">)</span><span class="p" data-group-id="3229033449-3">)</span><span class="w">
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="3229033449-6">(</span><span class="n">inp</span><span class="p">,</span><span class="w"> </span><span class="n">my_constant</span><span class="p" data-group-id="3229033449-6">)</span></code></pre><p>Constant layers will be cast according to the mixed precision policy.
 If it's important for your constant to retain it's type during
 the computation, you will need to set the mixed precision policy to
 ignore constant layers.</p><h2 id="constant/2-options" class="section-heading">
@@ -1155,14 +1165,14 @@ always the root layers of the neural network.</p><h2 id="input/2-options" class=
 
 <p>Custom Axon layer with given parent.</p><p>Applies <code class="inline">op</code> on <code class="inline">parent</code> with parameters <code class="inline">parameters</code>. <code class="inline">parameters</code>
 is a map of trainable <code class="inline">parameters</code> created using <code class="inline">Axon.param</code>. Assumes
-<code class="inline">op</code> is a function of the following form:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="7815727359-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="7815727359-1">end</span></code></pre><p>If <code class="inline">opts</code> is not empty, it is treated as input options to the layer
-method:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="3750077880-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="3750077880-1">end</span></code></pre><p>Parameters are accessed using the same key referenced in the <code class="inline">parameters</code>
-map passed to <code class="inline">Axon.layer</code>:</p><pre><code class="makeup elixir"><span class="n">w1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="1334586559-1">(</span><span class="s">&quot;weight&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1334586559-2">{</span><span class="p" data-group-id="1334586559-2">}</span><span class="p" data-group-id="1334586559-1">)</span><span class="w">
-</span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="1334586559-3">(</span><span class="s">&quot;bias&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1334586559-4">{</span><span class="p" data-group-id="1334586559-4">}</span><span class="p" data-group-id="1334586559-3">)</span><span class="w">
+<code class="inline">op</code> is a function of the following form:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="8423889203-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="8423889203-1">end</span></code></pre><p>If <code class="inline">opts</code> is not empty, it is treated as input options to the layer
+method:</p><pre><code class="makeup elixir"><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="7137594985-1">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">...</span><span class="w"> </span><span class="k" data-group-id="7137594985-1">end</span></code></pre><p>Parameters are accessed using the same key referenced in the <code class="inline">parameters</code>
+map passed to <code class="inline">Axon.layer</code>:</p><pre><code class="makeup elixir"><span class="n">w1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="7935379244-1">(</span><span class="s">&quot;weight&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7935379244-2">{</span><span class="p" data-group-id="7935379244-2">}</span><span class="p" data-group-id="7935379244-1">)</span><span class="w">
+</span><span class="n">b1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">param</span><span class="p" data-group-id="7935379244-3">(</span><span class="s">&quot;bias&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7935379244-4">{</span><span class="p" data-group-id="7935379244-4">}</span><span class="p" data-group-id="7935379244-3">)</span><span class="w">
 
-</span><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="1334586559-5">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="1334586559-6">[</span><span class="s">&quot;weight&quot;</span><span class="p" data-group-id="1334586559-6">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="1334586559-7">[</span><span class="s">&quot;bias&quot;</span><span class="p" data-group-id="1334586559-7">]</span><span class="w"> </span><span class="k" data-group-id="1334586559-5">end</span><span class="w">
+</span><span class="n">op</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="7935379244-5">fn</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="7935379244-6">[</span><span class="s">&quot;weight&quot;</span><span class="p" data-group-id="7935379244-6">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="7935379244-7">[</span><span class="s">&quot;bias&quot;</span><span class="p" data-group-id="7935379244-7">]</span><span class="w"> </span><span class="k" data-group-id="7935379244-5">end</span><span class="w">
 
-</span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer</span><span class="p" data-group-id="1334586559-8">(</span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1334586559-9">{</span><span class="p" data-group-id="1334586559-9">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1334586559-10">%{</span><span class="s">&quot;weight&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">b1</span><span class="p" data-group-id="1334586559-10">}</span><span class="p" data-group-id="1334586559-8">)</span></code></pre>
+</span><span class="nc">Axon</span><span class="o">.</span><span class="n">layer</span><span class="p" data-group-id="7935379244-8">(</span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7935379244-9">{</span><span class="p" data-group-id="7935379244-9">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7935379244-10">%{</span><span class="s">&quot;weight&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">w1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">b1</span><span class="p" data-group-id="7935379244-10">}</span><span class="p" data-group-id="7935379244-8">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="nx/3">
@@ -1176,7 +1186,7 @@ map passed to <code class="inline">Axon.layer</code>:</p><pre><code class="makeu
     </a>
     <h1 class="signature" translate="no">nx(input, fun, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1292" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1293" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1217,7 +1227,7 @@ Layers: Activation
     </a>
     <h1 class="signature" translate="no">activation(x, activation, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L950" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L951" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1246,7 +1256,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">celu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1274,7 +1284,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">elu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1302,7 +1312,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">exp(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1330,7 +1340,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">gelu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1358,7 +1368,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">hard_sigmoid(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1386,7 +1396,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">hard_silu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1414,7 +1424,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">hard_tanh(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1442,7 +1452,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">leaky_relu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1470,7 +1480,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">linear(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1498,7 +1508,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">log_sigmoid(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1515,6 +1525,34 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
 <ul><li><code class="inline">name</code> - Layer name.</li></ul>
   </section>
 </section>
+<section class="detail" id="log_softmax/2">
+
+    <span id="log_softmax/1"></span>
+
+  <div class="detail-header">
+    <a href="#log_softmax/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">log_softmax(x, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
+       <span class="icon-code" aria-hidden="true"></span>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a Log-softmax activation layer to the network.</p><p>See <a href="Axon.Activations.html#log_softmax/1"><code class="inline">Axon.Activations.log_softmax/1</code></a> for more details.</p><h2 id="log_softmax/2-options" class="section-heading">
+  <a href="#log_softmax/2-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Options
+</h2>
+<ul><li><code class="inline">name</code> - Layer name.</li></ul>
+  </section>
+</section>
 <section class="detail" id="mish/2">
 
     <span id="mish/1"></span>
@@ -1526,7 +1564,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">mish(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1554,7 +1592,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">relu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1582,7 +1620,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">relu6(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1610,7 +1648,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">selu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1638,7 +1676,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">sigmoid(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1666,7 +1704,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">silu(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1694,7 +1732,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">softmax(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1722,7 +1760,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">softplus(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1750,7 +1788,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">softsign(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1778,7 +1816,7 @@ after the output of another layer.</p><h2 id="activation/3-options" class="secti
     </a>
     <h1 class="signature" translate="no">tanh(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L976" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L977" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -1829,7 +1867,7 @@ Layers: Linear
 
   <section class="docstring">
 
-<p>Adds a bilinear layer to the network.</p><p>The bilinear layer implements:</p><pre><code class="makeup elixir"><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activation</span><span class="p" data-group-id="9477704376-1">(</span><span class="n">dot</span><span class="p" data-group-id="9477704376-2">(</span><span class="n">dot</span><span class="p" data-group-id="9477704376-3">(</span><span class="n">input1</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p" data-group-id="9477704376-3">)</span><span class="p">,</span><span class="w"> </span><span class="n">input2</span><span class="p" data-group-id="9477704376-2">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="9477704376-1">)</span></code></pre><p>where <code class="inline">activation</code> is given by the <code class="inline">:activation</code> option and both
+<p>Adds a bilinear layer to the network.</p><p>The bilinear layer implements:</p><pre><code class="makeup elixir"><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activation</span><span class="p" data-group-id="0545433586-1">(</span><span class="n">dot</span><span class="p" data-group-id="0545433586-2">(</span><span class="n">dot</span><span class="p" data-group-id="0545433586-3">(</span><span class="n">input1</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p" data-group-id="0545433586-3">)</span><span class="p">,</span><span class="w"> </span><span class="n">input2</span><span class="p" data-group-id="0545433586-2">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="0545433586-1">)</span></code></pre><p>where <code class="inline">activation</code> is given by the <code class="inline">:activation</code> option and both
 <code class="inline">kernel</code> and <code class="inline">bias</code> are layer parameters. <code class="inline">units</code> specifies the
 number of output units.</p><p>All dimensions but the last of <code class="inline">input1</code> and <code class="inline">input2</code> must match. The
 batch sizes of both inputs must also match or at least one must be <code class="inline">nil</code>.
@@ -1861,7 +1899,7 @@ Inferred output batch size coerces to the strictest input batch size.</p><p>Comp
 
   <section class="docstring">
 
-<p>Adds a dense layer to the network.</p><p>The dense layer implements:</p><pre><code class="makeup elixir"><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activation</span><span class="p" data-group-id="9209701636-1">(</span><span class="n">dot</span><span class="p" data-group-id="9209701636-2">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p" data-group-id="9209701636-2">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="9209701636-1">)</span></code></pre><p>where <code class="inline">activation</code> is given by the <code class="inline">:activation</code> option and both
+<p>Adds a dense layer to the network.</p><p>The dense layer implements:</p><pre><code class="makeup elixir"><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">activation</span><span class="p" data-group-id="2033321072-1">(</span><span class="n">dot</span><span class="p" data-group-id="2033321072-2">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">kernel</span><span class="p" data-group-id="2033321072-2">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p" data-group-id="2033321072-1">)</span></code></pre><p>where <code class="inline">activation</code> is given by the <code class="inline">:activation</code> option and both
 <code class="inline">kernel</code> and <code class="inline">bias</code> are layer parameters. <code class="inline">units</code> specifies the
 number of output units.</p><p>Compiles to <a href="Axon.Layers.html#dense/3"><code class="inline">Axon.Layers.dense/3</code></a>.</p><h2 id="dense/3-options" class="section-heading">
   <a href="#dense/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
@@ -1881,7 +1919,7 @@ number of output units.</p><p>Compiles to <a href="Axon.Layers.html#dense/3"><co
     </a>
     <h1 class="signature" translate="no">embedding(x, vocab_size, embedding_size, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1883" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1884" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2092,7 +2130,7 @@ Layers: Dropout
     </a>
     <h1 class="signature" translate="no">alpha_dropout(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1003" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1004" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2120,7 +2158,7 @@ Layers: Dropout
     </a>
     <h1 class="signature" translate="no">dropout(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1003" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1004" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2148,7 +2186,7 @@ Layers: Dropout
     </a>
     <h1 class="signature" translate="no">feature_alpha_dropout(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1003" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1004" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2176,7 +2214,7 @@ Layers: Dropout
     </a>
     <h1 class="signature" translate="no">spatial_dropout(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1003" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1004" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2217,7 +2255,7 @@ Layers: Pooling
     </a>
     <h1 class="signature" translate="no">adaptive_avg_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1098" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1099" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2246,7 +2284,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">adaptive_lp_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1098" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1099" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2275,7 +2313,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">adaptive_max_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1098" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1099" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2304,7 +2342,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">avg_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1038" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1039" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2333,7 +2371,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">global_avg_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1167" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1168" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2365,7 +2403,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">global_lp_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1167" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1168" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2397,7 +2435,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">global_max_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1167" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1168" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2429,7 +2467,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">lp_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1038" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1039" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2458,7 +2496,7 @@ Defaults to <code class="inline">:first</code>.</li></ul>
     </a>
     <h1 class="signature" translate="no">max_pool(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1038" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1039" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2500,7 +2538,7 @@ Layers: Normalization
     </a>
     <h1 class="signature" translate="no">batch_norm(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1215" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1216" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2529,7 +2567,7 @@ mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stab
     </a>
     <h1 class="signature" translate="no">group_norm(x, group_size, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1259" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1260" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2558,7 +2596,7 @@ mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stab
     </a>
     <h1 class="signature" translate="no">instance_norm(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1215" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1216" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2587,7 +2625,7 @@ mean and variance.</li><li><code class="inline">:epsilon</code> - Numerical stab
     </a>
     <h1 class="signature" translate="no">layer_norm(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1215" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1216" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2629,7 +2667,7 @@ Layers: Recurrent
     </a>
     <h1 class="signature" translate="no">conv_lstm(x, units, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1804" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1805" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2640,7 +2678,7 @@ Layers: Recurrent
   <section class="docstring">
 
 <p>Adds a convolutional long short-term memory (LSTM) layer to the network.</p><p>ConvLSTMs apply <a href="Axon.Recurrent.html#conv_lstm_cell/5"><code class="inline">Axon.Recurrent.conv_lstm_cell/5</code></a> over an entire input
-sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="3460471939-1">{</span><span class="p" data-group-id="3460471939-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="3460471939-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="3460471939-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="4469338848-1">{</span><span class="p" data-group-id="4469338848-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="4469338848-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="4469338848-1">}</span></code></pre><p>You can use the output state as the hidden state of another
 LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="conv_lstm/3-options" class="section-heading">
   <a href="#conv_lstm/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
@@ -2660,7 +2698,7 @@ unrolling of RNN.</li></ul>
     </a>
     <h1 class="signature" translate="no">gru(x, units, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1705" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1706" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2671,7 +2709,7 @@ unrolling of RNN.</li></ul>
   <section class="docstring">
 
 <p>Adds a gated recurrent unit (GRU) layer to the network.</p><p>GRUs apply <a href="Axon.Recurrent.html#gru_cell/7"><code class="inline">Axon.Recurrent.gru_cell/7</code></a> over an entire input
-sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="1604569384-1">{</span><span class="p" data-group-id="1604569384-2">{</span><span class="n">new_hidden</span><span class="p" data-group-id="1604569384-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="1604569384-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="7097066224-1">{</span><span class="p" data-group-id="7097066224-2">{</span><span class="n">new_hidden</span><span class="p" data-group-id="7097066224-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="7097066224-1">}</span></code></pre><p>You can use the output state as the hidden state of another
 LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="gru/3-options" class="section-heading">
   <a href="#gru/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
@@ -2691,7 +2729,7 @@ unrolling of RNN.</li></ul>
     </a>
     <h1 class="signature" translate="no">lstm(x, units, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1597" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1598" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2702,7 +2740,7 @@ unrolling of RNN.</li></ul>
   <section class="docstring">
 
 <p>Adds a long short-term memory (LSTM) layer to the network.</p><p>LSTMs apply <a href="Axon.Recurrent.html#lstm_cell/7"><code class="inline">Axon.Recurrent.lstm_cell/7</code></a> over an entire input
-sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="9201572665-1">{</span><span class="p" data-group-id="9201572665-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="9201572665-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="9201572665-1">}</span></code></pre><p>You can use the output state as the hidden state of another
+sequence and return:</p><pre><code class="makeup elixir"><span class="p" data-group-id="2120428941-1">{</span><span class="p" data-group-id="2120428941-2">{</span><span class="n">new_cell</span><span class="p">,</span><span class="w"> </span><span class="n">new_hidden</span><span class="p" data-group-id="2120428941-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">output_sequence</span><span class="p" data-group-id="2120428941-1">}</span></code></pre><p>You can use the output state as the hidden state of another
 LSTM layer with the <code class="inline">:hidden_state</code> option.</p><h2 id="lstm/3-options" class="section-heading">
   <a href="#lstm/3-options" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Options
@@ -2733,7 +2771,7 @@ Layers: Composition
     </a>
     <h1 class="signature" translate="no">add(x, y, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1495" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1496" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2762,7 +2800,7 @@ static batch size as well.</p><h2 id="add/3-options" class="section-heading">
     </a>
     <h1 class="signature" translate="no">concatenate(x, y, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1452" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1453" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2789,7 +2827,7 @@ dimension unless specified otherwise.</p><h2 id="concatenate/3-options" class="s
     </a>
     <h1 class="signature" translate="no">multiply(x, y, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1495" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1496" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2818,7 +2856,7 @@ static batch size as well.</p><h2 id="multiply/3-options" class="section-heading
     </a>
     <h1 class="signature" translate="no">subtract(x, y, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1495" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1496" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2862,7 +2900,7 @@ Layers: Shape
     </a>
     <h1 class="signature" translate="no">flatten(x, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1343" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1344" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2894,7 +2932,7 @@ the output of a convolution for use with a dense layer.</p><h2 id="flatten/2-opt
     </a>
     <h1 class="signature" translate="no">pad(x, config, value \\ 0.0, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1402" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1403" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2924,7 +2962,7 @@ dimension.</p><h2 id="pad/4-options" class="section-heading">
     </a>
     <h1 class="signature" translate="no">reshape(x, new_shape, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1364" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1365" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2956,7 +2994,7 @@ dimensions of the input - preserving the original batch size.</p><p>If the input
     </a>
     <h1 class="signature" translate="no">resize(x, resize_shape, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1427" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1428" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -2987,7 +3025,7 @@ dimensions of the input tensor.</p><p>Compiles to <a href="Axon.Layers.html#resi
     </a>
     <h1 class="signature" translate="no">transpose(x, permutation, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1380" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1381" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3028,7 +3066,7 @@ Model: Compilation
     </a>
     <h1 class="signature" translate="no">compile(model, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2054" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2055" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3065,7 +3103,7 @@ Model: Execution
     </a>
     <h1 class="signature" translate="no">init(model, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2063" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2064" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3092,7 +3130,7 @@ with the given compiler options.</p>
     </a>
     <h1 class="signature" translate="no">penalty(model, params, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2081" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2082" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3119,7 +3157,7 @@ on <code class="inline">params</code> with the given compiler options.</p>
     </a>
     <h1 class="signature" translate="no">predict(model, params, input, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2072" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2073" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3159,7 +3197,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">cond(parent, cond_fn, true_graph, false_graph, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1543" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1544" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3186,7 +3224,7 @@ parent graph. It must return a boolean scalar tensor (e.g. 1 or 0).</p><p>The sh
     </a>
     <h1 class="signature" translate="no">freeze(model, fun \\ &amp;(&amp;1))</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1927" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1928" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3206,18 +3244,18 @@ For example, it's common to combine the convolutional base from
 larger models trained on ImageNet with fresh fully-connected classifiers.
 The combined model is then trained on fresh data, with the convolutional
 base frozen so as not to lose information. You can see this example in code
-here:</p><pre><code class="makeup elixir"><span class="n">cnn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_pretrained_cnn_base</span><span class="p" data-group-id="5204012751-1">(</span><span class="p" data-group-id="5204012751-1">)</span><span class="w">
+here:</p><pre><code class="makeup elixir"><span class="n">cnn_base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_pretrained_cnn_base</span><span class="p" data-group-id="2724263313-1">(</span><span class="p" data-group-id="2724263313-1">)</span><span class="w">
 </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">cnn_base</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">freeze</span><span class="p" data-group-id="5204012751-2">(</span><span class="p" data-group-id="5204012751-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="5204012751-3">(</span><span class="p" data-group-id="5204012751-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5204012751-4">(</span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="5204012751-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="5204012751-5">(</span><span class="p" data-group-id="5204012751-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5204012751-6">(</span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="5204012751-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">freeze</span><span class="p" data-group-id="2724263313-2">(</span><span class="p" data-group-id="2724263313-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="2724263313-3">(</span><span class="p" data-group-id="2724263313-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2724263313-4">(</span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="2724263313-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="2724263313-5">(</span><span class="p" data-group-id="2724263313-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2724263313-6">(</span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="2724263313-6">)</span><span class="w">
 
 </span><span class="n">model</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="5204012751-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="5204012751-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="5204012751-8">)</span><span class="p" data-group-id="5204012751-7">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="5204012751-9">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="5204012751-9">)</span></code></pre><p>When compiled, frozen parameters are wrapped in <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.Defn.Kernel.html#stop_grad/1"><code class="inline">Nx.Defn.Kernel.stop_grad/1</code></a>,
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="2724263313-7">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="2724263313-8">(</span><span class="mf">0.005</span><span class="p" data-group-id="2724263313-8">)</span><span class="p" data-group-id="2724263313-7">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="2724263313-9">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="2724263313-9">)</span></code></pre><p>When compiled, frozen parameters are wrapped in <a href="https://hexdocs.pm/nx/0.1.0-dev/Nx.Defn.Kernel.html#stop_grad/1"><code class="inline">Nx.Defn.Kernel.stop_grad/1</code></a>,
 which zeros out the gradient with respect to the frozen parameter. Gradients
 of frozen parameters will return <code class="inline">0.0</code>, meaning they won't be changed during
 the update process.</p>
@@ -3232,7 +3270,7 @@ the update process.</p>
     </a>
     <h1 class="signature" translate="no">get_model_signature(axon)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2032" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L2033" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3246,23 +3284,23 @@ the update process.</p>
   <a href="#get_model_signature/1-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Examples
 </h2>
-<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5913629627-1">(</span><span class="p" data-group-id="5913629627-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-2">}</span><span class="p" data-group-id="5913629627-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5913629627-3">(</span><span class="mi">10</span><span class="p" data-group-id="5913629627-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="5913629627-4">{</span><span class="n">inp</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p" data-group-id="5913629627-4">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">get_model_signature</span><span class="p" data-group-id="5913629627-5">(</span><span class="n">model</span><span class="p" data-group-id="5913629627-5">)</span><span class="w">
+<pre><code class="makeup elixir"><span class="gp unselectable">iex&gt; </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8918660414-1">(</span><span class="p" data-group-id="8918660414-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-2">}</span><span class="p" data-group-id="8918660414-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8918660414-3">(</span><span class="mi">10</span><span class="p" data-group-id="8918660414-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="8918660414-4">{</span><span class="n">inp</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p" data-group-id="8918660414-4">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">get_model_signature</span><span class="p" data-group-id="8918660414-5">(</span><span class="n">model</span><span class="p" data-group-id="8918660414-5">)</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">inp</span><span class="w">
-</span><span class="p" data-group-id="5913629627-6">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-6">}</span><span class="w">
+</span><span class="p" data-group-id="8918660414-6">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-6">}</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">out</span><span class="w">
-</span><span class="p" data-group-id="5913629627-7">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="5913629627-7">}</span><span class="w">
+</span><span class="p" data-group-id="8918660414-7">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="8918660414-7">}</span><span class="w">
 
-</span><span class="gp unselectable">iex&gt; </span><span class="n">inp1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5913629627-8">(</span><span class="p" data-group-id="5913629627-9">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-9">}</span><span class="p" data-group-id="5913629627-8">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">inp2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5913629627-10">(</span><span class="p" data-group-id="5913629627-11">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-11">}</span><span class="p" data-group-id="5913629627-10">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">concatenate</span><span class="p" data-group-id="5913629627-12">(</span><span class="n">inp1</span><span class="p">,</span><span class="w"> </span><span class="n">inp2</span><span class="p" data-group-id="5913629627-12">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="5913629627-13">{</span><span class="p" data-group-id="5913629627-14">{</span><span class="n">inp1_shape</span><span class="p">,</span><span class="w"> </span><span class="n">inp2_shape</span><span class="p" data-group-id="5913629627-14">}</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p" data-group-id="5913629627-13">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">get_model_signature</span><span class="p" data-group-id="5913629627-15">(</span><span class="n">model</span><span class="p" data-group-id="5913629627-15">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">inp1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8918660414-8">(</span><span class="p" data-group-id="8918660414-9">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-9">}</span><span class="p" data-group-id="8918660414-8">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">inp2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8918660414-10">(</span><span class="p" data-group-id="8918660414-11">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-11">}</span><span class="p" data-group-id="8918660414-10">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">concatenate</span><span class="p" data-group-id="8918660414-12">(</span><span class="n">inp1</span><span class="p">,</span><span class="w"> </span><span class="n">inp2</span><span class="p" data-group-id="8918660414-12">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="p" data-group-id="8918660414-13">{</span><span class="p" data-group-id="8918660414-14">{</span><span class="n">inp1_shape</span><span class="p">,</span><span class="w"> </span><span class="n">inp2_shape</span><span class="p" data-group-id="8918660414-14">}</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="p" data-group-id="8918660414-13">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">get_model_signature</span><span class="p" data-group-id="8918660414-15">(</span><span class="n">model</span><span class="p" data-group-id="8918660414-15">)</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">inp1_shape</span><span class="w">
-</span><span class="p" data-group-id="5913629627-16">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-16">}</span><span class="w">
+</span><span class="p" data-group-id="8918660414-16">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-16">}</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">inp2_shape</span><span class="w">
-</span><span class="p" data-group-id="5913629627-17">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5913629627-17">}</span><span class="w">
+</span><span class="p" data-group-id="8918660414-17">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="8918660414-17">}</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">out</span><span class="w">
-</span><span class="p" data-group-id="5913629627-18">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="5913629627-18">}</span></code></pre>
+</span><span class="p" data-group-id="8918660414-18">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="8918660414-18">}</span></code></pre>
   </section>
 </section>
 <section class="detail" id="param/3">
@@ -3306,7 +3344,7 @@ of Axon models.</p><p>Parameters <em>must</em> be specified in order of their us
     </a>
     <h1 class="signature" translate="no">split(parent, n, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1558" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1559" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3329,7 +3367,7 @@ along the given axis.</p>
     </a>
     <h1 class="signature" translate="no">tree_map(axon, fun)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1957" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1958" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
@@ -3351,7 +3389,7 @@ along the given axis.</p>
     </a>
     <h1 class="signature" translate="no">tree_reduce(axon, acc, fun)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1985" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon.ex#L1986" class="view-source" rel="help" title="View Source">
        <span class="icon-code" aria-hidden="true"></span>
        <span class="sr-only">View Source</span>
      </a>
