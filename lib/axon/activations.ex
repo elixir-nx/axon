@@ -575,7 +575,12 @@ defmodule Axon.Activations do
 
   """
   defn selu(x, opts \\ []) do
-    opts = keyword!(opts, alpha: 1.6732632423543772848170429916717, gamma: 1.0507009873554804934193349852946)
+    opts =
+      keyword!(opts,
+        alpha: 1.6732632423543772848170429916717,
+        gamma: 1.0507009873554804934193349852946
+      )
+
     opts[:gamma] * elu(x, alpha: opts[:alpha])
   end
 
