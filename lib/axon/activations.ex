@@ -574,10 +574,9 @@ defmodule Axon.Activations do
     * [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515v5)
 
   """
-  defn selu(x) do
-    alpha = 1.6732632423543772848170429916717
-    scale = 1.0507009873554804934193349852946
-    scale * elu(x, alpha: alpha)
+  defn selu(x, opts \\ []) do
+    opts = keyword!(opts, alpha: 1.6732632423543772848170429916717, gamma: 1.0507009873554804934193349852946)
+    opts[:gamma] * elu(x, alpha: opts[:alpha])
   end
 
   @doc ~S"""
