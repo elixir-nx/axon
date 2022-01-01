@@ -923,6 +923,7 @@ defmodule Axon do
     {:leaky_relu, "Leaky rectified linear unit", "a"},
     {:linear, "Linear", "a"},
     {:log_sigmoid, "Log-sigmoid", "a"},
+    {:log_softmax, "Log-softmax", "a"},
     {:mish, "Mish", "a"},
     {:relu, "Rectified linear unit", "a"},
     {:relu6, "Rectified linear unit 6", "a"},

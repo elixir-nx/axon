@@ -118,7 +118,8 @@ defmodule CompilerTest do
 
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                       [:log_softmax]
 
   describe "activations" do
     test "initializes with no params" do
