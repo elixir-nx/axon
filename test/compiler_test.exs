@@ -2080,7 +2080,7 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with constant" do
-      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0])
+      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0], ignore_batch?: false)
 
       assert {_, predict_fn} = Axon.compile(model)
       assert predict_fn.(%{}, {}) == Nx.transpose(Nx.iota({1, 2, 3}, type: {:f, 32}))

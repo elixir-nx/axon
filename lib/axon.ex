@@ -89,7 +89,7 @@ defmodule Axon do
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
 
   @doc """
-  Custom Axon layer with given parent.
+  Custom Axon layer with given parent and trainable parameters.
 
   Applies `op` on `parent` with parameters `parameters`. `parameters`
   is a map of trainable `parameters` created using `Axon.param`. Assumes
@@ -1371,20 +1371,21 @@ defmodule Axon do
   @doc """
   Adds a transpose layer to the network.
 
-  This layer will transpose non-batch dimensions of the input.
-
   ## Options
 
     * `:name` - Layer name.
+    * `:ignore_batch?` - Whether to ignore batch dimension in
+      transpose operation. Defaults to true.
   """
   @doc type: :shape
-  def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
-    is_constant_reshape? = op == :constant
-    output_shape = Axon.Shape.transpose(shape, permutation, is_constant_reshape?)
+  def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
+    ignore_batch? = Keyword.get(opts, :ignore_batch?, true)
+
+    output_shape = Axon.Shape.transpose(shape, permutation, ignore_batch?)
 
     layer(x, :transpose, output_shape, %{}, opts[:name],
       permutation: permutation,
-      constant: is_constant_reshape?
+      ignore_batch?: ignore_batch?
     )
   end
 

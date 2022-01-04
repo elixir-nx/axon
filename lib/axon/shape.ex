@@ -22,10 +22,10 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.input(5)
-      ** (ArgumentError) invalid input shape 5, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
+      ** (ArgumentError) invalid input shape 5, input shape must be a tuple with only the leading dimension as nil, if any
 
       iex> Axon.Shape.input({32, nil, 28, 28})
-      ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple of at least rank 2, with only the leading dimension as nil, if any
+      ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple with only the leading dimension as nil, if any
   """
   def input(input_shape) when is_tuple(input_shape) do
     first_elem_nil_or_integer = is_integer(elem(input_shape, 0)) or elem(input_shape, 0) == nil
@@ -38,11 +38,11 @@ defmodule Axon.Shape do
       |> Enum.count()
       |> Kernel.==(0)
 
-    unless Nx.rank(input_shape) >= 2 and first_elem_nil_or_integer and all_other_elems_integer do
+    unless first_elem_nil_or_integer and all_other_elems_integer do
       raise ArgumentError,
             "invalid input shape #{inspect(input_shape)}, input" <>
-              " shape must be a tuple of at least rank 2, with" <>
-              " only the leading dimension as nil, if any"
+              " shape must be a tuple with only the leading dimension" <>
+              " as nil, if any"
     end
 
     input_shape
@@ -51,8 +51,8 @@ defmodule Axon.Shape do
   def input(input_shape) do
     raise ArgumentError,
           "invalid input shape #{inspect(input_shape)}, input" <>
-            " shape must be a tuple of at least rank 2, with" <>
-            " only the leading dimension as nil, if any"
+            " shape must be a tuple with only the leading dimension" <>
+            " as nil, if any"
   end
 
   @doc """
@@ -1348,30 +1348,30 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0], false)
+      iex> Axon.Shape.transpose({nil, 64, 10}, [1, 0], true)
       {nil, 10, 64}
 
-      iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2], false)
+      iex> Axon.Shape.transpose({nil, 3, 224, 224}, [1, 0, 2], true)
       {nil, 224, 3, 224}
 
-      iex> Axon.Shape.transpose({1, 2, 3}, [2, 1, 0], true)
+      iex> Axon.Shape.transpose({1, 2, 3}, [2, 1, 0], false)
       {3, 2, 1}
   """
-  def transpose(shape, permutation, is_constant_reshape?) do
+  def transpose(shape, permutation, ignore_batch?) do
     original_shape =
-      if is_constant_reshape? do
-        shape
-      else
+      if ignore_batch? do
         Tuple.delete_at(shape, 0)
+      else
+        shape
       end
 
     nil_names = List.duplicate(nil, Nx.rank(original_shape))
     {transposed_shape, _} = Nx.Shape.transpose(original_shape, permutation, nil_names)
 
-    if is_constant_reshape? do
-      transposed_shape
-    else
+    if ignore_batch? do
       Tuple.insert_at(transposed_shape, 0, elem(shape, 0))
+    else
+      transposed_shape
     end
   end
 

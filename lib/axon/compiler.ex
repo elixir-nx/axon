@@ -1059,7 +1059,7 @@ defmodule Axon.Compiler do
            id: id,
            op: :transpose,
            parent: parent,
-           opts: [permutation: permutation, constant: is_constant_reshape?],
+           opts: [permutation: permutation, ignore_batch?: ignore_batch?],
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -1071,10 +1071,10 @@ defmodule Axon.Compiler do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
     permutation =
-      if is_constant_reshape? do
-        permutation
-      else
+      if ignore_batch? do
         [0 | Enum.map(permutation, &(&1 + 1))]
+      else
+        permutation
       end
 
     input = Nx.as_type(res, compute)

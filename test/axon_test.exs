@@ -720,7 +720,8 @@ defmodule AxonTest do
 
     test "works with constant input" do
       assert %Axon{output_shape: {1, 2, 3}} =
-               Axon.constant(Nx.iota({3, 2, 1})) |> Axon.transpose([2, 1, 0])
+               Axon.constant(Nx.iota({3, 2, 1}))
+               |> Axon.transpose([2, 1, 0], ignore_batch?: false)
     end
   end
 
