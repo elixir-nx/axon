@@ -2168,7 +2168,14 @@ defmodule Axon do
           {name, cache}
         end)
 
-      row = [name <> " ( #{Atom.to_string(op)} #{inspect(names)} )", "#{inspect(shape)}", 0]
+      op_string =
+        if is_atom(op) do
+          "#{Atom.to_string(op)}"
+        else
+          "#{inspect(op)}"
+        end
+
+      row = [name <> " ( #{op_string} #{inspect(names)} )", "#{inspect(shape)}", 0]
 
       {row, cache}
     end

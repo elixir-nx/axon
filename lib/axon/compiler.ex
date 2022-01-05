@@ -3,8 +3,15 @@ defmodule Axon.CompilerError do
 
   @impl true
   def message(%{graph: %Axon{op: op, name: name}, exception: exception}) do
+    op_inspect =
+      if is_atom(op) do
+        Atom.to_string(op)
+      else
+        "#{inspect(op)}"
+      end
+
     """
-    error while building prediction for #{op} layer with name #{name}:
+    error while building prediction for #{op_inspect} layer with name #{name}:
 
     ** (#{inspect(exception.__struct__)}) #{Exception.message(exception)}
     """
@@ -292,6 +299,37 @@ defmodule Axon.Compiler do
   end
 
   ## Custom Layers
+
+  defp recur_predict_fun(
+         %Axon{id: id, name: name, op: op, parent: parents, params: layer_params, opts: opts},
+         cache,
+         input_map,
+         params,
+         inputs,
+         mode
+       )
+       when is_function(op) and is_list(parents) do
+    {exprs, cache} =
+      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+
+    inp_params =
+      Map.new(layer_params, fn {k, %{name: v, frozen: frz}} ->
+        {k, maybe_freeze(params[name][v], frz)}
+      end)
+
+    param_arg =
+      case inp_params do
+        %{} ->
+          []
+
+        inp_params ->
+          [inp_params]
+      end
+
+    res = apply(op, exprs ++ param_arg ++ opts)
+
+    {res, Map.put(cache, id, res)}
+  end
 
   defp recur_predict_fun(
          %Axon{id: id, name: name, op: op, parent: parent, params: layer_params, opts: opts},
