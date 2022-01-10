@@ -347,7 +347,16 @@ defmodule Axon.Compiler do
         {k, maybe_freeze(params[name][v], frz)}
       end)
 
-    res = apply(op, [res | [inp_params] ++ opts])
+    param_arg =
+      case inp_params do
+        %{} ->
+          []
+
+        inp_params ->
+          [inp_params]
+      end
+
+    res = apply(op, [res] ++ param_arg ++ [opts])
 
     {res, Map.put(cache, id, res)}
   end
