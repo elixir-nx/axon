@@ -1208,7 +1208,7 @@ defmodule Axon.Compiler do
 
     res =
       Axon.Layers.cond(
-        Nx.all?(cond_expr),
+        Nx.all(cond_expr),
         Nx.as_type(true_expr, compute),
         Nx.as_type(false_expr, compute)
       )

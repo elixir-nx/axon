@@ -3603,7 +3603,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 1})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
       assert {init_fn, _} = Axon.compile(model)
@@ -3614,7 +3614,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 2})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
 
       input_1 = Nx.tensor([[1.0, 1.0]])
       input_2 = Nx.tensor([[0.0, 0.0]])
@@ -3630,7 +3630,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 1, 32})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
       model1 = Axon.cond(inp, cond_fn, on_true, on_false)
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model1, policy)

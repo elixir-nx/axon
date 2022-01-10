@@ -19,6 +19,15 @@ defmodule Axon.Shape do
       iex> Axon.Shape.input({32, 784})
       {32, 784}
 
+      iex> Axon.Shape.input({})
+      {}
+
+      iex> Axon.Shape.input({nil})
+      {nil}
+
+      iex> Axon.Shape.input({5})
+      {5}
+
   ### Error cases
 
       iex> Axon.Shape.input(5)
@@ -27,6 +36,10 @@ defmodule Axon.Shape do
       iex> Axon.Shape.input({32, nil, 28, 28})
       ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple with only the leading dimension as nil, if any
   """
+  def input(input_shape)
+
+  def input({}), do: {}
+
   def input(input_shape) when is_tuple(input_shape) do
     first_elem_nil_or_integer = is_integer(elem(input_shape, 0)) or elem(input_shape, 0) == nil
 
@@ -101,6 +114,12 @@ defmodule Axon.Shape do
       {256, 128}
   """
   def dense_kernel(input_shape, units) do
+    unless Nx.rank(input_shape) >= 2 do
+      raise ArgumentError,
+            "input shape must have at least rank 2, got rank" <>
+              " #{Nx.rank(input_shape)}"
+    end
+
     {elem(input_shape, Nx.rank(input_shape) - 1), units}
   end
 
@@ -119,7 +138,13 @@ defmodule Axon.Shape do
       iex> Axon.Shape.dense_bias({nil, 3, 256, 256}, 128)
       {128}
   """
-  def dense_bias(_input_shape, units) do
+  def dense_bias(input_shape, units) do
+    unless Nx.rank(input_shape) >= 2 do
+      raise ArgumentError,
+            "input shape must have at least rank 2, got rank" <>
+              " #{Nx.rank(input_shape)}"
+    end
+
     {units}
   end
 
@@ -137,8 +162,22 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.dense({nil, 128}, 128)
       {nil, 128}
+
+  ### Errors
+
+      iex> Axon.Shape.dense({}, 32)
+      ** (ArgumentError) input shape must have at least rank 2, got rank 0
+
+      iex> Axon.Shape.dense({1}, 32)
+      ** (ArgumentError) input shape must have at least rank 2, got rank 1
   """
   def dense(input_shape, units) do
+    unless Nx.rank(input_shape) >= 2 do
+      raise ArgumentError,
+            "input shape must have at least rank 2, got rank" <>
+              " #{Nx.rank(input_shape)}"
+    end
+
     {elem(input_shape, 0), units}
   end
 
@@ -155,6 +194,12 @@ defmodule Axon.Shape do
       {32, 64, 16}
   """
   def bilinear_kernel(parent1, parent2, units) do
+    unless Nx.rank(parent1) >= 2 and Nx.rank(parent2) >= 2 do
+      raise ArgumentError,
+            "input shapes must both have at least rank 2" <>
+              " got ranks #{Nx.rank(parent1)} and #{Nx.rank(parent2)}"
+    end
+
     parent1_features = elem(parent1, Nx.rank(parent1) - 1)
     parent2_features = elem(parent2, Nx.rank(parent2) - 1)
     {units, parent1_features, parent2_features}
@@ -172,7 +217,13 @@ defmodule Axon.Shape do
       iex> Axon.Shape.bilinear_bias({nil, 32, 64}, {nil, 32, 16}, 32)
       {32}
   """
-  def bilinear_bias(_parent1, _parent2, units) do
+  def bilinear_bias(parent1, parent2, units) do
+    unless Nx.rank(parent1) >= 2 and Nx.rank(parent2) >= 2 do
+      raise ArgumentError,
+            "input shapes must both have at least rank 2" <>
+              " got ranks #{Nx.rank(parent1)} and #{Nx.rank(parent2)}"
+    end
+
     {units}
   end
 
@@ -198,8 +249,20 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.bilinear({nil, 16, 32}, {nil, 16}, 32)
       ** (ArgumentError) input ranks must match, got 3 and 2
+      
+      iex> Axon.Shape.bilinear({nil, 16, 32}, {}, 32)
+      ** (ArgumentError) input shapes must both have at least rank 2, got ranks 3 and 0
+
+      iex> Axon.Shape.bilinear({nil}, {12}, 32)
+      ** (ArgumentError) input shapes must both have at least rank 2, got ranks 1 and 1
   """
   def bilinear(parent1, parent2, units) do
+    unless Nx.rank(parent1) >= 2 and Nx.rank(parent2) >= 2 do
+      raise ArgumentError,
+            "input shapes must both have at least rank 2," <>
+              " got ranks #{Nx.rank(parent1)} and #{Nx.rank(parent2)}"
+    end
+
     unless Nx.rank(parent1) == Nx.rank(parent2) do
       raise ArgumentError,
             "input ranks must match, got #{inspect(Nx.rank(parent1))}" <>
@@ -379,6 +442,12 @@ defmodule Axon.Shape do
         kernel_dilation,
         channels
       ) do
+    unless Nx.rank(parent_shape) >= 3 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(parent_shape)}"
+    end
+
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
 
     in_out_permutation =
@@ -462,6 +531,12 @@ defmodule Axon.Shape do
       {nil, 4, 6}
   """
   def conv_transpose(parent_shape, kernel_shape, strides, padding, kernel_dilation, channels) do
+    unless Nx.rank(parent_shape) >= 3 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(parent_shape)}"
+    end
+
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
 
     in_out_permutation =
@@ -667,6 +742,12 @@ defmodule Axon.Shape do
         kernel_dilation,
         channels
       ) do
+    unless Nx.rank(parent_shape) >= 3 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(parent_shape)}"
+    end
+
     permutation = for i <- 0..(Nx.rank(parent_shape) - 1), do: i
 
     in_out_permutation =
@@ -903,6 +984,12 @@ defmodule Axon.Shape do
       {32, 1, 28, 28}
   """
   def pool(parent_shape, kernel_size, strides, padding, channels) do
+    unless Nx.rank(parent_shape) >= 3 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(parent_shape)}"
+    end
+
     # Account for possibly nil batch dimension
     input_shape =
       if elem(parent_shape, 0) do
@@ -1037,6 +1124,12 @@ defmodule Axon.Shape do
       ** (ArgumentError) invalid output size for adaptive pool operation for input with shape {nil, 1, 28, 28} and output size {30, 30} each dimension of output size must be greater than or equal to spatial dimension of input
   """
   def adaptive_pool(parent_shape, output_size, channels) do
+    unless Nx.rank(parent_shape) >= 3 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(parent_shape)}"
+    end
+
     idx =
       if channels == :first do
         1
@@ -1393,6 +1486,12 @@ defmodule Axon.Shape do
       ** (ArgumentError) invalid padding configuration [{0, 1}], length of padding configuration must be equal to the rank of the spatial dimensions of the input
   """
   def pad(shape, config) do
+    unless Nx.rank(shape) >= 1 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(shape)}"
+    end
+
     unless length(config) == Nx.rank(shape) - 2 do
       raise ArgumentError,
             "invalid padding configuration #{inspect(config)}," <>
@@ -1520,6 +1619,12 @@ defmodule Axon.Shape do
       ** (ArgumentError) unable to create 2 even splits along axis 1 of size 5
   """
   def split(shape, n, axis) do
+    unless Nx.rank(shape) >= 1 do
+      raise ArgumentError,
+            "input shape must be at least rank 3," <>
+              " got rank #{Nx.rank(shape)}"
+    end
+
     nil_names = List.duplicate(nil, Nx.rank(shape))
     non_nil_shape = if elem(shape, 0) == nil, do: put_elem(shape, 0, 1), else: shape
 
