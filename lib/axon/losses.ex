@@ -1090,12 +1090,12 @@ defmodule Axon.Losses do
   end
 
   defn get_limits(y_true, t_max, blank) do
-    y_true_bb = Nx.concatenate([y_true, Nx.reshape(blank, {1})])
-    # Get `trimmed` tagret length.
-    {s_max, _} =
-      while {s = 0, y_true_bb}, y_true_bb[s] != y_true_bb[s + 1] do
-        {s + 1, y_true_bb}
-      end
+    # Get `trimmed` target length.
+    s_max =
+      y_true
+      |> Nx.window_reduce(0, {2}, fn x, acc -> x - acc end)
+      |> Nx.not_equal(0)
+      |> Nx.sum()
 
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
