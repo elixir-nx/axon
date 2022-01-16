@@ -1089,7 +1089,7 @@ defmodule Axon.Losses do
     )
   end
 
-  defn get_limits(y_true, t_max, blank) do
+  defn get_limits(y_true, t_max, _blank) do
     # Get `trimmed` target length.
     s_max =
       y_true
