@@ -1094,8 +1094,9 @@ defmodule Axon.Losses do
     s_max =
       y_true
       |> Nx.window_reduce(0, {2}, fn x, acc -> x - acc end)
-      |> Nx.not_equal(0)
-      |> Nx.sum()
+      |> Nx.equal(0)
+      |> Nx.pad(1, [{0, 1, 0}])
+      |> Nx.argmax()
 
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
