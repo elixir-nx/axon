@@ -3,8 +3,15 @@ defmodule Axon.CompilerError do
 
   @impl true
   def message(%{graph: %Axon{op: op, name: name}, exception: exception}) do
+    op_inspect =
+      if is_atom(op) do
+        Atom.to_string(op)
+      else
+        "#{inspect(op)}"
+      end
+
     """
-    error while building prediction for #{op} layer with name #{name}:
+    error while building prediction for #{op_inspect} layer with name #{name}:
 
     ** (#{inspect(exception.__struct__)}) #{Exception.message(exception)}
     """
@@ -32,7 +39,7 @@ defmodule Axon.Compiler do
   end
 
   defp compile_init(graph) when is_tuple(graph) do
-    fn ->
+    init_fn = fn ->
       graph
       |> Tuple.to_list()
       |> Enum.reduce(%{}, &to_init_fun/2)
@@ -41,6 +48,8 @@ defmodule Axon.Compiler do
         {k, v}
       end)
     end
+
+    fn -> Nx.Defn.jit_or_apply(init_fn, []) end
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -158,7 +167,7 @@ defmodule Axon.Compiler do
       )
     end
 
-    fn params, inputs ->
+    predict_fn = fn params, inputs ->
       inputs = maybe_flatten(inputs)
       {expr, _} = to_predict_fun(graph, %{}, input_map, params, inputs, mode)
 
@@ -170,6 +179,8 @@ defmodule Axon.Compiler do
           expr
       end
     end
+
+    &Nx.Defn.jit_or_apply(predict_fn, [&1, &2])
   end
 
   defp maybe_flatten(inputs) when is_tuple(inputs) do
@@ -290,6 +301,37 @@ defmodule Axon.Compiler do
   ## Custom Layers
 
   defp recur_predict_fun(
+         %Axon{id: id, name: name, op: op, parent: parents, params: layer_params, opts: opts},
+         cache,
+         input_map,
+         params,
+         inputs,
+         mode
+       )
+       when is_function(op) and is_list(parents) do
+    {exprs, cache} =
+      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+
+    inp_params =
+      Map.new(layer_params, fn {k, %{name: v, frozen: frz}} ->
+        {k, maybe_freeze(params[name][v], frz)}
+      end)
+
+    param_arg =
+      case inp_params do
+        %{} ->
+          []
+
+        inp_params ->
+          [inp_params]
+      end
+
+    res = apply(op, exprs ++ param_arg ++ opts)
+
+    {res, Map.put(cache, id, res)}
+  end
+
+  defp recur_predict_fun(
          %Axon{id: id, name: name, op: op, parent: parent, params: layer_params, opts: opts},
          cache,
          input_map,
@@ -305,7 +347,16 @@ defmodule Axon.Compiler do
         {k, maybe_freeze(params[name][v], frz)}
       end)
 
-    res = apply(op, [res | [inp_params] ++ opts])
+    param_arg =
+      case inp_params do
+        %{} ->
+          []
+
+        inp_params ->
+          [inp_params]
+      end
+
+    res = apply(op, [res] ++ param_arg ++ [opts])
 
     {res, Map.put(cache, id, res)}
   end
@@ -314,7 +365,8 @@ defmodule Axon.Compiler do
 
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                       [:log_softmax]
 
   defp recur_predict_fun(
          %Axon{
@@ -1025,9 +1077,36 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
+           op: :resize,
+           parent: parent,
+           policy: %{compute: compute, output: output},
+           opts: [shape: shape, method: method, channels: channels]
+         },
+         cache,
+         input_map,
+         params,
+         inputs,
+         mode
+       ) do
+    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+
+    inp = Nx.as_type(res, compute)
+
+    res =
+      Nx.as_type(
+        Axon.Layers.resize(inp, shape: shape, method: method, channels: channels),
+        output
+      )
+
+    {res, Map.put(cache, id, res)}
+  end
+
+  defp recur_predict_fun(
+         %Axon{
+           id: id,
            op: :transpose,
            parent: parent,
-           opts: [permutation: permutation, constant: is_constant_reshape?],
+           opts: [permutation: permutation, ignore_batch?: ignore_batch?],
            policy: %{compute: compute, output: output}
          },
          cache,
@@ -1039,10 +1118,10 @@ defmodule Axon.Compiler do
     {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
 
     permutation =
-      if is_constant_reshape? do
-        permutation
-      else
+      if ignore_batch? do
         [0 | Enum.map(permutation, &(&1 + 1))]
+      else
+        permutation
       end
 
     input = Nx.as_type(res, compute)
@@ -1129,7 +1208,7 @@ defmodule Axon.Compiler do
 
     res =
       Axon.Layers.cond(
-        Nx.all?(cond_expr),
+        Nx.all(cond_expr),
         Nx.as_type(true_expr, compute),
         Nx.as_type(false_expr, compute)
       )

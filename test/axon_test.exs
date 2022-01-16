@@ -681,7 +681,7 @@ defmodule AxonTest do
 
     test "raises on bad shapes" do
       for op <- @element_wise_layers do
-        assert_raise ArgumentError, ~r/all input shapes must match/, fn ->
+        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
           apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 64})]])
         end
       end
@@ -720,7 +720,8 @@ defmodule AxonTest do
 
     test "works with constant input" do
       assert %Axon{output_shape: {1, 2, 3}} =
-               Axon.constant(Nx.iota({3, 2, 1})) |> Axon.transpose([2, 1, 0])
+               Axon.constant(Nx.iota({3, 2, 1}))
+               |> Axon.transpose([2, 1, 0], ignore_batch?: false)
     end
   end
 
@@ -842,6 +843,17 @@ defmodule AxonTest do
               softmax ( softmax )                                {nil, 10}    0
              ----------------------------------------------------------------------------
              """
+    end
+  end
+
+  describe "container" do
+    defn container(model) do
+      Axon.predict(model, %{}, Nx.tensor([[1.0]]))
+    end
+
+    test "correctly derives container" do
+      model = Axon.input({nil, 1})
+      assert container(model) == Nx.tensor([[1.0]])
     end
   end
 end

@@ -75,8 +75,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -242,8 +242,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -360,7 +360,7 @@ defmodule Axon.Losses do
                   # If y_true is not at least rank 2, add a new axis to select
                   # one index per value along the batch axis
                   y_true =
-                    if Nx.rank(y_true) < 2 do
+                    if Elixir.Kernel.<(Nx.rank(y_true), 2) do
                       Nx.new_axis(y_true, -1)
                     else
                       y_true
@@ -427,7 +427,7 @@ defmodule Axon.Losses do
         # If y_true is not at least rank 2, add a new axis to select
         # one index per value along the batch axis
         y_true =
-          if Nx.rank(y_true) < 2 do
+          if Elixir.Kernel.<(Nx.rank(y_true), 2) do
             Nx.new_axis(y_true, -1)
           else
             y_true
@@ -458,8 +458,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -526,8 +526,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Examples
 
@@ -585,8 +585,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -652,8 +652,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -841,8 +841,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -903,8 +903,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -965,8 +965,8 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 

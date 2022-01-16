@@ -345,12 +345,13 @@ defmodule Axon.Loop do
         update_optimizer_fn.(gradients, optimizer_state, model_state)
 
       %{
-        i: Nx.add(i, 1),
-        y_true: tar,
-        y_pred: preds,
-        loss: new_loss,
-        model_state: Axon.Updates.apply_updates(model_state, updates),
-        optimizer_state: new_optimizer_state
+        state
+        | i: Nx.add(i, 1),
+          y_true: tar,
+          y_pred: preds,
+          loss: new_loss,
+          model_state: Axon.Updates.apply_updates(model_state, updates),
+          optimizer_state: new_optimizer_state
       }
     end
 
@@ -503,11 +504,46 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.trainer(loss_weights)
       |> Axon.Loop.run(data)
+
+  ## Options
+
+    * `:log` - training loss and metric log interval. Set to 0 to silence
+      training logs. Defaults to 50
   """
-  def trainer(model, loss, optimizer) do
-    {init_fn, step_fn} = train_step(model, loss, optimizer)
+  def trainer(model, loss, optimizer, opts \\ []) do
+    log_interval = opts[:log] || 50
+    # Build loss now so we can use it as a metric
+    loss_fn = build_loss_fn(loss)
+    {init_fn, step_fn} = train_step(model, loss_fn, optimizer)
     output_transform = fn state -> state.step_state[:model_state] end
-    loop(step_fn, init_fn, output_transform)
+
+    loop =
+      step_fn
+      |> loop(init_fn, output_transform)
+      |> metric(loss_fn, "loss")
+
+    if log_interval > 0 do
+      loop
+      |> log(:iteration_completed, &supervised_log_message_fn/1, :stdio, every: log_interval)
+      |> log(:epoch_completed, fn _ -> "\n" end, :stdio)
+    else
+      loop
+    end
+  end
+
+  defp supervised_log_message_fn(state, log_epochs \\ true) do
+    %State{metrics: metrics, epoch: epoch, iteration: iter} = state
+
+    metrics =
+      metrics
+      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
+      |> Enum.join(" ")
+
+    if log_epochs do
+      "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{metrics}"
+    else
+      "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
+    end
   end
 
   @doc """
@@ -538,7 +574,9 @@ defmodule Axon.Loop do
   def evaluator(model, model_state) do
     {init_fn, step_fn} = eval_step(model, model_state)
     output_transform = fn state -> state.metrics end
+
     loop(step_fn, init_fn, output_transform)
+    |> log(:iteration_completed, &supervised_log_message_fn(&1, false), :stdio)
   end
 
   @doc """
@@ -614,7 +652,9 @@ defmodule Axon.Loop do
     end
 
     metric_fn = build_metric_fn(metric, accumulate, transform_or_fields)
-    %Loop{loop | metrics: Map.put(metric_fns, name, metric_fn)}
+    # For internal use we keep the raw metric as well as the compiled metric
+    # function
+    %Loop{loop | metrics: Map.put(metric_fns, name, {metric_fn, metric})}
   end
 
   @doc """
@@ -695,6 +735,101 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which logs the given message produced
+  by `message_fn` to the given IO device every `event` satisfying
+  `filter`.
+
+  In most cases, this is useful for inspecting the contents of
+  the loop state at intermediate stages. For example, the default
+  `trainer` loop factory attaches IO logging of epoch, batch, loss
+  and metrics.
+
+  It's also possible to log loop state to files by changing the
+  given IO device. By default, the IO device is `:stdio`.
+
+  `message_fn` should take the loop state and return a binary
+  representing the message to be written to the IO device.
+  """
+  def log(%Loop{} = loop, event, message_fn, device \\ :stdio, filter \\ :always)
+      when is_function(message_fn, 1) do
+    log_fn = fn %State{} = state ->
+      try do
+        msg = message_fn.(state)
+        IO.write(device, msg)
+        {:continue, state}
+      rescue
+        error ->
+          Logger.error(
+            "Error on Axon.Loop.log/5 callback: " <>
+              Exception.format(:error, error, __STACKTRACE__)
+          )
+
+          {:halt_loop, state}
+      end
+    end
+
+    loop
+    |> handle(event, log_fn, filter)
+  end
+
+  @doc """
+  Adds a handler function which tests the performance of `model`
+  against the given validation set.
+
+  This handler assumes the loop state matches the state initialized
+  in a supervised training loop. Typically, you'd call this immediately
+  after creating a supervised training loop:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.validate(model, validation_data)
+
+  Please note that you must pass the same (or an equivalent) model
+  into this method so it can be used during the validation loop. The
+  metrics which are computed are those which are present BEFORE the
+  validation handler was added to the loop. For the following loop:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.metric(:mean_absolute_error)
+      |> Axon.Loop.validate(model, validation_data)
+      |> Axon.Loop.metric(:binary_cross_entropy)
+
+  only `:mean_absolute_error` will be computed at validation time.
+
+  The returned loop state is altered to contain validation
+  metrics for use in later handlers such as early stopping and model
+  checkpoints. Since the order of execution of event handlers is in
+  the same order they are declared in the training loop, you MUST call
+  this method before any other handler which expects or may use
+  validation metrics.
+  """
+  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data) do
+    validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
+      %{model_state: model_state} = step_state
+
+      metrics =
+        model
+        |> evaluator(model_state)
+        |> then(
+          &Enum.reduce(metric_fns, &1, fn {k, {_, v}}, loop ->
+            metric(loop, v, k)
+          end)
+        )
+        |> log(:completed, fn _ -> "\n" end)
+        |> run(validation_data)
+        |> Map.new(fn {k, v} ->
+          {"validation_#{k}", v}
+        end)
+        |> Map.merge(metrics, fn _, _, v -> v end)
+
+      {:continue, %{state | metrics: metrics}}
+    end
+
+    handle(loop, :epoch_completed, validation_loop)
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
@@ -735,14 +870,14 @@ defmodule Axon.Loop do
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
-    * `:compiler` - Nx compiler to use to JIT compile step function. Defaults
-      to `nil` or Nx.Defn.Evaluator.
+    Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
+    options are set, the default options set with `Nx.Defn.default_options` are
+    used.
   """
   def run(loop, data, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
-    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {compiler, jit_opts} = Keyword.pop(opts, :compiler, Nx.Defn.Evaluator)
+    {jit_compile?, jit_opts} = Keyword.pop(opts, :jit_compile?, true)
 
     %Loop{
       init: init_fn,
@@ -761,7 +896,6 @@ defmodule Axon.Loop do
         max_epochs,
         max_iterations,
         jit_compile?,
-        compiler,
         jit_opts
       )
 
@@ -793,14 +927,13 @@ defmodule Axon.Loop do
 
                 {:continue, state} ->
                   {time, status_and_state} =
-                    :timer.tc(&run_epoch/8, [
+                    :timer.tc(&run_epoch/7, [
                       step_fn,
                       metric_fns,
                       handler_fns,
                       state,
                       data,
                       jit_compile?,
-                      compiler,
                       jit_opts
                     ])
 
@@ -812,7 +945,7 @@ defmodule Axon.Loop do
                       {:halt, {:halted, final_metrics_map, state}}
 
                     {:continue, state} ->
-                      new_times = Map.put(state.times, Nx.to_scalar(epoch), time)
+                      new_times = Map.put(state.times, Nx.to_number(epoch), time)
                       new_loop_state = %State{state | times: new_times}
 
                       case fire_event(:epoch_completed, handler_fns, new_loop_state) do
@@ -823,8 +956,6 @@ defmodule Axon.Loop do
                           {:halt, {:halted, final_metrics_map, state}}
 
                         {:continue, state} ->
-                          max_iter = state.iteration
-
                           zero_metrics =
                             Map.new(metric_fns, fn {k, _} ->
                               {k, 0}
@@ -840,7 +971,7 @@ defmodule Axon.Loop do
                               | epoch: epoch + 1,
                                 metrics: zero_metrics,
                                 iteration: 0,
-                                max_iteration: max_iter
+                                max_iteration: state.max_iteration
                             }}}
                       end
                   end
@@ -864,7 +995,6 @@ defmodule Axon.Loop do
          max_epochs,
          max_iterations,
          jit_compile?,
-         compiler,
          jit_opts
        ) do
     case attached_state do
@@ -873,7 +1003,7 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
-        step_state = maybe_jit(init_fn, [], jit_compile?, compiler, jit_opts)
+        step_state = maybe_jit(init_fn, [], jit_compile?, jit_opts)
 
         %State{
           epoch: 0,
@@ -894,7 +1024,6 @@ defmodule Axon.Loop do
          loop_state,
          data,
          jit_compile?,
-         compiler,
          jit_opts
        ) do
     Enum.reduce_while(data, {:continue, loop_state}, fn data, {_, state} ->
@@ -909,7 +1038,7 @@ defmodule Axon.Loop do
           batch_fn = build_batch_fn(step_fn, metric_fns)
 
           %State{iteration: iters, max_iteration: max_iters} =
-            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, compiler, jit_opts)
+            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, jit_opts)
 
           case fire_event(:iteration_completed, handler_fns, new_state) do
             {:halt_epoch, state} ->
@@ -919,8 +1048,8 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              iters = Nx.to_scalar(iters)
-              max_iters = Nx.to_scalar(max_iters)
+              iters = Nx.to_number(iters)
+              max_iters = Nx.to_number(max_iters)
 
               if iters > max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
@@ -997,8 +1126,20 @@ defmodule Axon.Loop do
 
       new_metrics =
         metrics
-        |> Enum.zip_with(metric_fns, fn {k, avg}, {k, v} ->
-          {k, v.(avg, List.wrap(new_step_state), iter)}
+        |> Enum.zip_with(metric_fns, fn {k, avg}, {k, {v, _}} ->
+          # In some instances the metric is actually present in the
+          # step state e.g. in a supervised training loop when we
+          # are computing loss but it's already computed as a part
+          # of the step state, so we need to check here
+          metric = String.to_atom(k)
+
+          case pstate do
+            %{^metric => value} ->
+              {k, value}
+
+            %{} ->
+              {k, v.(avg, List.wrap(new_step_state), iter)}
+          end
         end)
         |> Map.new()
 
@@ -1152,12 +1293,13 @@ defmodule Axon.Loop do
             |> then(&apply(Axon.Metrics, metric, &1))
           end
 
-        metric_fn when is_function(metric) ->
+        metric_fn when is_function(metric, 2) ->
           fn output ->
             output
             |> transform_fn.()
             |> then(&apply(metric_fn, &1))
-            |> List.wrap()
+
+            # |> List.wrap()
           end
 
         invalid ->
@@ -1222,12 +1364,11 @@ defmodule Axon.Loop do
     end
   end
 
-  # JIT-compiles the given function if the given compiler is a
-  # valid defn compiler, otherwise applies the function with
-  # the given arguments.
-  defp maybe_jit(fun, args, jit_compile?, compiler, jit_opts) do
+  # JIT-compiles the given function if jit_compile? is true
+  # otherwise just applies the function with the given arguments
+  defp maybe_jit(fun, args, jit_compile?, jit_opts) do
     if jit_compile? do
-      Nx.Defn.jit(fun, args, [compiler: compiler] ++ jit_opts)
+      Nx.Defn.jit(fun, args, jit_opts)
     else
       apply(fun, args)
     end

@@ -1,6 +1,11 @@
 ExUnit.start()
 
 defmodule AxonTestUtil do
+  def test_compiler do
+    use_exla? = System.get_env("USE_EXLA")
+    if use_exla?, do: EXLA, else: Nx.Defn.Evaluator
+  end
+
   def check_optimizer!(optimizer, loss, x0, num_steps) do
     check_optimizer_functions!(optimizer)
     check_optimizer_run!(optimizer, loss, x0, num_steps)
@@ -34,7 +39,7 @@ defmodule AxonTestUtil do
 
     # Some optimizers require 1-D or 2-D input, so this potentially
     # could be multi-dimensional
-    unless Nx.all?(Nx.less_equal(lhs, rhs)) == Nx.tensor(1, type: {:u, 8}) do
+    unless Nx.all(Nx.less_equal(lhs, rhs)) == Nx.tensor(1, type: {:u, 8}) do
       raise """
         expected
 

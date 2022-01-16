@@ -65,8 +65,8 @@ defmodule Axon.Updates do
         %{state: state}
       end
 
-      defnp apply_my_update(updates, {state}) do
-        new_state = apply_map(state, &Nx.add(&1, 0.01))
+      defnp apply_my_update(updates, state) do
+        new_state = deep_new(state, fn {k, v} -> {k, Nx.add(v, 0.01)} end)
         updates = transform({updates, new_state}, fn {updates, state} ->
           deep_merge(updates, state, fn _, g, z -> Nx.multiply(g, z) end)
         end)
@@ -569,12 +569,12 @@ defmodule Axon.Updates do
 
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
-      deep_new(x, fn z ->
+      deep_new(x, fn {k, z} ->
         if Nx.rank(z) > 1 do
           axes = tl(Nx.axes(z))
-          z - Nx.mean(z, axes: axes, keep_axes: true)
+          {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
         else
-          z
+          {k, z}
         end
       end)
     end)
@@ -726,6 +726,37 @@ defmodule Axon.Updates do
 
   def identity(combinator) do
     combinator
+  end
+
+  @doc """
+  Composes two updates. This is useful for extending optimizers
+  without having to reimplement them. For example, you can implement
+  gradient centralization:
+
+      import Axon.Updates
+
+      Axon.Updates.compose(Axon.Updates.centralize(), Axon.Optimizers.rmsprop())
+
+  This is equivalent to:
+
+      Axon.Updates.centralize()
+      |> Axon.Updates.scale_by_rms()
+  """
+  def compose({init_fn1, apply_fn1}, {init_fn2, apply_fn2}) do
+    init_fn = fn params ->
+      state = init_fn1.(params)
+      Tuple.insert_at(state, 0, init_fn2.(params))
+    end
+
+    apply_fn = fn updates, state, params ->
+      this_state = elem(state, 0)
+      other_state = Tuple.delete_at(state, 0)
+      {updates, new_other_state} = apply_fn1.(updates, other_state, params)
+      {updates, new_this_state} = apply_fn2.(updates, this_state, params)
+      {updates, Tuple.insert_at(new_other_state, 0, new_this_state)}
+    end
+
+    {init_fn, apply_fn}
   end
 
   @doc """

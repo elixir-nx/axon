@@ -8,7 +8,7 @@ defmodule Axon.ActivationsTest do
     defn grad_relu(x), do: grad(x, &Nx.mean(Axon.Activations.relu(&1)))
 
     test "returns correct gradient with custom grad" do
-      assert Nx.all_close?(
+      assert Nx.all_close(
                grad_relu(Nx.iota({1, 3}, type: {:f, 32})),
                Nx.tensor([[0.0, 0.3333333432674408, 0.3333333432674408]])
              ) == Nx.tensor(1, type: {:u, 8})
@@ -23,15 +23,15 @@ defmodule Axon.ActivationsTest do
 
     test "value_and_grad" do
       assert {value, grad} = value_and_grad_sigmoid(Nx.tensor(5.0))
-      assert Nx.all_close?(value, Nx.tensor(0.9933072))
-      assert Nx.all_close?(grad, Nx.tensor(0.00664803))
+      assert Nx.all_close(value, Nx.tensor(0.9933072)) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(grad, Nx.tensor(0.00664803)) == Nx.tensor(1, type: {:u, 8})
 
       assert {value, grad} =
                value_and_grad_sum_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
 
-      assert Nx.all_close?(value, Nx.tensor(3.5))
+      assert Nx.all_close(value, Nx.tensor(3.5))
 
-      assert Nx.all_close?(
+      assert Nx.all_close(
                grad,
                Nx.tensor([
                  0.04517666,
@@ -62,17 +62,17 @@ defmodule Axon.ActivationsTest do
 
     test "value_and_grad" do
       assert {value, grad} = value_and_grad_softplus(Nx.tensor(5.0))
-      assert Nx.all_close?(value, Nx.tensor(5.0067153))
-      assert Nx.all_close?(grad, Nx.tensor(0.9933072))
+      assert Nx.all_close(value, Nx.tensor(5.0067153))
+      assert Nx.all_close(grad, Nx.tensor(0.9933072))
 
       assert {value, grad} =
                value_and_grad_sum_softplus(
                  Nx.tensor([-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0])
                )
 
-      assert Nx.all_close?(value, Nx.tensor(11.707001))
+      assert Nx.all_close(value, Nx.tensor(11.707001))
 
-      assert Nx.all_close?(
+      assert Nx.all_close(
                grad,
                Nx.tensor([
                  0.01798621,
@@ -127,9 +127,9 @@ defmodule Axon.ActivationsTest do
                  ])
                )
 
-      assert Nx.all_close?(value, Nx.tensor(22.758692))
+      assert Nx.all_close(value, Nx.tensor(22.758692))
 
-      assert Nx.all_close?(
+      assert Nx.all_close(
                grad,
                Nx.tensor([
                  [

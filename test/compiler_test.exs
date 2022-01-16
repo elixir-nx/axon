@@ -1,9 +1,14 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
-
+  import AxonTestUtil
   require Axon
   alias Axon.MixedPrecision, as: AMP
+
+  setup do
+    Nx.Defn.default_options(compiler: test_compiler())
+    :ok
+  end
 
   describe "input" do
     test "single input, single output" do
@@ -113,7 +118,8 @@ defmodule CompilerTest do
 
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
                        [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh]
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                       [:log_softmax]
 
   describe "activations" do
     test "initializes with no params" do
@@ -251,7 +257,9 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"dense" => %{"kernel" => k}} = params = init_fn.()
-      assert predict_fn.(params, input) == Axon.Layers.dense(input, k, Nx.tensor(0.0))
+
+      assert Nx.all_close(predict_fn.(params, input), Axon.Layers.dense(input, k, Nx.tensor(0.0))) ==
+               Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -387,8 +395,10 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.()
 
-      assert predict_fn.(params, {inp1, inp2}) ==
+      assert Nx.all_close(
+               predict_fn.(params, {inp1, inp2}),
                Axon.Layers.bilinear(inp1, inp2, k, Nx.tensor(0.0))
+             ) == Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -541,6 +551,18 @@ defmodule CompilerTest do
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
+
+    test "computes forward pass with channels last" do
+      for pool <- @pooling_layers do
+        model = apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, kernel_size: {2}]])
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [kernel_size: {2}, strides: [2], channels: :last]])
+      end
+    end
   end
 
   @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool, :adaptive_lp_pool]
@@ -616,6 +638,20 @@ defmodule CompilerTest do
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
       end
     end
+
+    test "computes forward pass with channels last" do
+      for pool <- @adaptive_pooling_layers do
+        model =
+          apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, output_size: {27}]])
+
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [output_size: {27}, channels: :last]])
+      end
+    end
   end
 
   @global_pooling_layers [:global_max_pool, :global_avg_pool, :global_lp_pool]
@@ -671,6 +707,27 @@ defmodule CompilerTest do
 
         assert {init_fn, predict_fn} = Axon.compile(mp_model)
         assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+      end
+    end
+
+    test "computes forward pass with channels last" do
+      for pool <- @global_pooling_layers do
+        model1 = apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, keep_axes: true]])
+
+        model2 =
+          apply(Axon, pool, [Axon.input({nil, 32, 1}), [channels: :last, keep_axes: false]])
+
+        inp = Nx.random_uniform({1, 32, 1})
+
+        assert {_, predict_fn} = Axon.compile(model1)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: true, channels: :last]])
+
+        assert {_, predict_fn} = Axon.compile(model2)
+
+        assert predict_fn.(%{}, inp) ==
+                 apply(Axon.Layers, pool, [inp, [keep_axes: false, channels: :last]])
       end
     end
   end
@@ -896,6 +953,15 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.conv(input, k, Nx.tensor(0))
     end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.conv(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+      assert predict_fn.(params, input) == Axon.Layers.conv(input, k, b, channels: :last)
+    end
   end
 
   describe "depthwise convolution" do
@@ -1054,6 +1120,17 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.depthwise_conv(input, k, Nx.tensor(0))
     end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.depthwise_conv(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.depthwise_conv(input, k, b, channels: :last)
+    end
   end
 
   describe "convolution transpose" do
@@ -1211,6 +1288,17 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{"conv" => %{"kernel" => k}} = params = init_fn.()
       assert predict_fn.(params, input) == Axon.Layers.conv_transpose(input, k, Nx.tensor(0))
+    end
+
+    test "computes forward pass with channels last" do
+      model = Axon.input({nil, 3, 3, 6}) |> Axon.conv_transpose(2, name: "conv", channels: :last)
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.conv_transpose(input, k, b, channels: :last)
     end
   end
 
@@ -1406,6 +1494,21 @@ defmodule CompilerTest do
 
       assert predict_fn.(params, input) ==
                Axon.Layers.separable_conv2d(input, k1, Nx.tensor(0), k2, Nx.tensor(0))
+    end
+
+    test "computes forward pass with channels last" do
+      model =
+        Axon.input({nil, 3, 3, 6}) |> Axon.separable_conv2d(2, name: "conv", channels: :last)
+
+      input = Nx.random_uniform({1, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2, "bias_1" => b1, "bias_2" => b2}} =
+               params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.separable_conv2d(input, k1, b1, k2, b2, channels: :last)
     end
   end
 
@@ -1648,6 +1751,29 @@ defmodule CompilerTest do
                  k3,
                  Nx.tensor(0)
                )
+    end
+
+    test "computes forward pass with channels last" do
+      model =
+        Axon.input({nil, 3, 3, 3, 6}) |> Axon.separable_conv3d(2, name: "conv", channels: :last)
+
+      input = Nx.random_uniform({1, 3, 3, 3, 6})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+
+      assert %{
+               "conv" => %{
+                 "kernel_1" => k1,
+                 "kernel_2" => k2,
+                 "kernel_3" => k3,
+                 "bias_1" => b1,
+                 "bias_2" => b2,
+                 "bias_3" => b3
+               }
+             } = params = init_fn.()
+
+      assert predict_fn.(params, input) ==
+               Axon.Layers.separable_conv3d(input, k1, b1, k2, b2, k3, b3, channels: :last)
     end
   end
 
@@ -1954,7 +2080,7 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with constant" do
-      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0])
+      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0], ignore_batch?: false)
 
       assert {_, predict_fn} = Axon.compile(model)
       assert predict_fn.(%{}, {}) == Nx.transpose(Nx.iota({1, 2, 3}, type: {:f, 32}))
@@ -2006,6 +2132,32 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(mp_model)
       assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 32}))) == {:bf, 16}
+    end
+  end
+
+  describe "resize" do
+    test "initializes with no params" do
+      model = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+
+      assert {init_fn, _predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+    end
+
+    test "computes forward pass with default options" do
+      model1 = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+      input1 = Nx.random_uniform({1, 1, 3, 3})
+
+      assert {_, predict_fn} = Axon.compile(model1)
+      assert predict_fn.(%{}, input1) == Axon.Layers.resize(input1, shape: {4, 4})
+    end
+
+    test "computes forward pass with output policy" do
+      model = Axon.input({nil, 1, 3, 3}) |> Axon.resize({4, 4})
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 3, 3}))) == {:bf, 16}
     end
   end
 
@@ -2286,8 +2438,14 @@ defmodule CompilerTest do
       h = {whi, whf, whg, who}
       b = {bi, bf, bg, bo}
 
-      assert {{_, _} = carry, seq} = predict_fn.(params, input2)
-      assert {carry, seq} == Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+      assert {{c1, c2}, seq} = predict_fn.(params, input2)
+
+      {{c1_static, c2_static}, seq_static} =
+        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+
+      assert Nx.all_close(c1, c1_static) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(c2, c2_static) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(seq, seq_static) == Nx.tensor(1, type: {:u, 8})
     end
 
     test "computes forward pass with hidden state" do
@@ -3244,8 +3402,13 @@ defmodule CompilerTest do
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
       c = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
-      assert predict_fn.(params, input) ==
-               Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+      {{carry}, output} = predict_fn.(params, input)
+
+      {{s_carry}, s_output} =
+        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+
+      assert Nx.all_close(carry, s_carry) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(output, s_output) == Nx.tensor(1, type: {:u, 8})
     end
 
     # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
@@ -3276,7 +3439,11 @@ defmodule CompilerTest do
         input1_1 = Nx.random_uniform({1, 32})
         input1_2 = Nx.random_uniform({1, 32})
         assert {_, predict_fn} = Axon.compile(model1)
-        assert predict_fn.(%{}, {input1_1, input1_2}) == apply(Nx, op, [input1_1, input1_2])
+
+        assert Nx.all_close(
+                 predict_fn.(%{}, {input1_1, input1_2}),
+                 apply(Nx, op, [input1_1, input1_2])
+               ) == Nx.tensor(1, type: {:u, 8})
 
         model2 =
           apply(Axon, op, [[Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]])
@@ -3286,8 +3453,10 @@ defmodule CompilerTest do
         input2_3 = Nx.random_uniform({1, 32})
         assert {_, predict_fn} = Axon.compile(model2)
 
-        assert predict_fn.(%{}, {input2_1, input2_2, input2_3}) ==
+        assert Nx.all_close(
+                 predict_fn.(%{}, {input2_1, input2_2, input2_3}),
                  apply(Nx, op, [apply(Nx, op, [input2_1, input2_2]), input2_3])
+               ) == Nx.tensor(1, type: {:u, 8})
       end
     end
 
@@ -3300,6 +3469,18 @@ defmodule CompilerTest do
 
         assert {_, predict_fn} = Axon.compile(mp_model)
         assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
+      end
+    end
+
+    test "computes forward pass with broadcasting" do
+      inp1 = Nx.random_uniform({1, 1})
+      inp2 = Nx.random_uniform({1, 2})
+
+      for op <- @binary_layers do
+        model = apply(Axon, op, [Axon.input({nil, 1}), Axon.input({nil, 2})])
+
+        assert {_, predict_fn} = Axon.compile(model)
+        assert predict_fn.(%{}, {inp1, inp2}) == apply(Nx, op, [inp1, inp2])
       end
     end
   end
@@ -3413,7 +3594,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 10})
 
       assert {_, predict_fn} = Axon.compile(model)
-      assert predict_fn.(%{}, input) == Nx.sin(input)
+      assert Nx.all_close(predict_fn.(%{}, input), Nx.sin(input)) == Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -3422,7 +3603,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 1})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
       assert {init_fn, _} = Axon.compile(model)
@@ -3433,7 +3614,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 2})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
 
       input_1 = Nx.tensor([[1.0, 1.0]])
       input_2 = Nx.tensor([[0.0, 0.0]])
@@ -3449,7 +3630,7 @@ defmodule CompilerTest do
       inp = Axon.input({nil, 1, 32})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
-      cond_fn = fn x -> Nx.all?(x) end
+      cond_fn = fn x -> Nx.all(x) end
       model1 = Axon.cond(inp, cond_fn, on_true, on_false)
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model1, policy)
