@@ -18,13 +18,13 @@ data = Stream.repeatedly(fn ->
 end)
 
 # Create the model
-model =
-  Axon.input({nil, 1})
-  |> Axon.dense(32, activation: :relu)
-  |> Axon.dense(64, activation: :relu)
+input = Axon.input({nil, 1})
 
-out1 = Axon.dense(model, 1)
-out2 = Axon.dense(model, 1)
+fc = Axon.dense(input, 32, activation: :relu)
+fc = Axon.dense(fc, 64, activation: :relu)
+
+out1 = Axon.dense(fc, 1)
+out2 = Axon.dense(fc, 1)
 
 # Notice the "model" is just a tuple which matches the form we expect the targets
 # to be in, you can call Axon.predict and Axon.init directly on this tuple and you'll
