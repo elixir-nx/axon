@@ -534,8 +534,9 @@ defmodule Axon.Loop do
   defp format_metric({name, val}) do
     {type, _} = val.type
     case type do
-      :s -> "#{name}: #{:io_lib.format('~.B', [Nx.to_number(val)])}"
+      :s, :u -> "#{name}: #{:io_lib.format('~.B', [Nx.to_number(val)])}"
       :f -> "#{name}: #{:io_lib.format('~.7f', [Nx.to_number(val)])}"
+      :bf -> "#{name}: #{:io_lib.format('~.3f', [Nx.to_number(val)])}"
       _ -> "Unsupported type of metric"
     end
   end
