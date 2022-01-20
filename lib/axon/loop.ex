@@ -531,12 +531,21 @@ defmodule Axon.Loop do
     end
   end
 
+  defp format_metric({name, val}) do
+    {type, _} = val.type
+    case type do
+      t when t in [:s, :u] -> "#{name}: #{:io_lib.format('~.B', [Nx.to_number(val)])}"
+      :f -> "#{name}: #{:io_lib.format('~.7f', [Nx.to_number(val)])}"
+      :bf -> "#{name}: #{:io_lib.format('~.3f', [Nx.to_number(val)])}"
+      _ -> "Unsupported type of metric"
+    end
+  end
+
   defp supervised_log_message_fn(state, log_epochs \\ true) do
     %State{metrics: metrics, epoch: epoch, iteration: iter} = state
-
     metrics =
       metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
+      |> Enum.map(&format_metric/1)
       |> Enum.join(" ")
 
     if log_epochs do
@@ -545,6 +554,7 @@ defmodule Axon.Loop do
       "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
     end
   end
+
 
   @doc """
   Creates a supervised evaluator from a model and model state.
