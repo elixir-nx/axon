@@ -193,6 +193,9 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   ## Examples
 
   ### One-dimensional convolution
@@ -280,12 +283,27 @@ defmodule Axon.Layers do
         input_dilation: 1,
         kernel_dilation: 1,
         feature_group_size: 1,
-        batch_group_size: 1
+        batch_group_size: 1,
+        channels: :first
       )
 
     bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2}, fn {bias_shape, rank} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank)
+      transform({Nx.shape(bias), Nx.rank(input) - 2, opts[:channels]}, fn {bias_shape, rank,
+                                                                           channels} ->
+        Axon.Shape.conv_bias_reshape(bias_shape, rank, channels)
+      end)
+
+    permutations =
+      transform({Nx.rank(input), opts[:channels]}, fn
+        {rank, :first} ->
+          Enum.to_list(0..(rank - 1))
+
+        {rank, :last} ->
+          spatial = Enum.to_list(1..(rank - 2)//1)
+          [0, rank - 1 | spatial]
+
+        {_rank, invalid} ->
+          raise ArgumentError, "invalid channel configuration, #{inspect(invalid)}"
       end)
 
     input
@@ -295,7 +313,9 @@ defmodule Axon.Layers do
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
       feature_group_size: opts[:feature_group_size],
-      batch_group_size: opts[:batch_group_size]
+      batch_group_size: opts[:batch_group_size],
+      input_permutation: permutations,
+      output_permutation: permutations
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
   end
@@ -336,6 +356,9 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   ## Examples
 
       iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
@@ -369,7 +392,8 @@ defmodule Axon.Layers do
       keyword!(opts,
         strides: 1,
         padding: :valid,
-        kernel_dilation: 1
+        kernel_dilation: 1,
+        channels: :first
       )
 
     strides =
@@ -395,7 +419,8 @@ defmodule Axon.Layers do
       strides: ones,
       padding: padding,
       input_dilation: strides,
-      kernel_dilation: opts[:kernel_dilation]
+      kernel_dilation: opts[:kernel_dilation],
+      channels: opts[:channels]
     )
   end
 
@@ -439,6 +464,9 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   """
   @doc type: :convolutional
   defn depthwise_conv(input, weight, bias, opts \\ []) do
@@ -449,17 +477,26 @@ defmodule Axon.Layers do
         strides: 1,
         padding: :valid,
         input_dilation: 1,
-        kernel_dilation: 1
+        kernel_dilation: 1,
+        channels: :first
       )
 
-    num_groups = transform(Nx.shape(input), &elem(&1, 1))
+    num_groups =
+      transform({Nx.shape(input), opts[:channels]}, fn
+        {shape, :first} ->
+          elem(shape, 1)
+
+        {shape, :last} ->
+          elem(shape, tuple_size(shape) - 1)
+      end)
 
     conv(input, weight, bias,
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
       kernel_dilation: opts[:kernel_dilation],
-      feature_group_size: num_groups
+      feature_group_size: num_groups,
+      channels: opts[:channels]
     )
   end
 
@@ -500,6 +537,9 @@ defmodule Axon.Layers do
       to applying interior padding on the kernel. The amount
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
+
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
 
   ## References
 
@@ -552,6 +592,9 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   ## References
 
     * [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
@@ -593,6 +636,9 @@ defmodule Axon.Layers do
       spatial dimensions in the input tensor. Defaults to `1` or no
       dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   ## Examples
 
       iex> t = Nx.tensor([[
@@ -616,24 +662,26 @@ defmodule Axon.Layers do
     opts =
       keyword!(
         opts,
-        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1]
+        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1, channels: :first]
       )
 
     window_dimensions =
       transform(
-        {Nx.rank(input), opts[:kernel_size]},
-        fn {rank, kernel_size} ->
-          Axon.Shape.pool_window_size(kernel_size, rank - 2)
+        {Nx.rank(input), opts[:kernel_size], opts[:channels]},
+        fn {rank, kernel_size, channels} ->
+          Axon.Shape.pool_window_size(kernel_size, rank - 2, channels)
         end
       )
 
     strides =
       transform(
-        {Nx.rank(input), opts[:strides], window_dimensions},
+        {Nx.rank(input), opts[:strides], window_dimensions, opts[:channels]},
         fn
-          {_, nil, dims} -> Tuple.to_list(dims)
-          {_, [_ | _] = strides, _} -> [1, 1 | strides]
-          {rank, strides, _} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {_, nil, dims, _} -> Tuple.to_list(dims)
+          {_, [_ | _] = strides, _, :first} -> [1, 1 | strides]
+          {_, [_ | _] = strides, _, :last} -> [1 | strides] ++ [1]
+          {rank, strides, _, :first} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {rank, strides, _, :last} -> [1 | List.duplicate(strides, rank - 2)] ++ [1]
         end
       )
 
@@ -690,30 +738,35 @@ defmodule Axon.Layers do
       Can be scalar or list who's length matches the number of
       spatial dimensions in the input tensor. Defaults to `1` or no
       dilation.
+
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
   """
   @doc type: :pooling
   defn avg_pool(input, opts \\ []) do
     opts =
       keyword!(
         opts,
-        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1]
+        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1, channels: :first]
       )
 
     window_dimensions =
       transform(
-        {Nx.rank(input), opts[:kernel_size]},
-        fn {rank, kernel_size} ->
-          Axon.Shape.pool_window_size(kernel_size, rank - 2)
+        {Nx.rank(input), opts[:kernel_size], opts[:channels]},
+        fn {rank, kernel_size, channels} ->
+          Axon.Shape.pool_window_size(kernel_size, rank - 2, channels)
         end
       )
 
     strides =
       transform(
-        {Nx.rank(input), opts[:strides], window_dimensions},
+        {Nx.rank(input), opts[:strides], window_dimensions, opts[:channels]},
         fn
-          {_, nil, dims} -> Tuple.to_list(dims)
-          {_, [_ | _] = strides, _} -> [1, 1 | strides]
-          {rank, strides, _} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {_, nil, dims, _} -> Tuple.to_list(dims)
+          {_, [_ | _] = strides, _, :first} -> [1, 1 | strides]
+          {_, [_ | _] = strides, _, :last} -> [1 | strides] ++ [1]
+          {rank, strides, _, :first} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {rank, strides, _, :last} -> [1 | List.duplicate(strides, rank - 2)] ++ [1]
         end
       )
 
@@ -778,6 +831,9 @@ defmodule Axon.Layers do
       spatial dimensions in the input tensor. Defaults to `1` or no
       dilation.
 
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
+
   ## Examples
 
       iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
@@ -798,24 +854,33 @@ defmodule Axon.Layers do
     opts =
       keyword!(
         opts,
-        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1, norm: 2]
+        [
+          :kernel_size,
+          strides: nil,
+          padding: :valid,
+          window_dilations: 1,
+          norm: 2,
+          channels: :first
+        ]
       )
 
     window_dimensions =
       transform(
-        {Nx.rank(input), opts[:kernel_size]},
-        fn {rank, kernel_size} ->
-          Axon.Shape.pool_window_size(kernel_size, rank - 2)
+        {Nx.rank(input), opts[:kernel_size], opts[:channels]},
+        fn {rank, kernel_size, channels} ->
+          Axon.Shape.pool_window_size(kernel_size, rank - 2, channels)
         end
       )
 
     strides =
       transform(
-        {Nx.rank(input), opts[:strides], window_dimensions},
+        {Nx.rank(input), opts[:strides], window_dimensions, opts[:channels]},
         fn
-          {_, nil, dims} -> Tuple.to_list(dims)
-          {_, [_ | _] = strides, _} -> [1, 1 | strides]
-          {rank, strides, _} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {_, nil, dims, _} -> Tuple.to_list(dims)
+          {_, [_ | _] = strides, _, :first} -> [1, 1 | strides]
+          {_, [_ | _] = strides, _, :last} -> [1 | strides] ++ [1]
+          {rank, strides, _, :first} -> [1, 1 | List.duplicate(strides, rank - 2)]
+          {rank, strides, _, :last} -> [1 | List.duplicate(strides, rank - 2)] ++ [1]
         end
       )
 
@@ -835,11 +900,6 @@ defmodule Axon.Layers do
       )
 
     norm = opts[:norm]
-
-    opts =
-      opts
-      |> transform(&Keyword.delete(&1, :kernel_size))
-      |> transform(&Keyword.delete(&1, :norm))
 
     input
     |> Nx.power(norm)
@@ -871,24 +931,27 @@ defmodule Axon.Layers do
     * `:output_size` - spatial output size. Must be a tuple with
       size equal to the spatial dimensions in the input tensor.
       Required.
+
+    * `:channels ` - channel configuration. One of `:first` or `:last`.
+      Defaults to `:first`.
   """
   @doc type: :pooling
   defn adaptive_avg_pool(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
+    opts = keyword!(opts, [:output_size, channels: :first])
 
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
-        fn {shape, rank, output_size} ->
-          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        fn {shape, rank, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
       )
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
-        fn {shape, rank, strides, output_size} ->
-          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        fn {shape, rank, strides, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end
       )
 
@@ -919,21 +982,21 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_max_pool(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size])
+    opts = keyword!(opts, [:output_size, channels: :first])
 
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
-        fn {shape, rank, output_size} ->
-          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        fn {shape, rank, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
       )
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
-        fn {shape, rank, strides, output_size} ->
-          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        fn {shape, rank, strides, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end
       )
 
@@ -970,23 +1033,23 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_lp_pool(input, opts \\ []) do
-    opts = keyword!(opts, [:output_size, norm: 2])
+    opts = keyword!(opts, [:output_size, norm: 2, channels: :first])
 
     norm = opts[:norm]
 
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size]},
-        fn {shape, rank, output_size} ->
-          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        fn {shape, rank, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
       )
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size]},
-        fn {shape, rank, strides, output_size} ->
-          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2)
+        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        fn {shape, rank, strides, output_size, channels} ->
+          Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end
       )
 
@@ -1424,11 +1487,15 @@ defmodule Axon.Layers do
       >
   """
   defn global_avg_pool(input, opts \\ []) do
-    opts = keyword!(opts, keep_axes: false)
+    opts = keyword!(opts, channels: :first, keep_axes: false)
 
     all_but_batch_and_feature =
-      transform(Nx.rank(input), fn rank ->
-        for i <- 2..(rank - 1), do: i
+      transform({Nx.rank(input), opts[:channels]}, fn
+        {rank, :first} ->
+          for i <- 2..(rank - 1), do: i
+
+        {rank, :last} ->
+          for i <- 1..(rank - 2), do: i
       end)
 
     Nx.mean(input, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
@@ -1481,11 +1548,15 @@ defmodule Axon.Layers do
       >
   """
   defn global_max_pool(x, opts \\ []) do
-    opts = keyword!(opts, keep_axes: false)
+    opts = keyword!(opts, keep_axes: false, channels: :first)
 
     all_but_batch_and_feature =
-      transform(Nx.rank(x), fn rank ->
-        for i <- 2..(rank - 1), do: i
+      transform({Nx.rank(x), opts[:channels]}, fn
+        {rank, :first} ->
+          for i <- 2..(rank - 1), do: i
+
+        {rank, :last} ->
+          for i <- 1..(rank - 2), do: i
       end)
 
     Nx.reduce_max(x, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
@@ -1543,13 +1614,17 @@ defmodule Axon.Layers do
       >
   """
   defn global_lp_pool(x, opts \\ []) do
-    opts = keyword!(opts, norm: 2, keep_axes: false)
+    opts = keyword!(opts, norm: 2, keep_axes: false, channels: :first)
 
     norm = opts[:norm]
 
     all_but_batch_and_feature =
-      transform(Nx.rank(x), fn rank ->
-        for i <- 2..(rank - 1), do: i
+      transform({Nx.rank(x), opts[:channels]}, fn
+        {rank, :first} ->
+          for i <- 2..(rank - 1), do: i
+
+        {rank, :last} ->
+          for i <- 1..(rank - 2), do: i
       end)
 
     x
@@ -1642,5 +1717,145 @@ defmodule Axon.Layers do
     else
       on_false_expr
     end
+  end
+
+  @doc """
+  Resizes a batch of tensors to the given shape using one of a
+  number of sampling methods.
+
+  Requires input option `:shape` which should be a tuple specifying
+  the resized spatial dimensions of the input tensor. Input tensor
+  must be at least rank 3, with fixed `batch` and `channel` dimensions.
+  Resizing will upsample or downsample using the given resize method.
+
+  Supported reize methods are `:nearest`.
+
+  ## Examples
+
+      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {4, 4})
+      #Nx.Tensor<
+        f32[1][1][4][4]
+        [
+          [
+            [
+              [0.0, 1.0, 1.0, 2.0],
+              [3.0, 4.0, 4.0, 5.0],
+              [3.0, 4.0, 4.0, 5.0],
+              [6.0, 7.0, 7.0, 8.0]
+            ]
+          ]
+        ]
+      >
+
+      iex> img = Nx.iota({1, 1, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {2})
+      #Nx.Tensor<
+        f32[1][1][2]
+        [
+          [
+            [0.0, 2.0]
+          ]
+        ]
+      >
+
+      iex> img = Nx.iota({1, 2, 2, 2, 1}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {1, 3, 2})
+      #Nx.Tensor<
+        f32[1][2][1][3][2]
+        [
+          [
+            [
+              [
+                [2.0, 2.0],
+                [3.0, 3.0],
+                [3.0, 3.0]
+              ]
+            ],
+            [
+              [
+                [6.0, 6.0],
+                [7.0, 7.0],
+                [7.0, 7.0]
+              ]
+            ]
+          ]
+        ]
+      >
+
+  ### Error cases
+
+      iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
+      iex> Axon.Layers.resize(img, shape: {4, 4}, method: :foo)
+      ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
+  """
+  defn resize(input, opts \\ []) do
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    output_shape = opts[:shape]
+
+    # Input must be at least rank 3
+    transform(Nx.rank(input), fn rank ->
+      unless rank > 3 do
+        raise ArgumentError, "input rank must be at least 3, got #{inspect(rank)}"
+      end
+    end)
+
+    spatial_dimensions =
+      transform({Nx.rank(input), opts[:channels]}, fn
+        {rank, :first} ->
+          Enum.to_list(2..(rank - 1))
+
+        {rank, :last} ->
+          Enum.to_list(1..(rank - 2))
+      end)
+
+    output_shape =
+      transform({input, spatial_dimensions, output_shape}, fn {input, spatial_dimensions,
+                                                               output_shape} ->
+        unless Nx.rank(output_shape) == Nx.rank(input) - 2 do
+          raise ArgumentError,
+                "invalid output shape #{inspect(output_shape)}, expected output" <>
+                  " output shape to have same rank as spatial dimensions of" <>
+                  " the input tensor"
+        end
+
+        for {d, i} <- Enum.with_index(spatial_dimensions), reduce: Nx.shape(input) do
+          shape ->
+            put_elem(shape, d, elem(output_shape, i))
+        end
+      end)
+
+    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
+      {img, shape, spatial_dimensions, :nearest} ->
+        resize_nearest(img, shape, spatial_dimensions)
+
+      {_, _, _, method} ->
+        raise ArgumentError,
+              "invalid resize method #{inspect(method)}, resize method" <>
+                " must be one of :nearest"
+    end)
+  end
+
+  defnp resize_nearest(input, output_shape, spatial_dimensions) do
+    transform({input, output_shape, spatial_dimensions}, fn {input, output_shape,
+                                                             spatial_dimensions} ->
+      ones = List.duplicate(1, Nx.rank(input)) |> List.to_tuple()
+
+      for d <- spatial_dimensions, reduce: input do
+        input ->
+          input_shape = Nx.shape(input)
+          input_size = elem(input_shape, d)
+          output_size = elem(output_shape, d)
+          offset = (Nx.iota({output_size}) + 0.5) * input_size / output_size
+          offset = offset |> Nx.floor() |> Nx.as_type({:s, 32})
+
+          offset =
+            offset
+            |> Nx.reshape(put_elem(ones, d, output_size))
+            |> Nx.broadcast(put_elem(input_shape, d, output_size))
+
+          Nx.take_along_axis(input, offset, axis: d)
+      end
+    end)
   end
 end

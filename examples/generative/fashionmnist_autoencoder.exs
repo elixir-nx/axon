@@ -2,11 +2,11 @@ Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/exla", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.1"},
+  {:scidata, "~> 0.1.3"},
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule Fashionmist do
   require Axon
@@ -40,40 +40,17 @@ defmodule Fashionmist do
     |> Nx.to_batched_list(32)
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp train_model(model, train_images, epochs) do
     model
     |> Axon.Loop.trainer(:mean_squared_error, :adam)
     |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
     |> Axon.Loop.run(Stream.zip(train_images, train_images), epochs: epochs, compiler: EXLA)
   end
 
   def run do
-    {train_images, _} = Scidata.FashionMNIST.download(transform_images: &transform_images/1)
+    {images, _} = Scidata.FashionMNIST.download()
+
+    train_images = transform_images(images)
 
     model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
 

@@ -2,10 +2,10 @@ Mix.install([
   {:axon, github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/nx", sparse: "exla"},
   {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.0"}
+  {:scidata, "~> 0.1.3"}
 ])
 
-EXLA.Client.set_preferred_platform(:default, [:tpu, :cuda, :rocm, :host])
+EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
 
 defmodule MNISTGAN do
   require Axon
@@ -142,12 +142,10 @@ defmodule MNISTGAN do
   defp log_iteration(state) do
     %State{epoch: epoch, iteration: iter, step_state: pstate} = state
 
-    g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:generator][:loss])])}"
-    d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_scalar(pstate[:discriminator][:loss])])}"
+    g_loss = "G: #{:io_lib.format('~.5f', [Nx.to_number(pstate[:generator][:loss])])}"
+    d_loss = "D: #{:io_lib.format('~.5f', [Nx.to_number(pstate[:discriminator][:loss])])}"
 
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, batch: #{Nx.to_scalar(iter)} #{g_loss} #{d_loss}")
-
-    {:continue, state}
+    "\rEpoch: #{Nx.to_number(epoch)}, batch: #{Nx.to_number(iter)} #{g_loss} #{d_loss}"
   end
 
   defp view_generated_images(model, batch_size, state) do
@@ -164,16 +162,17 @@ defmodule MNISTGAN do
   end
 
   def run() do
-    {images, _} = Scidata.MNIST.download(transform_images: &transform_images/1)
+    {images, _} = Scidata.MNIST.download()
+    train_images = transform_images(images)
 
     generator = build_generator(100)
     discriminator = build_discriminator({nil, 1, 28, 28})
 
     discriminator
     |> train_loop(generator)
-    |> Axon.Loop.handle(:iteration_completed, &log_iteration/1, every: 50)
+    |> Axon.Loop.log(:iteration_completed, &log_iteration/1, :stdio, every: 50)
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
-    |> Axon.Loop.run(images, epochs: 10, compiler: EXLA)
+    |> Axon.Loop.run(train_images, epochs: 10, compiler: EXLA)
   end
 end
 

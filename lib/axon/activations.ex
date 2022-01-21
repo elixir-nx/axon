@@ -204,33 +204,32 @@ defmodule Axon.Activations do
   @doc ~S"""
   Hard sigmoid activation.
 
-  $$f(x_i) = \begin{cases} 0 & x_i \leq -3 \newline
-  1 & x_i \geq 3 \newline
-  \frac{x_i}{6} + \frac{1}{2} & otherwise \end{cases}$$
-
   ## Examples
 
       iex> Axon.Activations.hard_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.0, 0.1666666716337204, 0.3333333432674408, 0.5, 0.6666666865348816, 0.8333333134651184, 1.0]
+        [0.0, 0.0, 0.0, 0.20000000298023224, 0.4000000059604645, 0.6000000238418579, 0.800000011920929]
       >
 
       iex> Axon.Activations.hard_sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.33203125, 0.166015625, 0.0],
-          [0.6640625, 0.83203125, 1.0]
+          [7.781982421875e-4, 0.0, 0.0],
+          [0.3984375, 0.59765625, 0.796875]
         ]
       >
 
   """
-  defn hard_sigmoid(x) do
+  defn hard_sigmoid(x, opts \\ []) do
+    opts = keyword!(opts, alpha: 0.2, beta: 0.2)
+
     x
-    |> Nx.add(3)
-    |> relu6()
-    |> Nx.divide(6)
+    |> Nx.multiply(opts[:alpha])
+    |> Nx.add(opts[:beta])
+    |> Nx.max(0)
+    |> Nx.min(1)
   end
 
   @doc ~S"""
@@ -245,15 +244,15 @@ defmodule Axon.Activations do
       iex> Axon.Activations.hard_silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.0, -0.3333333432674408, -0.3333333432674408, 0.0, 0.6666666865348816, 1.6666666269302368, 3.0]
+        [-0.0, -0.0, -0.0, 0.0, 0.4000000059604645, 1.2000000476837158, 2.4000000953674316]
       >
 
       iex> Axon.Activations.hard_silu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.33203125, -0.33203125, -0.0],
-          [0.6640625, 1.6640625, 3.0]
+          [-7.781982421875e-4, -0.0, -0.0],
+          [0.3984375, 1.1953125, 2.390625]
         ]
       >
 
@@ -575,10 +574,14 @@ defmodule Axon.Activations do
     * [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515v5)
 
   """
-  defn selu(x) do
-    alpha = 1.6732632423543772848170429916717
-    scale = 1.0507009873554804934193349852946
-    scale * elu(x, alpha: alpha)
+  defn selu(x, opts \\ []) do
+    opts =
+      keyword!(opts,
+        alpha: 1.6732632423543772848170429916717,
+        gamma: 1.0507009873554804934193349852946
+      )
+
+    opts[:gamma] * elu(x, alpha: opts[:alpha])
   end
 
   @doc ~S"""
@@ -615,7 +618,7 @@ defmodule Axon.Activations do
     opts = keyword!(opts, axis: 1)
 
     transform({x, opts}, fn {x, opts} ->
-      if Nx.rank(x) <= opts[:axis] do
+      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
         raise ArgumentError, "softmax axis must be within rank of tensor"
       end
     end)
