@@ -120,34 +120,42 @@ defmodule Axon.LossesTest do
     test "value for basic case" do
       y_true =
         Nx.tensor([
-          [0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0, 0, 0],
-          [0, 2, 0, 2, 0, 4, 0, 1, 0, 0, 0, 0, 0]
+          [2, 3, 4, 1],
+          [2, 2, 4, 1]
         ])
 
+      l_true = Nx.tensor([4, 4])
       y_pred = Nx.broadcast(-1.6094379425048828, {2, 10, 5})
 
-      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) ==
+      assert Axon.Losses.connectionist_temporal_classification({l_true, y_true}, y_pred) ==
                Nx.tensor([8.08642292022705, 8.933040618896484])
     end
 
-    test "trailing blanks doesn't contribute" do
+    test "oversize don't contribute" do
       y_true1 =
         Nx.tensor([
-          [0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0, 0, 0],
-          [0, 2, 0, 2, 0, 4, 0, 1, 0, 0, 0, 0, 0]
+          [2, 3, 4, 1],
+          [2, 2, 4, 1]
         ])
 
-      y_true2 = Nx.tensor([[0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0], [0, 2, 0, 2, 0, 4, 0, 1, 0, 0, 0]])
+      y_true2 =
+        Nx.tensor([
+          [2, 3, 4, 1, 1],
+          [2, 2, 4, 1, 1]
+        ])
+
+      l_true = Nx.tensor([4, 4])
       y_pred = Nx.broadcast(-1.6094379425048828, {2, 10, 5})
 
-      loss1 = Axon.Losses.connectionist_temporal_classification(y_true1, y_pred)
-      loss2 = Axon.Losses.connectionist_temporal_classification(y_true2, y_pred)
+      loss1 = Axon.Losses.connectionist_temporal_classification({l_true, y_true1}, y_pred)
+      loss2 = Axon.Losses.connectionist_temporal_classification({l_true, y_true2}, y_pred)
 
       assert loss1 == loss2
     end
 
     test "value for complex case" do
-      y_true = Nx.tensor([[0, 2, 0, 3, 0, 4, 0, 1, 0, 0, 0, 0, 0]])
+      y_true = Nx.tensor([[2, 3, 4, 1]])
+      l_true = Nx.tensor([4])
 
       y_pred =
         Nx.tensor([
@@ -165,7 +173,7 @@ defmodule Axon.LossesTest do
           ]
         ])
 
-      assert Axon.Losses.connectionist_temporal_classification(y_true, y_pred) ==
+      assert Axon.Losses.connectionist_temporal_classification({l_true, y_true}, y_pred) ==
                Nx.tensor([10.772387504577637])
     end
   end
