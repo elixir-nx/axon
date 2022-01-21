@@ -1040,7 +1040,7 @@ defmodule Axon.Losses do
     Defaults to `:none`.
 
   ## Description
-    `l_true` contains lengths of target sequences.
+    `l_true` contains lengths of target sequences. Nonzero positive values.
     `y_true` contains target sequences. Each value represents a class
     of element in range of available classes 0 <= y < D. Blank element
     class is included in this range, but shouldn't be presented among
@@ -1098,7 +1098,7 @@ defmodule Axon.Losses do
     transform(
       {opts[:reduction], loss},
       fn
-        # {:mean, loss} -> Nx.mean(loss)
+        {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
         {:sum, loss} -> Nx.sum(loss)
         {:none, loss} -> loss
       end
