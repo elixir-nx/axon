@@ -1054,20 +1054,6 @@ defmodule Axon.Losses do
     opts = keyword!(opts, blank: 0, reduction: :none)
     eps = Nx.tensor(1.0e-7)
     b_size = elem(Nx.shape(y_true), 0)
-    # shape check(s)
-    b_size_pred = elem(Nx.shape(y_pred), 0)
-
-    transform(
-      {b_size, b_size_pred},
-      fn {b_size_true, b_size_pred} ->
-        unless Elixir.Kernel.==(b_size_true, b_size_pred) do
-          raise ArgumentError,
-                "expected input batch size to be equal," <>
-                  " got #{inspect(b_size_true)} != #{inspect(b_size_pred)}"
-        end
-      end
-    )
-
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
 
