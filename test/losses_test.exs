@@ -214,7 +214,9 @@ defmodule Axon.LossesTest do
           ]
         ])
 
-      assert Axon.Losses.connectionist_temporal_classification({l_true, y_true}, y_pred, reduction: :mean) ==
+      assert Axon.Losses.connectionist_temporal_classification({l_true, y_true}, y_pred,
+               reduction: :mean
+             ) ==
                Nx.tensor([2.472621440887451])
     end
   end
