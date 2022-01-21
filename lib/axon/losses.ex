@@ -1030,6 +1030,7 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
+    * `l_true` - $\(B\)$
     * `y_true` - $\(B, S\)$
     * `y_pred` - $\(B, T, D\)$
 
@@ -1037,32 +1038,33 @@ defmodule Axon.Losses do
 
   * `:reduction` - reduction mode. One of `:sum` or `:none`.
     Defaults to `:none`.
+
+  ## Description
+    `l_true` contains lengths of target sequences. Nonzero positive values.
+    `y_true` contains target sequences. Each value represents a class
+    of element in range of available classes 0 <= y < D. Blank element
+    class is included in this range, but shouldn't be presented among
+    y_true values. Maximim target sequence length should be lower or equal
+    to `y_pred` sequence length: S <= T.
+    `y_pred` - logarithmized probabilities of classes D along the
+    prediction sequence T.
+
   """
-  defn connectionist_temporal_classification(y_true, y_pred, opts \\ []) do
+  defn connectionist_temporal_classification({l_true, y_true}, y_pred, opts \\ []) do
     opts = keyword!(opts, blank: 0, reduction: :none)
     eps = Nx.tensor(1.0e-7)
     b_size = elem(Nx.shape(y_true), 0)
-    # shape check(s)
-    b_size_pred = elem(Nx.shape(y_pred), 0)
-
-    transform(
-      {b_size, b_size_pred},
-      fn {b_size_true, b_size_pred} ->
-        unless Elixir.Kernel.==(b_size_true, b_size_pred) do
-          raise ArgumentError,
-                "expected input batch size to be equal," <>
-                  " got #{inspect(b_size_true)} != #{inspect(b_size_pred)}"
-        end
-      end
-    )
-
     t_max = elem(Nx.shape(y_pred), 1) - 1
     loss = Nx.broadcast(0.0, {b_size})
 
-    {loss, _, _, _} =
-      while {loss, b = 0, y_true, y_pred}, b < b_size do
+    # Add padding to y_true
+    y_true = Nx.pad(y_true, opts[:blank], [{0, 0, 0}, {1, 1, 1}])
+    s_true = Nx.multiply(l_true, 2)
+
+    {loss, _, _, _, _} =
+      while {loss, b = 0, y_true, s_true, y_pred}, b < b_size do
         # Get boundaries for available node paths.
-        st_lims = get_limits(y_true[b], t_max, opts[:blank])
+        st_lims = get_limits(y_true[b], s_true[b], t_max)
         # Iterate node tree backwards.
         s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
 
@@ -1076,28 +1078,20 @@ defmodule Axon.Losses do
           |> Nx.log()
           |> Nx.abs()
 
-        {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, y_pred}
+        {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, s_true, y_pred}
       end
 
     transform(
       {opts[:reduction], loss},
       fn
-        # {:mean, loss} -> Nx.mean(loss)
+        {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
         {:sum, loss} -> Nx.sum(loss)
         {:none, loss} -> loss
       end
     )
   end
 
-  defn get_limits(y_true, t_max, _blank) do
-    # Get `trimmed` target length.
-    s_max =
-      y_true
-      |> Nx.window_reduce(0, {2}, fn x, acc -> x - acc end)
-      |> Nx.equal(0)
-      |> Nx.pad(1, [{0, 1, 0}])
-      |> Nx.argmax()
-
+  defn get_limits(y_true, s_max, t_max) do
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
     {st_max, _, t_fin, _} =
