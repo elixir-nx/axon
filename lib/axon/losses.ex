@@ -1030,6 +1030,7 @@ defmodule Axon.Losses do
 
   ## Argument Shapes
 
+    * `l_true` - $\(B\)$
     * `y_true` - $\(B, S\)$
     * `y_pred` - $\(B, T, D\)$
 
@@ -1037,6 +1038,17 @@ defmodule Axon.Losses do
 
   * `:reduction` - reduction mode. One of `:sum` or `:none`.
     Defaults to `:none`.
+
+  ## Description
+    `l_true` contains lengths of target sequences.
+    `y_true` contains target sequences. Each value represents a class
+    of element in range of available classes 0 <= y < D. Blank element
+    class is included in this range, but shouldn't be presented among
+    y_true values. Maximim target sequence length should be lower or equal
+    to `y_pred` sequence length: S <= T.
+    `y_pred` - logarithmized probabilities of classes D along the
+    prediction sequence T.
+
   """
   defn connectionist_temporal_classification({l_true, y_true}, y_pred, opts \\ []) do
     opts = keyword!(opts, blank: 0, reduction: :none)
