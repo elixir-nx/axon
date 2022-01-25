@@ -533,6 +533,7 @@ defmodule Axon.Loop do
 
   defp format_metric({name, val}) do
     {type, _} = val.type
+
     case type do
       t when t in [:s, :u] -> "#{name}: #{:io_lib.format('~.B', [Nx.to_number(val)])}"
       :f -> "#{name}: #{:io_lib.format('~.7f', [Nx.to_number(val)])}"
@@ -543,6 +544,7 @@ defmodule Axon.Loop do
 
   defp supervised_log_message_fn(state, log_epochs \\ true) do
     %State{metrics: metrics, epoch: epoch, iteration: iter} = state
+
     metrics =
       metrics
       |> Enum.map(&format_metric/1)
@@ -554,7 +556,6 @@ defmodule Axon.Loop do
       "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
     end
   end
-
 
   @doc """
   Creates a supervised evaluator from a model and model state.
