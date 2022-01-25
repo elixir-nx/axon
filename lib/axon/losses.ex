@@ -1046,7 +1046,7 @@ defmodule Axon.Losses do
     class is included in this range, but shouldn't be presented among
     y_true values. Maximum target sequence length should be lower or equal
     to `y_pred` sequence length: S <= T.
-    `y_pred` - logarithmized probabilities of classes D along the
+    `y_pred` - log probabilities of classes D along the
     prediction sequence T.
 
   """
