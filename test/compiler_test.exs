@@ -2896,12 +2896,12 @@ defmodule CompilerTest do
         _sequence_length = 10,
         _in_channel_n = 3,
         width = 6,
-        heigth = 6
+        height = 6
       }
 
       out_channel_n = 3
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
         Axon.input(input_shape)
@@ -2949,12 +2949,12 @@ defmodule CompilerTest do
         _sequence_length = 10,
         _in_channel_n = 3,
         width = 6,
-        heigth = 6
+        height = 6
       }
 
       out_channel_n = 7
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
         Axon.input(input_shape)
@@ -3001,19 +3001,19 @@ defmodule CompilerTest do
     end
 
     # First part fails by conv_lstm_cell:
-    # no support for custon gate and activation functions
+    # no support for custom gate and activation functions
     test "computes forward pass with custom options" do
       input_shape = {
         _batch = nil,
         _sequence_length = 10,
         _in_channel_n = 3,
         width = 6,
-        heigth = 6
+        height = 6
       }
 
       out_channel_n = 3
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model1 =
         Axon.input(input_shape)
@@ -3105,12 +3105,12 @@ defmodule CompilerTest do
         _sequence_length = 10,
         _in_channel_n = 3,
         width = 6,
-        heigth = 6
+        height = 6
       }
 
       out_channel_n = 3
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
       seq = Axon.input(input_shape)
 
       {carry, _} =
@@ -3213,12 +3213,12 @@ defmodule CompilerTest do
         _sequence_length = 10,
         _in_channel_n = 3,
         width = 6,
-        heigth = 6
+        height = 6
       }
 
       out_channel_n = 3
       batch_real = 1
-      hidden_shape_real = {batch_real, 1, out_channel_n, width, heigth}
+      hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
         Axon.input(input_shape)
