@@ -381,7 +381,7 @@ defmodule Axon.Layers do
 
   ## References
 
-    * [A guide to convolution arithmethic for deep learning](https://arxiv.org/abs/1603.07285v1)
+    * [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
@@ -1545,7 +1545,7 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of global max pooling which computes maximums across
-  the spatial dimensions of the input such that the only remaning dimensions are
+  the spatial dimensions of the input such that the only remaining dimensions are
   the batch and feature dimensions.
 
   Assumes data is configured in a channels-first like format.

@@ -92,7 +92,7 @@ defmodule Axon.Loop do
 
   ## Metrics
 
-  Often times you want to compute metrics assosciated with your training iterations.
+  Often times you want to compute metrics associated with your training iterations.
   To accomplish this, you can attach metrics to each `Axon.Loop`. Assuming a `batch_step`
   function which looks like:
 
@@ -473,7 +473,7 @@ defmodule Axon.Loop do
         y_true: tensor() | container(tensor()), # True labels for use in metrics
         loss: tensor(), # Running average of loss over epoch
         model_state: container(tensor()), # Model parameters and state
-        optimizer_state: container(tensor()) # Optimizer state assosciated with each parameter
+        optimizer_state: container(tensor()) # Optimizer state associated with each parameter
       }
 
   ## Examples
@@ -569,7 +569,7 @@ defmodule Axon.Loop do
   An evaluator can be used for things such as testing and validation of models
   after or during training. It assumes `model` is an Axon struct, container of
   structs, or a tuple of `init` / `apply` functions. `model_state` must be a
-  container useable from within `model`.
+  container usable from within `model`.
 
   The evaluator returns a step state of the form:
 
@@ -661,7 +661,7 @@ defmodule Axon.Loop do
     case metric_fns do
       %{^name => _} ->
         Logger.warning(
-          "Metric #{name} declared twice in loop. Original metric will be overriden."
+          "Metric #{name} declared twice in loop. Original metric will be overridden."
         )
 
       _ ->
@@ -1086,7 +1086,7 @@ defmodule Axon.Loop do
     Map.update!(handle_fns, event, fn event_funs -> [handler | event_funs] end)
   end
 
-  # Fires event `event` using handler_fns assosciated with the event. We
+  # Fires event `event` using handler_fns associated with the event. We
   # must reverse handler funs in order to enforce order that handlers are
   # attached to the loop.
   # TODO(seanmor5): Custom events

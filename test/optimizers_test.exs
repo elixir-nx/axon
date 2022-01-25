@@ -94,7 +94,7 @@ defmodule OptimizersTest do
   end
 
   describe "adamw" do
-    test "correclty optimizes simple loss with default options" do
+    test "correctly optimizes simple loss with default options" do
       optimizer = Axon.Optimizers.adamw(@learning_rate)
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
