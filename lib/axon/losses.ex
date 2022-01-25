@@ -1044,7 +1044,7 @@ defmodule Axon.Losses do
     `y_true` contains target sequences. Each value represents a class
     of element in range of available classes 0 <= y < D. Blank element
     class is included in this range, but shouldn't be presented among
-    y_true values. Maximim target sequence length should be lower or equal
+    y_true values. Maximum target sequence length should be lower or equal
     to `y_pred` sequence length: S <= T.
     `y_pred` - logarithmized probabilities of classes D along the
     prediction sequence T.
