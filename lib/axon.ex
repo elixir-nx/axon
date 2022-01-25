@@ -1190,10 +1190,71 @@ defmodule Axon do
 
   ## Normalization
 
-  @normalization_layers [
+  @normalization_with_stats_layers [
     {:batch_norm, "Batch normalization", "a"},
-    {:layer_norm, "Layer normalization", "a"},
     {:instance_norm, "Instance normalization", "an"}
+  ]
+
+  for {norm, name, a_or_an} <- @normalization_with_stats_layers do
+    @doc """
+    Adds #{a_or_an} #{name} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(norm)}/4` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:gamma_initializer` - Gamma parameter initializer.
+      * `:beta_initializer` - Beta parameter initializer.
+      * `:channel_index` - Input feature index used for calculating
+        mean and variance.
+      * `:epsilon` - Numerical stability term.
+
+    """
+    @doc type: :normalization
+    def unquote(norm)(%Axon{} = x, opts \\ []) do
+      norm_with_stats(x, unquote(norm), opts)
+    end
+  end
+
+  defp norm_with_stats(%Axon{output_shape: shape} = x, norm, opts) do
+    channel_index = opts[:channel_index] || 1
+    epsilon = opts[:epsilon] || 1.0e-5
+    momentum = opts[:momentum] || 0.1
+
+    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
+    beta_shape = Axon.Shape.norm_param(shape, channel_index)
+    mean_shape = Axon.Shape.norm_param(shape, channel_index)
+    var_shape = Axon.Shape.norm_param(shape, channel_index)
+
+    gamma_initializer = opts[:gamma_initializer]
+    gamma_regularizer = opts[:gamma_regularizer]
+
+    gamma =
+      param("gamma", gamma_shape, initializer: gamma_initializer, regularizer: gamma_regularizer)
+
+    beta_initializer = opts[:beta_initializer] || :zeros
+    beta_regularizer = opts[:beta_regularizer]
+
+    beta = param("beta", beta_shape, initializer: beta_initializer, regularizer: beta_regularizer)
+
+    mean = param("mean", mean_shape, initializer: :zeros, regularizer: :none)
+    var = param("var", var_shape, initializer: :ones, regularizer: :none)
+
+    layer(
+      x,
+      norm,
+      shape,
+      %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var},
+      opts[:name],
+      epsilon: epsilon,
+      channel_index: channel_index,
+      momentum: momentum
+    )
+  end
+
+  @normalization_layers [
+    {:layer_norm, "Layer normalization", "a"}
   ]
 
   for {norm, name, a_or_an} <- @normalization_layers do

@@ -287,7 +287,10 @@ defmodule Axon.Loop do
   `model` must be an Axon struct, a valid defn container
   of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
   an arity-0 function which initializes the model state and `apply_fn` is
-  an arity-2 function which applies the forward pass of the model.
+  an arity-2 function which applies the forward pass of the model. The forward
+  pass of the model must return a map with keys `:prediction` and `:state`
+  representing the model's prediction and updated state for layers which
+  aggregate state during training.
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
@@ -321,19 +324,22 @@ defmodule Axon.Loop do
     end
 
     objective_fn = fn state, inp, tar ->
-      y_pred = forward_model_fn.(state, inp)
-      {y_pred, loss_fn.(tar, y_pred)}
+      model_out = forward_model_fn.(state, inp)
+      {model_out, loss_fn.(tar, model_out.prediction)}
     end
 
     step_fn = fn {inp, tar}, state ->
       %{i: i, model_state: model_state, optimizer_state: optimizer_state, loss: loss} = state
 
-      {{preds, batch_loss}, gradients} =
+      {{model_out, batch_loss}, gradients} =
         Nx.Defn.value_and_grad(
           model_state,
           &objective_fn.(&1, inp, tar),
           fn x -> elem(x, 1) end
         )
+
+      preds = model_out.prediction
+      new_state = model_out.state
 
       new_loss =
         loss
@@ -350,7 +356,7 @@ defmodule Axon.Loop do
           y_true: tar,
           y_pred: preds,
           loss: new_loss,
-          model_state: Axon.Updates.apply_updates(model_state, updates),
+          model_state: Axon.Updates.apply_updates(model_state, updates, new_state),
           optimizer_state: new_optimizer_state
       }
     end
