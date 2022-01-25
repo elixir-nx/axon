@@ -1024,4 +1024,175 @@ defmodule Axon.Losses do
       end
     )
   end
+
+  @doc """
+  Connectionist Temporal Classification loss.
+
+  ## Argument Shapes
+
+    * `l_true` - $\(B\)$
+    * `y_true` - $\(B, S\)$
+    * `y_pred` - $\(B, T, D\)$
+
+  ## Options
+
+  * `:reduction` - reduction mode. One of `:sum` or `:none`.
+    Defaults to `:none`.
+
+  ## Description
+    `l_true` contains lengths of target sequences. Nonzero positive values.
+    `y_true` contains target sequences. Each value represents a class
+    of element in range of available classes 0 <= y < D. Blank element
+    class is included in this range, but shouldn't be presented among
+    y_true values. Maximum target sequence length should be lower or equal
+    to `y_pred` sequence length: S <= T.
+    `y_pred` - log probabilities of classes D along the
+    prediction sequence T.
+
+  """
+  defn connectionist_temporal_classification({l_true, y_true}, y_pred, opts \\ []) do
+    opts = keyword!(opts, blank: 0, reduction: :none)
+    eps = Nx.tensor(1.0e-7)
+    b_size = elem(Nx.shape(y_true), 0)
+    t_max = elem(Nx.shape(y_pred), 1) - 1
+    loss = Nx.broadcast(0.0, {b_size})
+
+    # Add padding to y_true
+    y_true = Nx.pad(y_true, opts[:blank], [{0, 0, 0}, {1, 1, 1}])
+    s_true = Nx.multiply(l_true, 2)
+
+    {loss, _, _, _, _} =
+      while {loss, b = 0, y_true, s_true, y_pred}, b < b_size do
+        # Get boundaries for available node paths.
+        st_lims = get_limits(y_true[b], s_true[b], t_max)
+        # Iterate node tree backwards.
+        s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
+
+        {loss_b, _, _} =
+          while {loss_b = 0.0, s = st_lims[0][0], s_pred0}, s <= st_lims[0][1] do
+            {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0}
+          end
+
+        loss_b =
+          Nx.add(loss_b, eps)
+          |> Nx.log()
+          |> Nx.abs()
+
+        {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, s_true, y_pred}
+      end
+
+    transform(
+      {opts[:reduction], loss},
+      fn
+        {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
+        {:sum, loss} -> Nx.sum(loss)
+        {:none, loss} -> loss
+      end
+    )
+  end
+
+  defn get_limits(y_true, s_max, t_max) do
+    st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
+    # Iterate target to get upper boundary values for each sequence step.
+    {st_max, _, t_fin, _} =
+      while {st_max, s = 1, t = 1, y_true}, t <= t_max and s <= s_max - 2 do
+        s =
+          cond do
+            y_true[s] != y_true[s + 2] -> s + 2
+            true -> s + 1
+          end
+
+        {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true}
+      end
+
+    st_min =
+      cond do
+        t_fin == t_max + 1 ->
+          st_max
+
+        true ->
+          st_min = Nx.broadcast(0, {t_max + 1})
+
+          {st_min, _, _} =
+            while {st_min, dt = 1, st_max}, dt <= t_fin do
+              {Nx.put_slice(st_min, [t_max - dt + 1], Nx.reshape(st_max[t_fin - dt], {1})),
+               dt + 1, st_max}
+            end
+
+          st_min
+      end
+
+    Nx.stack([st_min, st_max], axis: 1)
+  end
+
+  # Get `node transition` part
+  defn get_path_prob(s, y_true, prob_prev, s_lims_prev) do
+    # Iterate over all possible transition paths
+    {path_prob, _, _, _, _, _} =
+      while {path_prob = Nx.broadcast(0.0, {3}), s, d = 0, y_true, prob_prev, s_lims_prev},
+            d <= 2 do
+        path_prob =
+          cond do
+            s + d < s_lims_prev[0] or s + d > s_lims_prev[1] ->
+              path_prob
+
+            d == 2 and y_true[s] == y_true[s + d] ->
+              path_prob
+
+            true ->
+              Nx.put_slice(path_prob, [d], Nx.reshape(Nx.exp(prob_prev[s + d]), {1}))
+          end
+
+        {path_prob, s, d + 1, y_true, prob_prev, s_lims_prev}
+      end
+
+    path_prob
+  end
+
+  # Get iteration values for acceptable nodes at a sequence step.
+  defn get_prob(prob_prev, s_lims, s_lims_prev, y_true, y_pred) do
+    eps = Nx.tensor(1.0e-7)
+    # Process nodes one-by-one from lower to upper bound.
+    {t_prob, _, _, _, _} =
+      while {prob_prev, s = s_lims[0], y_true, y_pred, s_lims_prev}, s <= s_lims[1] do
+        # Get `node transition` part
+        path_prob =
+          get_path_prob(s, y_true, prob_prev, s_lims_prev)
+          |> Nx.sum()
+          |> Nx.add(eps)
+          |> Nx.log()
+
+        # Add `node probability` part
+        s_prob =
+          Nx.add(y_pred[y_true[s]], path_prob)
+          |> Nx.reshape({1})
+
+        {Nx.put_slice(prob_prev, [s], s_prob), s + 1, y_true, y_pred, s_lims_prev}
+      end
+
+    t_prob
+  end
+
+  defn iterate_tree(y_true, y_pred, st_lims, t_max) do
+    s_tmax_min = st_lims[t_max][0]
+    s_tmax_max = st_lims[t_max][1]
+    tmax_pred = y_pred[t_max]
+    tmax_prob = Nx.broadcast(0.0, Nx.shape(y_true))
+    # Get initial data for backwards iteration.
+    {tmax_prob, _, _, _, _} =
+      while {tmax_prob, s = s_tmax_min, s_tmax_max, tmax_pred, y_true}, s <= s_tmax_max do
+        {Nx.put_slice(tmax_prob, [s], Nx.reshape(tmax_pred[y_true[s]], {1})), s + 1, s_tmax_max,
+         tmax_pred, y_true}
+      end
+
+    # Iterate node tree backwards.
+    {t0_prob, _, _, _, _} =
+      while {prob = tmax_prob, t = t_max - 1, y_true, y_pred, st_lims}, t >= 0 do
+        # Get iteration values for acceptable nodes at a sequence step.
+        prob = get_prob(prob, st_lims[t], st_lims[t + 1], y_true, y_pred[t])
+        {prob, t - 1, y_true, y_pred, st_lims}
+      end
+
+    t0_prob
+  end
 end
