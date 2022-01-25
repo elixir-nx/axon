@@ -100,7 +100,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
-      model = Axon.input({nil, 1}) |> Axon.compile()
+      model = Axon.input({nil, 1}) |> Axon.compile(mode: :train)
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, :adam)
@@ -173,6 +173,35 @@ defmodule Axon.LoopTest do
       assert pred == Nx.tensor([[1]])
 
       assert transform.(state) == %{"my_metric" => {}}
+    end
+
+    test "train_step/3 updates stateful layers after single step" do
+      val = Nx.broadcast(1, {1, 8})
+
+      model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
+
+      state = Nx.Defn.jit(init_fn, [])
+      state = Nx.Defn.jit(step_fn, [{val, val}, state])
+
+      assert Nx.all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
+               Nx.tensor(1, type: {:u, 8})
+
+      assert Nx.all_close(state.model_state["batch_norm"]["var"], Nx.broadcast(0.1, {8})) ==
+               Nx.tensor(1, type: {:u, 8})
+
+      val = Nx.broadcast(1, {1, 1, 8})
+      model = Axon.constant(val) |> Axon.instance_norm(name: "instance_norm")
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
+
+      state = Nx.Defn.jit(init_fn, [])
+      state = Nx.Defn.jit(step_fn, [{val, val}, state])
+
+      assert Nx.all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
+               Nx.tensor(1, type: {:u, 8})
+
+      assert Nx.all_close(state.model_state["instance_norm"]["var"], Nx.broadcast(0.1, {8})) ==
+               Nx.tensor(1, type: {:u, 8})
     end
   end
 

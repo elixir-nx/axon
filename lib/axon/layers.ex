@@ -1070,8 +1070,10 @@ defmodule Axon.Layers do
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
 
-  `gamma` and `beta` are often trainable parameters. This method does
-  not maintain an EMA of mean and variance.
+  `gamma` and `beta` are often trainable parameters. If `training?` is
+  true, this method will compute a new mean and variance, and return
+  the updated `ra_mean` and `ra_var`. Otherwise, it will just compute
+  batch norm from the given ra_mean and ra_var.
 
   ## Options
 
@@ -1081,13 +1083,17 @@ defmodule Axon.Layers do
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
 
+    * `:momentum` - momentum to use for EMA update.
+
+    * `:training?` - if true, uses training mode batch norm. Defaults to false.
+
   ## References
 
     * [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
   """
   @doc type: :normalization
-  defn batch_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+  defn batch_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1101,21 +1107,38 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
-        new_shape =
-          1
-          |> List.duplicate(rank)
-          |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+    {gamma, bias, ra_mean, ra_var} =
+      transform(
+        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        fn {g, b, m, v, rank, num_channels, channel_idx} ->
+          new_shape =
+            1
+            |> List.duplicate(rank)
+            |> List.to_tuple()
+            |> put_elem(channel_idx, num_channels)
 
-        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
-      end)
+          {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape), Nx.reshape(m, new_shape),
+           Nx.reshape(v, new_shape)}
+        end
+      )
 
-    {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    transform(
+      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+       opts[:training?]},
+      fn
+        {x, g, b, m, v, axes, eps, alpha, true} ->
+          {new_mean, new_var} = mean_and_variance(x, axes: axes)
+          out = normalize(x, new_mean, new_var, g, b, epsilon: eps)
+          {out, update_ema(new_mean, m, alpha), update_ema(new_var, v, alpha)}
+
+        {x, g, b, m, v, _, eps, _, _} ->
+          normalize(x, m, v, g, b, epsilon: eps)
+      end
+    )
+  end
+
+  defnp update_ema(obs, old, momentum) do
+    Nx.squeeze(momentum * old + (1 - momentum) * obs)
   end
 
   @doc ~S"""
@@ -1237,8 +1260,10 @@ defmodule Axon.Layers do
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
 
-  `gamma` and `beta` are often trainable parameters. This method does
-  not maintain an EMA of mean and variance.
+  `gamma` and `beta` are often trainable parameters. If `training?` is
+  true, this method will compute a new mean and variance, and return
+  the updated `ra_mean` and `ra_var`. Otherwise, it will just compute
+  batch norm from the given ra_mean and ra_var.
 
   ## Options
 
@@ -1248,13 +1273,17 @@ defmodule Axon.Layers do
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
 
+    * `:momentum` - momentum to use for EMA update.
+
+    * `:training?` - if true, uses training mode batch norm. Defaults to false.
+
   ## References
 
     * [Instance Normalization: The Missing Ingredient for Fast Stylization](https://arxiv.org/abs/1607.08022v3)
   """
   @doc type: :normalization
-  defn instance_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+  defn instance_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1268,21 +1297,34 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
-        new_shape =
-          1
-          |> List.duplicate(rank)
-          |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+    {gamma, bias, ra_mean, ra_var} =
+      transform(
+        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        fn {g, b, m, v, rank, num_channels, channel_idx} ->
+          new_shape =
+            1
+            |> List.duplicate(rank)
+            |> List.to_tuple()
+            |> put_elem(channel_idx, num_channels)
 
-        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
-      end)
+          {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape), Nx.reshape(m, new_shape),
+           Nx.reshape(v, new_shape)}
+        end
+      )
 
-    {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    transform(
+      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+       opts[:training?]},
+      fn
+        {x, g, b, m, v, axes, eps, alpha, true} ->
+          {new_mean, new_var} = mean_and_variance(x, axes: axes)
+          out = normalize(x, new_mean, new_var, g, b, epsilon: eps)
+          {out, update_ema(new_mean, m, alpha), update_ema(new_var, v, alpha)}
+
+        {x, g, b, m, v, _, eps, _, _} ->
+          normalize(x, m, v, g, b, epsilon: eps)
+      end
+    )
   end
 
   ## Stochastic

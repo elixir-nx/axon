@@ -780,13 +780,25 @@ defmodule Axon.Updates do
   end
 
   @doc """
-  Applies updates to params.
+  Applies updates to params and updates state parameters with
+  given state map.
   """
-  defn apply_updates(params, updates) do
-    transform({params, updates}, fn {params, updates} ->
-      deep_merge(params, updates, fn x, u ->
-        Nx.add(x, Nx.as_type(u, Nx.type(x)))
+  defn apply_updates(params, updates, state \\ nil) do
+    new_params =
+      transform({params, updates}, fn {params, updates} ->
+        deep_merge(params, updates, fn x, u ->
+          Nx.add(x, Nx.as_type(u, Nx.type(x)))
+        end)
       end)
+
+    transform({new_params, state}, fn
+      {new_params, nil} ->
+        new_params
+
+      {new_params, state} ->
+        Map.merge(new_params, state, fn _, s1, s2 ->
+          Map.merge(s1, s2, fn _, _, s -> s end)
+        end)
     end)
   end
 

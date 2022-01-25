@@ -1777,7 +1777,185 @@ defmodule CompilerTest do
     end
   end
 
-  @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
+  @normalization_with_stats_layers [:batch_norm, :instance_norm]
+
+  describe "normalization with stats" do
+    test "initializes in default case" do
+      for norm <- @normalization_with_stats_layers do
+        if norm != :instance_norm do
+          model1 = apply(Axon, norm, [Axon.input({nil, 2}), [name: "norm"]])
+
+          assert {init_fn, _predict_fn} = Axon.compile(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
+          assert Nx.shape(gamma) == {2}
+          assert Nx.type(gamma) == {:f, 32}
+          assert Nx.shape(beta) == {2}
+          assert Nx.type(beta) == {:f, 32}
+        end
+
+        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}), [name: "norm"]])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model2)
+
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                 init_fn.()
+
+        assert Nx.shape(gamma) == {3}
+        assert Nx.type(gamma) == {:f, 32}
+        assert Nx.shape(beta) == {3}
+        assert Nx.type(beta) == {:f, 32}
+        assert Nx.shape(mean) == {3}
+        assert Nx.type(mean) == {:f, 32}
+        assert Nx.shape(var) == {3}
+        assert Nx.type(var) == {:f, 32}
+      end
+    end
+
+    test "initializes with custom initializers" do
+      for norm <- @normalization_with_stats_layers do
+        if norm != :instance_norm do
+          model1 =
+            apply(Axon, norm, [Axon.input({nil, 2}), [name: "norm", gamma_initializer: :zeros]])
+
+          assert {init_fn, _predict_fn} = Axon.compile(model1)
+
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                   init_fn.()
+
+          assert gamma == Axon.Initializers.zeros(shape: {2})
+          assert Nx.shape(beta) == {2}
+          assert Nx.type(beta) == {:f, 32}
+          assert Nx.shape(mean) == {2}
+          assert Nx.type(mean) == {:f, 32}
+          assert Nx.shape(var) == {2}
+          assert Nx.type(var) == {:f, 32}
+        end
+
+        model2 =
+          apply(Axon, norm, [
+            Axon.input({nil, 3, 2, 2}),
+            [name: "norm", beta_initializer: :zeros]
+          ])
+
+        assert {init_fn, _predict_fn} = Axon.compile(model2)
+
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                 init_fn.()
+
+        assert Nx.shape(gamma) == {3}
+        assert Nx.type(gamma) == {:f, 32}
+        assert beta == Axon.Initializers.zeros(shape: {3})
+        assert Nx.shape(mean) == {3}
+        assert Nx.type(mean) == {:f, 32}
+        assert Nx.shape(var) == {3}
+        assert Nx.type(var) == {:f, 32}
+      end
+    end
+
+    test "computes forward pass with default options" do
+      for norm <- @normalization_with_stats_layers do
+        if norm != :instance_norm do
+          model1 = apply(Axon, norm, [Axon.input({nil, 2}), [name: "norm"]])
+          input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
+
+          assert {init_fn, predict_fn} = Axon.compile(model1)
+
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                   params = init_fn.()
+
+          assert predict_fn.(params, input1) ==
+                   apply(Axon.Layers, norm, [input1, gamma, beta, mean, var])
+        end
+
+        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}), [name: "norm"]])
+        input2 = Nx.random_uniform({1, 3, 2, 2}, type: {:f, 32})
+
+        assert {init_fn, predict_fn} = Axon.compile(model2)
+
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                 params = init_fn.()
+
+        assert predict_fn.(params, input2) ==
+                 apply(Axon.Layers, norm, [input2, gamma, beta, mean, var])
+      end
+    end
+
+    test "computes forward pass with custom options" do
+      for norm <- @normalization_with_stats_layers do
+        if norm != :instance_norm do
+          opts1 = [channel_index: 1, epsilon: 1.0e-3]
+          model1 = apply(Axon, norm, [Axon.input({nil, 2}), [name: "norm"] ++ opts1])
+          input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
+
+          assert {init_fn, predict_fn} = Axon.compile(model1)
+
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                   params = init_fn.()
+
+          assert predict_fn.(params, input1) ==
+                   apply(Axon.Layers, norm, [input1, gamma, beta, mean, var, opts1])
+        end
+
+        opts2 = [channel_index: 3, epsilon: 1.0e-4]
+        model2 = apply(Axon, norm, [Axon.input({nil, 2, 2, 3}), [name: "norm"] ++ opts2])
+        input2 = Nx.random_uniform({1, 2, 2, 3}, type: {:f, 32})
+
+        assert {init_fn, predict_fn} = Axon.compile(model2)
+
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
+                 params = init_fn.()
+
+        assert predict_fn.(params, input2) ==
+                 apply(Axon.Layers, norm, [input2, gamma, beta, mean, var, opts2])
+      end
+    end
+
+    test "returns zero gradient for frozen parameters" do
+      for norm <- @normalization_with_stats_layers do
+        model =
+          apply(Axon, norm, [Axon.input({nil, 1, 2}), [name: "norm"]])
+          |> Axon.freeze()
+
+        assert {init_fn, predict_fn} = Axon.compile(model)
+
+        backward = fn params, input ->
+          Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
+        end
+
+        assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
+                 Nx.Defn.jit(backward, [init_fn.(), Nx.random_uniform({1, 1, 2})])
+
+        assert gamma_grad == Nx.broadcast(0.0, {1})
+        assert beta_grad == Nx.broadcast(0.0, {1})
+      end
+    end
+
+    test "initializes with parameter policy" do
+      for norm <- @normalization_with_stats_layers do
+        model = apply(Axon, norm, [Axon.input({nil, 1, 2}), [name: "norm"]])
+        policy = AMP.create_policy(params: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, _} = Axon.compile(mp_model)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
+        assert Nx.type(gamma) == {:bf, 16}
+        assert Nx.type(beta) == {:bf, 16}
+      end
+    end
+
+    test "computes forward pass with output policy" do
+      for norm <- @normalization_with_stats_layers do
+        model = apply(Axon, norm, [Axon.input({nil, 1, 2}), [name: "norm"]])
+        policy = AMP.create_policy(output: {:bf, 16})
+        mp_model = AMP.apply_policy(model, policy)
+
+        assert {init_fn, predict_fn} = Axon.compile(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+      end
+    end
+  end
+
+  @normalization_layers [:layer_norm]
 
   describe "normalization" do
     test "initializes in default case" do
