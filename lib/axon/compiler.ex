@@ -1443,7 +1443,7 @@ defmodule Axon.Compiler do
 
     case mode do
       :train ->
-        input = Nx.as_type(res, compute)
+        input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, :flatten, [input]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, Map.put(cache, id, res)}
