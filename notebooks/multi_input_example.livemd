@@ -1,0 +1,83 @@
+# Multi Input example
+
+## Imports
+
+At the very beginning, we have to import essential packages. ```Axon``` will be the primary tool to build a deep learning model. Apart from that, we need to import ```EXLA``` to accelerate calculations and ```Nx``` since it gives us useful functions like ```Nx.to_heatmap``` and tensor operations.
+
+```elixir
+Mix.install([
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+])
+```
+
+## XOR model
+
+### The XOR module task is to imitate a logical xor operation.
+
+To achieve this, first, we need to build a model. The model is not complicated at all. It contains an input layer with two inputs created by ```Axon.input``` and concatednated with ```Axon.concatenate```.Then we have one hidden layer and one output layer both generated using ```Axon.dense```. The model is a sequential neural net. In Axon, it's very convenient to create such a model. Just pipe a previous layer to the next layer using ```|>```, and that's it.
+
+```elixir
+defp build_model(input_shape1, input_shape2) do
+  inp1 = Axon.input(input_shape1)
+  inp2 = Axon.input(input_shape2)
+
+  inp1
+  |> Axon.concatenate(inp2)
+  |> Axon.dense(8, activation: :tanh)
+  |> Axon.dense(1, activation: :sigmoid)
+end
+```
+
+## Batches
+
+The next step is to batch the training data. However, our batch function makes a little more than splitting the data. It also creates data (lines 2 and 3) and correct labels (line 4) since it's trivial for xor.
+
+```elixir
+defp batch do
+  x1 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
+  x2 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
+  y = Nx.logical_xor(x1, x2)
+  {{x1, x2}, y}
+end
+```
+
+## Training
+
+Then we define a training procedure. To implement the procedure pass the parameters of the trainig into ```Axon.Loop.trainer```. In our case *binary cross entropy* (loss) and *stochastic gradient descent* (optimizer). Then run the training process with ```Axon.Loop.run```.
+
+```elixir
+defp train_model(model, data, epochs) do
+  model
+  |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+  |> Axon.Loop.run(data, epochs: epochs, iterations: 1000)
+end
+```
+
+## Evaluation of the model
+
+Finally, we can test our model for sample data.
+
+```elixir
+def run do
+  model = build_model({nil, 1}, {nil, 1})
+  data = Stream.repeatedly(&batch/0)
+
+  model_state = train_model(model, data, 10)
+
+  IO.inspect(Axon.predict(model, model_state, {Nx.tensor([[0]]), Nx.tensor([[1]])}))
+end
+```
+
+## Results
+
+```elixir
+XOR.run()
+```
+
+You might wonder why is our result almost 1, but not exactly 1. The answer is that the mode is trying to converge to logical xor, but the updates of weights are slower the better our model is.
+
+To improve the model performance, you can increase the number of training epochs.
+
+[Link to the whole XOR module](https://github.com/elixir-nx/axon/blob/main/examples/basics/multi_input_example.exs "XOR module")
