@@ -40,12 +40,16 @@ defmodule Axon.Compiler do
 
   defp compile_init(graph) when is_tuple(graph) do
     init_fn = fn ->
-      graph
-      |> Tuple.to_list()
-      |> Enum.reduce(%{}, &to_init_fun/2)
-      |> Map.new(fn {k, v} ->
-        v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
-        {k, v}
+      {cache, _} =
+        graph
+        |> Tuple.to_list()
+        |> Enum.reduce({%{}, %{}}, &to_init_fun/2)
+
+      cache
+      |> Enum.reduce(%{}, fn {_, layer}, layers_acc ->
+        layer
+        |> Map.new(fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
+        |> Map.merge(layers_acc)
       end)
     end
 
@@ -54,88 +58,119 @@ defmodule Axon.Compiler do
 
   defp compile_init(%Axon{} = graph) do
     fn ->
-      graph
-      |> to_init_fun(%{})
-      |> Map.new(fn {k, v} ->
-        v = Map.new(v, fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
-        {k, v}
+      {cache, _} = to_init_fun(graph, {%{}, %{}})
+
+      cache
+      |> Enum.reduce(%{}, fn {_, layer}, layers_acc ->
+        layer
+        |> Map.new(fn {k_sub, v_sub} -> {k_sub, v_sub.()} end)
+        |> Map.merge(layers_acc)
       end)
     end
   end
 
-  defp to_init_fun(graph, cache) when is_tuple(graph) do
+  defp to_init_fun(graph, cache_and_counts) when is_tuple(graph) do
     graph
     |> Tuple.to_list()
-    |> Enum.reduce(cache, fn x, acc -> to_init_fun(x, acc) end)
+    |> Enum.reduce(cache_and_counts, fn x, acc -> to_init_fun(x, acc) end)
   end
 
   defp to_init_fun(
-         %Axon{parent: parents, name: name, params: params, policy: %{params: dtype}},
-         cache
+         %Axon{
+           id: id,
+           parent: parents,
+           op: op,
+           name: name_fn,
+           params: params,
+           policy: %{params: dtype}
+         },
+         {cache, op_counts}
        )
        when is_list(parents) do
-    cache =
+    cache_and_counts =
       case cache do
-        %{^name => _} ->
-          cache
+        %{^id => _} ->
+          {cache, op_counts}
 
         %{} ->
-          layer_params =
-            Enum.reduce(params, %{}, fn {_, param}, layer_params ->
-              %{name: name, shape: shape, initializer: initializer} = param
-              fun = fn -> apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]]) end
-              Map.put(layer_params, name, fun)
-            end)
-
-          if Enum.empty?(layer_params) do
-            cache
+          if Enum.empty?(params) do
+            {cache, op_counts}
           else
-            Map.put(cache, name, layer_params)
+            layer_params = fn ->
+              Enum.reduce(params, %{}, fn {_, param}, layer_params ->
+                %{name: name, shape: shape, initializer: initializer} = param
+                fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+                Map.put(layer_params, name, fun)
+              end)
+            end
+
+            name = name_fn.(op, op_counts)
+            params = %{name => layer_params}
+
+            {
+              Map.put(cache, id, params),
+              Map.update(op_counts, op, 1, fn x -> x + 1 end)
+            }
           end
       end
 
-    Enum.reduce(parents, cache, &to_init_fun/2)
+    Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
   end
 
   defp to_init_fun(
-         %Axon{parent: parent, name: name, params: params, opts: opts, policy: %{params: dtype}},
-         cache
+         %Axon{
+           id: id,
+           parent: parent,
+           op: op,
+           name: name_fn,
+           params: params,
+           opts: opts,
+           policy: %{params: dtype}
+         },
+         {cache, op_counts}
        ) do
-    cache =
+    {cache, op_counts} =
       case opts[:hidden_state] do
         state when is_tuple(state) ->
           state
           |> Tuple.to_list()
-          |> Enum.reduce(cache, &to_init_fun/2)
+          |> Enum.reduce({cache, op_counts}, &to_init_fun/2)
 
         nil ->
-          cache
+          {cache, op_counts}
       end
 
-    cache =
+    cache_and_counts =
       case cache do
-        %{^name => _} ->
-          cache
+        %{^id => _} ->
+          {cache, op_counts}
 
         %{} ->
-          layer_params =
-            Enum.reduce(params, %{}, fn {_, param}, layer_params ->
-              %{name: name, shape: shape, initializer: initializer} = param
-              fun = fn -> apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]]) end
-              Map.put(layer_params, name, fun)
-            end)
-
-          if Enum.empty?(layer_params) do
-            cache
+          if Enum.empty?(params) do
+            {cache, op_counts}
           else
-            Map.put(cache, name, layer_params)
+            layer_params = fn ->
+              Enum.reduce(params, %{}, fn {_, param}, layer_params ->
+                %{name: name, shape: shape, initializer: initializer} = param
+                fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+                Map.put(layer_params, name, fun)
+              end)
+            end
+
+            name = name_fn.(op, op_counts)
+            params = %{name => layer_params}
+
+            {
+              Map.put(cache, id, params),
+              Map.update(op_counts, op, 1, fn x -> x + 1 end)
+            }
           end
       end
 
     if parent do
-      to_init_fun(parent, cache)
+      to_init_fun(parent, cache_and_counts)
     else
-      cache
+      cache_and_counts
     end
   end
 
@@ -169,7 +204,7 @@ defmodule Axon.Compiler do
 
     predict_fn = fn params, inputs ->
       inputs = maybe_flatten(inputs)
-      {expr, _} = to_predict_fun(graph, %{}, input_map, params, inputs, mode)
+      {expr, _} = to_predict_fun(graph, {%{}, %{}}, input_map, params, inputs, mode)
 
       acc =
         case mode do
@@ -328,22 +363,21 @@ defmodule Axon.Compiler do
     get_inputs(parent, input_ids)
   end
 
-  defp to_predict_fun(graph, cache, input_map, params, inputs, mode) when is_tuple(graph) do
+  defp to_predict_fun(graph, cache_and_counts, input_map, params, inputs, mode)
+       when is_tuple(graph) do
     graph
     |> Tuple.to_list()
-    |> Enum.map_reduce(cache, fn x, acc ->
-      to_predict_fun(x, acc, input_map, params, inputs, mode)
-    end)
+    |> Enum.map_reduce(cache_and_counts, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
   end
 
-  defp to_predict_fun(%{id: id} = graph, cache, input_map, params, inputs, mode) do
+  defp to_predict_fun(%{id: id} = graph, {cache, op_counts}, input_map, params, inputs, mode) do
     case cache do
       %{^id => res} ->
-        {res, cache}
+        {res, {cache, op_counts}}
 
       %{} ->
         try do
-          recur_predict_fun(graph, cache, input_map, params, inputs, mode)
+          recur_predict_fun(graph, {cache, op_counts}, input_map, params, inputs, mode)
         rescue
           e -> reraise Axon.CompilerError.exception(graph: graph, exception: e), __STACKTRACE__
         end
@@ -355,22 +389,29 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: op,
            parent: parents,
            params: layer_params,
            opts: opts,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when is_function(op) and is_list(parents) do
-    {exprs, cache} =
-      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+    {exprs, {cache, op_counts}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, input_map, params, inputs, mode)
+      )
+
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     inp_params =
       Map.new(layer_params, fn {k, %{name: v, frozen: frz}} ->
@@ -396,33 +437,37 @@ defmodule Axon.Compiler do
         inputs = Enum.map(exprs, &Nx.as_type(&1.prediction, compute))
         out = apply(op, inputs ++ param_arg ++ opts)
         res = %{prediction: Nx.as_type(out, output), state: states}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         inputs = Enum.map(exprs, &Nx.as_type(&1, compute))
         res = apply(op, inputs ++ param_arg ++ opts)
-        {Nx.as_type(res, output), Map.put(cache, id, res)}
+        {Nx.as_type(res, output), {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: op,
            parent: parent,
            params: layer_params,
            opts: opts,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when is_function(op) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     inp_params =
       Map.new(layer_params, fn {k, %{name: v, frozen: frz}} ->
@@ -443,12 +488,12 @@ defmodule Axon.Compiler do
         inp = Nx.as_type(res.prediction, compute)
         out = apply(op, [inp] ++ param_arg ++ [opts])
         res = Map.update!(res, :prediction, fn _ -> Nx.as_type(out, output) end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         res = apply(op, [res] ++ param_arg ++ [opts])
         res = Nx.as_type(res, output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -467,14 +512,17 @@ defmodule Axon.Compiler do
            policy: %{compute: compute, output: output},
            opts: opts
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @activation_layers do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
@@ -491,7 +539,7 @@ defmodule Axon.Compiler do
 
         out = Nx.as_type(apply(Axon.Activations, op, args), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -506,7 +554,7 @@ defmodule Axon.Compiler do
           end
 
         res = Nx.as_type(apply(Axon.Activations, op, args), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -516,19 +564,23 @@ defmodule Axon.Compiler do
          %Axon{
            id: id,
            op: :dense,
-           name: name,
+           name: name_fn,
            parent: parent,
            params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [use_bias: use_bias]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(:dense, op_counts)
+    op_counts = Map.update(op_counts, :dense, 1, fn x -> x + 1 end)
 
     w = layer_param(layer_params, "kernel", params[name], compute)
 
@@ -544,33 +596,40 @@ defmodule Axon.Compiler do
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Axon.Layers, :dense, [input, w, b]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :bilinear,
            parent: parents,
            params: layer_params,
            policy: %{compute: compute, output: output},
            opts: [use_bias: use_bias]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {[res1, res2], cache} =
-      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+    {[res1, res2], {cache, op_counts}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, input_map, params, inputs, mode)
+      )
+
+    name = name_fn.(:bilinear, op_counts)
+    op_counts = Map.update(op_counts, :bilinear, 1, fn x -> x + 1 end)
 
     w = layer_param(layer_params, "kernel", params[name], compute)
 
@@ -587,13 +646,13 @@ defmodule Axon.Compiler do
         input2 = Nx.as_type(res2.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, :bilinear, [input1, input2, w, b]), output)
         res = %{prediction: out, state: Map.merge(input1.state, input2.state)}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input1 = Nx.as_type(res1, compute)
         input2 = Nx.as_type(res2, compute)
         res = Nx.as_type(apply(Axon.Layers, :bilinear, [input1, input2, w, b]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -602,19 +661,23 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :embedding,
            parent: parent,
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(:embedding, op_counts)
+    op_counts = Map.update(op_counts, :embedding, 1, fn x -> x + 1 end)
 
     w = layer_param(layer_params, "kernel", params[name], compute)
 
@@ -622,11 +685,11 @@ defmodule Axon.Compiler do
       :train ->
         out = Nx.as_type(apply(Axon.Layers, :embedding, [res.prediction, w]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         res = Nx.as_type(apply(Axon.Layers, :embedding, [res, w]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -644,26 +707,29 @@ defmodule Axon.Compiler do
            opts: opts,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @pooling_layers do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, op, [input, opts]), output)
         res = Map.update!(res, :prediction, out)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Axon.Layers, op, [input, opts]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -679,26 +745,29 @@ defmodule Axon.Compiler do
            opts: opts,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @dropout_layers do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, op, [input, opts]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         # Skip dropout in inference mode
         res = Nx.as_type(res, output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -709,21 +778,25 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: op,
            parent: parent,
            opts: opts,
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @conv_layers do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
@@ -741,32 +814,36 @@ defmodule Axon.Compiler do
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, op, [input, k, b, opts]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Axon.Layers, op, [input, k, b, opts]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :separable_conv2d,
            parent: parent,
            opts: opts,
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(:separable_conv2d, op_counts)
+    op_counts = Map.update(op_counts, :separable_conv2d, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
@@ -789,7 +866,7 @@ defmodule Axon.Compiler do
           Nx.as_type(apply(Axon.Layers, :separable_conv2d, [input, k1, b1, k2, b2, opts]), output)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -797,27 +874,31 @@ defmodule Axon.Compiler do
         res =
           Nx.as_type(apply(Axon.Layers, :separable_conv2d, [input, k1, b1, k2, b2, opts]), output)
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :separable_conv3d,
            parent: parent,
            opts: opts,
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(:separable_conv3d, op_counts)
+    op_counts = Map.update(op_counts, :separable_conv3d, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
@@ -845,7 +926,7 @@ defmodule Axon.Compiler do
           )
 
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -856,7 +937,7 @@ defmodule Axon.Compiler do
             output
           )
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -867,21 +948,25 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: op,
            parent: parent,
            opts: [epsilon: epsilon, channel_index: channel_index, momentum: momentum],
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @normalization_with_stats do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     g = layer_param(layer_params, "gamma", params[name], compute)
     b = layer_param(layer_params, "beta", params[name], compute)
@@ -909,7 +994,7 @@ defmodule Axon.Compiler do
             Map.put(states, name, %{"mean" => ra_mean, "var" => ra_var})
           end)
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -930,7 +1015,7 @@ defmodule Axon.Compiler do
           ])
 
         res = Nx.as_type(out, output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -939,21 +1024,25 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: op,
            parent: parent,
            opts: opts,
            params: layer_params,
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @normalization_layers do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     g = layer_param(layer_params, "gamma", params[name], compute)
     b = layer_param(layer_params, "beta", params[name], compute)
@@ -963,12 +1052,12 @@ defmodule Axon.Compiler do
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, op, [input, g, b, opts]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Axon.Layers, op, [input, g, b, opts]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -977,7 +1066,7 @@ defmodule Axon.Compiler do
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :lstm,
            parent: parent,
            params: layer_params,
@@ -992,19 +1081,20 @@ defmodule Axon.Compiler do
              use_bias: use_bias
            ]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, cache_and_counts} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
 
-    {{h, c}, cache} =
+    {{h, c}, {cache, op_counts}} =
       to_hidden_state(
         hidden_state,
         res,
-        cache,
+        cache_and_counts,
         input_map,
         params,
         inputs,
@@ -1013,6 +1103,9 @@ defmodule Axon.Compiler do
         hidden_state_shape,
         mode
       )
+
+    name = name_fn.(:lstm, op_counts)
+    op_counts = Map.update(op_counts, :lstm, 1, fn x -> x + 1 end)
 
     input_kernel = {
       layer_param(layer_params, "wii", params[name], compute),
@@ -1080,7 +1173,7 @@ defmodule Axon.Compiler do
           |> Map.merge(c.state)
 
         res = %{prediction: out, state: state}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -1114,14 +1207,14 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(res, output)}
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :conv_lstm,
            parent: parent,
            params: layer_params,
@@ -1135,19 +1228,20 @@ defmodule Axon.Compiler do
              unroll: unroll
            ]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, cache_and_counts} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
 
-    {{h, c}, cache} =
+    {{h, c}, {cache, op_counts}} =
       to_hidden_state(
         hidden_state,
         res,
-        cache,
+        cache_and_counts,
         input_map,
         params,
         inputs,
@@ -1156,6 +1250,9 @@ defmodule Axon.Compiler do
         hidden_state_shape,
         mode
       )
+
+    name = name_fn.(:conv_lstm, op_counts)
+    op_counts = Map.update(op_counts, :conv_lstm, 1, fn x -> x + 1 end)
 
     input_kernel = {layer_param(layer_params, "wi", params[name], compute)}
     hidden_kernel = {layer_param(layer_params, "wh", params[name], compute)}
@@ -1203,7 +1300,7 @@ defmodule Axon.Compiler do
           |> Map.merge(c.state)
 
         res = %{prediction: out, state: state}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -1240,14 +1337,14 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(out, output)}
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{
            id: id,
-           name: name,
+           name: name_fn,
            op: :gru,
            parent: parent,
            params: layer_params,
@@ -1262,19 +1359,20 @@ defmodule Axon.Compiler do
              use_bias: use_bias
            ]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, cache_and_counts} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
 
-    {{h}, cache} =
+    {{h}, {cache, op_counts}} =
       to_hidden_state(
         hidden_state,
         res,
-        cache,
+        cache_and_counts,
         input_map,
         params,
         inputs,
@@ -1283,6 +1381,9 @@ defmodule Axon.Compiler do
         hidden_state_shape,
         mode
       )
+
+    name = name_fn.(:gru, op_counts)
+    op_counts = Map.update(op_counts, :gru, 1, fn x -> x + 1 end)
 
     input_kernel = {
       layer_param(layer_params, "wir", params[name], compute),
@@ -1349,7 +1450,7 @@ defmodule Axon.Compiler do
         state = Map.merge(h.state, res.state)
         res = %{prediction: out, state: state}
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
@@ -1383,7 +1484,7 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c, output)}, Nx.as_type(out, output)}
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1393,15 +1494,21 @@ defmodule Axon.Compiler do
 
   defp recur_predict_fun(
          %Axon{id: id, op: op, parent: parents, policy: %{compute: compute, output: output}},
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        )
        when op in @element_wise_layers do
-    {[expr | exprs], cache} =
-      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+    {[expr | exprs], {cache, op_counts}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, input_map, params, inputs, mode)
+      )
+
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
@@ -1415,7 +1522,7 @@ defmodule Axon.Compiler do
           end)
 
         res = %{prediction: out, state: state}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         res =
@@ -1425,7 +1532,7 @@ defmodule Axon.Compiler do
             Nx.as_type(apply(Nx, op, [acc, input]), output)
           end)
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1433,25 +1540,28 @@ defmodule Axon.Compiler do
 
   defp recur_predict_fun(
          %Axon{id: id, op: :flatten, parent: parent, policy: %{compute: compute, output: output}},
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :flatten, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Axon.Layers, :flatten, [input]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Axon.Layers, :flatten, [input]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1464,13 +1574,16 @@ defmodule Axon.Compiler do
            policy: %{compute: compute, output: output},
            opts: [constant: is_constant_reshape?]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :reshape, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
@@ -1485,7 +1598,7 @@ defmodule Axon.Compiler do
 
         out = Nx.as_type(apply(Nx, :reshape, [inp, reshape_shape]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         inp = Nx.as_type(res, compute)
@@ -1498,7 +1611,7 @@ defmodule Axon.Compiler do
           end
 
         res = Nx.as_type(apply(Nx, :reshape, [inp, reshape_shape]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1510,13 +1623,16 @@ defmodule Axon.Compiler do
            policy: %{compute: compute, output: output},
            opts: [shape: shape, method: method, channels: channels]
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :resize, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
@@ -1529,7 +1645,7 @@ defmodule Axon.Compiler do
           )
 
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         inp = Nx.as_type(res, compute)
@@ -1540,7 +1656,7 @@ defmodule Axon.Compiler do
             output
           )
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1552,13 +1668,16 @@ defmodule Axon.Compiler do
            opts: [permutation: permutation, ignore_batch?: ignore_batch?],
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :transpose, 1, fn x -> x + 1 end)
 
     permutation =
       if ignore_batch? do
@@ -1572,13 +1691,13 @@ defmodule Axon.Compiler do
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Nx, :transpose, [input, [axes: permutation]]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Nx, :transpose, [input, [axes: permutation]]), output)
 
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1590,13 +1709,16 @@ defmodule Axon.Compiler do
            opts: [padding_config: config, value: value],
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :pad, 1, fn x -> x + 1 end)
 
     config = [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
 
@@ -1605,12 +1727,12 @@ defmodule Axon.Compiler do
         input = Nx.as_type(res.prediction, compute)
         out = Nx.as_type(apply(Nx, :pad, [input, value, config]), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         input = Nx.as_type(res, compute)
         res = Nx.as_type(apply(Nx, :pad, [input, value, config]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1622,14 +1744,20 @@ defmodule Axon.Compiler do
            opts: [axis: axis],
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {exprs, cache} =
-      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+    {exprs, {cache, op_counts}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, input_map, params, inputs, mode)
+      )
+
+    op_counts = Map.update(op_counts, :concatenate, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
@@ -1637,12 +1765,12 @@ defmodule Axon.Compiler do
         out = Nx.as_type(apply(Nx, :concatenate, [inps, [axis: axis]]), output)
         state = Enum.reduce(exprs, %{}, &Map.merge(&1.state, &2))
         res = %{prediction: out, state: state}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         inps = Enum.map(exprs, &Nx.as_type(&1, compute))
         res = Nx.as_type(apply(Nx, :concatenate, [inps, [axis: axis]]), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1654,14 +1782,20 @@ defmodule Axon.Compiler do
            opts: [cond: cond_fn],
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {exprs, cache} =
-      Enum.map_reduce(parents, cache, &to_predict_fun(&1, &2, input_map, params, inputs, mode))
+    {exprs, {cache, op_counts}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, input_map, params, inputs, mode)
+      )
+
+    op_counts = Map.update(op_counts, :cond, 1, fn x -> x + 1 end)
 
     [cond_input_expr, true_expr, false_expr] = exprs
 
@@ -1693,7 +1827,7 @@ defmodule Axon.Compiler do
           |> Map.merge(false_expr.state)
 
         res = %{prediction: out, state: state}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         cond_expr = cond_fn.(cond_input_expr)
@@ -1715,7 +1849,7 @@ defmodule Axon.Compiler do
           )
 
         res = Nx.as_type(res, output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1729,54 +1863,60 @@ defmodule Axon.Compiler do
            opts: [fun: nx_fun],
            policy: %{compute: compute, output: output}
          },
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
          mode
        ) do
-    {res, cache} = to_predict_fun(parent, cache, input_map, params, inputs, mode)
+    {res, {cache, op_counts}} =
+      to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
+
+    op_counts = Map.update(op_counts, :nx, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
         out = Nx.as_type(nx_fun.(Nx.as_type(res.prediction, compute)), output)
         res = Map.update!(res, :prediction, fn _ -> out end)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         res = Nx.as_type(nx_fun.(Nx.as_type(res, compute)), output)
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
-         cache,
+         {cache, op_counts},
          _,
          _,
          _,
          mode
        ) do
     out = Nx.as_type(tensor, output)
+    op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
 
     case mode do
       :train ->
         res = %{prediction: out, state: %{}}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
-        {out, Map.put(cache, id, out)}
+        {out, {Map.put(cache, id, out), op_counts}}
     end
   end
 
   defp recur_predict_fun(
          %Axon{id: id, op: :input, output_shape: shape},
-         cache,
+         {cache, op_counts},
          input_map,
          _,
          inputs,
          mode
        ) do
+    op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
+
     res =
       if is_tuple(inputs) do
         idx = input_map[id]
@@ -1795,10 +1935,10 @@ defmodule Axon.Compiler do
     case mode do
       :train ->
         res = %{prediction: res, state: %{}}
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
-        {res, Map.put(cache, id, res)}
+        {res, {Map.put(cache, id, res), op_counts}}
     end
   end
 
@@ -1808,7 +1948,7 @@ defmodule Axon.Compiler do
   defp to_hidden_state(
          hidden_state,
          input,
-         cache,
+         cache_and_counts,
          input_map,
          params,
          inputs,
@@ -1819,17 +1959,25 @@ defmodule Axon.Compiler do
        ) do
     case hidden_state do
       {%Axon{} = c, %Axon{} = h} ->
-        {c_res, cache} = to_predict_fun(c, cache, input_map, params, inputs, mode)
-        {h_res, cache} = to_predict_fun(h, cache, input_map, params, inputs, mode)
-        {{c_res, h_res}, cache}
+        {c_res, cache_and_counts} =
+          to_predict_fun(c, cache_and_counts, input_map, params, inputs, mode)
+
+        {h_res, cache_and_counts} =
+          to_predict_fun(h, cache_and_counts, input_map, params, inputs, mode)
+
+        {{c_res, h_res}, cache_and_counts}
 
       {%Axon{} = c} ->
-        {h_res, cache} = to_predict_fun(c, cache, input_map, params, inputs, mode)
-        {{h_res}, cache}
+        {h_res, cache_and_counts} =
+          to_predict_fun(c, cache_and_counts, input_map, params, inputs, mode)
+
+        {{h_res}, cache_and_counts}
 
       %Axon{} = x ->
-        {h_res, cache} = to_predict_fun(x, cache, input_map, params, inputs, mode)
-        {h_res, cache}
+        {h_res, cache_and_counts} =
+          to_predict_fun(x, cache_and_counts, input_map, params, inputs, mode)
+
+        {h_res, cache_and_counts}
 
       nil ->
         shape = put_elem(hidden_state_shape, 0, elem(Nx.shape(input), 0))
@@ -1841,7 +1989,7 @@ defmodule Axon.Compiler do
         res = List.to_tuple(h_res)
 
         res = if mode == :train, do: %{prediction: res, state: %{}}, else: res
-        {res, cache}
+        {res, cache_and_counts}
     end
   end
 
