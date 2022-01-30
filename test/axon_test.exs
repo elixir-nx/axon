@@ -458,7 +458,7 @@ defmodule AxonTest do
   describe "adaptive pooling" do
     test "works with options" do
       for pool <- @adaptive_pooling_layers do
-        assert %Axon{ } =
+        assert %Axon{} =
                  apply(Axon, pool, [
                    Axon.input({nil, 1, 28, 28}),
                    [output_size: {26, 26}, name: "pool"]
