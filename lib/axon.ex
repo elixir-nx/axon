@@ -2209,7 +2209,7 @@ defmodule Axon do
         |> Enum.sort()
         |> Enum.unzip()
         |> elem(1)
-        |> Enum.map(&Kernel.elem(&1, 0))
+        |> Enum.map(&elem(&1, 0))
 
       rows
       |> TableRex.Table.new(header, title)
