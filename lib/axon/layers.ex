@@ -685,6 +685,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -700,13 +709,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_max(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -770,6 +777,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -785,13 +801,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_mean(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -884,6 +898,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -906,7 +929,7 @@ defmodule Axon.Layers do
     |> Nx.window_sum(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
