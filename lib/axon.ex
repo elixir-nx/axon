@@ -2202,13 +2202,14 @@ defmodule Axon do
     def inspect(axon, _opts) do
       title = "Model"
       header = ["Layer", "Shape", "Parameters"]
-      {_, cache} = axon_to_rows(axon, %{})
+      {_, _, cache, _} = axon_to_rows(axon, %{}, %{})
 
       rows =
         cache
         |> Enum.sort()
         |> Enum.unzip()
-        |> Kernel.elem(1)
+        |> elem(1)
+        |> Enum.map(&elem(&1, 0))
 
       rows
       |> TableRex.Table.new(header, title)
@@ -2220,24 +2221,30 @@ defmodule Axon do
       |> string()
     end
 
-    defp axon_to_rows(%{id: id} = graph, cache) do
+    defp axon_to_rows(%{id: id, op: op} = graph, cache, op_counts) do
       case cache do
-        %{^id => row} ->
-          {row, cache}
+        %{^id => {row, name}} ->
+          {row, name, cache, op_counts}
 
         %{} ->
-          {row, cache} = do_axon_to_rows(graph, cache)
-          cache = Map.put(cache, id, row)
-          {row, cache}
+          {row, name, cache, op_counts} = do_axon_to_rows(graph, cache, op_counts)
+          cache = Map.put(cache, id, {row, name})
+          op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+          {row, name, cache, op_counts}
       end
     end
 
-    defp do_axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, cache)
+    defp do_axon_to_rows(
+           %Axon{op: op, parent: parents, name: name_fn, output_shape: shape},
+           cache,
+           op_counts
+         )
          when is_list(parents) do
-      {names, cache} =
-        Enum.map_reduce(parents, cache, fn %Axon{name: name} = graph, cache ->
-          {_, cache} = axon_to_rows(graph, cache)
-          {name, cache}
+      {input_names, {cache, op_counts}} =
+        Enum.map_reduce(parents, {cache, op_counts}, fn
+          %Axon{} = graph, {cache, op_counts} ->
+            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
+            {name, {cache, op_counts}}
         end)
 
       op_string =
@@ -2247,21 +2254,28 @@ defmodule Axon do
           "#{inspect(op)}"
         end
 
-      row = [name <> " ( #{op_string} #{inspect(names)} )", "#{inspect(shape)}", 0]
+      name = name_fn.(op, op_counts)
 
-      {row, cache}
+      row = [
+        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{inspect(shape)}",
+        0
+      ]
+
+      {row, name, cache, op_counts}
     end
 
     defp do_axon_to_rows(
-           %Axon{op: op, params: params, parent: parent, name: name, output_shape: shape},
-           cache
+           %Axon{op: op, params: params, parent: parent, name: name_fn, output_shape: shape},
+           cache,
+           op_counts
          ) do
-      cache =
+      {input_name, cache, op_counts} =
         if parent do
-          {_, cache} = axon_to_rows(parent, cache)
-          cache
+          {_, input_name, cache, op_counts} = axon_to_rows(parent, cache, op_counts)
+          {input_name, cache, op_counts}
         else
-          cache
+          {nil, cache, op_counts}
         end
 
       num_params =
@@ -2274,8 +2288,22 @@ defmodule Axon do
           _ -> "custom"
         end
 
-      row = [name <> " ( #{op_inspect} )", "#{inspect(shape)}", "#{num_params}"]
-      {row, cache}
+      inputs =
+        if input_name do
+          "[ #{inspect(input_name)} ]"
+        else
+          ""
+        end
+
+      name = name_fn.(op, op_counts)
+
+      row = [
+        name <> " ( #{op_inspect}#{inputs} )",
+        "#{inspect(shape)}",
+        "#{num_params}"
+      ]
+
+      {row, name, cache, op_counts}
     end
   end
 
@@ -2361,10 +2389,21 @@ defmodule Axon do
     end
   end
 
+  # Names are generated lazily at inspect, intialization, and compile
+  # time, so for name we return a function which takes `op` and `op_count`
+  # and returns a unique name for the given model.
   defp unique_identifiers(type, nil) do
     id = System.unique_integer([:positive, :monotonic])
-    {id, Atom.to_string(type) <> "_#{id}"}
+
+    name = fn op, op_counts ->
+      count = op_counts[op] || 0
+      Atom.to_string(type) <> "_#{count}"
+    end
+
+    {id, name}
   end
 
-  defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
+  defp unique_identifiers(_type, name) do
+    {System.unique_integer([:positive, :monotonic]), fn _, _ -> name end}
+  end
 end
