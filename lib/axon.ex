@@ -1031,6 +1031,7 @@ defmodule Axon do
       * `kernel_size` - Pooling kernel size. Defaults to `1`.
       * `padding` - Padding to apply to input of pooling operation.
       * `strides` - Pooling strides. Defaults to size of kernel.
+      * `dilations` - Window dilations. Defaults to `1`.
       * `channels` - channel configuration. One of `:first` or `:last`.
         Defaults to `:first`.
 
@@ -1046,12 +1047,16 @@ defmodule Axon do
     strides = opts[:strides]
     padding = opts[:padding] || :valid
     channels = opts[:channels] || :first
+    dilations = opts[:dilations] || 1
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
     strides = if strides, do: strides, else: Tuple.to_list(kernel_size)
     strides = list_or_duplicate(:strides, strides, inner_rank)
-    output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding, channels)
+    dilations = list_or_duplicate(:dilations, dilations, inner_rank)
+
+    output_shape =
+      Axon.Shape.pool(parent_shape, kernel_size, strides, padding, dilations, channels)
 
     name = opts[:name]
 
@@ -1064,10 +1069,17 @@ defmodule Axon do
           strides: strides,
           padding: padding,
           channels: channels,
+          window_dilations: dilations,
           norm: norm
         ]
       else
-        [kernel_size: kernel_size, strides: strides, padding: padding, channels: channels]
+        [
+          kernel_size: kernel_size,
+          strides: strides,
+          padding: padding,
+          channels: channels,
+          window_dilations: dilations
+        ]
       end
 
     layer(x, pool, output_shape, %{}, name, opts)

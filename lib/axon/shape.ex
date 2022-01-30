@@ -977,13 +977,13 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid, :first)
+      iex> Axon.Shape.pool({nil, 3, 32, 32}, {2, 2}, [1, 2], :valid, [1, 1], :first)
       {nil, 3, 31, 16}
 
-      iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same, :first)
+      iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same, [1, 1], :first)
       {32, 1, 28, 28}
   """
-  def pool(parent_shape, kernel_size, strides, padding, channels) do
+  def pool(parent_shape, kernel_size, strides, padding, dilations, channels) do
     unless Nx.rank(parent_shape) >= 3 do
       raise ArgumentError,
             "input shape must be at least rank 3," <>
@@ -998,7 +998,7 @@ defmodule Axon.Shape do
         put_elem(parent_shape, 0, 1)
       end
 
-    kernel_dilation = List.duplicate(1, Nx.rank(parent_shape))
+    kernel_dilation = [1, 1 | dilations]
 
     padding =
       if is_list(padding),
