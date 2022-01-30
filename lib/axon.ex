@@ -2208,7 +2208,7 @@ defmodule Axon do
         cache
         |> Enum.sort()
         |> Enum.unzip()
-        |> Kernel.elem(1)
+        |> elem(1)
         |> Enum.map(&Kernel.elem(&1, 0))
 
       rows
