@@ -2,7 +2,7 @@ defmodule Axon.CompilerError do
   defexception [:exception, :graph]
 
   @impl true
-  def message(%{graph: %Axon{op: op, name: name}, exception: exception}) do
+  def message(%{graph: %Axon{op: op}, exception: exception}) do
     op_inspect =
       if is_atom(op) do
         Atom.to_string(op)
@@ -11,7 +11,7 @@ defmodule Axon.CompilerError do
       end
 
     """
-    error while building prediction for #{op_inspect} layer with name #{name}:
+    error while building prediction for #{op_inspect}:
 
     ** (#{inspect(exception.__struct__)}) #{Exception.message(exception)}
     """

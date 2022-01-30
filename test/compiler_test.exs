@@ -64,7 +64,7 @@ defmodule CompilerTest do
       exception = assert_raise Axon.CompilerError, fn -> predict_fn.(%{}, input) end
 
       assert Exception.message(exception) =~
-               "error while building prediction for input layer with name input_"
+               "error while building prediction for input:"
 
       assert Exception.message(exception) =~
                "** (ArgumentError) invalid input shape given to model"
