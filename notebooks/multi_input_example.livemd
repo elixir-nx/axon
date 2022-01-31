@@ -16,7 +16,7 @@ Mix.install([
 
 ### The XOR module task is to imitate a logical xor operation.
 
-To achieve this, first, we need to build a model. The model is not complicated at all. It contains an input layer with two inputs created by ```Axon.input``` and concatednated with ```Axon.concatenate```.Then we have one hidden layer and one output layer both generated using ```Axon.dense```. The model is a sequential neural net. In Axon, it's very convenient to create such a model. Just pipe a previous layer to the next layer using ```|>```, and that's it.
+First, we need to build a model.  It contains an input layer with two inputs created by `Axon.input` and concatenated with `Axon.concatenate`. Then we have one hidden layer and one output layer both generated using `Axon.dense`. The model is a sequential neural net. In Axon, it's very convenient to create such a model. Just pipe a previous layer to the next layer using `|>`, and that's it.
 
 ```elixir
 defp build_model(input_shape1, input_shape2) do
@@ -30,9 +30,9 @@ defp build_model(input_shape1, input_shape2) do
 end
 ```
 
-## Batches
+## Data
 
-The next step is to batch the training data. However, our batch function makes a little more than splitting the data. It also creates data (lines 2 and 3) and correct labels (line 4) since it's trivial for xor.
+The next step is to batch the training data. However, our batch function does a little more than just splitting or preprocessing input data - it generates data and labels. Since we want to compute the logical XOR of 2 inputs, we generate 2 batches of random binary inputs, and then compute a target using `Nx.logical_xor`.
 
 ```elixir
 defp batch do
@@ -45,7 +45,7 @@ end
 
 ## Training
 
-Then we define a training procedure. To implement the procedure pass the parameters of the trainig into ```Axon.Loop.trainer```. In our case *binary cross entropy* (loss) and *stochastic gradient descent* (optimizer). Then run the training process with ```Axon.Loop.run```.
+Then we define a training procedure. To implement the procedure pass the parameters of the training into `Axon.Loop.trainer`. In our case we use *binary cross entropy* for loss and *stochastic gradient descent* as the optimizer. We use binary cross entropy because we can consider the task of computing XOR the same as a binary classification problem. We want our output to have a binary label `0` or `1`, and binary cross entropy is typically used in these cases. Then run the training process with `Axon.Loop.run`.
 
 ```elixir
 defp train_model(model, data, epochs) do
@@ -76,7 +76,6 @@ end
 XOR.run()
 ```
 
-You might wonder why is our result almost 1, but not exactly 1. The answer is that the mode is trying to converge to logical xor, but the updates of weights are slower the better our model is.
 
 To improve the model performance, you can increase the number of training epochs.
 

@@ -2,46 +2,44 @@
 
 ## Introduction
 
-Autoencoder is a deep learning model which consists of two parts: encoder and decoder. The role of the encoder is to compress high dimensional data into low dimensional representation. Then decoder tries to recreate the original data from the encoded one.
-Autoencoders architecture is widely used in the following problems:
+An autoencoder is a deep learning model which consists of two parts: encoder and decoder. The encoder compresses high dimensional data into a low dimensional representation and feeds it to the decoder. The decoder tries to recreate the original data from the low dimensional representation.
+Autoencoders can be used in the following problems:
 
 * Dimensionality reduction
 * Noise reduction
 * Generative models
 * Data augmentation
 
-To learn more about autoencoders visit [an article about autoencoders](https://towardsdatascience.com/applied-deep-learning-part-3-autoencoders-1c083af4d798 "an article about autoencoders") and [Wikipedia](https://en.wikipedia.org/wiki/Autoencoder "Wikipedia") .
 
-As we have a basic knowledge about autoencoders we might dive into implementation.
+Let's walk through a basic autoencoder implementation in Axon to get a better understanding of how they work in practice.
 
 ## Imports
 
-At the very beginning, we have to import essential packages. ```Axon``` will be the primary tool to build a deep learning model. Apart from that, we need to import ```EXLA``` to accelerate calculations, ```Nx``` since it gives us useful functions like ```Nx.to_heatmap``` and tensor operations, and finally ```Scidata``` to download training data.
+First, we have to import some essential packages. `Axon` will be the primary tool to build and train the autoencoder. We also need to import `EXLA` for hardware acceleration, `Nx` for some basic tensor operations, and `Scidata` for downloading training data.
 
 ```elixir
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/exla", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.3"}
+  {:scidata, "~> 0.2.0"}
 ])
 ```
 
 ## Configure platforms precedence
 
-Configure default platform with accelerator precedence as tpu > cuda > rocm > host
+EXLA provides JIT compilation to hardware accelerators. We'll start by telling EXLA which order of accelerators to use. If you have a specific target in mind, such as `:cuda` or `:rocm`, you can adjust the precedence to reflect that. The order of precedence here is `tpu` > `cuda` > `rocm` > `host`:
 
 ```elixir
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
-```
 
 ## Encoder and decoder
 
 The first step is defining the encoder and decoder. Both are one-layer neural nets.
 
-In the encoder, we flatten the input using ```Axon.flatten``` because initially, it's image 28x28. Then we create a dense layer ```Axon.dense``` but with only ```latent_dim``` number of neurons (latent_dim < 28*28=784). The number of neurons has to be smaller than the length of the input vector since we need to compress the data.
+In the encoder, we start by flattening the input using `Axon.flatten` because initially, the input shape is {batch_size, 1, 28, 28} and we want to pass the input into a dense layer with `Axon.dense`. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` or latent space is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
 
-Next, we pass the output of the encoder to the decoder. Now we try to remap compressed data into original ones. That's why we use ```Axon.dense``` with 784 neurons. In the end, there is an ```Axon.reshape``` to convert outputs into an image with correct width and height.
+Next, we pass the output of the encoder to the decoder and try to reconstruct the compressed data into its original form. Since our original input had a dimensionality of 784, we use an `Axon.dense` layer with 784 neurons. Because our original data was normalized to have pixel values between 0 and 1, we use a `:sigmoid` activation in our dense layer to squeeze output values between 0 and 1. Our original input shape was 28x28, so we use `Axon.reshape` to convert the flattened representation of the outputs into an image with correct the width and height.
 
 ```elixir
 defp encoder(x, latent_dim) do
@@ -85,7 +83,7 @@ end
 
 ## Training the model
 
-Finally, we can train the model. We set model optimizer to *adam* and loss function to *MSE* with ```Axon.Loop.trainer```. To keep track of *MAE* use ```Axon.Loop.metric```. ```Axon.Loop.run``` trains the model with the given training data. Now we can test the autoencoder.
+Finally, we can train the model. We'll use the `:adam` and `:mean_squared_error` loss with `Axon.Loop.trainer`. Our loss function will measure the aggregate error between pixels of original images and the model's reconstructed images. We'll also `:mean_absolute_error` using `Axon.Loop.metric`. `Axon.Loop.run` trains the model with the given training data.
 
 Let $$p(x)$$ will be the prediction for input $$x$$, $$X = (x_{1}, x_{2}, ..., x_{n})$$ is a vector of input values and $$Y = (y_{1}, y_{2}, ..., y_{n})$$ is a vector of target output
 
