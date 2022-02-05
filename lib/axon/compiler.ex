@@ -55,15 +55,14 @@ defmodule Axon.Compiler do
   end
 
   defp compile_init(%Axon{} = graph) do
-    init_fn =
-      fn ->
-        {cache, _} = to_init_fun(graph, {%{}, %{}})
+    init_fn = fn ->
+      {cache, _} = to_init_fun(graph, {%{}, %{}})
 
-        cache
-        |> Enum.reduce(%{}, fn {_, layer}, layers_acc ->
-          Map.merge(layer, layers_acc)
-        end)
-      end
+      cache
+      |> Enum.reduce(%{}, fn {_, layer}, layers_acc ->
+        Map.merge(layer, layers_acc)
+      end)
+    end
 
     fn -> Nx.Defn.jit_or_apply(init_fn, []) end
   end
@@ -102,7 +101,7 @@ defmodule Axon.Compiler do
                 fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
                 Map.put(layer_params, name, fun)
               end)
-            
+
             layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
 
             name = name_fn.(op, op_counts)
@@ -157,7 +156,7 @@ defmodule Axon.Compiler do
                 fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
                 Map.put(layer_params, name, fun)
               end)
-            
+
             layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
 
             name = name_fn.(op, op_counts)
