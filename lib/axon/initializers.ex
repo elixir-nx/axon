@@ -587,10 +587,10 @@ defmodule Axon.Initializers do
         random_seed =
           case distribution do
             :uniform ->
-              Nx.random_uniform(flat_shape, type: type, backend: Nx.Defn.Expr)
+              Nx.random_uniform(flat_shape, type: type)
 
             :normal ->
-              Nx.random_normal(flat_shape, type: type, backend: Nx.Defn.Expr)
+              Nx.random_normal(flat_shape, type: type)
 
             dist ->
               raise ArgumentError,

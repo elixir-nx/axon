@@ -1,6 +1,7 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
+  import ExUnit.CaptureIO
   import AxonTestUtil
   require Axon
   alias Axon.MixedPrecision, as: AMP
@@ -3855,6 +3856,39 @@ defmodule CompilerTest do
                Nx.tensor([[6.0, 7.0]]),
                Nx.tensor([[8.0, 9.0]])
              }
+    end
+  end
+
+  describe "hooks" do
+    test "initialize hook" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(1, kernel_initializer: :ones)
+        |> Axon.attach_hook(&IO.inspect/1, on: :initialize)
+
+      params = %{"kernel" => Nx.tensor([[1.0]]), "bias" => Nx.tensor([0.0])}
+      assert capture_io(fn -> Axon.init(model) end) =~ inspect(params)
+    end
+
+    test "pre forward hook" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.relu()
+        |> Axon.attach_hook(&IO.inspect/1, on: :pre_forward)
+
+      inp = Nx.tensor([[1.0]])
+      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(inp)
+    end
+
+    test "forward hook" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.relu()
+        |> Axon.attach_hook(&IO.inspect/1, on: :forward)
+
+      inp = Nx.tensor([[1.0]])
+      out = Axon.Activations.relu(inp)
+      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(out)
     end
   end
 end

@@ -84,7 +84,8 @@ defmodule Axon do
   @doc false
   @derive {
     Nx.Container,
-    containers: [], keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
+    containers: [],
+    keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
   }
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
 
@@ -2046,12 +2047,12 @@ defmodule Axon do
 
   Hooks can be configured to be invoked on the following events:
 
-    * `:initialization` - on model initialization.
+    * `:initialize` - on model initialization.
     * `:pre_forward` - before layer forward pass is invoked.
     * `:forward` - after layer forward pass is invoked.
     * `:pre_backward` - before layer backward pass is invoked.
     * `:backward` - after layer backward pass is invoked.
-  
+
   To invoke a hook on every single event, you may pass `:all` to `on:`.
 
       Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :all)
@@ -2074,6 +2075,14 @@ defmodule Axon do
       |> Axon.attach_hook(&IO.inspect/1)
       # I will be executed second
       |> Axon.attach_hook(fn _ -> IO.write("HERE") end)
+
+  Hooks are executed at their point of attachment. You must insert hooks at each point
+  you want a hook to execute during model execution.
+
+      Axon.input({nil, 1})
+      |> Axon.attach_hook(&IO.inspect/1)
+      |> Axon.relu()
+      |> Axon.attach_hook(&IO.inspect/1)
   """
   def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
     on_event = opts[:on] || :forward
