@@ -1651,7 +1651,7 @@ defmodule Axon do
       for i <- 0..(n - 1) do
         layer(
           parent,
-          fn x, _ -> Nx.slice_axis(x, i * slice_size, slice_size, axis) end,
+          fn x, _ -> Nx.slice_along_axis(x, i * slice_size, slice_size, axis: axis) end,
           split_shape,
           %{},
           opts[:name]
