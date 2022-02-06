@@ -3864,10 +3864,12 @@ defmodule CompilerTest do
       model =
         Axon.input({nil, 1})
         |> Axon.dense(1, kernel_initializer: :ones)
-        |> Axon.attach_hook(&IO.inspect/1, on: :initialize)
+        |> Axon.attach_hook(fn x -> send(self(), x) end, on: :initialize)
 
-      params = %{"kernel" => Nx.tensor([[1.0]]), "bias" => Nx.tensor([0.0])}
-      assert capture_io(fn -> Axon.init(model) end) =~ inspect(params)
+      Axon.init(model)
+      assert_received %{"kernel" => kernel, "bias" => bias}
+      assert kernel == Nx.tensor([[1.0]])
+      assert bias == Nx.tensor([0.0])
     end
 
     test "pre forward hook" do
@@ -3883,12 +3885,11 @@ defmodule CompilerTest do
     test "forward hook" do
       model =
         Axon.input({nil, 1})
-        |> Axon.relu()
         |> Axon.attach_hook(&IO.inspect/1, on: :forward)
+        |> Axon.relu()
 
       inp = Nx.tensor([[1.0]])
-      out = Axon.Activations.relu(inp)
-      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(out)
+      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(inp)
     end
   end
 end
