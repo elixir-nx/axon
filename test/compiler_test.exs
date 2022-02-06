@@ -1,7 +1,6 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
-  import ExUnit.CaptureIO
   import AxonTestUtil
   require Axon
   alias Axon.MixedPrecision, as: AMP
@@ -3876,20 +3875,61 @@ defmodule CompilerTest do
       model =
         Axon.input({nil, 1})
         |> Axon.relu()
-        |> Axon.attach_hook(&IO.inspect/1, on: :pre_forward)
+        |> Axon.attach_hook(fn x -> send(self(), {x, :from_relu}) end, on: :pre_forward)
 
       inp = Nx.tensor([[1.0]])
-      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(inp)
+
+      Axon.predict(model, %{}, inp)
+
+      assert_receive {pre_relu, :from_relu}
+      assert pre_relu == inp
     end
 
     test "forward hook" do
       model =
         Axon.input({nil, 1})
-        |> Axon.attach_hook(&IO.inspect/1, on: :forward)
+        |> Axon.attach_hook(fn x -> send(self(), {x, :from_input}) end, on: :forward)
         |> Axon.relu()
 
       inp = Nx.tensor([[1.0]])
-      assert capture_io(fn -> Axon.predict(model, %{}, inp) end) =~ inspect(inp)
+
+      Axon.predict(model, %{}, inp)
+
+      assert_receive {from_inp, :from_input}
+      assert from_inp == inp
+    end
+
+    test "backward hook" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(10)
+        |> Axon.attach_hook(fn x -> send(self(), {x, :from_dense}) end, on: :backward)
+        |> Axon.relu()
+        |> Axon.attach_hook(fn x -> send(self(), {x, :from_relu}) end, on: :backward)
+        |> Axon.sigmoid()
+        |> Axon.attach_hook(fn x -> send(self(), {x, :from_sigmoid}) end, on: :backward)
+
+      params = Axon.init(model)
+      inp = Nx.random_uniform({1, 1})
+
+      axon_loss = fn params -> Nx.sum(Axon.predict(model, params, inp)) end
+
+      loss = fn params ->
+        inp
+        |> Axon.Layers.dense(params["dense_0"]["kernel"], params["dense_0"]["bias"])
+        |> Axon.Activations.relu()
+        |> Axon.Activations.sigmoid()
+        |> Nx.sum()
+      end
+
+      axon_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end, [params])
+      actual_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end, [params])
+
+      assert axon_grad_params == actual_grad_params
+
+      assert_receive {%Nx.Tensor{}, :from_dense}
+      assert_receive {%Nx.Tensor{}, :from_relu}
+      assert_receive {%Nx.Tensor{}, :from_sigmoid}
     end
   end
 end

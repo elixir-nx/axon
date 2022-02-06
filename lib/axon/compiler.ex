@@ -555,6 +555,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Activations, op, &1))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -579,6 +580,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Activations, op, &1))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -627,6 +629,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.dense(w, b)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -639,6 +642,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.dense(w, b)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -693,6 +697,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.bilinear(input2_hooked, w, b)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = %{prediction: out, state: Map.merge(input1.state, input2.state)}
         {res, {Map.put(cache, id, res), op_counts}}
@@ -709,6 +714,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.bilinear(input2_hooked, w, b)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -748,6 +754,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.embedding(w)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -759,6 +766,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.embedding(w)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -800,6 +808,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -812,6 +821,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -851,6 +861,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -910,6 +921,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, k, b, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -922,6 +934,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, k, b, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -972,6 +985,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.separable_conv2d(k1, b1, k2, b2, opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -984,6 +998,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.separable_conv2d(k1, b1, k2, b2, opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1036,6 +1051,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.separable_conv3d(k1, b1, k2, b2, k3, b3, opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1048,6 +1064,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.separable_conv3d(k1, b1, k2, b2, k3, b3, opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1104,6 +1121,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, g, b, mean, var, norm_opts]))
           |> then(fn {y, m, v} -> {Nx.as_type(y, output), m, v} end)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res =
           res
@@ -1122,6 +1140,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, g, b, mean, var, norm_opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1165,6 +1184,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, g, b, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1177,6 +1197,7 @@ defmodule Axon.Compiler do
           |> then(&apply(Axon.Layers, op, [&1, g, b, opts]))
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1292,6 +1313,7 @@ defmodule Axon.Compiler do
 
         out = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(res, output)}
         out = apply_hooks(out, :forward, :train, hooks)
+        out = apply_hooks(out, :backward, :train, hooks)
 
         state =
           res.state
@@ -1336,6 +1358,7 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(res, output)}
         res = apply_hooks(res, :forward, :inference, hooks)
+        res = apply_hooks(res, :backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1428,6 +1451,7 @@ defmodule Axon.Compiler do
 
         out = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(out, output)}
         out = apply_hooks(out, :forward, :train, hooks)
+        out = apply_hooks(out, :backward, :train, hooks)
 
         state =
           res.state
@@ -1475,6 +1499,7 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c1, output), Nx.as_type(c2, output)}, Nx.as_type(out, output)}
         res = apply_hooks(res, :forward, :inference, hooks)
+        res = apply_hooks(res, :backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1590,6 +1615,7 @@ defmodule Axon.Compiler do
 
         out = {{Nx.as_type(c, output)}, Nx.as_type(out, output)}
         out = apply_hooks(out, :forward, :train, hooks)
+        out = apply_hooks(out, :backward, :train, hooks)
 
         state = Map.merge(h.state, res.state)
         res = %{prediction: out, state: state}
@@ -1631,6 +1657,7 @@ defmodule Axon.Compiler do
 
         res = {{Nx.as_type(c, output)}, Nx.as_type(out, output)}
         res = apply_hooks(res, :forward, :inference, hooks)
+        res = apply_hooks(res, :backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1682,6 +1709,7 @@ defmodule Axon.Compiler do
           end)
 
         out = apply_hooks(out, :forward, :train, hooks)
+        out = apply_hooks(out, :backward, :train, hooks)
 
         res = %{prediction: out, state: state}
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1701,6 +1729,7 @@ defmodule Axon.Compiler do
           end)
 
         res = apply_hooks(res, :forward, :inference, hooks)
+        res = apply_hooks(res, :backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1736,6 +1765,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.flatten()
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1748,6 +1778,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.flatten()
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1793,6 +1824,7 @@ defmodule Axon.Compiler do
           |> Nx.reshape(reshape_shape)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1815,6 +1847,7 @@ defmodule Axon.Compiler do
           |> Nx.reshape(reshape_shape)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1849,6 +1882,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.resize(opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1861,6 +1895,7 @@ defmodule Axon.Compiler do
           |> Axon.Layers.resize(opts)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1902,6 +1937,7 @@ defmodule Axon.Compiler do
           |> Nx.transpose(axes: permutation)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1914,6 +1950,7 @@ defmodule Axon.Compiler do
           |> Nx.transpose(axes: permutation)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -1950,6 +1987,7 @@ defmodule Axon.Compiler do
           |> Nx.pad(value, config)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -1962,6 +2000,7 @@ defmodule Axon.Compiler do
           |> Nx.pad(value, config)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -2006,6 +2045,7 @@ defmodule Axon.Compiler do
           |> Nx.concatenate(axis: axis)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         state = Enum.reduce(exprs, %{}, &Map.merge(&1.state, &2))
         res = %{prediction: out, state: state}
@@ -2025,6 +2065,7 @@ defmodule Axon.Compiler do
           |> Nx.concatenate(axis: axis)
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :inference, hooks)
+          |> apply_hooks(:backward, :inference, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -2083,6 +2124,7 @@ defmodule Axon.Compiler do
 
         out = Nx.as_type(out, output)
         out = apply_hooks(out, :forward, :train, hooks)
+        out = apply_hooks(out, :backward, :train, hooks)
 
         state =
           cond_input_expr.state
@@ -2118,6 +2160,7 @@ defmodule Axon.Compiler do
 
         res = Nx.as_type(res, output)
         res = apply_hooks(res, :forward, :inference, hooks)
+        res = apply_hooks(res, :backward, :inference, hooks)
         {res, {Map.put(cache, id, res), op_counts}}
     end
   end
@@ -2153,6 +2196,7 @@ defmodule Axon.Compiler do
           |> nx_fun.()
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         res = Map.update!(res, :prediction, fn _ -> out end)
         {res, {Map.put(cache, id, res), op_counts}}
@@ -2165,6 +2209,7 @@ defmodule Axon.Compiler do
           |> nx_fun.()
           |> Nx.as_type(output)
           |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
 
         {res, {Map.put(cache, id, res), op_counts}}
     end
@@ -2218,11 +2263,17 @@ defmodule Axon.Compiler do
 
     case mode do
       :train ->
-        res = %{prediction: apply_hooks(res, :forward, :train, hooks), state: %{}}
+        pred =
+          res
+          |> apply_hooks(:forward, :train, hooks)
+          |> apply_hooks(:backward, :train, hooks)
+
+        res = %{prediction: pred, state: %{}}
         {res, {Map.put(cache, id, res), op_counts}}
 
       :inference ->
         res = apply_hooks(res, :forward, :train, hooks)
+        res = apply_hooks(res, :backward, :train, hooks)
         {res, {Map.put(cache, id, res), op_counts}}
     end
   end
@@ -2238,7 +2289,14 @@ defmodule Axon.Compiler do
       mode? = on_mode == mode or on_mode == :both or mode == nil
 
       if event? and mode? do
-        Nx.Defn.Kernel.hook(expr, hook_fn)
+        if on_event == :backward do
+          Nx.Defn.Kernel.custom_grad(expr, fn _ans, g ->
+            hooked_g = Nx.Defn.Kernel.hook(g, hook_fn)
+            [{expr, hooked_g}]
+          end)
+        else
+          Nx.Defn.Kernel.hook(expr, hook_fn)
+        end
       else
         expr
       end
