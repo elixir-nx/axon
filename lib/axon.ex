@@ -2050,7 +2050,6 @@ defmodule Axon do
     * `:initialize` - on model initialization.
     * `:pre_forward` - before layer forward pass is invoked.
     * `:forward` - after layer forward pass is invoked.
-    * `:pre_backward` - before layer backward pass is invoked.
     * `:backward` - after layer backward pass is invoked.
 
   To invoke a hook on every single event, you may pass `:all` to `on:`.
