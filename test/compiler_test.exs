@@ -5,8 +5,9 @@ defmodule CompilerTest do
   require Axon
   alias Axon.MixedPrecision, as: AMP
 
-  setup do
+  setup config do
     Nx.Defn.default_options(compiler: test_compiler())
+    Process.register(self(), config.test)
     :ok
   end
 
@@ -3859,23 +3860,23 @@ defmodule CompilerTest do
   end
 
   describe "hooks" do
-    test "initialize hook" do
+    test "initialize hook", config do
       model =
         Axon.input({nil, 1})
         |> Axon.dense(1, kernel_initializer: :ones)
-        |> Axon.attach_hook(fn x -> send(self(), x) end, on: :initialize)
+        |> Axon.attach_hook(fn x -> send(config.test, x) end, on: :initialize)
 
       Axon.init(model)
-      assert_received %{"kernel" => kernel, "bias" => bias}
+      assert_receive %{"kernel" => kernel, "bias" => bias}
       assert kernel == Nx.tensor([[1.0]])
       assert bias == Nx.tensor([0.0])
     end
 
-    test "pre forward hook" do
+    test "pre forward hook", config do
       model =
         Axon.input({nil, 1})
         |> Axon.relu()
-        |> Axon.attach_hook(fn x -> send(self(), {x, :from_relu}) end, on: :pre_forward)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_relu}) end, on: :pre_forward)
 
       inp = Nx.tensor([[1.0]])
 
@@ -3885,10 +3886,10 @@ defmodule CompilerTest do
       assert pre_relu == inp
     end
 
-    test "forward hook" do
+    test "forward hook", config do
       model =
         Axon.input({nil, 1})
-        |> Axon.attach_hook(fn x -> send(self(), {x, :from_input}) end, on: :forward)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_input}) end, on: :forward)
         |> Axon.relu()
 
       inp = Nx.tensor([[1.0]])
@@ -3899,15 +3900,15 @@ defmodule CompilerTest do
       assert from_inp == inp
     end
 
-    test "backward hook" do
+    test "backward hook", config do
       model =
         Axon.input({nil, 1})
         |> Axon.dense(10)
-        |> Axon.attach_hook(fn x -> send(self(), {x, :from_dense}) end, on: :backward)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_dense}) end, on: :backward)
         |> Axon.relu()
-        |> Axon.attach_hook(fn x -> send(self(), {x, :from_relu}) end, on: :backward)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_relu}) end, on: :backward)
         |> Axon.sigmoid()
-        |> Axon.attach_hook(fn x -> send(self(), {x, :from_sigmoid}) end, on: :backward)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_sigmoid}) end, on: :backward)
 
       params = Axon.init(model)
       inp = Nx.random_uniform({1, 1})
