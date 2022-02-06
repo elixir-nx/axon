@@ -84,9 +84,10 @@ defmodule Axon do
   @doc false
   @derive {
     Nx.Container,
-    containers: [], keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+    containers: [],
+    keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
   }
-  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
 
   @doc """
   Custom Axon layer with given parent and trainable parameters.
@@ -127,6 +128,7 @@ defmodule Axon do
       op: op,
       params: parameters,
       policy: Axon.MixedPrecision.create_policy(),
+      hooks: [],
       opts: opts
     }
   end
@@ -1649,7 +1651,7 @@ defmodule Axon do
       for i <- 0..(n - 1) do
         layer(
           parent,
-          fn x, _ -> Nx.slice_axis(x, i * slice_size, slice_size, axis) end,
+          fn x, _ -> Nx.slice_along_axis(x, i * slice_size, slice_size, axis: axis) end,
           split_shape,
           %{},
           opts[:name]
@@ -2033,6 +2035,59 @@ defmodule Axon do
 
       %{axon | params: frozen_params}
     end)
+  end
+
+  @doc """
+  Attaches a hook to the given Axon model.
+
+  Hooks compile down to `Nx.Defn.Kernel.hook/3` and provide the same
+  functionality for adding side-effecting operations to a compiled
+  model. For example, you can use hooks to inspect intermediate activations,
+  send data to an external service, and more.
+
+  Hooks can be configured to be invoked on the following events:
+
+    * `:initialize` - on model initialization.
+    * `:pre_forward` - before layer forward pass is invoked.
+    * `:forward` - after layer forward pass is invoked.
+    * `:backward` - after layer backward pass is invoked.
+
+  To invoke a hook on every single event, you may pass `:all` to `on:`.
+
+      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :all)
+
+  The default event is `:forward`, assuming you want a hook invoked
+  on the layers forward pass.
+
+  You may configure hooks to run in one of only training or inference
+  mode using the `:mode` option. The default mode is `:both` to be invoked
+  during both train and inference mode.
+
+      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
+
+  You can also attach multiple hooks to a single layer. Hooks are invoked in
+  the order in which they are declared. If order is important, you should attach
+  hooks in the order you want them to be executed:
+
+      Axon.input({nil, 1})
+      # I will be executed first
+      |> Axon.attach_hook(&IO.inspect/1)
+      # I will be executed second
+      |> Axon.attach_hook(fn _ -> IO.write("HERE") end)
+
+  Hooks are executed at their point of attachment. You must insert hooks at each point
+  you want a hook to execute during model execution.
+
+      Axon.input({nil, 1})
+      |> Axon.attach_hook(&IO.inspect/1)
+      |> Axon.relu()
+      |> Axon.attach_hook(&IO.inspect/1)
+  """
+  def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
+    on_event = opts[:on] || :forward
+    mode = opts[:mode] || :both
+
+    %{axon | hooks: [{on_event, mode, fun} | hooks]}
   end
 
   ## Traversal

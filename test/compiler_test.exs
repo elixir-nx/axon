@@ -5,8 +5,9 @@ defmodule CompilerTest do
   require Axon
   alias Axon.MixedPrecision, as: AMP
 
-  setup do
+  setup config do
     Nx.Defn.default_options(compiler: test_compiler())
+    Process.register(self(), config.test)
     :ok
   end
 
@@ -3855,6 +3856,81 @@ defmodule CompilerTest do
                Nx.tensor([[6.0, 7.0]]),
                Nx.tensor([[8.0, 9.0]])
              }
+    end
+  end
+
+  describe "hooks" do
+    test "initialize hook", config do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(1, kernel_initializer: :ones)
+        |> Axon.attach_hook(fn x -> send(config.test, x) end, on: :initialize)
+
+      Axon.init(model)
+      assert_receive %{"kernel" => kernel, "bias" => bias}
+      assert kernel == Nx.tensor([[1.0]])
+      assert bias == Nx.tensor([0.0])
+    end
+
+    test "pre forward hook", config do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.relu()
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_relu}) end, on: :pre_forward)
+
+      inp = Nx.tensor([[1.0]])
+
+      Axon.predict(model, %{}, inp)
+
+      assert_receive {pre_relu, :from_relu}
+      assert pre_relu == inp
+    end
+
+    test "forward hook", config do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_input}) end, on: :forward)
+        |> Axon.relu()
+
+      inp = Nx.tensor([[1.0]])
+
+      Axon.predict(model, %{}, inp)
+
+      assert_receive {from_inp, :from_input}
+      assert from_inp == inp
+    end
+
+    test "backward hook", config do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(10)
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_dense}) end, on: :backward)
+        |> Axon.relu()
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_relu}) end, on: :backward)
+        |> Axon.sigmoid()
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_sigmoid}) end, on: :backward)
+
+      params = Axon.init(model)
+      inp = Nx.random_uniform({1, 1})
+
+      axon_loss = fn params -> Nx.sum(Axon.predict(model, params, inp)) end
+
+      loss = fn params ->
+        inp
+        |> Axon.Layers.dense(params["dense_0"]["kernel"], params["dense_0"]["bias"])
+        |> Axon.Activations.relu()
+        |> Axon.Activations.sigmoid()
+        |> Nx.sum()
+      end
+
+      axon_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end, [params])
+      actual_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end, [params])
+
+      assert axon_grad_params == actual_grad_params
+
+      assert_receive {%Nx.Tensor{}, :from_dense}
+      assert_receive {%Nx.Tensor{}, :from_relu}
+      assert_receive {%Nx.Tensor{}, :from_sigmoid}
     end
   end
 end
