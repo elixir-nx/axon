@@ -1894,11 +1894,14 @@ defmodule Axon.Layers do
       {img, shape, spatial_dimensions, :nearest, _} ->
         resize_nearest(img, shape, spatial_dimensions)
 
-      {img, shape, [dim], :linear, align_corners} ->
-        resize_linear(img, shape, dim, align_corners)
+      {img, shape, spatial_dimensions, :linear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
 
       {img, shape, spatial_dimensions, :bilinear, align_corners} ->
-        resize_bilinear(img, shape, spatial_dimensions, align_corners)
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :trilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
 
       {_, _, _, method} ->
         raise ArgumentError,
@@ -1930,23 +1933,13 @@ defmodule Axon.Layers do
     end)
   end
 
-  defp resize_linear(input, output_shape, spatial_dimension, align_corners) do
-    case align_corners do
-      :true -> resize_linear_align(input, output_shape, spatial_dimension)
-      :false -> resize_linear_noalign(input, output_shape, spatial_dimension)
-    end
-  end
-
-  defp resize_bilinear(input, output_shape, [dim1, dim2], align_corners) do
-    case align_corners do
-      :true ->
-        input
-        |> resize_linear_align(output_shape, dim1)
-        |> resize_linear_align(output_shape, dim2)
-      :false ->
-        input
-        |> resize_linear_noalign(output_shape, dim1)
-        |> resize_linear_noalign(output_shape, dim2)
+  defp resize_linear(input, output_shape, spatial_dimensions, align_corners) do
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        case align_corners do
+          :true -> resize_linear_align(input, output_shape, d)
+          :false -> resize_linear_noalign(input, output_shape, d)
+        end
     end
   end
 
