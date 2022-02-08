@@ -1937,8 +1937,8 @@ defmodule Axon.Layers do
     for d <- spatial_dimensions, reduce: input do
       input ->
         case align_corners do
-          :true -> resize_linear_align(input, output_shape, d)
-          :false -> resize_linear_noalign(input, output_shape, d)
+          true -> resize_linear_align(input, output_shape, d)
+          false -> resize_linear_noalign(input, output_shape, d)
         end
     end
   end
