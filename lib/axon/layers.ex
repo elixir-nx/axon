@@ -1793,7 +1793,7 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported resize methods are `:nearest`.
+  Supported resize methods are `:nearest, :linear`.
 
   ## Examples
 
