@@ -1903,7 +1903,7 @@ defmodule Axon.Layers do
       {img, shape, spatial_dimensions, :trilinear, align_corners} ->
         resize_linear(img, shape, spatial_dimensions, align_corners)
 
-      {_, _, _, method} ->
+      {_, _, _, method, _} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
                 " must be one of :nearest"
