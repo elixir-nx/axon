@@ -1950,7 +1950,7 @@ defmodule Axon.Layers do
     Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 
-  defnp resize_linear_noalign(input, output_shape, spatial_dimension) do
+  defp resize_linear_noalign(input, output_shape, spatial_dimension) do
     in_size = elem(Nx.shape(input), spatial_dimension)
     out_size = elem(output_shape, spatial_dimension)
     w = in_size / out_size
@@ -1966,6 +1966,8 @@ defmodule Axon.Layers do
     w_next = Nx.subtract(1.0, w_prev)
     val_prev = Nx.take(input, Nx.max(id_prev, 0), axis: spatial_dimension)
     val_next = Nx.take(input, Nx.min(id_next, in_size - 1), axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
     Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 end
