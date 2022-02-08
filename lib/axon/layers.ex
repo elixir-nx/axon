@@ -1940,7 +1940,7 @@ defmodule Axon.Layers do
       |> Nx.divide(out_size - 1)
 
     id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
-    id_next = Nx.add(id_prev, 1) |> Nx.put_slice([out_size - 1], Nx.tensor([in_size - 1]))
+    id_next = Nx.add(id_prev, 1) |> Nx.min(in_size - 1)
     w_prev = Nx.subtract(id_next, ids)
     w_next = Nx.subtract(1.0, w_prev)
     val_prev = Nx.take(input, id_prev, axis: spatial_dimension)
