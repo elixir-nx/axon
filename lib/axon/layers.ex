@@ -1855,7 +1855,7 @@ defmodule Axon.Layers do
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(input, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false])
     output_shape = opts[:shape]
 
     # Input must be at least rank 3
@@ -1890,9 +1890,15 @@ defmodule Axon.Layers do
         end
       end)
 
-    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
-      {img, shape, spatial_dimensions, :nearest} ->
+    transform({input, output_shape, spatial_dimensions, opts[:method], opts[:align_corners]}, fn
+      {img, shape, spatial_dimensions, :nearest, _} ->
         resize_nearest(img, shape, spatial_dimensions)
+
+      {img, shape, [dim], :linear, true} ->
+        resize_linear_align(img, shape, dim)
+
+      {img, shape, [dim], :linear, false} ->
+        resize_linear_noalign(img, shape, dim)
 
       {_, _, _, method} ->
         raise ArgumentError,
@@ -1922,5 +1928,44 @@ defmodule Axon.Layers do
           Nx.take_along_axis(input, offset, axis: d)
       end
     end)
+  end
+
+  defnp resize_linear_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1) |> Nx.put_slice([out_size - 1], Nx.tensor([in_size - 1]))
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, id_prev, axis: spatial_dimension)
+    val_next = Nx.take(input, id_next, axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
+  end
+
+  defnp resize_linear_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, Nx.max(id_prev, 0), axis: spatial_dimension)
+    val_next = Nx.take(input, Nx.min(id_next, in_size - 1), axis: spatial_dimension)
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 end
