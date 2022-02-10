@@ -10,7 +10,6 @@ Autoencoders can be used in the following problems:
 * Generative models
 * Data augmentation
 
-
 Let's walk through a basic autoencoder implementation in Axon to get a better understanding of how they work in practice.
 
 ## Imports
@@ -22,7 +21,7 @@ Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, github: "elixir-nx/exla", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.2.0"}
+  {:scidata, "~> 0.1.5"}
 ])
 ```
 
@@ -32,10 +31,29 @@ EXLA provides JIT compilation to hardware accelerators. We'll start by telling E
 
 ```elixir
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+```
+
+## Downloading Data
+
+To train and test how our model works, we use one of the most popular data set: MNIST fashion. It consists of small black and white images of clothes. Loading this data set is very simple. Just use ```Scidata.FashionMNIST.download()```.
+
+## Preprocessing of the images
+
+The next step is image preprocessing. First, we need to load the training data into tensor using ```Nx.from_binary``` and reshape with ```Nx.reshape```. Then normalize the data with ```Nx.divide``` and split the dataset into a list of batches with ```Nx.to_batched_list```.
+
+```elixir
+defp transform_images({bin, type, shape}) do
+  bin
+  |> Nx.from_binary(type)
+  |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+  |> Nx.divide(255.0)
+  |> Nx.to_batched_list(32)
+end
+```
 
 ## Encoder and decoder
 
-The first step is defining the encoder and decoder. Both are one-layer neural nets.
+First we need to define the encoder and decoder. Both are one-layer neural nets.
 
 In the encoder, we start by flattening the input using `Axon.flatten` because initially, the input shape is {batch_size, 1, 28, 28} and we want to pass the input into a dense layer with `Axon.dense`. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` or latent space is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
 
@@ -67,33 +85,9 @@ def build_model(input_shape, latent_dim) do
 end
 ```
 
-## Preprocessing of the images
-
-The next step is image preprocessing. First, we need to load the training data into tensor using ```Nx.from_binary``` and reshape with ```Nx.reshape```. Then normalize the data with ```Nx.divide``` and split the dataset into a list of batches with ```Nx.to_batched_list```.
-
-```elixir
-defp transform_images({bin, type, shape}) do
-  bin
-  |> Nx.from_binary(type)
-  |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-  |> Nx.divide(255.0)
-  |> Nx.to_batched_list(32)
-end
-```
-
 ## Training the model
 
 Finally, we can train the model. We'll use the `:adam` and `:mean_squared_error` loss with `Axon.Loop.trainer`. Our loss function will measure the aggregate error between pixels of original images and the model's reconstructed images. We'll also `:mean_absolute_error` using `Axon.Loop.metric`. `Axon.Loop.run` trains the model with the given training data.
-
-Let $$p(x)$$ will be the prediction for input $$x$$, $$X = (x_{1}, x_{2}, ..., x_{n})$$ is a vector of input values and $$Y = (y_{1}, y_{2}, ..., y_{n})$$ is a vector of target output
-
-then
-
-$$MSE(X, Y) = \frac{1}{n}\sum_{i=1}^{n} (p(x_{i})-y_{i})^{2}$$
-
-and
-
-$$MAE(X, Y) = \frac{1}{n}\sum_{i=1}^{n} |p(x_{i})-y_{i}|$$
 
 ```elixir
 defp train_model(model, train_images, epochs) do
@@ -104,33 +98,105 @@ defp train_model(model, train_images, epochs) do
 end
 ```
 
-## Evaluation of the model
-
-To train and test how our model works, we use one of the most popular data set: MNIST fashion. It consists of small black and white images of clothes. Loading this data set is very simple. Just use ```Scidata.FashionMNIST.download()```.
+To better understand what is mean absolute error and mean square error let's go trough an example.
 
 ```elixir
-def run do
+defmodule Example do
+  defp transform_images({bin, type, shape}) do
+    bin
+    |> Nx.from_binary(type)
+    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.divide(255.0)
+    |> Nx.to_batched_list(32)
+  end
+
+  def calculate_mse(y_pred, y) do
+    y_pred
+    |> Nx.subtract(y)
+    |> Nx.power(2)
+    |> Nx.mean(axes: [-1])
+    |> Nx.sum()
+  end
+
+  def calculate_mae(y_pred, y) do
+    y_pred
+    |> Nx.subtract(y)
+    |> Nx.abs()
+    |> Nx.mean(axes: [-1])
+    |> Nx.sum()
+  end
+
+  def run_example do
     {images, _} = Scidata.FashionMNIST.download()
 
     train_images = transform_images(images)
 
-    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect()
-
-    model_state = train_model(model, train_images, 5)
-
-    sample_image =
+    shoe_image =
       train_images
       |> hd()
       |> Nx.slice_axis(0, 1, 0)
       |> Nx.reshape({1, 1, 28, 28})
 
-    sample_image |> Nx.to_heatmap() |> IO.inspect()
+    noised_shoe_image =
+      train_images
+      |> hd()
+      |> Nx.slice_axis(0, 1, 0)
+      |> Nx.reshape({1, 1, 28, 28})
+      |> Nx.add(Nx.random_normal({1, 1, 28, 28}, 0.0, 0.05))
 
-    model
-    |> Axon.predict(model_state, sample_image, compiler: EXLA)
-    |> Nx.to_heatmap()
-    |> IO.inspect()
+    random_image =
+      train_images
+      |> Enum.at(1)
+      |> Nx.slice_axis(0, 1, 0)
+      |> Nx.reshape({1, 1, 28, 28})
+
+    same_images_mse_error = calculate_mse(shoe_image, shoe_image)
+    similar_images_mse_error = calculate_mse(shoe_image, noised_shoe_image)
+    different_images_mse_error = calculate_mse(shoe_image, random_image)
+
+    same_images_mae_error = calculate_mae(shoe_image, shoe_image)
+    similar_images_mae_error = calculate_mae(shoe_image, noised_shoe_image)
+    different_images_mae_error = calculate_mae(shoe_image, random_image)
+
+    %{
+      :same => {[mse: same_images_mse_error], [mae: same_images_mae_error]},
+      :similar => {[mse: similar_images_mse_error], [mae: similar_images_mae_error]},
+      :different => {[mse: different_images_mse_error], [mae: different_images_mae_error]}
+    }
   end
+end
+```
+
+```elixir
+Example.run_example()
+```
+
+We choose an image of a shoe as a reference. As we can see, the error for the same picture is 0 (both mae and mse). Indeed, when we have two exact copies, there is no pixel with different values, and the error is equal to zero. Noised image has a non-zero mse and mae but is much smaller than the error of two completely different pictures. This fact indicates the level of similarity between images. The small error implies decent prediction values. On the other hand, a large value of loss suggests poor quality of predictions.
+
+## Evaluation of the model
+
+```elixir
+def run do
+  {images, _} = Scidata.FashionMNIST.download()
+
+  train_images = transform_images(images)
+
+  model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect()
+
+  model_state = train_model(model, train_images, 5)
+
+  sample_image =
+    train_images
+    |> hd()
+    |> Nx.slice_axis(0, 1, 0)
+    |> Nx.reshape({1, 1, 28, 28})
+
+  sample_image |> Nx.to_heatmap() |> IO.inspect()
+
+  model
+  |> Axon.predict(model_state, sample_image, compiler: EXLA)
+  |> Nx.to_heatmap()
+  |> IO.inspect()
 end
 ```
 
