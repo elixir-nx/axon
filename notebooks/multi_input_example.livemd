@@ -14,6 +14,14 @@ Mix.install([
 
 ## XOR model
 
+###
+
+<!-- livebook:{"break_markdown":true} -->
+
+A "single-layer" perceptron can't implement XOR. The reason is because the classes in XOR are not linearly separable. You cannot draw a straight line to separate the points (0,0),(1,1) from the points (0,1),(1,0). The issue was overcame with deep learning methods. They can separate data with much more complicated patterns within the data.
+
+<!-- livebook:{"break_markdown":true} -->
+
 ### The XOR module task is to imitate a logical xor operation.
 
 First, we need to build a model.  It contains an input layer with two inputs created by `Axon.input` and concatenated with `Axon.concatenate`. Then we have one hidden layer and one output layer both generated using `Axon.dense`. The model is a sequential neural net. In Axon, it's very convenient to create such a model. Just pipe a previous layer to the next layer using `|>`, and that's it.
@@ -75,7 +83,6 @@ end
 ```elixir
 XOR.run()
 ```
-
 
 To improve the model performance, you can increase the number of training epochs.
 
