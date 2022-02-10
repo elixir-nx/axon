@@ -1793,7 +1793,7 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported reize methods are `:nearest`.
+  Supported resize methods are `:nearest, :linear, :bilinear, trilinear`.
 
   ## Examples
 
@@ -1855,7 +1855,7 @@ defmodule Axon.Layers do
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(input, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false])
     output_shape = opts[:shape]
 
     # Input must be at least rank 3
@@ -1890,11 +1890,20 @@ defmodule Axon.Layers do
         end
       end)
 
-    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
-      {img, shape, spatial_dimensions, :nearest} ->
+    transform({input, output_shape, spatial_dimensions, opts[:method], opts[:align_corners]}, fn
+      {img, shape, spatial_dimensions, :nearest, _} ->
         resize_nearest(img, shape, spatial_dimensions)
 
-      {_, _, _, method} ->
+      {img, shape, spatial_dimensions, :linear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :bilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :trilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {_, _, _, method, _} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
                 " must be one of :nearest"
@@ -1922,5 +1931,56 @@ defmodule Axon.Layers do
           Nx.take_along_axis(input, offset, axis: d)
       end
     end)
+  end
+
+  defp resize_linear(input, output_shape, spatial_dimensions, align_corners) do
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        case align_corners do
+          true -> resize_linear_align(input, output_shape, d)
+          false -> resize_linear_noalign(input, output_shape, d)
+        end
+    end
+  end
+
+  defnp resize_linear_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1) |> Nx.min(in_size - 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, id_prev, axis: spatial_dimension)
+    val_next = Nx.take(input, id_next, axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
+  end
+
+  defnp resize_linear_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, Nx.max(id_prev, 0), axis: spatial_dimension)
+    val_next = Nx.take(input, Nx.min(id_next, in_size - 1), axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 end
