@@ -2340,7 +2340,7 @@ defmodule CompilerTest do
     end
   end
 
-  describe "lstm" do
+  describe "e" do
     test "initializes in default case" do
       model = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
 
@@ -3931,6 +3931,91 @@ defmodule CompilerTest do
       assert_receive {%Nx.Tensor{}, :from_dense}
       assert_receive {%Nx.Tensor{}, :from_relu}
       assert_receive {%Nx.Tensor{}, :from_sigmoid}
+    end
+  end
+
+  describe "integrated models" do
+    test "basic feed forward model initializes correctly" do
+      model =
+        Axon.input({nil, 2})
+        |> Axon.dense(8)
+        |> Axon.dense(1)
+
+      assert %{"dense_0" => dense_0_params, "dense_1" => dense_1_params} =
+        Axon.init(model)
+
+      assert %{"kernel" => k0, "bias" => b0} = dense_0_params
+      assert %{"kernel" => k1, "bias" => b1} = dense_1_params
+      assert Nx.shape(k0) == {2, 8}
+      assert Nx.shape(b0) == {8}
+      assert Nx.shape(k1) == {8, 1}
+      assert Nx.shape(b1) == {1}
+    end
+
+    test "recurrent model initalizes correctly" do
+      input = Axon.input({nil, 8, 2})
+
+      {state, _} = input |> Axon.lstm(4)
+      {_, out} = input |> Axon.lstm(8, hidden_state: state)
+
+      assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} =
+        Axon.init(out)
+
+      assert %{
+                "wii" => wii_0,
+                "wif" => wif_0,
+                "wig" => wig_0,
+                "wio" => wio_0,
+                "whi" => whi_0,
+                "whf" => whf_0,
+                "whg" => whg_0,
+                "who" => who_0,
+                "bi" => bi_0,
+                "bf" => bf_0,
+                "bg" => bg_0,
+                "bo" => bo_0
+               } = lstm_0_params
+
+      assert Nx.shape(wii_0) == {2, 4}
+      assert Nx.shape(wif_0) == {2, 4}
+      assert Nx.shape(wig_0) == {2, 4}
+      assert Nx.shape(wio_0) == {2, 4}
+      assert Nx.shape(whi_0) == {4, 4}
+      assert Nx.shape(whf_0) == {4, 4}
+      assert Nx.shape(whg_0) == {4, 4}
+      assert Nx.shape(who_0) == {4, 4}
+      assert Nx.shape(bi_0) == {4}
+      assert Nx.shape(bf_0) == {4}
+      assert Nx.shape(bg_0) == {4}
+      assert Nx.shape(bo_0) == {4}
+
+      assert %{
+          "wii" => wii_1,
+          "wif" => wif_1,
+          "wig" => wig_1,
+          "wio" => wio_1,
+          "whi" => whi_1,
+          "whf" => whf_1,
+          "whg" => whg_1,
+          "who" => who_1,
+          "bi" => bi_1,
+          "bf" => bf_1,
+          "bg" => bg_1,
+          "bo" => bo_1
+         } = lstm_1_params
+
+      assert Nx.shape(wii_1) == {2, 8}
+      assert Nx.shape(wif_1) == {2, 8}
+      assert Nx.shape(wig_1) == {2, 8}
+      assert Nx.shape(wio_1) == {2, 8}
+      assert Nx.shape(whi_1) == {8, 8}
+      assert Nx.shape(whf_1) == {8, 8}
+      assert Nx.shape(whg_1) == {8, 8}
+      assert Nx.shape(who_1) == {8, 8}
+      assert Nx.shape(bi_1) == {8}
+      assert Nx.shape(bf_1) == {8}
+      assert Nx.shape(bg_1) == {8}
+      assert Nx.shape(bo_1) == {8}
     end
   end
 end

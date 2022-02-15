@@ -83,38 +83,37 @@ defmodule Axon.Compiler do
            policy: %{params: dtype},
            hooks: hooks
          },
-         {cache, op_counts}
+         cache_and_counts
        )
        when is_list(parents) do
-    cache_and_counts =
-      case cache do
-        %{^id => _} ->
+    {cache, op_counts} = Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
+
+    case cache do
+      %{^id => _} ->
+        {cache, op_counts}
+
+      %{} ->
+        if Enum.empty?(params) do
           {cache, op_counts}
+        else
+          layer_params =
+            Enum.reduce(params, %{}, fn {_, param}, layer_params ->
+              %{name: name, shape: shape, initializer: initializer} = param
+              fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+              Map.put(layer_params, name, fun)
+            end)
 
-        %{} ->
-          if Enum.empty?(params) do
-            {cache, op_counts}
-          else
-            layer_params =
-              Enum.reduce(params, %{}, fn {_, param}, layer_params ->
-                %{name: name, shape: shape, initializer: initializer} = param
-                fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
-                Map.put(layer_params, name, fun)
-              end)
+          layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
 
-            layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
+          name = name_fn.(op, op_counts)
+          params = %{name => layer_params}
 
-            name = name_fn.(op, op_counts)
-            params = %{name => layer_params}
-
-            {
-              Map.put(cache, id, params),
-              Map.update(op_counts, op, 1, fn x -> x + 1 end)
-            }
-          end
-      end
-
-    Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
+          {
+            Map.put(cache, id, params),
+            Map.update(op_counts, op, 1, fn x -> x + 1 end)
+          }
+        end
+    end
   end
 
   defp to_init_fun(
@@ -128,8 +127,15 @@ defmodule Axon.Compiler do
            policy: %{params: dtype},
            hooks: hooks
          },
-         {cache, op_counts}
+         cache_and_counts
        ) do
+    {cache, op_counts} =
+      if parent do
+        to_init_fun(parent, cache_and_counts)
+      else
+        cache_and_counts
+      end
+
     {cache, op_counts} =
       case opts[:hidden_state] do
         state when is_tuple(state) ->
@@ -141,38 +147,31 @@ defmodule Axon.Compiler do
           {cache, op_counts}
       end
 
-    cache_and_counts =
-      case cache do
-        %{^id => _} ->
+    case cache do
+      %{^id => _} ->
+        {cache, op_counts}
+
+      %{} ->
+        if Enum.empty?(params) do
           {cache, op_counts}
+        else
+          layer_params =
+            Enum.reduce(params, %{}, fn {_, param}, layer_params ->
+              %{name: name, shape: shape, initializer: initializer} = param
+              fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+              Map.put(layer_params, name, fun)
+            end)
 
-        %{} ->
-          if Enum.empty?(params) do
-            {cache, op_counts}
-          else
-            layer_params =
-              Enum.reduce(params, %{}, fn {_, param}, layer_params ->
-                %{name: name, shape: shape, initializer: initializer} = param
-                fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
-                Map.put(layer_params, name, fun)
-              end)
+          layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
 
-            layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
+          name = name_fn.(op, op_counts)
+          params = %{name => layer_params}
 
-            name = name_fn.(op, op_counts)
-            params = %{name => layer_params}
-
-            {
-              Map.put(cache, id, params),
-              Map.update(op_counts, op, 1, fn x -> x + 1 end)
-            }
-          end
-      end
-
-    if parent do
-      to_init_fun(parent, cache_and_counts)
-    else
-      cache_and_counts
+          {
+            Map.put(cache, id, params),
+            Map.update(op_counts, op, 1, fn x -> x + 1 end)
+          }
+        end
     end
   end
 
@@ -607,8 +606,9 @@ defmodule Axon.Compiler do
        ) do
     {res, {cache, op_counts}} =
       to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
-
+    
     name = name_fn.(:dense, op_counts)
+
     op_counts = Map.update(op_counts, :dense, 1, fn x -> x + 1 end)
 
     w = layer_param(layer_params, "kernel", params[name], compute)
