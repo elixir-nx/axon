@@ -48,12 +48,12 @@ defmodule Axon.Loop do
   like (assuming `container` is a generic Elixir container of tensors, e.g. map, tuple, etc.):
 
       %State{
-        epoch: tensor(),
-        max_epoch: tensor(),
-        iteration: tensor(),
-        max_iteration: tensor(),
+        epoch: integer(),
+        max_epoch: integer(),
+        iteration: integer(),
+        max_iteration: integer(),
         metrics: map(string(), container()),
-        times: list(number()),
+        times: map(integer(), integer()),
         step_state: container()
       }
 
@@ -881,7 +881,7 @@ defmodule Axon.Loop do
       Defaults to `1`.
 
     * `:iterations` - max iterations to run each epoch. Must be non-negative
-      integer. Defaults to `nil` or no max iterations.
+      integer. Defaults to `-1` or no max iterations.
 
     * `:jit_compile?` - whether or not to JIT compile initialization and step
       functions. JIT compilation must be used for gradient computations. Defaults
@@ -962,8 +962,7 @@ defmodule Axon.Loop do
                       {:halt, {:halted, final_metrics_map, state}}
 
                     {:continue, state} ->
-                      new_times = Map.put(state.times, Nx.to_number(epoch), time)
-                      new_loop_state = %State{state | times: new_times}
+                      new_loop_state = put_in(state.times[epoch], time)
 
                       case fire_event(:epoch_completed, handler_fns, new_loop_state) do
                         {:halt_epoch, state} ->
@@ -974,12 +973,10 @@ defmodule Axon.Loop do
 
                         {:continue, state} ->
                           zero_metrics =
-                            Map.new(metric_fns, fn {k, _} ->
-                              {k, 0}
-                            end)
+                            Map.new(metric_fns, fn {k, _} -> {k, 0} end)
 
                           final_metrics_map =
-                            Map.update!(final_metrics_map, epoch, fn _ -> state.metrics end)
+                            Map.replace!(final_metrics_map, epoch, state.metrics)
 
                           {:cont,
                            {:completed, final_metrics_map,
@@ -1065,10 +1062,7 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              iters = Nx.to_number(iters)
-              max_iters = Nx.to_number(max_iters)
-
-              if iters > max_iters and max_iters != -1 do
+              if iters > max_iters and max_iters != nil do
                 {:halt, {:continue, state}}
               else
                 {:cont, {:continue, state}}
@@ -1162,7 +1156,7 @@ defmodule Axon.Loop do
 
       %State{
         state
-        | iteration: Nx.add(iter, 1),
+        | iteration: iter + 1,
           step_state: new_step_state,
           metrics: new_metrics
       }
@@ -1365,7 +1359,7 @@ defmodule Axon.Loop do
 
       [{:every, n} | _] ->
         fn %State{iteration: iter} ->
-          Nx.remainder(iter, n) == Nx.tensor(0)
+          Kernel.rem(iter, n) == 0
         end
 
       fun when is_function(fun, 1) ->
