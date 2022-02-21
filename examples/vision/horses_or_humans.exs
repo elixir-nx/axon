@@ -36,9 +36,9 @@ defmodule HorsesOrHumans do
 
     # For now just a random flip
     if Nx.random_uniform({}) > 0.5 do
-      Nx.reverse(inp, axes: [-1])
+      Nx.reverse(inp, axes: [0])
     else
-      Nx.reverse(inp, axes: [-2])
+      Nx.reverse(inp, axes: [1])
     end
   end
 
