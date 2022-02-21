@@ -727,16 +727,32 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             -----------------------------------------------------------
-                                        Model
-             ===========================================================
-              Layer                             Shape        Parameters
-             ===========================================================
-              input ( input )                   {nil, 784}   0
-              dense1 ( dense[ "input" ] )       {nil, 128}   100480
-              dense2 ( dense[ "dense1" ] )      {nil, 10}    1290
-              softmax ( softmax[ "dense2" ] )   {nil, 10}    0
-             -----------------------------------------------------------
+             --------------------------------------------------------------------------------------------------------------
+                                                                 Model
+             ==============================================================================================================
+              Layer                             Shape        Policy                         Parameters   Parameters Memory
+             ==============================================================================================================
+              input ( input )                   {nil, 784}   #Axon.MixedPrecision.Policy<   0            0 bytes           
+                                                               params: {:f, 32},                                           
+                                                               compute: {:f, 32},                                          
+                                                               output: {:f, 32}                                            
+                                                             >
+              dense1 ( dense[ "input" ] )       {nil, 128}   #Axon.MixedPrecision.Policy<   100480       401920 bytes      
+                                                               params: {:f, 32},                                           
+                                                               compute: {:f, 32},                                          
+                                                               output: {:f, 32}                                            
+                                                             >
+              dense2 ( dense[ "dense1" ] )      {nil, 10}    #Axon.MixedPrecision.Policy<   1290         5160 bytes        
+                                                               params: {:f, 32},                                           
+                                                               compute: {:f, 32},                                          
+                                                               output: {:f, 32}                                            
+                                                             >
+              softmax ( softmax[ "dense2" ] )   {nil, 10}    #Axon.MixedPrecision.Policy<   0            0 bytes           
+                                                               params: {:f, 32},                                           
+                                                               compute: {:f, 32},                                          
+                                                               output: {:f, 32}                                            
+                                                             >
+             --------------------------------------------------------------------------------------------------------------
              """
     end
 
@@ -755,18 +771,42 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             ----------------------------------------------------------------------------
-                                                Model
-             ============================================================================
-              Layer                                              Shape        Parameters
-             ============================================================================
-              input ( input )                                    {nil, 784}   0
-              dense ( dense[ "input" ] )                         {nil, 128}   100480
-              residual_dense ( dense[ "dense" ] )                {nil, 128}   16512
-              residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   0
-              dense2 ( dense[ "residual_add" ] )                 {nil, 10}    1290
-              softmax ( softmax[ "dense2" ] )                    {nil, 10}    0
-             ----------------------------------------------------------------------------
+             -------------------------------------------------------------------------------------------------------------------------------
+                                                                          Model
+             ===============================================================================================================================
+              Layer                                              Shape        Policy                         Parameters   Parameters Memory
+             ===============================================================================================================================
+              input ( input )                                    {nil, 784}   #Axon.MixedPrecision.Policy<   0            0 bytes           
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+              dense ( dense[ "input" ] )                         {nil, 128}   #Axon.MixedPrecision.Policy<   100480       401920 bytes      
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+              residual_dense ( dense[ "dense" ] )                {nil, 128}   #Axon.MixedPrecision.Policy<   16512        66048 bytes       
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+              residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   #Axon.MixedPrecision.Policy<   0            0 bytes           
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+              dense2 ( dense[ "residual_add" ] )                 {nil, 10}    #Axon.MixedPrecision.Policy<   1290         5160 bytes        
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+              softmax ( softmax[ "dense2" ] )                    {nil, 10}    #Axon.MixedPrecision.Policy<   0            0 bytes           
+                                                                                params: {:f, 32},                                           
+                                                                                compute: {:f, 32},                                          
+                                                                                output: {:f, 32}                                            
+                                                                              >
+             -------------------------------------------------------------------------------------------------------------------------------
              """
     end
   end

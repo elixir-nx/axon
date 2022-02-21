@@ -65,4 +65,18 @@ defmodule MixedPrecisionTest do
       assert Nx.type(params["batch_norm"]["beta"]) == {:f, 32}
     end
   end
+
+  describe "inspection" do
+    test "works" do
+      policy = AMP.create_policy()
+
+      assert inspect(policy) == """
+             #Axon.MixedPrecision.Policy<
+               params: {:f, 32},
+               compute: {:f, 32},
+               output: {:f, 32}
+             >\
+             """
+    end
+  end
 end
