@@ -972,8 +972,7 @@ defmodule Axon.Loop do
                           {:halt, {:halted, final_metrics_map, state}}
 
                         {:continue, state} ->
-                          zero_metrics =
-                            Map.new(metric_fns, fn {k, _} -> {k, 0} end)
+                          zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, 0} end)
 
                           final_metrics_map =
                             Map.replace!(final_metrics_map, epoch, state.metrics)
