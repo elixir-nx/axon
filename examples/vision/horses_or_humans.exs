@@ -5,7 +5,10 @@ Mix.install([
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
 
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_preferred_defn_options(
+  [:tpu, :cuda, :rocm, :host],
+  run_options: [keep_on_device: true]
+)
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
@@ -105,7 +108,7 @@ defmodule HorsesOrHumans do
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
     |> Axon.Loop.metric(:accuracy)
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
-    |> Axon.Loop.run(data, epochs: epochs, iterations: 100, compiler: EXLA, run_options: [keep_on_device: true])
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 100)
   end
 
   def run() do
