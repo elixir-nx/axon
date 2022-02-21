@@ -1061,7 +1061,7 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              if iters > max_iters and max_iters != nil do
+              if iters > max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
               else
                 {:cont, {:continue, state}}
