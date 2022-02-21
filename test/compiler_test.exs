@@ -3926,7 +3926,15 @@ defmodule CompilerTest do
       axon_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end, [params])
       actual_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end, [params])
 
-      assert axon_grad_params == actual_grad_params
+      assert Nx.all_close(
+               axon_grad_params["dense_0"]["kernel"],
+               actual_grad_params["dense_0"]["kernel"]
+             ) == Nx.tensor(1, type: {:u, 8})
+
+      assert Nx.all_close(
+               axon_grad_params["dense_0"]["bias"],
+               actual_grad_params["dense_0"]["bias"]
+             ) == Nx.tensor(1, type: {:u, 8})
 
       assert_receive {%Nx.Tensor{}, :from_dense}
       assert_receive {%Nx.Tensor{}, :from_relu}
