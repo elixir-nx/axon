@@ -28,7 +28,6 @@ defmodule HorsesOrHumans do
     |> Stream.cycle()
   end
 
-  # TODO: Fuse this with Axon network
   defnp augment(inp) do
     # Normalize
     inp = inp / 255.0
