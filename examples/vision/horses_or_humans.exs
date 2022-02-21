@@ -6,7 +6,6 @@ Mix.install([
 ])
 
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
-Nx.Defn.global_default_options(compiler: EXLA, run_options: [keep_on_device: true])
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
@@ -106,7 +105,7 @@ defmodule HorsesOrHumans do
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
     |> Axon.Loop.metric(:accuracy)
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
-    |> Axon.Loop.run(data, epochs: epochs, iterations: 100)
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 100, compiler: EXLA, run_options: [keep_on_device: true])
   end
 
   def run() do
