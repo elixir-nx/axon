@@ -606,7 +606,7 @@ defmodule Axon.Compiler do
        ) do
     {res, {cache, op_counts}} =
       to_predict_fun(parent, cache_and_counts, input_map, params, inputs, mode)
-    
+
     name = name_fn.(:dense, op_counts)
 
     op_counts = Map.update(op_counts, :dense, 1, fn x -> x + 1 end)

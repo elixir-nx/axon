@@ -2268,7 +2268,7 @@ defmodule Axon do
 
     def inspect(axon, _opts) do
       title = "Model"
-      header = ["Layer", "Shape", "Parameters"]
+      header = ["Layer", "Shape", "Policy", "Parameters", "Parameters Memory"]
       {_, _, cache, _} = axon_to_rows(axon, %{}, %{})
 
       rows =
@@ -2302,7 +2302,7 @@ defmodule Axon do
     end
 
     defp do_axon_to_rows(
-           %Axon{op: op, parent: parents, name: name_fn, output_shape: shape},
+           %Axon{op: op, parent: parents, name: name_fn, output_shape: shape, policy: policy},
            cache,
            op_counts
          )
@@ -2326,14 +2326,23 @@ defmodule Axon do
       row = [
         name <> " ( #{op_string} #{inspect(input_names)} )",
         "#{inspect(shape)}",
-        0
+        "#{inspect(policy)}",
+        0,
+        "0 bytes"
       ]
 
       {row, name, cache, op_counts}
     end
 
     defp do_axon_to_rows(
-           %Axon{op: op, params: params, parent: parent, name: name_fn, output_shape: shape},
+           %Axon{
+             op: op,
+             params: params,
+             parent: parent,
+             name: name_fn,
+             output_shape: shape,
+             policy: %{params: {_, bitsize}} = policy
+           },
            cache,
            op_counts
          ) do
@@ -2348,6 +2357,8 @@ defmodule Axon do
       num_params =
         params
         |> Enum.reduce(0, fn {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape) end)
+
+      param_byte_size = num_params * div(bitsize, 8)
 
       op_inspect =
         case op do
@@ -2367,7 +2378,9 @@ defmodule Axon do
       row = [
         name <> " ( #{op_inspect}#{inputs} )",
         "#{inspect(shape)}",
-        "#{num_params}"
+        "#{inspect(policy)}",
+        "#{num_params}",
+        "#{param_byte_size} bytes"
       ]
 
       {row, name, cache, op_counts}
