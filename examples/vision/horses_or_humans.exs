@@ -1,12 +1,12 @@
 Mix.install([
-  {:flow, "~> 1.0"},
-  {:pixels, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:stb_image, "~> 0.1.0"},
+  {:axon, "~> 0.1.0-dev", path: "."},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
 
 EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+Nx.Defn.global_default_options(compiler: EXLA, run_options: [keep_on_device: true])
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
@@ -19,25 +19,25 @@ defmodule HorsesOrHumans do
 
   def data() do
     Path.wildcard(@directories)
-    |> Flow.from_enumerable()
-    |> Flow.flat_map(&parse_png/1)
     |> Stream.chunk_every(32, 32, :discard)
-    |> Stream.map(fn batch ->
-      {inp, labels} = Enum.unzip(batch)
+    |> Task.async_stream(fn batch ->
+      {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
       {Nx.stack(inp), Nx.stack(labels)}
     end)
-    |> Stream.map(&augment/1)
+    |> Stream.map(fn {:ok, {inp, labels}} -> {augment(inp), labels} end)
     |> Stream.cycle()
   end
 
-  defnp augment({inp, labels}) do
+  # TODO: Fuse this with Axon network
+  defnp augment(inp) do
     # Normalize
     inp = inp / 255.0
+
     # For now just a random flip
     if Nx.random_uniform({}) > 0.5 do
-      {Nx.reverse(inp, axes: [-1]), labels}
+      Nx.reverse(inp, axes: [-1])
     else
-      {Nx.reverse(inp, axes: [-2]), labels}
+      Nx.reverse(inp, axes: [-2])
     end
   end
 
@@ -47,19 +47,19 @@ defmodule HorsesOrHumans do
         do: Nx.tensor([1, 0], type: {:u, 8}),
         else: Nx.tensor([0, 1], type: {:u, 8})
 
-    {:ok, png} = Pixels.read_file(filename)
+    {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
 
-    # Only reads RGBA :(
     tensor =
-      png.data
+      binary
       |> Nx.from_binary({:u, 8})
-      |> Nx.reshape({4, 300, 300})
+      |> Nx.reshape(shape)
 
-    [{tensor, class}]
+    {tensor, class}
   end
 
-  defp build_model(input_shape) do
+  defp build_model(input_shape, transpose_shape) do
     Axon.input(input_shape)
+    |> Axon.transpose(transpose_shape)
     |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2})
     |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
@@ -86,7 +86,7 @@ defmodule HorsesOrHumans do
       case mode do
         :train ->
           %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_number(loss)])}"
+          "Loss: #{Float.round(Nx.to_number(loss), 5)}"
 
         :test ->
           ""
@@ -94,10 +94,10 @@ defmodule HorsesOrHumans do
 
     metrics =
       metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_number(v)])}" end)
+      |> Enum.map(fn {k, v} -> "#{k}: #{Float.round(Nx.to_number(v), 5)}" end)
       |> Enum.join(" ")
 
-    IO.write("\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{loss} #{metrics}")
+    IO.write("\rEpoch: #{epoch}, Batch: #{iter}, #{loss} #{metrics}")
 
     {:continue, state}
   end
@@ -107,11 +107,11 @@ defmodule HorsesOrHumans do
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
     |> Axon.Loop.metric(:accuracy)
     |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
-    |> Axon.Loop.run(data, epochs: epochs, iterations: 100, compiler: EXLA)
+    |> Axon.Loop.run(data, epochs: epochs, iterations: 100)
   end
 
   def run() do
-    model = build_model({nil, 4, 300, 300}) |> IO.inspect
+    model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect
     optimizer = Axon.Optimizers.adam(1.0e-4)
     centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
 
