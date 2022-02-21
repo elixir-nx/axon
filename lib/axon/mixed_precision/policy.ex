@@ -7,26 +7,12 @@ defmodule Axon.MixedPrecision.Policy do
   defimpl Inspect do
     import Inspect.Algebra
 
-    def inspect(policy, opts) do
-      inner =
-        concat([
-          line(),
-          color("params: ", :atom, opts),
-          "#{inspect(policy.params)},",
-          line(),
-          color("compute: ", :atom, opts),
-          "#{inspect(policy.compute)},",
-          line(),
-          color("output: ", :atom, opts),
-          "#{inspect(policy.output)}"
-        ])
-
+    def inspect(policy, _opts) do
       force_unfit(
         concat([
-          color("#Axon.MixedPrecision.Policy<", :map, opts),
-          nest(inner, 2),
-          line(),
-          color(">", :map, opts)
+          "p=#{Nx.Type.to_string(policy.params)} ",
+          "c=#{Nx.Type.to_string(policy.compute)} ",
+          "o=#{Nx.Type.to_string(policy.output)}"
         ])
       )
     end

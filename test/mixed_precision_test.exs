@@ -71,11 +71,7 @@ defmodule MixedPrecisionTest do
       policy = AMP.create_policy()
 
       assert inspect(policy) == """
-             #Axon.MixedPrecision.Policy<
-               params: {:f, 32},
-               compute: {:f, 32},
-               output: {:f, 32}
-             >\
+             p=f32 c=f32 o=f32\
              """
     end
   end
