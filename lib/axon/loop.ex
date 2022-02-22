@@ -48,12 +48,12 @@ defmodule Axon.Loop do
   like (assuming `container` is a generic Elixir container of tensors, e.g. map, tuple, etc.):
 
       %State{
-        epoch: tensor(),
-        max_epoch: tensor(),
-        iteration: tensor(),
-        max_iteration: tensor(),
+        epoch: integer(),
+        max_epoch: integer(),
+        iteration: integer(),
+        max_iteration: integer(),
         metrics: map(string(), container()),
-        times: list(number()),
+        times: map(integer(), integer()),
         step_state: container()
       }
 
@@ -881,7 +881,7 @@ defmodule Axon.Loop do
       Defaults to `1`.
 
     * `:iterations` - max iterations to run each epoch. Must be non-negative
-      integer. Defaults to `nil` or no max iterations.
+      integer. Defaults to `-1` or no max iterations.
 
     * `:jit_compile?` - whether or not to JIT compile initialization and step
       functions. JIT compilation must be used for gradient computations. Defaults
@@ -943,16 +943,13 @@ defmodule Axon.Loop do
                   {:halt, {:halted, final_metrics_map, state}}
 
                 {:continue, state} ->
+                  batch_fn = build_batch_fn(step_fn, metric_fns)
+
                   {time, status_and_state} =
-                    :timer.tc(&run_epoch/7, [
-                      step_fn,
-                      metric_fns,
-                      handler_fns,
-                      state,
-                      data,
-                      jit_compile?,
-                      jit_opts
-                    ])
+                    :timer.tc(
+                      &run_epoch/6,
+                      [batch_fn, handler_fns, state, data, jit_compile?, jit_opts]
+                    )
 
                   case status_and_state do
                     {:halt_epoch, state} ->
@@ -962,8 +959,7 @@ defmodule Axon.Loop do
                       {:halt, {:halted, final_metrics_map, state}}
 
                     {:continue, state} ->
-                      new_times = Map.put(state.times, Nx.to_number(epoch), time)
-                      new_loop_state = %State{state | times: new_times}
+                      new_loop_state = put_in(state.times[epoch], time)
 
                       case fire_event(:epoch_completed, handler_fns, new_loop_state) do
                         {:halt_epoch, state} ->
@@ -973,13 +969,10 @@ defmodule Axon.Loop do
                           {:halt, {:halted, final_metrics_map, state}}
 
                         {:continue, state} ->
-                          zero_metrics =
-                            Map.new(metric_fns, fn {k, _} ->
-                              {k, 0}
-                            end)
+                          zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, 0} end)
 
                           final_metrics_map =
-                            Map.update!(final_metrics_map, epoch, fn _ -> state.metrics end)
+                            Map.replace!(final_metrics_map, epoch, state.metrics)
 
                           {:cont,
                            {:completed, final_metrics_map,
@@ -1035,8 +1028,7 @@ defmodule Axon.Loop do
   end
 
   defp run_epoch(
-         step_fn,
-         metric_fns,
+         batch_fn,
          handler_fns,
          loop_state,
          data,
@@ -1052,12 +1044,24 @@ defmodule Axon.Loop do
           {:halt, {:halt_loop, state}}
 
         {:continue, state} ->
-          batch_fn = build_batch_fn(step_fn, metric_fns)
+          %State{
+            iteration: iters,
+            max_iteration: max_iters,
+            step_state: step_state,
+            metrics: metrics
+          } = state
 
-          %State{iteration: iters, max_iteration: max_iters} =
-            new_state = maybe_jit(batch_fn, [data, state], jit_compile?, jit_opts)
+          {new_step_state, new_metrics} =
+            maybe_jit(batch_fn, [data, iters, step_state, metrics], jit_compile?, jit_opts)
 
-          case fire_event(:iteration_completed, handler_fns, new_state) do
+          state = %{
+            state
+            | iteration: iters + 1,
+              step_state: new_step_state,
+              metrics: new_metrics
+          }
+
+          case fire_event(:iteration_completed, handler_fns, state) do
             {:halt_epoch, state} ->
               {:halt, {:halt_epoch, state}}
 
@@ -1065,10 +1069,7 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
-              iters = Nx.to_number(iters)
-              max_iters = Nx.to_number(max_iters)
-
-              if iters > max_iters and max_iters != -1 do
+              if iters >= max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
               else
                 {:cont, {:continue, state}}
@@ -1137,8 +1138,7 @@ defmodule Axon.Loop do
   # functions from within here to ensure they can be JIT compiled
   # if that's desired
   defp build_batch_fn(step_fn, metric_fns) do
-    fn data, state ->
-      %State{metrics: metrics, iteration: iter, step_state: pstate} = state
+    fn data, iter, pstate, metrics ->
       new_step_state = step_fn.(data, pstate)
 
       new_metrics =
@@ -1160,12 +1160,7 @@ defmodule Axon.Loop do
         end)
         |> Map.new()
 
-      %State{
-        state
-        | iteration: Nx.add(iter, 1),
-          step_state: new_step_state,
-          metrics: new_metrics
-      }
+      {new_step_state, new_metrics}
     end
   end
 
@@ -1365,7 +1360,7 @@ defmodule Axon.Loop do
 
       [{:every, n} | _] ->
         fn %State{iteration: iter} ->
-          Nx.remainder(iter, n) == Nx.tensor(0)
+          Kernel.rem(iter, n) == 0
         end
 
       fun when is_function(fun, 1) ->
