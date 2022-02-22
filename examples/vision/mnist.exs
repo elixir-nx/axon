@@ -44,14 +44,14 @@ defmodule Mnist do
     model
     |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(train_images, train_labels), epochs: epochs, compiler: EXLA)
+    |> Axon.Loop.run(Stream.zip(train_images, train_labels), epochs: epochs)
   end
 
   defp test_model(model, model_state, test_images, test_labels) do
     model
     |> Axon.Loop.evaluator(model_state)
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(test_images, test_labels), compiler: EXLA)
+    |> Axon.Loop.run(Stream.zip(test_images, test_labels))
   end
 
   def run do

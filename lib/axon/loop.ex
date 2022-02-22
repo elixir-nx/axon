@@ -1054,12 +1054,7 @@ defmodule Axon.Loop do
           {new_step_state, new_metrics} =
             maybe_jit(batch_fn, [data, iters, step_state, metrics], jit_compile?, jit_opts)
 
-          state = %{
-            state
-            | iteration: iters + 1,
-              step_state: new_step_state,
-              metrics: new_metrics
-          }
+          state = %{state | step_state: new_step_state, metrics: new_metrics}
 
           case fire_event(:iteration_completed, handler_fns, state) do
             {:halt_epoch, state} ->
@@ -1069,6 +1064,8 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, state}}
 
             {:continue, state} ->
+              state = %{state | iteration: iters + 1}
+
               if iters >= max_iters and max_iters != -1 do
                 {:halt, {:continue, state}}
               else
