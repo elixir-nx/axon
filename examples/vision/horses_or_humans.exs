@@ -1,6 +1,6 @@
 Mix.install([
   {:stb_image, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", path: "."},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
   {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
   {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
@@ -79,35 +79,10 @@ defmodule HorsesOrHumans do
     |> Axon.dense(2, activation: :softmax)
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, step_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{Float.round(Nx.to_number(loss), 5)}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{Float.round(Nx.to_number(v), 5)}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{epoch}, Batch: #{iter}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp train_model(model, data, optimizer, epochs) do
     model
-    |> Axon.Loop.trainer(:binary_cross_entropy, optimizer)
+    |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
     |> Axon.Loop.metric(:accuracy)
-    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train))
     |> Axon.Loop.run(data, epochs: epochs, iterations: 100)
   end
 

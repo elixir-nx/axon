@@ -292,7 +292,7 @@ defmodule Axon.LoopTest do
     test "propagates user-defined numerical data inside step_state" do
       Axon.input({nil, 1})
       |> Axon.dense(1)
-      |> Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
       |> Loop.handle(
         :epoch_completed,
         fn %State{step_state: pstate} = state ->
@@ -326,7 +326,7 @@ defmodule Axon.LoopTest do
     test "propagates user-defined numerical data inside step_state when it is nested into a tuple" do
       Axon.input({nil, 1})
       |> Axon.dense(1)
-      |> Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
       |> Loop.handle(
         :epoch_completed,
         fn %State{step_state: pstate} = state ->
