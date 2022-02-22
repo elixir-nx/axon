@@ -37,8 +37,7 @@ defmodule Axon.Loop.State do
   """
   @enforce_keys [:step_state]
   @derive {Nx.Container,
-           containers: [:step_state, :metrics],
-           keep: [:epoch, :max_epoch, :iteration, :max_iteration, :times]}
+           containers: [:step_state, :metrics]}
   defstruct [
     :step_state,
     epoch: 0,
