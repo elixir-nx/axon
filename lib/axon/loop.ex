@@ -1054,7 +1054,11 @@ defmodule Axon.Loop do
           {new_step_state, new_metrics} =
             maybe_jit(batch_fn, [data, iters, step_state, metrics], jit_compile?, jit_opts)
 
-          # TODO: maybe deallocate data too based on an option?
+          # If the data is kept on device, it may take a while for the VM
+          # to refcount and garbage collect them. So we immediately
+          # deallocate. We may have the same issue with user data,
+          # so we may want to provide an option for force deallocation.
+          # TODO: deallocate data based on an option?
           Nx.backend_deallocate({step_state, metrics})
 
           state = %{state | step_state: new_step_state, metrics: new_metrics}
