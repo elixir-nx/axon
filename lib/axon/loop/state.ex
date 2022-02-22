@@ -36,7 +36,6 @@ defmodule Axon.Loop.State do
   initialization and update functions. `step_state` is a required field.
   """
   @enforce_keys [:step_state]
-  @derive {Nx.Container, containers: [:step_state, :metrics]}
   defstruct [
     :step_state,
     epoch: 0,
