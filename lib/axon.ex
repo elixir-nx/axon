@@ -79,6 +79,9 @@ defmodule Axon do
   """
   alias __MODULE__, as: Axon
 
+  # Axon serialization version
+  @file_version 1
+
   @type t :: %__MODULE__{}
 
   @doc false
@@ -2385,6 +2388,130 @@ defmodule Axon do
 
       {row, name, cache, op_counts}
     end
+  end
+
+  ## Serialization
+
+  @doc """
+  Serializes a model and it's parameters for persisting
+  models to disk or elsewhere.
+
+  Model and parameters are serialized as a tuple, where the
+  model is converted to a recursive map to ensure compatibility
+  with future Axon versions and the parameters are serialized
+  using `Nx.serialize`. There is some additional metadata included
+  such as current serialization version for compatibility.
+
+  Serialization `opts` are forwarded to Nx.serialize and
+  `:erlang.term_to_binary` for controlling compression options.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> params = Axon.init(model)
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> saved_model
+      ------------------------------------------------------------------------------------------------
+                                                   Model
+      ================================================================================================
+       Layer                            Shape      Policy              Parameters   Parameters Memory
+      ================================================================================================
+       input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
+       dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
+       relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
+      ------------------------------------------------------------------------------------------------
+      iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
+      iex> k
+      #Nx.Tensor<
+        f32[2][1]
+        [
+          [0.0],
+          [0.0]
+        ]
+      >
+      iex> b
+      #Nx.Tensor<
+        f32[1]
+        [0.0]
+      >
+  """
+  def serialize(%Axon{} = model, params, opts \\ []) do
+    model_meta = axon_to_map(model)
+    params = Nx.serialize(params, opts)
+    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
+  end
+
+  defp axon_to_map(%Axon{parent: nil} = model), do: Map.from_struct(model)
+
+  defp axon_to_map(%Axon{parent: parents} = model) when is_list(parents) do
+    parents = Enum.map(parents, &axon_to_map/1)
+    axon_map = Map.from_struct(model)
+    %{axon_map | parent: parents}
+  end
+
+  defp axon_to_map(%Axon{parent: parent} = model) do
+    parent = axon_to_map(parent)
+    axon_map = Map.from_struct(model)
+    %{axon_map | parent: parent}
+  end
+
+  @doc """
+  Deserializes serialized model and parameters into a `{model, params}`
+  tuple.
+
+  It is the opposite of `Axon.serialize/3`.
+
+  ## Examples
+
+    iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+    iex> params = Axon.init(model)
+    iex> serialized = Axon.serialize(model, params)
+    iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+    iex> saved_model
+    ------------------------------------------------------------------------------------------------
+                                                 Model
+    ================================================================================================
+     Layer                            Shape      Policy              Parameters   Parameters Memory
+    ================================================================================================
+     input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
+     dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
+     relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
+    ------------------------------------------------------------------------------------------------
+    iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
+    iex> k
+    #Nx.Tensor<
+      f32[2][1]
+      [
+        [0.0],
+        [0.0]
+      ]
+    >
+    iex> b
+    #Nx.Tensor<
+      f32[1]
+      [0.0]
+    >
+  """
+  def deserialize(serialized, opts \\ []) do
+    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts ++ [:safe])
+    model = map_to_axon(model_meta)
+    params = Nx.deserialize(serialized_params, opts)
+    {model, params}
+  end
+
+  defp map_to_axon(%{parent: nil} = model), do: struct(__MODULE__, model)
+
+  defp map_to_axon(%{parent: parents} = model) when is_list(parents) do
+    parents = Enum.map(parents, &map_to_axon/1)
+    model = %{model | parent: parents}
+    struct(__MODULE__, model)
+  end
+
+  defp map_to_axon(%{parent: parent} = model) do
+    parent = map_to_axon(parent)
+    model = %{model | parent: parent}
+    struct(__MODULE__, model)
   end
 
   ## Helpers
