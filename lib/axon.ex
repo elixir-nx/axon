@@ -2495,7 +2495,7 @@ defmodule Axon do
     >
   """
   def deserialize(serialized, opts \\ []) do
-    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts ++ [:safe])
+    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, [:safe | opts])
     model = map_to_axon(model_meta)
     params = Nx.deserialize(serialized_params, opts)
     {model, params}
