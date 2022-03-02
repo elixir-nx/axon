@@ -2402,8 +2402,8 @@ defmodule Axon do
   using `Nx.serialize/2`. There is some additional metadata included
   such as current serialization version for compatibility.
 
-  Serialization `opts` are forwarded to Nx.serialize and
-  `:erlang.term_to_binary` for controlling compression options.
+  Serialization `opts` are forwarded to `Nx.serialize/2` and
+  `:erlang.term_to_binary/2` for controlling compression options.
 
   ## Examples
 
