@@ -2465,34 +2465,34 @@ defmodule Axon do
 
   ## Examples
 
-    iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-    iex> params = Axon.init(model)
-    iex> serialized = Axon.serialize(model, params)
-    iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-    iex> saved_model
-    ------------------------------------------------------------------------------------------------
-                                                 Model
-    ================================================================================================
-     Layer                            Shape      Policy              Parameters   Parameters Memory
-    ================================================================================================
-     input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
-     dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
-     relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
-    ------------------------------------------------------------------------------------------------
-    iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
-    iex> k
-    #Nx.Tensor<
-      f32[2][1]
-      [
-        [0.0],
+      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> params = Axon.init(model)
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> saved_model
+      ------------------------------------------------------------------------------------------------
+                                                   Model
+      ================================================================================================
+       Layer                            Shape      Policy              Parameters   Parameters Memory
+      ================================================================================================
+       input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
+       dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
+       relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
+      ------------------------------------------------------------------------------------------------
+      iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
+      iex> k
+      #Nx.Tensor<
+        f32[2][1]
+        [
+          [0.0],
+          [0.0]
+        ]
+      >
+      iex> b
+      #Nx.Tensor<
+        f32[1]
         [0.0]
-      ]
-    >
-    iex> b
-    #Nx.Tensor<
-      f32[1]
-      [0.0]
-    >
+      >
   """
   def deserialize(serialized, opts \\ []) do
     {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, [:safe | opts])
