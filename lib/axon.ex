@@ -2399,7 +2399,7 @@ defmodule Axon do
   Model and parameters are serialized as a tuple, where the
   model is converted to a recursive map to ensure compatibility
   with future Axon versions and the parameters are serialized
-  using `Nx.serialize`. There is some additional metadata included
+  using `Nx.serialize/2`. There is some additional metadata included
   such as current serialization version for compatibility.
 
   Serialization `opts` are forwarded to Nx.serialize and
