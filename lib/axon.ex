@@ -85,6 +85,7 @@ defmodule Axon do
   @type t :: %__MODULE__{}
 
   @doc false
+  # Note: when adding new fields, consider how they fit serialize/deserialize
   @derive {
     Nx.Container,
     containers: [],
