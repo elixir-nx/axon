@@ -2393,7 +2393,7 @@ defmodule Axon do
   ## Serialization
 
   @doc """
-  Serializes a model and it's parameters for persisting
+  Serializes a model and its parameters for persisting
   models to disk or elsewhere.
 
   Model and parameters are serialized as a tuple, where the
