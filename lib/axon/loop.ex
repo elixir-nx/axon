@@ -363,7 +363,10 @@ defmodule Axon.Loop do
       }
     end
 
-    {init_fn, step_fn}
+    {
+      fn -> Nx.Defn.jit_or_apply(init_fn, []) end,
+      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+    }
   end
 
   @doc """
@@ -854,8 +857,8 @@ defmodule Axon.Loop do
   By default, loop checkpoints will be saved at the end of every
   epoch in the current working directory under the `checkpoint/`
   path. Checkpoints are serialized representations of loop state
-  obtained from `Axon.Loop.serialize_state/3`. Serialization
-  options will be forwarded to `Axon.Loop.serialize_state/3`.
+  obtained from `Axon.Loop.serialize_state/2`. Serialization
+  options will be forwarded to `Axon.Loop.serialize_state/2`.
 
   You can customize checkpoint events by passing `:event` and `:filter`
   options:
@@ -889,7 +892,6 @@ defmodule Axon.Loop do
   def checkpoint(%Loop{} = loop, opts \\ []) do
     {event, opts} = Keyword.pop(opts, :event, :epoch_completed)
     {filter, opts} = Keyword.pop(opts, :filter, :always)
-    {serialize_step_state_fn, opts} = Keyword.pop(opts, :serialize_step_state, &Nx.serialize/2)
     {path, opts} = Keyword.pop(opts, :path, "checkpoint")
     {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/2)
     {criteria, opts} = Keyword.pop(opts, :criteria)
@@ -901,7 +903,7 @@ defmodule Axon.Loop do
                          metrics: metrics,
                          handler_metadata: handle_meta
                        } = state ->
-      serialized_state = serialize_state(state, serialize_step_state_fn, serialize_opts)
+      serialized_state = serialize_state(state, serialize_opts)
 
       {save?, updated_state} =
         if criteria do
@@ -998,12 +1000,14 @@ defmodule Axon.Loop do
   however, this behavior can be changed if step state is an application
   specific container. For example, if you introduce your own data
   structure into step_state, `Nx.serialize/3` will not be sufficient
-  for serialization.
+  for serialization - you must pass custom serialization as an option
+  with `:serialize_step_state`.
 
-  `opts` controls serialization options such as compression. It is
-  forwarded to `:erlang.term_to_binary/3`.
+  Additional `opts` controls serialization options such as compression.
+  It is forwarded to `:erlang.term_to_binary/3`.
   """
-  def serialize_state(%State{} = state, serialize_step_state_fn \\ &Nx.serialize/2, opts \\ []) do
+  def serialize_state(%State{} = state, opts \\ []) do
+    {serialize_step_state_fn, opts} = Keyword.pop(opts, :serialize_step_state, &Nx.serialize/2)
     serialized_step_state = serialize_step_state_fn.(state.step_state, opts)
     serialized_metrics = Nx.serialize(state.metrics, opts)
     state_map = Map.from_struct(state)
@@ -1020,14 +1024,18 @@ defmodule Axon.Loop do
   however, this behavior can be changed if step state is an application
   specific container. For example, if you introduce your own data
   structure into step_state and you customized the serialization logic,
-  `Nx.deserialize/2` will not be sufficient for deserialization.
+  `Nx.deserialize/2` will not be sufficient for deserialization. - you
+  must pass custom logic with `:deserialize_step_state`.
   """
-  def deserialize_state(serialized, deserialize_step_state_fn \\ &Nx.deserialize/2, opts \\ []) do
+  def deserialize_state(serialized, opts \\ []) do
+    {deserialize_step_state_fn, opts} =
+      Keyword.pop(opts, :deserialize_step_state, &Nx.deserialize/2)
+
     {1, state_map} = :erlang.binary_to_term(serialized, [:safe | opts])
     step_state = deserialize_step_state_fn.(state_map.step_state, opts)
     metrics = Nx.deserialize(state_map.metrics, opts)
     state_map = %{state_map | step_state: step_state, metrics: metrics}
-    struct(Axon.Loop.State, state_map)
+    struct!(Axon.Loop.State, state_map)
   end
 
   @doc """

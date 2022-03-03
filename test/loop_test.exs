@@ -43,7 +43,7 @@ defmodule Axon.LoopTest do
           assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                    Loop.trainer(model, loss, optimizer)
 
-          assert %{model_state: %{}} = pstate = Nx.Defn.jit(init_fn, [])
+          assert %{model_state: %{}} = pstate = init_fn.()
 
           state = %State{step_state: pstate}
 
@@ -65,7 +65,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, custom_loss_fn, :adam)
 
-      assert %{model_state: %{}} = pstate = Nx.Defn.jit(init_fn, [])
+      assert %{model_state: %{}} = pstate = init_fn.()
 
       state = %State{step_state: pstate}
 
@@ -86,7 +86,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, optimizer)
 
-      assert %{model_state: %{}} = pstate = Nx.Defn.jit(init_fn, [])
+      assert %{model_state: %{}} = pstate = init_fn.()
 
       state = %State{step_state: pstate}
 
@@ -105,7 +105,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, :adam)
 
-      assert %{model_state: %{}} = pstate = Nx.Defn.jit(init_fn, [])
+      assert %{model_state: %{}} = pstate = init_fn.()
 
       state = %State{step_state: pstate}
 
@@ -124,7 +124,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
 
-      assert %{model_state: %{}} = pstate = Nx.Defn.jit(init_fn, [])
+      assert %{model_state: %{}} = pstate = init_fn.()
 
       state = %State{step_state: pstate}
 
@@ -162,7 +162,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.evaluator(model, model_state)
 
-      assert %{y_true: _, y_pred: _} = pstate = Nx.Defn.jit(init_fn, [])
+      assert %{y_true: _, y_pred: _} = pstate = init_fn.()
 
       state = %State{step_state: pstate, metrics: %{"my_metric" => {}}}
 
@@ -181,8 +181,8 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = Nx.Defn.jit(init_fn, [])
-      state = Nx.Defn.jit(step_fn, [{val, val}, state])
+      state = init_fn.()
+      state = step_fn.({val, val}, state)
 
       assert Nx.all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
                Nx.tensor(1, type: {:u, 8})
@@ -194,8 +194,8 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.instance_norm(name: "instance_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = Nx.Defn.jit(init_fn, [])
-      state = Nx.Defn.jit(step_fn, [{val, val}, state])
+      state = init_fn.()
+      state = step_fn.({val, val}, state)
 
       assert Nx.all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
                Nx.tensor(1, type: {:u, 8})
@@ -359,6 +359,39 @@ defmodule Axon.LoopTest do
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
         epochs: 5
       )
+    end
+  end
+
+  describe "serialization" do
+    test "serialize_state/deserialize_state preserve loop state" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2)
+      optimizer = Axon.Optimizers.adam(1.0e-2)
+      loss = :binary_cross_entropy
+
+      {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
+      step_state = init_fn.()
+      state = %State{step_state: step_state}
+
+      serialized = Axon.Loop.serialize_state(state)
+      deserialized = Axon.Loop.deserialize_state(serialized)
+
+      assert state == deserialized
+    end
+
+    test "serialize_state/deserialize_state preserve loop state with step state serialization" do
+      serialize_fn = fn step_state, opts -> :erlang.term_to_binary(step_state, opts) end
+      deserialize_fn = fn binary, opts -> :erlang.binary_to_term(binary, opts) end
+
+      init_fn = fn -> %{foo: 1} end
+      step_state = init_fn.()
+      state = %State{step_state: step_state}
+
+      serialized = Axon.Loop.serialize_state(state, serialize_step_state: serialize_fn)
+
+      deserialized =
+        Axon.Loop.deserialize_state(serialized, deserialize_step_state: deserialize_fn)
+
+      assert state == deserialized
     end
   end
 end
