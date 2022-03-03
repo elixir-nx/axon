@@ -958,10 +958,9 @@ defmodule Axon.Loop do
         dirname = Path.dirname(filename)
         File.mkdir_p!(dirname)
         File.write!(filename, serialized_state)
-        {:continue, updated_state}
-      else
-        {:continue, updated_state}
       end
+
+      {:continue, updated_state}
     end
 
     handle(loop, event, checkpoint_fn, filter)
