@@ -11,7 +11,8 @@ defmodule Axon.Loop.State do
         max_iteration: integer(),
         metrics: map(string(), container()),
         times: map(integer(), integer()),
-        step_state: container()
+        step_state: container(),
+        handler_meta: container()
       }
 
   `epoch` is the current epoch, starting at 0, of the nested loop.
@@ -34,10 +35,15 @@ defmodule Axon.Loop.State do
 
   `step_state` is the step state as defined by the loop's processing
   initialization and update functions. `step_state` is a required field.
+
+  `handler_metadata` is a metadata field for storing loop handler metadata.
+  For example, loop checkpoints with specific metric criteria can store
+  previous best metrics in the handler meta for use between iterations.
   """
   @enforce_keys [:step_state]
   defstruct [
     :step_state,
+    :handler_metadata,
     epoch: 0,
     max_epoch: 1,
     iteration: 0,

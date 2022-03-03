@@ -211,6 +211,8 @@ defmodule Axon.Loop do
   alias __MODULE__, as: Loop
   alias Axon.Loop.State
 
+  @file_version 1
+
   @default_events [
     :started,
     :epoch_started,
@@ -361,7 +363,10 @@ defmodule Axon.Loop do
       }
     end
 
-    {init_fn, step_fn}
+    {
+      fn -> Nx.Defn.jit_or_apply(init_fn, []) end,
+      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+    }
   end
 
   @doc """
@@ -785,8 +790,7 @@ defmodule Axon.Loop do
       end
     end
 
-    loop
-    |> handle(event, log_fn, filter)
+    handle(loop, event, log_fn, filter)
   end
 
   @doc """
@@ -847,6 +851,124 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which saves loop checkpoints on a given
+  event, optionally with metric-based criteria.
+
+  By default, loop checkpoints will be saved at the end of every
+  epoch in the current working directory under the `checkpoint/`
+  path. Checkpoints are serialized representations of loop state
+  obtained from `Axon.Loop.serialize_state/2`. Serialization
+  options will be forwarded to `Axon.Loop.serialize_state/2`.
+
+  You can customize checkpoint events by passing `:event` and `:filter`
+  options:
+
+      loop
+      |> Axon.Loop.checkpoint(event: :iteration_completed, filter: [every: 50])
+
+  Checkpoints are saved under the `checkpoint/` directory with a pattern
+  of `checkpoint_{epoch}.ckpt`. You can customize the path and pattern
+  with the `:path` and `:file_pattern` options:
+
+      my_file_pattern = fn epoch, iter -> "checkpoint_\#{epoch}_\#{iter}" end
+
+      loop
+      |> Axon.Loop.checkpoint(path: "my_checkpoints", file_pattern: my_file_pattern)
+
+  If you'd like to only save checkpoints based on some metric criteria,
+  you can specify the `:criteria` option. `:criteria` must be a valid key
+  in metrics:
+
+      loop
+      |> Axon.Loop.checkpoint(criteria: "validation_loss")
+
+  The default criteria mode is `:min`, meaning the min score metric will
+  be considered "best" when deciding to save on a given event. Valid modes
+  are `:min` and `:max`:
+
+      loop
+      |> Axon.Loop.checkpoint(criteria: "validation_accuracy", mode: :max)
+  """
+  def checkpoint(%Loop{} = loop, opts \\ []) do
+    {event, opts} = Keyword.pop(opts, :event, :epoch_completed)
+    {filter, opts} = Keyword.pop(opts, :filter, :always)
+    {path, opts} = Keyword.pop(opts, :path, "checkpoint")
+    {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/2)
+    {criteria, opts} = Keyword.pop(opts, :criteria)
+    {mode, serialize_opts} = Keyword.pop(opts, :mode, :min)
+
+    checkpoint_fn = fn %State{
+                         epoch: epoch,
+                         iteration: iter,
+                         metrics: metrics,
+                         handler_metadata: handle_meta
+                       } = state ->
+      serialized_state = serialize_state(state, serialize_opts)
+
+      {save?, updated_state} =
+        if criteria do
+          unless Map.has_key?(metrics, criteria) do
+            raise ArgumentError,
+                  "invalid criteria, key #{inspect(criteria)} not present in metrics"
+          end
+
+          cur_criteria_value = metrics[criteria]
+
+          prev_criteria_value =
+            case handle_meta[:checkpoint] do
+              nil ->
+                nil
+
+              meta ->
+                meta[criteria]
+            end
+
+          criteria_met? =
+            case mode do
+              :min ->
+                prev_criteria_value == nil or
+                  Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, {:u, 8})
+
+              :max ->
+                prev_criteria_value == nil or
+                  Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, {:u, 8})
+
+              _ ->
+                raise ArgumentError,
+                      "invalid mode #{inspect(mode)} given to checkpoint" <>
+                        " must be :min or :max"
+            end
+
+          if criteria_met? do
+            updated_checkpoint_map =
+              Map.replace(handle_meta[:checkpoint], criteria, cur_criteria_value)
+
+            updated_handle_meta = %{handle_meta | checkpoint: updated_checkpoint_map}
+            updated_state = %{state | handler_metadata: updated_handle_meta}
+            {true, updated_state}
+          else
+            {false, state}
+          end
+        else
+          {true, state}
+        end
+
+      if save? do
+        filename = Path.join([path, file_pattern.(epoch, iter)])
+        dirname = Path.dirname(filename)
+        File.mkdir_p!(dirname)
+        File.write!(filename, serialized_state)
+      end
+
+      {:continue, updated_state}
+    end
+
+    handle(loop, event, checkpoint_fn, filter)
+  end
+
+  defp default_checkpoint_file(epoch, _iter), do: "checkpoint_#{epoch}.ckpt"
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
@@ -864,6 +986,55 @@ defmodule Axon.Loop do
   """
   def from_state(%Loop{} = loop, %State{} = state) do
     %{loop | attached_state: state}
+  end
+
+  @doc """
+  Serializes loop state to a binary for saving and loading
+  loop from previous states.
+
+  You can consider the serialized state to be a checkpoint of
+  all state at a given iteration and epoch.
+
+  By default, the step state is serialized using `Nx.serialize/2`;
+  however, this behavior can be changed if step state is an application
+  specific container. For example, if you introduce your own data
+  structure into step_state, `Nx.serialize/3` will not be sufficient
+  for serialization - you must pass custom serialization as an option
+  with `:serialize_step_state`.
+
+  Additional `opts` controls serialization options such as compression.
+  It is forwarded to `:erlang.term_to_binary/3`.
+  """
+  def serialize_state(%State{} = state, opts \\ []) do
+    {serialize_step_state_fn, opts} = Keyword.pop(opts, :serialize_step_state, &Nx.serialize/2)
+    serialized_step_state = serialize_step_state_fn.(state.step_state, opts)
+    serialized_metrics = Nx.serialize(state.metrics, opts)
+    state_map = Map.from_struct(state)
+    state_map = %{state_map | step_state: serialized_step_state, metrics: serialized_metrics}
+    :erlang.term_to_binary({@file_version, state_map}, opts)
+  end
+
+  @doc """
+  Deserializes loop state from a binary.
+
+  It is the opposite of `Axon.Loop.serialize_state/3`.
+
+  By default, the step state is deserialized using `Nx.deserialize.2`;
+  however, this behavior can be changed if step state is an application
+  specific container. For example, if you introduce your own data
+  structure into step_state and you customized the serialization logic,
+  `Nx.deserialize/2` will not be sufficient for deserialization. - you
+  must pass custom logic with `:deserialize_step_state`.
+  """
+  def deserialize_state(serialized, opts \\ []) do
+    {deserialize_step_state_fn, opts} =
+      Keyword.pop(opts, :deserialize_step_state, &Nx.deserialize/2)
+
+    {1, state_map} = :erlang.binary_to_term(serialized, [:safe | opts])
+    step_state = deserialize_step_state_fn.(state_map.step_state, opts)
+    metrics = Nx.deserialize(state_map.metrics, opts)
+    state_map = %{state_map | step_state: step_state, metrics: metrics}
+    struct!(Axon.Loop.State, state_map)
   end
 
   @doc """
