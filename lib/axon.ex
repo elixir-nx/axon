@@ -2412,29 +2412,12 @@ defmodule Axon do
       iex> params = Axon.init(model)
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> saved_model
-      ------------------------------------------------------------------------------------------------
-                                                   Model
-      ================================================================================================
-       Layer                            Shape      Policy              Parameters   Parameters Memory
-      ================================================================================================
-       input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
-       dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
-       relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
-      ------------------------------------------------------------------------------------------------
-      iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
-      iex> k
+      iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))
       #Nx.Tensor<
-        f32[2][1]
+        f32[1][1]
         [
-          [0.0],
           [0.0]
         ]
-      >
-      iex> b
-      #Nx.Tensor<
-        f32[1]
-        [0.0]
       >
   """
   def serialize(%Axon{} = model, params, opts \\ []) do
@@ -2469,29 +2452,12 @@ defmodule Axon do
       iex> params = Axon.init(model)
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> saved_model
-      ------------------------------------------------------------------------------------------------
-                                                   Model
-      ================================================================================================
-       Layer                            Shape      Policy              Parameters   Parameters Memory
-      ================================================================================================
-       input_0 ( input )                {nil, 2}   p=f32 c=f32 o=f32   0            0 bytes
-       dense_0 ( dense[ "input_0" ] )   {nil, 1}   p=f32 c=f32 o=f32   3            12 bytes
-       relu_0 ( relu[ "dense_0" ] )     {nil, 1}   p=f32 c=f32 o=f32   0            0 bytes
-      ------------------------------------------------------------------------------------------------
-      iex> %{"dense_0" => %{"bias" => b, "kernel" => k}} = saved_params
-      iex> k
+      iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))
       #Nx.Tensor<
-        f32[2][1]
+        f32[1][1]
         [
-          [0.0],
           [0.0]
         ]
-      >
-      iex> b
-      #Nx.Tensor<
-        f32[1]
-        [0.0]
       >
   """
   def deserialize(serialized, opts \\ []) do
