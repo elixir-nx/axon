@@ -10,7 +10,7 @@
     <title>Axon.Loop.State — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-a816d167216329cc463d.css" />
 
-    <script src="dist/sidebar_items-a5e0ed6582.js"></script>
+    <script src="dist/sidebar_items-c33a44d5a6.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -99,22 +99,25 @@ Axon
 
 
   <section id="moduledoc">
-<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5197661502-1">%</span><span class="nc" data-group-id="5197661502-1">State</span><span class="p" data-group-id="5197661502-1">{</span><span class="w">
-  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5197661502-2">(</span><span class="p" data-group-id="5197661502-2">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5197661502-3">(</span><span class="p" data-group-id="5197661502-3">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5197661502-4">(</span><span class="p" data-group-id="5197661502-4">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5197661502-5">(</span><span class="p" data-group-id="5197661502-5">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="5197661502-6">(</span><span class="n">string</span><span class="p" data-group-id="5197661502-7">(</span><span class="p" data-group-id="5197661502-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="5197661502-8">(</span><span class="p" data-group-id="5197661502-8">)</span><span class="p" data-group-id="5197661502-6">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="5197661502-9">(</span><span class="n">integer</span><span class="p" data-group-id="5197661502-10">(</span><span class="p" data-group-id="5197661502-10">)</span><span class="p">,</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5197661502-11">(</span><span class="p" data-group-id="5197661502-11">)</span><span class="p" data-group-id="5197661502-9">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="5197661502-12">(</span><span class="p" data-group-id="5197661502-12">)</span><span class="w">
-</span><span class="p" data-group-id="5197661502-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
+<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5033218290-1">%</span><span class="nc" data-group-id="5033218290-1">State</span><span class="p" data-group-id="5033218290-1">{</span><span class="w">
+  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5033218290-2">(</span><span class="p" data-group-id="5033218290-2">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5033218290-3">(</span><span class="p" data-group-id="5033218290-3">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5033218290-4">(</span><span class="p" data-group-id="5033218290-4">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5033218290-5">(</span><span class="p" data-group-id="5033218290-5">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="5033218290-6">(</span><span class="n">string</span><span class="p" data-group-id="5033218290-7">(</span><span class="p" data-group-id="5033218290-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="5033218290-8">(</span><span class="p" data-group-id="5033218290-8">)</span><span class="p" data-group-id="5033218290-6">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="5033218290-9">(</span><span class="n">integer</span><span class="p" data-group-id="5033218290-10">(</span><span class="p" data-group-id="5033218290-10">)</span><span class="p">,</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="5033218290-11">(</span><span class="p" data-group-id="5033218290-11">)</span><span class="p" data-group-id="5033218290-9">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="5033218290-12">(</span><span class="p" data-group-id="5033218290-12">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">handler_meta</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="5033218290-13">(</span><span class="p" data-group-id="5033218290-13">)</span><span class="w">
+</span><span class="p" data-group-id="5033218290-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
 Defaults to 0.</p><p><code class="inline">max_epoch</code> is the maximum number of epochs the loop should run
 for. Defaults to 1.</p><p><code class="inline">iteration</code> is the current iteration of the inner loop. In supervised
 settings, this will be the current batch. Defaults to 0.</p><p><code class="inline">max_iteration</code> is the maximum number of iterations the loop should
 run a given epoch for. Defaults to -1 (no max).</p><p><code class="inline">metrics</code> is a map of <code class="inline">%{&quot;metric_name&quot; =&gt; value}</code> which accumulates metrics
 over the course of loop processing. Defaults to an empty map.</p><p><code class="inline">times</code> is a map of <code class="inline">%{epoch_number =&gt; value}</code> which maps a given epoch
 to the processing time. Defaults to an empty map.</p><p><code class="inline">step_state</code> is the step state as defined by the loop's processing
-initialization and update functions. <code class="inline">step_state</code> is a required field.</p>
+initialization and update functions. <code class="inline">step_state</code> is a required field.</p><p><code class="inline">handler_metadata</code> is a metadata field for storing loop handler metadata.
+For example, loop checkpoints with specific metric criteria can store
+previous best metrics in the handler meta for use between iterations.</p>
   </section>
 
 
