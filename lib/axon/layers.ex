@@ -1903,6 +1903,12 @@ defmodule Axon.Layers do
       {img, shape, spatial_dimensions, :trilinear, align_corners} ->
         resize_linear(img, shape, spatial_dimensions, align_corners)
 
+      {img, shape, spatial_dimensions, :cubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :bicubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
       {_, _, _, method, _} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
@@ -1941,6 +1947,132 @@ defmodule Axon.Layers do
           false -> resize_linear_noalign(input, output_shape, d)
         end
     end
+  end
+
+  defp resize_cubic(input, output_shape, spatial_dimensions, align_corners) do
+    input_shape = Nx.shape(input)
+
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        if elem(input_shape, d) == elem(output_shape, d) do
+          input
+        else
+          case align_corners do
+            true -> resize_cubic_align(input, output_shape, d)
+            false -> resize_cubic_noalign(input, output_shape, d)
+          end
+        end
+    end
+  end
+
+  defnp resize_cubic_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    pad_left1 =
+      Nx.subtract(
+        Nx.multiply(Nx.take(input, Nx.tensor([0]), axis: spatial_dimension), 2),
+        Nx.take(input, Nx.tensor([1]), axis: spatial_dimension)
+      )
+
+    t_n = Nx.take(input, Nx.tensor([in_size - 2]), axis: spatial_dimension)
+    t_nn = Nx.take(input, Nx.tensor([in_size - 1]), axis: spatial_dimension)
+    delta_right = Nx.subtract(t_nn, t_n)
+    pad_right1 = Nx.add(t_nn, delta_right)
+    pad_right2 = Nx.add(t_nn, Nx.multiply(delta_right, 2.0))
+
+    input_padded =
+      Nx.concatenate([pad_left1, input, pad_right1, pad_right2], axis: spatial_dimension)
+
+    id1 = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_delta = Nx.subtract(ids, id1)
+    id0 = id1
+    id1 = Nx.add(id0, 1)
+    id2 = Nx.add(id1, 1)
+    id3 = Nx.add(id2, 1)
+    p = Nx.take(input_padded, Nx.stack([id0, id1, id2, id3]), axis: spatial_dimension)
+
+    d =
+      Nx.tensor([
+        [-0.5, 1.5, -1.5, 0.5],
+        [1.0, -2.5, 2.0, -0.5],
+        [-0.5, 0.0, 0.5, 0.0],
+        [0.0, 1.0, 0.0, 0.0]
+      ])
+
+    c = Nx.dot(d, [1], p, [spatial_dimension])
+
+    x =
+      Nx.stack([
+        Nx.power(id_delta, 3),
+        Nx.power(id_delta, 2),
+        id_delta,
+        Nx.broadcast(1.0, Nx.shape(id_delta))
+      ])
+      |> Nx.broadcast(Nx.shape(c), axes: [0, spatial_dimension + 1])
+
+    Nx.multiply(c, x) |> Nx.sum(axes: [0])
+  end
+
+  defnp resize_cubic_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    t_0 = Nx.take(input, Nx.tensor([0]), axis: spatial_dimension)
+    t_1 = Nx.take(input, Nx.tensor([1]), axis: spatial_dimension)
+    delta_left = Nx.subtract(t_1, t_0)
+    pad_left1 = Nx.subtract(t_0, delta_left)
+    pad_left2 = Nx.subtract(t_0, Nx.multiply(delta_left, 2))
+    t_n = Nx.take(input, Nx.tensor([in_size - 2]), axis: spatial_dimension)
+    t_nn = Nx.take(input, Nx.tensor([in_size - 1]), axis: spatial_dimension)
+    delta_right = Nx.subtract(t_nn, t_n)
+    pad_right1 = Nx.add(t_nn, delta_right)
+    pad_right2 = Nx.add(t_nn, Nx.multiply(delta_right, 2.0))
+
+    input_padded =
+      Nx.concatenate([pad_left2, pad_left1, input, pad_right1, pad_right2],
+        axis: spatial_dimension
+      )
+
+    id1 = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_delta = Nx.subtract(ids, id1)
+    id0 = Nx.add(id1, 1)
+    id1 = Nx.add(id0, 1)
+    id2 = Nx.add(id1, 1)
+    id3 = Nx.add(id2, 1)
+    p = Nx.take(input_padded, Nx.stack([id0, id1, id2, id3]), axis: spatial_dimension)
+
+    d =
+      Nx.tensor([
+        [-0.5, 1.5, -1.5, 0.5],
+        [1.0, -2.5, 2.0, -0.5],
+        [-0.5, 0.0, 0.5, 0.0],
+        [0.0, 1.0, 0.0, 0.0]
+      ])
+
+    c = Nx.dot(d, [1], p, [spatial_dimension])
+
+    x =
+      Nx.stack([
+        Nx.power(id_delta, 3),
+        Nx.power(id_delta, 2),
+        id_delta,
+        Nx.broadcast(1.0, Nx.shape(id_delta))
+      ])
+      |> Nx.broadcast(Nx.shape(c), axes: [0, spatial_dimension + 1])
+
+    Nx.multiply(c, x) |> Nx.sum(axes: [0])
   end
 
   defnp resize_linear_align(input, output_shape, spatial_dimension) do
