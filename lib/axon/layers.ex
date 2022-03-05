@@ -1793,7 +1793,8 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported resize methods are `:nearest, :linear, :bilinear, trilinear`.
+  Supported resize methods are `:nearest, :linear, :bilinear, :trilinear,
+  :cubic, :bicubic, :tricubic`.
 
   ## Examples
 
@@ -1907,6 +1908,9 @@ defmodule Axon.Layers do
         resize_cubic(img, shape, spatial_dimensions, align_corners)
 
       {img, shape, spatial_dimensions, :bicubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :tricubic, align_corners} ->
         resize_cubic(img, shape, spatial_dimensions, align_corners)
 
       {_, _, _, method, _} ->
