@@ -969,6 +969,95 @@ defmodule Axon.Loop do
   defp default_checkpoint_file(epoch, _iter), do: "checkpoint_#{epoch}.ckpt"
 
   @doc """
+  Adds a handler function which halts a loop if the given
+  metric does not improve between events.
+
+  By default, this will run after each epoch and track the
+  improvement of a given metric.
+
+  You must specify a metric to monitor and the metric must
+  be present in the loop state. Typically, this will be
+  a validation metric:
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.metric(:accuracy)
+      |> Axon.Loop.validate(val_data)
+      |> Axon.Loop.early_stop("validation_accuracy")
+
+  It's important to remember that handlers are executed in the
+  order they are added to the loop. For example, if you'd like
+  to checkpoint a loop after every epoch and use early stopping,
+  most likely you want to add the checkpoint handler before
+  the early stopping handler:
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.metric(:accuracy)
+      |> Axon.Loop.checkpoint()
+      |> Axon.Loop.early_stop("accuracy")
+
+  That will ensure checkpoint is always fired, even if the loop
+  exited early.
+  """
+  def early_stop(%Loop{} = loop, monitor, opts \\ []) do
+    event = opts[:event] || :epoch_completed
+    filter = opts[:filter] || :always
+    patience = opts[:patience] || 3
+    mode = opts[:mode] || :min
+
+    early_stop_fn = fn %State{metrics: metrics, handler_metadata: handler_meta} = state ->
+      unless Map.has_key?(metrics, monitor) do
+        raise ArgumentError,
+              "invalid metric to monitor, key #{inspect(monitor)} not present in metrics"
+      end
+
+      cur_criteria_value = metrics[monitor]
+
+      {prev_criteria_value, since_last_improvement} =
+        case handler_meta[:early_stop] do
+          nil ->
+            nil
+
+          meta ->
+            {meta[monitor], meta[:since_last_improvement]}
+        end
+
+      improved? =
+        case mode do
+          :min ->
+            Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+
+          :max ->
+            Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+        end
+
+      over_patience? = since_last_improvement >= patience
+
+      cond do
+        improved? ->
+          updated_handler_meta =
+            handler_meta
+            |> Map.replace(monitor, cur_criteria_value)
+            |> Map.replace(:since_last_improvement, 0)
+
+          {:continue, %{state | handler_metadata: updated_handle_meta}}
+
+        not improved? and not over_patience? ->
+          updated_handle_meta =
+            Map.update(handler_meta, :since_last_improvement, fn x -> x + 1 end)
+
+          {:continue, %{state | handler_metadata: updated_handle_meta}}
+
+        true ->
+          {:halt, state}
+      end
+    end
+
+    handle(loop, event, early_stop_fn, filter)
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
