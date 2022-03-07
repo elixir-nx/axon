@@ -1017,7 +1017,7 @@ defmodule Axon.Loop do
       {prev_criteria_value, since_last_improvement} =
         case handler_meta[:early_stop] do
           nil ->
-            nil
+            {nil, 0}
 
           meta ->
             {meta[monitor], meta[:since_last_improvement]}
@@ -1026,10 +1026,12 @@ defmodule Axon.Loop do
       improved? =
         case mode do
           :min ->
-            Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+            prev_criteria_value == nil or
+              Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
 
           :max ->
-            Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+            prev_criteria_value == nil or
+              Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
         end
 
       over_patience? = since_last_improvement >= patience
