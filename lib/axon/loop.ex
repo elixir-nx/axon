@@ -1043,7 +1043,7 @@ defmodule Axon.Loop do
             |> Map.replace(monitor, cur_criteria_value)
             |> Map.replace(:since_last_improvement, 0)
 
-          {:continue, %{state | handler_metadata: updated_handle_meta}}
+          {:continue, %{state | handler_metadata: updated_handler_meta}}
 
         not improved? and not over_patience? ->
           updated_handle_meta =
