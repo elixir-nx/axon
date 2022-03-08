@@ -56,9 +56,12 @@ jobs:
         with:
           repository: elixir-nx/axon_onnx
           ref: refs/heads/master
+      - uses: actions/checkout@v2
+        with:
+          path: tmp/axon
       - name: Run ONNX tests
         run: |
-          AXON_PATH="../axon" MIX_ENV=test \
+          AXON_PATH="tmp/axon" MIX_ENV=test \
             mix do deps.get, \
             compile --warnings-as-errors, \
             test

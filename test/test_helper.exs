@@ -39,7 +39,7 @@ defmodule AxonTestUtil do
 
     # Some optimizers require 1-D or 2-D input, so this potentially
     # could be multi-dimensional
-    unless Nx.all?(Nx.less_equal(lhs, rhs)) == Nx.tensor(1, type: {:u, 8}) do
+    unless Nx.all(Nx.less_equal(lhs, rhs)) == Nx.tensor(1, type: {:u, 8}) do
       raise """
         expected
 

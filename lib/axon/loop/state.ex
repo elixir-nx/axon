@@ -5,13 +5,14 @@ defmodule Axon.Loop.State do
   Loop state is a struct:
 
       %State{
-        epoch: tensor(),
-        max_epoch: tensor(),
-        iteration: tensor(),
-        max_iteration: tensor(),
+        epoch: integer(),
+        max_epoch: integer(),
+        iteration: integer(),
+        max_iteration: integer(),
         metrics: map(string(), container()),
-        times: list(number()),
-        step_state: container()
+        times: map(integer(), integer()),
+        step_state: container(),
+        handler_meta: container()
       }
 
   `epoch` is the current epoch, starting at 0, of the nested loop.
@@ -34,15 +35,15 @@ defmodule Axon.Loop.State do
 
   `step_state` is the step state as defined by the loop's processing
   initialization and update functions. `step_state` is a required field.
+
+  `handler_metadata` is a metadata field for storing loop handler metadata.
+  For example, loop checkpoints with specific metric criteria can store
+  previous best metrics in the handler meta for use between iterations.
   """
-  # TODO(seanmor5): We should not send `:times` to the device. We need
-  # a way in Nx/EXLA to mark `:times` as a static property which is
-  # not to be touched at JIT time.
   @enforce_keys [:step_state]
-  @derive {Nx.Container,
-           containers: [:step_state, :epoch, :max_epoch, :iteration, :max_iteration, :metrics]}
   defstruct [
     :step_state,
+    :handler_metadata,
     epoch: 0,
     max_epoch: 1,
     iteration: 0,

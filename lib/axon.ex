@@ -79,17 +79,22 @@ defmodule Axon do
   """
   alias __MODULE__, as: Axon
 
+  # Axon serialization version
+  @file_version 1
+
   @type t :: %__MODULE__{}
 
   @doc false
+  # Note: when adding new fields, consider how they fit serialize/deserialize
   @derive {
     Nx.Container,
-    containers: [], keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+    containers: [],
+    keep: [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
   }
-  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
 
   @doc """
-  Custom Axon layer with given parent.
+  Custom Axon layer with given parent and trainable parameters.
 
   Applies `op` on `parent` with parameters `parameters`. `parameters`
   is a map of trainable `parameters` created using `Axon.param`. Assumes
@@ -127,6 +132,7 @@ defmodule Axon do
       op: op,
       params: parameters,
       policy: Axon.MixedPrecision.create_policy(),
+      hooks: [],
       opts: opts
     }
   end
@@ -923,6 +929,7 @@ defmodule Axon do
     {:leaky_relu, "Leaky rectified linear unit", "a"},
     {:linear, "Linear", "a"},
     {:log_sigmoid, "Log-sigmoid", "a"},
+    {:log_softmax, "Log-softmax", "a"},
     {:mish, "Mish", "a"},
     {:relu, "Rectified linear unit", "a"},
     {:relu6, "Rectified linear unit 6", "a"},
@@ -1030,6 +1037,7 @@ defmodule Axon do
       * `kernel_size` - Pooling kernel size. Defaults to `1`.
       * `padding` - Padding to apply to input of pooling operation.
       * `strides` - Pooling strides. Defaults to size of kernel.
+      * `dilations` - Window dilations. Defaults to `1`.
       * `channels` - channel configuration. One of `:first` or `:last`.
         Defaults to `:first`.
 
@@ -1045,12 +1053,16 @@ defmodule Axon do
     strides = opts[:strides]
     padding = opts[:padding] || :valid
     channels = opts[:channels] || :first
+    dilations = opts[:dilations] || 1
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
     strides = if strides, do: strides, else: Tuple.to_list(kernel_size)
     strides = list_or_duplicate(:strides, strides, inner_rank)
-    output_shape = Axon.Shape.pool(parent_shape, kernel_size, strides, padding, channels)
+    dilations = list_or_duplicate(:dilations, dilations, inner_rank)
+
+    output_shape =
+      Axon.Shape.pool(parent_shape, kernel_size, strides, padding, dilations, channels)
 
     name = opts[:name]
 
@@ -1063,10 +1075,17 @@ defmodule Axon do
           strides: strides,
           padding: padding,
           channels: channels,
+          window_dilations: dilations,
           norm: norm
         ]
       else
-        [kernel_size: kernel_size, strides: strides, padding: padding, channels: channels]
+        [
+          kernel_size: kernel_size,
+          strides: strides,
+          padding: padding,
+          channels: channels,
+          window_dilations: dilations
+        ]
       end
 
     layer(x, pool, output_shape, %{}, name, opts)
@@ -1189,10 +1208,71 @@ defmodule Axon do
 
   ## Normalization
 
-  @normalization_layers [
+  @normalization_with_stats_layers [
     {:batch_norm, "Batch normalization", "a"},
-    {:layer_norm, "Layer normalization", "a"},
     {:instance_norm, "Instance normalization", "an"}
+  ]
+
+  for {norm, name, a_or_an} <- @normalization_with_stats_layers do
+    @doc """
+    Adds #{a_or_an} #{name} layer to the network.
+
+    See `Axon.Layers.#{Atom.to_string(norm)}/4` for more details.
+
+    ## Options
+
+      * `:name` - Layer name.
+      * `:gamma_initializer` - Gamma parameter initializer.
+      * `:beta_initializer` - Beta parameter initializer.
+      * `:channel_index` - Input feature index used for calculating
+        mean and variance.
+      * `:epsilon` - Numerical stability term.
+
+    """
+    @doc type: :normalization
+    def unquote(norm)(%Axon{} = x, opts \\ []) do
+      norm_with_stats(x, unquote(norm), opts)
+    end
+  end
+
+  defp norm_with_stats(%Axon{output_shape: shape} = x, norm, opts) do
+    channel_index = opts[:channel_index] || 1
+    epsilon = opts[:epsilon] || 1.0e-5
+    momentum = opts[:momentum] || 0.1
+
+    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
+    beta_shape = Axon.Shape.norm_param(shape, channel_index)
+    mean_shape = Axon.Shape.norm_param(shape, channel_index)
+    var_shape = Axon.Shape.norm_param(shape, channel_index)
+
+    gamma_initializer = opts[:gamma_initializer]
+    gamma_regularizer = opts[:gamma_regularizer]
+
+    gamma =
+      param("gamma", gamma_shape, initializer: gamma_initializer, regularizer: gamma_regularizer)
+
+    beta_initializer = opts[:beta_initializer] || :zeros
+    beta_regularizer = opts[:beta_regularizer]
+
+    beta = param("beta", beta_shape, initializer: beta_initializer, regularizer: beta_regularizer)
+
+    mean = param("mean", mean_shape, initializer: :zeros, regularizer: :none)
+    var = param("var", var_shape, initializer: :ones, regularizer: :none)
+
+    layer(
+      x,
+      norm,
+      shape,
+      %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var},
+      opts[:name],
+      epsilon: epsilon,
+      channel_index: channel_index,
+      momentum: momentum
+    )
+  end
+
+  @normalization_layers [
+    {:layer_norm, "Layer normalization", "a"}
   ]
 
   for {norm, name, a_or_an} <- @normalization_layers do
@@ -1289,18 +1369,53 @@ defmodule Axon do
     * `name` - Layer name.
 
   """
+  def nx(input, fun, opts \\ [])
+
   @doc type: :special
-  def nx(%Axon{output_shape: shape} = x, fun, opts \\ []) when is_function(fun, 1) do
+  def nx(%Axon{output_shape: input_shape} = x, fun, opts) when is_function(fun, 1) do
     # Some shape rules will not like nil batch shape
-    batch_size = elem(shape, 0)
-    shape = Tuple.delete_at(shape, 0)
+    {shape, batch_size} =
+      if Nx.rank(input_shape) >= 1 and elem(input_shape, 0) == nil do
+        batch_size = elem(input_shape, 0)
+        {put_elem(input_shape, 0, 1), batch_size}
+      else
+        {input_shape, nil}
+      end
 
     param = Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, 0)
 
     expr = Nx.Defn.jit(fun, [param], compiler: Axon.Defn)
-    output_shape = Tuple.insert_at(expr.shape, 0, batch_size)
+
+    output_shape =
+      if Nx.rank(input_shape) >= 1 and elem(input_shape, 0) == nil do
+        put_elem(expr.shape, 0, batch_size)
+      else
+        expr.shape
+      end
 
     layer(x, :nx, output_shape, %{}, opts[:name], fun: fun)
+  end
+
+  def nx(inputs, fun, opts) when is_tuple(inputs) and is_function(fun, 1) do
+    params =
+      inputs
+      |> Tuple.to_list()
+      |> Enum.with_index(fn %Axon{output_shape: shape}, i ->
+        shape =
+          if Nx.rank(shape) > 0 and elem(shape, 0) == nil do
+            Tuple.delete_at(shape, 0)
+          else
+            shape
+          end
+
+        Nx.Defn.Expr.parameter(:nx, {:f, 32}, shape, i)
+      end)
+      |> List.to_tuple()
+
+    expr = Nx.Defn.jit(fun, [params], compiler: Axon.Defn)
+    output_shape = Tuple.insert_at(expr.shape, 0, nil)
+
+    layer(inputs, :nx, output_shape, %{}, opts[:name], fun: fun)
   end
 
   @doc """
@@ -1346,20 +1461,21 @@ defmodule Axon do
   @doc """
   Adds a transpose layer to the network.
 
-  This layer will transpose non-batch dimensions of the input.
-
   ## Options
 
     * `:name` - Layer name.
+    * `:ignore_batch?` - Whether to ignore batch dimension in
+      transpose operation. Defaults to true.
   """
   @doc type: :shape
-  def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
-    is_constant_reshape? = op == :constant
-    output_shape = Axon.Shape.transpose(shape, permutation, is_constant_reshape?)
+  def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
+    ignore_batch? = Keyword.get(opts, :ignore_batch?, true)
+
+    output_shape = Axon.Shape.transpose(shape, permutation, ignore_batch?)
 
     layer(x, :transpose, output_shape, %{}, opts[:name],
       permutation: permutation,
-      constant: is_constant_reshape?
+      ignore_batch?: ignore_batch?
     )
   end
 
@@ -1563,7 +1679,7 @@ defmodule Axon do
       for i <- 0..(n - 1) do
         layer(
           parent,
-          fn x, _ -> Nx.slice_axis(x, i * slice_size, slice_size, axis) end,
+          fn x, _ -> Nx.slice_along_axis(x, i * slice_size, slice_size, axis: axis) end,
           split_shape,
           %{},
           opts[:name]
@@ -1949,6 +2065,59 @@ defmodule Axon do
     end)
   end
 
+  @doc """
+  Attaches a hook to the given Axon model.
+
+  Hooks compile down to `Nx.Defn.Kernel.hook/3` and provide the same
+  functionality for adding side-effecting operations to a compiled
+  model. For example, you can use hooks to inspect intermediate activations,
+  send data to an external service, and more.
+
+  Hooks can be configured to be invoked on the following events:
+
+    * `:initialize` - on model initialization.
+    * `:pre_forward` - before layer forward pass is invoked.
+    * `:forward` - after layer forward pass is invoked.
+    * `:backward` - after layer backward pass is invoked.
+
+  To invoke a hook on every single event, you may pass `:all` to `on:`.
+
+      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :all)
+
+  The default event is `:forward`, assuming you want a hook invoked
+  on the layers forward pass.
+
+  You may configure hooks to run in one of only training or inference
+  mode using the `:mode` option. The default mode is `:both` to be invoked
+  during both train and inference mode.
+
+      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
+
+  You can also attach multiple hooks to a single layer. Hooks are invoked in
+  the order in which they are declared. If order is important, you should attach
+  hooks in the order you want them to be executed:
+
+      Axon.input({nil, 1})
+      # I will be executed first
+      |> Axon.attach_hook(&IO.inspect/1)
+      # I will be executed second
+      |> Axon.attach_hook(fn _ -> IO.write("HERE") end)
+
+  Hooks are executed at their point of attachment. You must insert hooks at each point
+  you want a hook to execute during model execution.
+
+      Axon.input({nil, 1})
+      |> Axon.attach_hook(&IO.inspect/1)
+      |> Axon.relu()
+      |> Axon.attach_hook(&IO.inspect/1)
+  """
+  def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
+    on_event = opts[:on] || :forward
+    mode = opts[:mode] || :both
+
+    %{axon | hooks: [{on_event, mode, fun} | hooks]}
+  end
+
   ## Traversal
 
   @doc """
@@ -2127,14 +2296,15 @@ defmodule Axon do
 
     def inspect(axon, _opts) do
       title = "Model"
-      header = ["Layer", "Shape", "Parameters"]
-      {_, cache} = axon_to_rows(axon, %{})
+      header = ["Layer", "Shape", "Policy", "Parameters", "Parameters Memory"]
+      {_, _, cache, _} = axon_to_rows(axon, %{}, %{})
 
       rows =
         cache
         |> Enum.sort()
         |> Enum.unzip()
-        |> Kernel.elem(1)
+        |> elem(1)
+        |> Enum.map(&elem(&1, 0))
 
       rows
       |> TableRex.Table.new(header, title)
@@ -2146,46 +2316,77 @@ defmodule Axon do
       |> string()
     end
 
-    defp axon_to_rows(%{id: id} = graph, cache) do
+    defp axon_to_rows(%{id: id, op: op} = graph, cache, op_counts) do
       case cache do
-        %{^id => row} ->
-          {row, cache}
+        %{^id => {row, name}} ->
+          {row, name, cache, op_counts}
 
         %{} ->
-          {row, cache} = do_axon_to_rows(graph, cache)
-          cache = Map.put(cache, id, row)
-          {row, cache}
+          {row, name, cache, op_counts} = do_axon_to_rows(graph, cache, op_counts)
+          cache = Map.put(cache, id, {row, name})
+          op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+          {row, name, cache, op_counts}
       end
     end
 
-    defp do_axon_to_rows(%Axon{op: op, parent: parents, name: name, output_shape: shape}, cache)
+    defp do_axon_to_rows(
+           %Axon{op: op, parent: parents, name: name_fn, output_shape: shape, policy: policy},
+           cache,
+           op_counts
+         )
          when is_list(parents) do
-      {names, cache} =
-        Enum.map_reduce(parents, cache, fn %Axon{name: name} = graph, cache ->
-          {_, cache} = axon_to_rows(graph, cache)
-          {name, cache}
+      {input_names, {cache, op_counts}} =
+        Enum.map_reduce(parents, {cache, op_counts}, fn
+          %Axon{} = graph, {cache, op_counts} ->
+            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
+            {name, {cache, op_counts}}
         end)
 
-      row = [name <> " ( #{Atom.to_string(op)} #{inspect(names)} )", "#{inspect(shape)}", 0]
+      op_string =
+        if is_atom(op) do
+          "#{Atom.to_string(op)}"
+        else
+          "#{inspect(op)}"
+        end
 
-      {row, cache}
+      name = name_fn.(op, op_counts)
+
+      row = [
+        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{inspect(shape)}",
+        "#{inspect(policy)}",
+        0,
+        "0 bytes"
+      ]
+
+      {row, name, cache, op_counts}
     end
 
     defp do_axon_to_rows(
-           %Axon{op: op, params: params, parent: parent, name: name, output_shape: shape},
-           cache
+           %Axon{
+             op: op,
+             params: params,
+             parent: parent,
+             name: name_fn,
+             output_shape: shape,
+             policy: %{params: {_, bitsize}} = policy
+           },
+           cache,
+           op_counts
          ) do
-      cache =
+      {input_name, cache, op_counts} =
         if parent do
-          {_, cache} = axon_to_rows(parent, cache)
-          cache
+          {_, input_name, cache, op_counts} = axon_to_rows(parent, cache, op_counts)
+          {input_name, cache, op_counts}
         else
-          cache
+          {nil, cache, op_counts}
         end
 
       num_params =
         params
         |> Enum.reduce(0, fn {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape) end)
+
+      param_byte_size = num_params * div(bitsize, 8)
 
       op_inspect =
         case op do
@@ -2193,9 +2394,115 @@ defmodule Axon do
           _ -> "custom"
         end
 
-      row = [name <> " ( #{op_inspect} )", "#{inspect(shape)}", "#{num_params}"]
-      {row, cache}
+      inputs =
+        if input_name do
+          "[ #{inspect(input_name)} ]"
+        else
+          ""
+        end
+
+      name = name_fn.(op, op_counts)
+
+      row = [
+        name <> " ( #{op_inspect}#{inputs} )",
+        "#{inspect(shape)}",
+        "#{inspect(policy)}",
+        "#{num_params}",
+        "#{param_byte_size} bytes"
+      ]
+
+      {row, name, cache, op_counts}
     end
+  end
+
+  ## Serialization
+
+  @doc """
+  Serializes a model and its parameters for persisting
+  models to disk or elsewhere.
+
+  Model and parameters are serialized as a tuple, where the
+  model is converted to a recursive map to ensure compatibility
+  with future Axon versions and the parameters are serialized
+  using `Nx.serialize/2`. There is some additional metadata included
+  such as current serialization version for compatibility.
+
+  Serialization `opts` are forwarded to `Nx.serialize/2` and
+  `:erlang.term_to_binary/2` for controlling compression options.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> params = Axon.init(model)
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [0.0]
+        ]
+      >
+  """
+  def serialize(%Axon{} = model, params, opts \\ []) do
+    model_meta = axon_to_map(model)
+    params = Nx.serialize(params, opts)
+    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
+  end
+
+  defp axon_to_map(%Axon{parent: nil} = model), do: Map.from_struct(model)
+
+  defp axon_to_map(%Axon{parent: parents} = model) when is_list(parents) do
+    parents = Enum.map(parents, &axon_to_map/1)
+    axon_map = Map.from_struct(model)
+    %{axon_map | parent: parents}
+  end
+
+  defp axon_to_map(%Axon{parent: parent} = model) do
+    parent = axon_to_map(parent)
+    axon_map = Map.from_struct(model)
+    %{axon_map | parent: parent}
+  end
+
+  @doc """
+  Deserializes serialized model and parameters into a `{model, params}`
+  tuple.
+
+  It is the opposite of `Axon.serialize/3`.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> params = Axon.init(model)
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [0.0]
+        ]
+      >
+  """
+  def deserialize(serialized, opts \\ []) do
+    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, [:safe | opts])
+    model = map_to_axon(model_meta)
+    params = Nx.deserialize(serialized_params, opts)
+    {model, params}
+  end
+
+  defp map_to_axon(%{parent: nil} = model), do: struct(__MODULE__, model)
+
+  defp map_to_axon(%{parent: parents} = model) when is_list(parents) do
+    parents = Enum.map(parents, &map_to_axon/1)
+    model = %{model | parent: parents}
+    struct(__MODULE__, model)
+  end
+
+  defp map_to_axon(%{parent: parent} = model) do
+    parent = map_to_axon(parent)
+    model = %{model | parent: parent}
+    struct(__MODULE__, model)
   end
 
   ## Helpers
@@ -2280,10 +2587,21 @@ defmodule Axon do
     end
   end
 
+  # Names are generated lazily at inspect, intialization, and compile
+  # time, so for name we return a function which takes `op` and `op_count`
+  # and returns a unique name for the given model.
   defp unique_identifiers(type, nil) do
     id = System.unique_integer([:positive, :monotonic])
-    {id, Atom.to_string(type) <> "_#{id}"}
+
+    name = fn op, op_counts ->
+      count = op_counts[op] || 0
+      Atom.to_string(type) <> "_#{count}"
+    end
+
+    {id, name}
   end
 
-  defp unique_identifiers(_type, name), do: {System.unique_integer([:positive, :monotonic]), name}
+  defp unique_identifiers(_type, name) do
+    {System.unique_integer([:positive, :monotonic]), fn _, _ -> name end}
+  end
 end

@@ -381,7 +381,7 @@ defmodule Axon.Layers do
 
   ## References
 
-    * [A guide to convolution arithmethic for deep learning](https://arxiv.org/abs/1603.07285v1)
+    * [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
@@ -685,6 +685,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -700,13 +709,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_max(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -770,6 +777,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -785,13 +801,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_mean(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -884,6 +898,15 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations]},
+        fn
+          {_, [_ | _] = dilations} -> [1, 1 | dilations]
+          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -906,7 +929,7 @@ defmodule Axon.Layers do
     |> Nx.window_sum(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
@@ -1070,8 +1093,10 @@ defmodule Axon.Layers do
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
 
-  `gamma` and `beta` are often trainable parameters. This method does
-  not maintain an EMA of mean and variance.
+  `gamma` and `beta` are often trainable parameters. If `training?` is
+  true, this method will compute a new mean and variance, and return
+  the updated `ra_mean` and `ra_var`. Otherwise, it will just compute
+  batch norm from the given ra_mean and ra_var.
 
   ## Options
 
@@ -1081,13 +1106,17 @@ defmodule Axon.Layers do
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
 
+    * `:momentum` - momentum to use for EMA update.
+
+    * `:training?` - if true, uses training mode batch norm. Defaults to false.
+
   ## References
 
     * [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
   """
   @doc type: :normalization
-  defn batch_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+  defn batch_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1101,21 +1130,38 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
-        new_shape =
-          1
-          |> List.duplicate(rank)
-          |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+    {gamma, bias, ra_mean, ra_var} =
+      transform(
+        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        fn {g, b, m, v, rank, num_channels, channel_idx} ->
+          new_shape =
+            1
+            |> List.duplicate(rank)
+            |> List.to_tuple()
+            |> put_elem(channel_idx, num_channels)
 
-        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
-      end)
+          {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape), Nx.reshape(m, new_shape),
+           Nx.reshape(v, new_shape)}
+        end
+      )
 
-    {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    transform(
+      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+       opts[:training?]},
+      fn
+        {x, g, b, m, v, axes, eps, alpha, true} ->
+          {new_mean, new_var} = mean_and_variance(x, axes: axes)
+          out = normalize(x, new_mean, new_var, g, b, epsilon: eps)
+          {out, update_ema(new_mean, m, alpha), update_ema(new_var, v, alpha)}
+
+        {x, g, b, m, v, _, eps, _, _} ->
+          normalize(x, m, v, g, b, epsilon: eps)
+      end
+    )
+  end
+
+  defnp update_ema(obs, old, momentum) do
+    Nx.squeeze(momentum * old + (1 - momentum) * obs)
   end
 
   @doc ~S"""
@@ -1237,8 +1283,10 @@ defmodule Axon.Layers do
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
 
-  `gamma` and `beta` are often trainable parameters. This method does
-  not maintain an EMA of mean and variance.
+  `gamma` and `beta` are often trainable parameters. If `training?` is
+  true, this method will compute a new mean and variance, and return
+  the updated `ra_mean` and `ra_var`. Otherwise, it will just compute
+  batch norm from the given ra_mean and ra_var.
 
   ## Options
 
@@ -1248,13 +1296,17 @@ defmodule Axon.Layers do
     * `:channel_index` - channel index used to determine reduction
       axes for mean and variance calculation.
 
+    * `:momentum` - momentum to use for EMA update.
+
+    * `:training?` - if true, uses training mode batch norm. Defaults to false.
+
   ## References
 
     * [Instance Normalization: The Missing Ingredient for Fast Stylization](https://arxiv.org/abs/1607.08022v3)
   """
   @doc type: :normalization
-  defn instance_norm(input, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
+  defn instance_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1268,21 +1320,34 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
-        new_shape =
-          1
-          |> List.duplicate(rank)
-          |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+    {gamma, bias, ra_mean, ra_var} =
+      transform(
+        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        fn {g, b, m, v, rank, num_channels, channel_idx} ->
+          new_shape =
+            1
+            |> List.duplicate(rank)
+            |> List.to_tuple()
+            |> put_elem(channel_idx, num_channels)
 
-        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
-      end)
+          {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape), Nx.reshape(m, new_shape),
+           Nx.reshape(v, new_shape)}
+        end
+      )
 
-    {mean, var} = mean_and_variance(input, axes: axes)
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    transform(
+      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+       opts[:training?]},
+      fn
+        {x, g, b, m, v, axes, eps, alpha, true} ->
+          {new_mean, new_var} = mean_and_variance(x, axes: axes)
+          out = normalize(x, new_mean, new_var, g, b, epsilon: eps)
+          {out, update_ema(new_mean, m, alpha), update_ema(new_var, v, alpha)}
+
+        {x, g, b, m, v, _, eps, _, _} ->
+          normalize(x, m, v, g, b, epsilon: eps)
+      end
+    )
   end
 
   ## Stochastic
@@ -1503,7 +1568,7 @@ defmodule Axon.Layers do
 
   @doc """
   Functional implementation of global max pooling which computes maximums across
-  the spatial dimensions of the input such that the only remaning dimensions are
+  the spatial dimensions of the input such that the only remaining dimensions are
   the batch and feature dimensions.
 
   Assumes data is configured in a channels-first like format.
@@ -1728,7 +1793,7 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported reize methods are `:nearest`.
+  Supported resize methods are `:nearest, :linear, :bilinear, trilinear`.
 
   ## Examples
 
@@ -1790,7 +1855,7 @@ defmodule Axon.Layers do
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(input, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false])
     output_shape = opts[:shape]
 
     # Input must be at least rank 3
@@ -1825,11 +1890,20 @@ defmodule Axon.Layers do
         end
       end)
 
-    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
-      {img, shape, spatial_dimensions, :nearest} ->
+    transform({input, output_shape, spatial_dimensions, opts[:method], opts[:align_corners]}, fn
+      {img, shape, spatial_dimensions, :nearest, _} ->
         resize_nearest(img, shape, spatial_dimensions)
 
-      {_, _, _, method} ->
+      {img, shape, spatial_dimensions, :linear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :bilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :trilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {_, _, _, method, _} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
                 " must be one of :nearest"
@@ -1857,5 +1931,56 @@ defmodule Axon.Layers do
           Nx.take_along_axis(input, offset, axis: d)
       end
     end)
+  end
+
+  defp resize_linear(input, output_shape, spatial_dimensions, align_corners) do
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        case align_corners do
+          true -> resize_linear_align(input, output_shape, d)
+          false -> resize_linear_noalign(input, output_shape, d)
+        end
+    end
+  end
+
+  defnp resize_linear_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1) |> Nx.min(in_size - 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, id_prev, axis: spatial_dimension)
+    val_next = Nx.take(input, id_next, axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
+  end
+
+  defnp resize_linear_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, Nx.max(id_prev, 0), axis: spatial_dimension)
+    val_next = Nx.take(input, Nx.min(id_next, in_size - 1), axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 end

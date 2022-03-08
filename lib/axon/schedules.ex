@@ -31,7 +31,7 @@ defmodule Axon.Schedules do
 
   ## Options
 
-    * `:init_value` - inital value. $\gamma$ in above formulation.
+    * `:init_value` - initial value. $\gamma$ in above formulation.
       Defaults to `1.0e-2`
     * `:decay_rate` - rate of decay. $r$ in above formulation.
       Defaults to `0.95`
@@ -96,7 +96,7 @@ defmodule Axon.Schedules do
       Defaults to `1.0e-2`
     * `:decay_steps` - number of steps to apply decay for.
       $k$ in above formulation. Defaults to `10`
-    * `:alpha` - minium value of multiplier adjusting learning rate.
+    * `:alpha` - minimum value of multiplier adjusting learning rate.
       $\alpha$ in above formulation. Defaults to `0.0`
 
   ## References

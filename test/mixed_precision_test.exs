@@ -65,4 +65,14 @@ defmodule MixedPrecisionTest do
       assert Nx.type(params["batch_norm"]["beta"]) == {:f, 32}
     end
   end
+
+  describe "inspection" do
+    test "works" do
+      policy = AMP.create_policy()
+
+      assert inspect(policy) == """
+             p=f32 c=f32 o=f32\
+             """
+    end
+  end
 end

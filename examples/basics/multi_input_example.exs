@@ -6,7 +6,6 @@ Mix.install([
 
 defmodule XOR do
   require Axon
-  alias Axon.Loop.State
 
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input(input_shape1)
@@ -24,34 +23,9 @@ defmodule XOR do
     {{x1, x2}, y}
   end
 
-  defp log_metrics(
-         %State{epoch: epoch, iteration: iter, metrics: metrics, process_state: pstate} = state,
-         mode
-       ) do
-    loss =
-      case mode do
-        :train ->
-          %{loss: loss} = pstate
-          "Loss: #{:io_lib.format('~.5f', [Nx.to_scalar(loss)])}"
-
-        :test ->
-          ""
-      end
-
-    metrics =
-      metrics
-      |> Enum.map(fn {k, v} -> "#{k}: #{:io_lib.format('~.5f', [Nx.to_scalar(v)])}" end)
-      |> Enum.join(" ")
-
-    IO.write("\rEpoch: #{Nx.to_scalar(epoch)}, Batch: #{Nx.to_scalar(iter)}, #{loss} #{metrics}")
-
-    {:continue, state}
-  end
-
   defp train_model(model, data, epochs) do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-    |> Axon.Loop.handle(:iteration_completed, &log_metrics(&1, :train), every: 50)
     |> Axon.Loop.run(data, epochs: epochs, iterations: 1000)
   end
 
