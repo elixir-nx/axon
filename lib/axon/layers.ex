@@ -687,10 +687,12 @@ defmodule Axon.Layers do
 
     dilations =
       transform(
-        {Nx.rank(input), opts[:window_dilations]},
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
         fn
-          {_, [_ | _] = dilations} -> [1, 1 | dilations]
-          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
         end
       )
 
@@ -779,10 +781,12 @@ defmodule Axon.Layers do
 
     dilations =
       transform(
-        {Nx.rank(input), opts[:window_dilations]},
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
         fn
-          {_, [_ | _] = dilations} -> [1, 1 | dilations]
-          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
         end
       )
 
@@ -900,10 +904,12 @@ defmodule Axon.Layers do
 
     dilations =
       transform(
-        {Nx.rank(input), opts[:window_dilations]},
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
         fn
-          {_, [_ | _] = dilations} -> [1, 1 | dilations]
-          {rank, dilations} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
         end
       )
 
@@ -1422,8 +1428,13 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
-    opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
+    opts = keyword!(opts, rate: 0.5, channels: :first)
+
+    noise_shape =
+      transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
+        Axon.Shape.spatial_dropout_noise_shape(shape, channels)
+      end)
+
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
@@ -1485,8 +1496,13 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
+    opts = keyword!(opts, rate: 0.5, channels: :first)
+
+    noise_shape =
+      transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
+        Axon.Shape.spatial_dropout_noise_shape(shape, channels)
+      end)
+
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
 

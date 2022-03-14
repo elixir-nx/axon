@@ -982,6 +982,15 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.pool({32, 1, 28, 28}, {1, 2}, [1, 1], :same, [1, 1], :first)
       {32, 1, 28, 28}
+
+      iex> Axon.Shape.pool({nil, 32, 32, 3}, {2, 2}, [1, 2], :valid, [1, 1], :last)
+      {nil, 31, 16, 3}
+
+      iex> Axon.Shape.pool({nil, 1, 28, 28}, {2, 1}, [1, 1], :valid, [2, 1], :first)
+      {nil, 1, 26, 28}
+
+      iex> Axon.Shape.pool({nil, 28, 28, 1}, {2, 1}, [1, 1], :valid, [2, 1], :last)
+      {nil, 26, 28, 1}
   """
   def pool(parent_shape, kernel_size, strides, padding, dilations, channels) do
     unless Nx.rank(parent_shape) >= 3 do
@@ -998,7 +1007,12 @@ defmodule Axon.Shape do
         put_elem(parent_shape, 0, 1)
       end
 
-    kernel_dilation = [1, 1 | dilations]
+    kernel_dilation =
+      if channels == :first do
+        [1, 1 | dilations]
+      else
+        [1 | dilations] ++ [1]
+      end
 
     padding =
       if is_list(padding),
@@ -1016,7 +1030,12 @@ defmodule Axon.Shape do
         Tuple.append(kernel_size, 1)
       end
 
-    strides = [1, 1 | strides]
+    strides =
+      if channels == :first do
+        [1, 1 | strides]
+      else
+        [1 | strides] ++ [1]
+      end
 
     {shape, _} =
       Nx.Shape.pool(
@@ -1117,6 +1136,9 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.adaptive_pool({nil, 1, 28, 28}, {25, 25}, :first)
       {nil, 1, 25, 25}
+
+      iex> Axon.Shape.adaptive_pool({nil, 28, 28, 1}, {25, 25}, :last)
+      {nil, 25, 25, 1}
 
   ### Error cases
 
@@ -1521,9 +1543,21 @@ defmodule Axon.Shape do
   Spatial dropout shapes are broadcasted across feature
   channels, so we set the channel size to 1 and preserve
   the spatial dimensions.
+
+  ## Examples
+
+      iex> Axon.Shape.spatial_dropout_noise_shape({nil, 3, 28, 28}, :first)
+      {nil, 1, 28, 28}
+
+      iex> Axon.Shape.spatial_dropout_noise_shape({nil, 28, 28, 3}, :last)
+      {nil, 28, 28, 1}
   """
-  def spatial_dropout_noise_shape(input_shape) do
-    :erlang.setelement(2, input_shape, 1)
+  def spatial_dropout_noise_shape(input_shape, channels) do
+    if channels == :first do
+      :erlang.setelement(2, input_shape, 1)
+    else
+      :erlang.setelement(tuple_size(input_shape), input_shape, 1)
+    end
   end
 
   @doc """
