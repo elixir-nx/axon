@@ -167,4 +167,188 @@ defmodule Axon.LayersTest do
                ])
     end
   end
+
+  describe "conv" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({3, 1, 4, 4})
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv(input, kernel, bias)
+      last = Axon.Layers.conv(t_input, kernel, bias, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "depthwise conv" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 3, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({6, 1, 4, 4})
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.depthwise_conv(input, kernel, bias)
+      last = Axon.Layers.depthwise_conv(t_input, kernel, bias, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "max pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.max_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.max_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "avg pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.avg_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.avg_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "lp pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.lp_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.lp_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "adaptive avg pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_avg_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "adaptive max pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_max_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "adaptive lp pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_lp_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+  end
+
+  describe "global max pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_max_pool(input)
+      last = Axon.Layers.global_max_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+  end
+
+  describe "global avg pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_avg_pool(input)
+      last = Axon.Layers.global_avg_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+  end
+
+  describe "global lp pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_lp_pool(input)
+      last = Axon.Layers.global_lp_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+  end
 end
