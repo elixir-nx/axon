@@ -43,7 +43,7 @@ defmodule Axon.Loop.State do
   @enforce_keys [:step_state]
   defstruct [
     :step_state,
-    :handler_metadata,
+    handler_metadata: %{},
     epoch: 0,
     max_epoch: 1,
     iteration: 0,
