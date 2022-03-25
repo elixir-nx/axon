@@ -552,16 +552,26 @@ defmodule Axon.Updates do
 
     g_norm =
       transform(x, fn x ->
-        deep_new(x, fn {k, z} -> {k, Nx.sqrt(Nx.sum(Nx.power(z, 2)))} end)
+        sum_gs =
+          deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
+            leaf
+            |> Nx.power(2)
+            |> Nx.sum()
+            |> Nx.add(acc)
+          end)
+
+        Nx.sqrt(sum_gs)
       end)
 
     transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      deep_merge(x, g_norm, fn z, g -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
+      deep_new(x, fn {k, z} ->
+        {k, Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)}
+      end)
     end)
   end
 
   @doc """
-  Centralize input.
+  Centralizes input by shifting updates by their mean.
   """
   def centralize(combinator \\ identity()) do
     stateless(combinator, &apply_centralize/2)
@@ -570,7 +580,7 @@ defmodule Axon.Updates do
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
       deep_new(x, fn {k, z} ->
-        if Nx.rank(z) > 1 do
+        if Elixir.Kernel.>(Nx.rank(z), 1) do
           axes = tl(Nx.axes(z))
           {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
         else
@@ -604,26 +614,23 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale_by_trust_ratio(x, params, opts \\ []) do
-    opts = keyword!(opts, min_norm: 0.0)
+    opts = keyword!(opts, min_norm: 0.0, trust_coefficient: 1.0, eps: 0.0)
     min_norm = opts[:min_norm]
+    trust_coefficient = opts[:trust_coefficient]
+    eps = opts[:eps]
 
-    param_norm = safe_norm(params, min_norm)
-    update_norm = safe_norm(x, min_norm)
+    transform({x, params}, fn {updates, params} ->
+      deep_merge(updates, params, fn g, p ->
+        param_norm = safe_norm(p, min_norm)
+        update_norm = safe_norm(g, min_norm)
 
-    trust_ratios =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g -> p / g end)
+        trust_ratio = trust_coefficient * param_norm / (update_norm + eps)
+
+        zero_norm = Nx.logical_or(Nx.equal(param_norm, 0.0), Nx.equal(update_norm, 0.0))
+        safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
+
+        Nx.multiply(g, safe_trust_ratio)
       end)
-
-    zero_norms =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g ->
-          Nx.logical_or(Nx.equal(p, 0), Nx.equal(g, 0))
-        end)
-      end)
-
-    transform({zero_norms, trust_ratios, x}, fn {zero_norms, trust_ratios, x} ->
-      deep_new(zero_norms, fn {k, z} -> {k, x[k] * Nx.select(z, 1, trust_ratios[k])} end)
     end)
   end
 
@@ -816,17 +823,10 @@ defmodule Axon.Updates do
     end)
   end
 
-  defnp safe_norm(x, min_norm) do
-    transform({x, min_norm}, fn {x, min_norm} ->
-      deep_new(x, fn {k, g} ->
-        norm = Nx.LinAlg.norm(g)
-        z = Nx.select(Nx.less(norm, min_norm), 1, g)
-        {k, Nx.select(Nx.less(norm, min_norm), min_norm, Nx.LinAlg.norm(z))}
-      end)
-    end)
-  end
-
-  defnp empty_state(_) do
-    {}
+  defnp safe_norm(g, min_norm) do
+    norm = Nx.LinAlg.norm(g)
+    z = Nx.select(Nx.less_equal(norm, min_norm), 1, g)
+    masked_norm = Nx.LinAlg.norm(z)
+    Nx.select(Nx.less_equal(norm, min_norm), min_norm, masked_norm)
   end
 end

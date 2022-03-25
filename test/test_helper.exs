@@ -11,6 +11,20 @@ defmodule AxonTestUtil do
     check_optimizer_run!(optimizer, loss, x0, num_steps)
   end
 
+  def assert_all_close(lhs, rhs) do
+    unless Nx.all_close(lhs, rhs) == Nx.tensor(1, type: {:u, 8}) do
+      raise """
+      expected
+
+      #{inspect(lhs)}
+
+      to be within tolerance of
+
+      #{inspect(rhs)}
+      """
+    end
+  end
+
   defp check_optimizer_functions!(optimizer) do
     {init_fn, update_fn} = optimizer
     is_function(init_fn, 1) and is_function(update_fn, 3)
