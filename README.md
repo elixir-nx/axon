@@ -1,4 +1,4 @@
-<h1><img src="https://github.com/elixir-nx/axon/raw/main/axon.jpg" alt="Axon" width="350"></h1>
+<h1><img src="https://github.com/elixir-nx/axon/raw/main/axon.png" alt="Axon" width="350"></h1>
 
 Nx-powered Neural Networks for Elixir.
 
