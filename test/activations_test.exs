@@ -342,16 +342,206 @@ defmodule Axon.ActivationsTest do
     end
   end
 
-  describe "relu" do
-    defn grad_relu(x), do: grad(x, &Nx.mean(Axon.Activations.relu(&1)))
-
-    test "returns correct gradient with custom grad" do
-      assert Nx.all_close(
-               grad_relu(Nx.iota({1, 3}, type: {:f, 32})),
-               Nx.tensor([[0.0, 0.3333333432674408, 0.3333333432674408]])
-             ) == Nx.tensor(1, type: {:u, 8})
+  describe "leaky_relu" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.14366523921489716, 0.8074116110801697, 0.9015417098999023])
+      expected = Nx.tensor([0.14366523921489716, 0.8074116110801697, 0.9015417098999023])
+      actual = Axon.Activations.leaky_relu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
     end
 
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.7146409749984741, 0.004396744538098574],
+          [0.7338429689407349, 0.7714938521385193]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.7146409749984741, 0.004396744538098574],
+          [0.7338429689407349, 0.7714938521385193]
+        ])
+
+      actual = Axon.Activations.leaky_relu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.5697717070579529, 0.2865411639213562]],
+          [[0.6484665870666504, 0.46057072281837463]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.5697717070579529, 0.2865411639213562]],
+          [[0.6484665870666504, 0.46057072281837463]]
+        ])
+
+      actual = Axon.Activations.leaky_relu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 1 and type {:f, 32}, alpha: 0.5" do
+      a = Nx.tensor([0.4840377867221832, 0.3402462601661682, 0.3884929120540619])
+      expected = Nx.tensor([0.4840377867221832, 0.3402462601661682, 0.3884929120540619])
+      actual = Axon.Activations.leaky_relu(a, alpha: 0.5)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}, alpha: 0.5" do
+      a =
+        Nx.tensor([
+          [0.24476367235183716, 0.8360252380371094],
+          [0.3812156319618225, 0.7486156821250916]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.24476367235183716, 0.8360252380371094],
+          [0.3812156319618225, 0.7486156821250916]
+        ])
+
+      actual = Axon.Activations.leaky_relu(a, alpha: 0.5)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}, alpha: 0.5" do
+      a =
+        Nx.tensor([
+          [[0.7986632585525513, 0.8708104491233826]],
+          [[0.8820486664772034, 0.3485039472579956]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.7986632585525513, 0.8708104491233826]],
+          [[0.8820486664772034, 0.3485039472579956]]
+        ])
+
+      actual = Axon.Activations.leaky_relu(a, alpha: 0.5)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.47335895895957947, 0.8662083745002747, 0.07783236354589462])
+      expected = Nx.tensor([1.0, 1.0, 1.0])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.4009854197502136, 0.04092039540410042],
+          [0.8223347067832947, 0.42723962664604187]
+        ])
+
+      expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.5447808504104614, 0.6219799518585205]],
+          [[0.22892318665981293, 0.552138090133667]]
+        ])
+
+      expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "log_sigmoid" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.1184869334101677, 0.8524676561355591, 0.8292036652565002])
+      expected = Nx.tensor([-0.6356576085090637, -0.35512682795524597, -0.3621376156806946])
+      actual = Axon.Activations.log_sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.9977004528045654, 0.6799364686012268],
+          [0.5323657989501953, 0.5890879034996033]
+        ])
+
+      expected =
+        Nx.tensor([
+          [-0.31388065218925476, -0.4098881483078003],
+          [-0.46198034286499023, -0.4413682520389557]
+        ])
+
+      actual = Axon.Activations.log_sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.587926983833313, 0.8881919384002686]],
+          [[0.6705363392829895, 0.6351630091667175]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[-0.4417826533317566, -0.34458136558532715]],
+          [[-0.4130589962005615, -0.42516908049583435]]
+        ])
+
+      actual = Axon.Activations.log_sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.007618676871061325, 0.2710806727409363, 0.7870540022850037])
+      expected = Nx.tensor([0.4980953633785248, 0.43264180421829224, 0.3128015995025635])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.5251182317733765, 0.6292591691017151],
+          [0.20837312936782837, 0.3905956745147705]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.3716561794281006, 0.347678542137146],
+          [0.4480943977832794, 0.4035739302635193]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.7089985609054565, 0.9742392301559448]],
+          [[0.8972120881080627, 0.5678815841674805]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.3298201560974121, 0.27403631806373596]],
+          [[0.28962376713752747, 0.3617258071899414]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "relu" do
     test "forward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.5017861723899841, 0.8087382912635803, 0.2827244997024536])
       expected = Nx.tensor([0.5017861723899841, 0.8087382912635803, 0.2827244997024536])
@@ -425,34 +615,329 @@ defmodule Axon.ActivationsTest do
     end
   end
 
+  describe "relu6" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.842319667339325, 0.021900499239563942, 0.19451844692230225])
+      expected = Nx.tensor([0.842319667339325, 0.021900499239563942, 0.19451844692230225])
+      actual = Axon.Activations.relu6(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.01567154936492443, 0.26180967688560486],
+          [0.6615678071975708, 0.409149169921875]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.01567154936492443, 0.26180967688560486],
+          [0.6615678071975708, 0.409149169921875]
+        ])
+
+      actual = Axon.Activations.relu6(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.04743034392595291, 0.7952200770378113]],
+          [[0.09659137576818466, 0.210462749004364]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.04743034392595291, 0.7952200770378113]],
+          [[0.09659137576818466, 0.210462749004364]]
+        ])
+
+      actual = Axon.Activations.relu6(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.3808571994304657, 0.5188078880310059, 0.9164689183235168])
+      expected = Nx.tensor([1.0, 1.0, 1.0])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.5499739646911621, 0.34733402729034424],
+          [0.6983950734138489, 0.24491633474826813]
+        ])
+
+      expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.16589230298995972, 0.9246458411216736]],
+          [[0.23529919981956482, 0.2500540614128113]]
+        ])
+
+      expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "selu" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.5557087063789368, 0.09193431586027145, 0.9969830513000488])
+      expected = Nx.tensor([0.5838837027549744, 0.09659548103809357, 1.0475311279296875])
+      actual = Axon.Activations.selu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.6687846183776855, 0.36514317989349365],
+          [0.763460636138916, 0.8376092314720154]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.7026926875114441, 0.3836563229560852],
+          [0.8021688461303711, 0.8800768852233887]
+        ])
+
+      actual = Axon.Activations.selu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.9511207938194275, 0.9309434294700623]],
+          [[0.02450866810977459, 0.42269641160964966]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.9993435740470886, 0.9781432151794434]],
+          [[0.025751283392310143, 0.44412755966186523]]
+        ])
+
+      actual = Axon.Activations.selu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.6316671967506409, 0.8289909958839417, 0.18112128973007202])
+      expected = Nx.tensor([1.0507010221481323, 1.0507010221481323, 1.0507010221481323])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.4947720468044281, 0.15160438418388367],
+          [0.44867998361587524, 0.808595597743988]
+        ])
+
+      expected =
+        Nx.tensor([
+          [1.0507010221481323, 1.0507010221481323],
+          [1.0507010221481323, 1.0507010221481323]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.8145947456359863, 0.44749367237091064]],
+          [[0.8953422904014587, 0.20643578469753265]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[1.0507010221481323, 1.0507010221481323]],
+          [[1.0507010221481323, 1.0507010221481323]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
   describe "sigmoid" do
-    defn value_and_grad_sigmoid(x), do: value_and_grad(x, &Axon.Activations.sigmoid(&1))
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.06091778352856636, 0.5317422747612, 0.47350651025772095])
+      expected = Nx.tensor([0.5152247548103333, 0.6298893690109253, 0.6162133812904358])
+      actual = Axon.Activations.sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-    defn value_and_grad_sum_sigmoid(x),
-      do: value_and_grad(x, &Nx.sum(Axon.Activations.sigmoid(&1)))
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.006493795197457075, 0.36615046858787537],
+          [0.30910560488700867, 0.5146171450614929]
+        ])
 
-    test "value_and_grad" do
-      assert {value, grad} = value_and_grad_sigmoid(Nx.tensor(5.0))
-      assert Nx.all_close(value, Nx.tensor(0.9933072)) == Nx.tensor(1, type: {:u, 8})
-      assert Nx.all_close(grad, Nx.tensor(0.00664803)) == Nx.tensor(1, type: {:u, 8})
+      expected =
+        Nx.tensor([
+          [0.5016234517097473, 0.5905284881591797],
+          [0.5766669511795044, 0.6258881688117981]
+        ])
 
-      assert {value, grad} =
-               value_and_grad_sum_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
+      actual = Axon.Activations.sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-      assert Nx.all_close(value, Nx.tensor(3.5))
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.9038936495780945, 0.007167538162320852]],
+          [[0.8746536374092102, 0.1541392058134079]]
+        ])
 
-      assert Nx.all_close(
-               grad,
-               Nx.tensor([
-                 0.04517666,
-                 0.10499358,
-                 0.19661194,
-                 0.25,
-                 0.19661193,
-                 0.10499363,
-                 0.04517666
-               ])
-             )
+      expected =
+        Nx.tensor([
+          [[0.7117489576339722, 0.5017918348312378]],
+          [[0.7057130932807922, 0.5384587049484253]]
+        ])
+
+      actual = Axon.Activations.sigmoid(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.9408628344535828, 0.2626379430294037, 0.3255162537097931])
+      expected = Nx.tensor([0.20191897451877594, 0.2457379251718521, 0.24349266290664673])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.6852369904518127, 0.6258020401000977],
+          [0.4455641210079193, 0.048214737325906754]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.22280584275722504, 0.22703653573989868],
+          [0.2379913330078125, 0.24985475838184357]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.1957770735025406, 0.18241168558597565]],
+          [[0.7026098370552063, 0.5788813829421997]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.24761967360973358, 0.2479318529367447]],
+          [[0.22151799499988556, 0.2301725596189499]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "silu" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.042964693158864975, 0.21260398626327515, 0.040325723588466644])
+      expected = Nx.tensor([0.021943766623735428, 0.11755973100662231, 0.020569348707795143])
+      actual = Axon.Activations.silu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.9929577708244324, 0.36843422055244446],
+          [0.95541912317276, 0.19103989005088806]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.724533200263977, 0.21777431666851044],
+          [0.690007209777832, 0.10461635142564774]
+        ])
+
+      actual = Axon.Activations.silu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.6830660700798035, 0.1384754627943039]],
+          [[0.5222190022468567, 0.5275246500968933]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.4538446068763733, 0.07402394711971283]],
+          [[0.3277793526649475, 0.33176320791244507]]
+        ])
+
+      actual = Axon.Activations.silu(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.7756811380386353, 0.3616112768650055, 0.2904549837112427])
+      expected = Nx.tensor([0.8521932363510132, 0.6769410967826843, 0.6432110667228699])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.9843150973320007, 0.673032283782959],
+          [0.4259312152862549, 0.35117384791374207]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.9228900671005249, 0.8127371072769165],
+          [0.7066973447799683, 0.6720436215400696]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.016957957297563553, 0.2903658449649811]],
+          [[0.09186866134405136, 0.6251020431518555]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.508478581905365, 0.6431683301925659]],
+          [[0.545869767665863, 0.793329119682312]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
     end
   end
 
@@ -465,119 +950,254 @@ defmodule Axon.ActivationsTest do
   end
 
   describe "softplus" do
-    defn value_and_grad_softplus(x), do: value_and_grad(x, &Axon.Activations.softplus(&1))
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.7309077382087708, 0.13401681184768677, 0.12274937331676483])
+      expected = Nx.tensor([1.12394380569458, 0.7623989582061768, 0.7564041018486023])
+      actual = Axon.Activations.softplus(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-    defn value_and_grad_sum_softplus(x),
-      do: value_and_grad(x, &Nx.sum(Axon.Activations.softplus(&1)))
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.8193188309669495, 0.9130507707595825],
+          [0.9200287461280823, 0.3547053635120392]
+        ])
 
-    test "value_and_grad" do
-      assert {value, grad} = value_and_grad_softplus(Nx.tensor(5.0))
-      assert Nx.all_close(value, Nx.tensor(5.0067153))
-      assert Nx.all_close(grad, Nx.tensor(0.9933072))
+      expected =
+        Nx.tensor([
+          [1.1844699382781982, 1.250449776649475],
+          [1.2554343938827515, 0.8861449956893921]
+        ])
 
-      assert {value, grad} =
-               value_and_grad_sum_softplus(
-                 Nx.tensor([-4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0])
-               )
+      actual = Axon.Activations.softplus(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-      assert Nx.all_close(value, Nx.tensor(11.707001))
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.2834765613079071, 0.4217550754547119]],
+          [[0.37744903564453125, 0.5455183982849121]]
+        ])
 
-      assert Nx.all_close(
-               grad,
-               Nx.tensor([
-                 0.01798621,
-                 0.04742587,
-                 0.11920291,
-                 0.2689414,
-                 0.5,
-                 0.73105854,
-                 0.880797,
-                 0.95257413,
-                 0.9820139
-               ])
-             )
+      expected =
+        Nx.tensor([
+          [[0.8448967933654785, 0.926096498966217]],
+          [[0.8995754718780518, 1.002652883529663]]
+        ])
 
-      assert {value, grad} =
-               value_and_grad_sum_softplus(
-                 Nx.tensor([
-                   [
-                     3.91343785e-02,
-                     2.02403838e-02,
-                     1.12020537e-02,
-                     2.83025027e-02,
-                     2.39001730e-02,
-                     3.32025503e-02,
-                     1.57335941e-02,
-                     3.85219835e-02,
-                     4.17842921e-02,
-                     3.35262782e-02,
-                     7.44309500e-03,
-                     4.03720339e-02,
-                     4.42154224e-02,
-                     3.90086390e-02,
-                     4.04843100e-02,
-                     4.23467114e-02,
-                     2.15607638e-02,
-                     3.81104307e-02,
-                     4.93991938e-02,
-                     4.31956985e-02,
-                     3.86686089e-02,
-                     2.52724580e-02,
-                     5.28243431e-02,
-                     4.63339678e-02,
-                     5.84869638e-02,
-                     4.19255988e-02,
-                     3.79695809e-02,
-                     4.37996404e-02,
-                     6.22997236e-05,
-                     5.94581819e-02,
-                     4.50271399e-02,
-                     4.27128846e-02
-                   ]
-                 ])
-               )
+      actual = Axon.Activations.softplus(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-      assert Nx.all_close(value, Nx.tensor(22.758692))
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.1869126409292221, 0.5769602656364441, 0.19408872723579407])
+      expected = Nx.tensor([0.5465925931930542, 0.6403676867485046, 0.5483704805374146])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
 
-      assert Nx.all_close(
-               grad,
-               Nx.tensor([
-                 [
-                   0.5097823,
-                   0.50505996,
-                   0.5028005,
-                   0.50707513,
-                   0.50597477,
-                   0.5082999,
-                   0.5039333,
-                   0.5096293,
-                   0.5104446,
-                   0.5083808,
-                   0.5018608,
-                   0.5100916,
-                   0.5110521,
-                   0.5097509,
-                   0.5101197,
-                   0.5105851,
-                   0.50539,
-                   0.50952643,
-                   0.5123473,
-                   0.51079726,
-                   0.50966597,
-                   0.5063178,
-                   0.513203,
-                   0.5115814,
-                   0.51461756,
-                   0.51047987,
-                   0.50949126,
-                   0.5109482,
-                   0.50001556,
-                   0.51486015,
-                   0.5112549,
-                   0.5106766
-                 ]
-               ])
-             )
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.11179731041193008, 0.17767632007598877],
+          [0.929054856300354, 0.13991422951221466]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.5279202461242676, 0.5443025827407837],
+          [0.7168834209442139, 0.5349215865135193]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.5481308102607727, 0.5958307981491089]],
+          [[0.33531877398490906, 0.9774336814880371]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.6337018609046936, 0.6447018384933472]],
+          [[0.5830529928207397, 0.7265986204147339]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "softsign" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.6500415802001953, 0.7388723492622375, 0.5124310851097107])
+      expected = Nx.tensor([0.39395466446876526, 0.4249146580696106, 0.33881282806396484])
+      actual = Axon.Activations.softsign(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.584363579750061, 0.21967218816280365],
+          [0.41985762119293213, 0.10589564591646194]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.3688317537307739, 0.18010756373405457],
+          [0.29570403695106506, 0.09575554728507996]
+        ])
+
+      actual = Axon.Activations.softsign(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.9445214867591858, 0.16833151876926422]],
+          [[0.753282368183136, 0.48777902126312256]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.4857346713542938, 0.1440785527229309]],
+          [[0.4296412169933319, 0.3278571665287018]]
+        ])
+
+      actual = Axon.Activations.softsign(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.8105446696281433, 0.7689074873924255, 0.37004250288009644])
+      expected = Nx.tensor([0.3050573468208313, 0.31958746910095215, 0.5327603816986084])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.97364342212677, 0.5319579839706421],
+          [0.10144895315170288, 0.6431559920310974]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.25672173500061035, 0.4260948896408081],
+          [0.8242732882499695, 0.3703756332397461]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.512872040271759, 0.010262660682201385]],
+          [[0.0559421144425869, 0.8854929804801941]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.4369136691093445, 0.9797863960266113]],
+          [[0.8968499898910522, 0.281287282705307]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
+  describe "tanh" do
+    test "forward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.4583776295185089, 0.9545223712921143, 0.6616701483726501])
+      expected = Nx.tensor([0.42876097559928894, 0.7418236136436462, 0.5794737935066223])
+      actual = Axon.Activations.tanh(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.6983601450920105, 0.5971042513847351],
+          [0.5811852216720581, 0.45667150616645813]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.6033258438110352, 0.5349857807159424],
+          [0.5235263705253601, 0.42736750841140747]
+        ])
+
+      actual = Axon.Activations.tanh(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.2106747329235077, 0.6333889365196228]],
+          [[0.5343267321586609, 0.06356880813837051]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.20761224627494812, 0.5603813529014587]],
+          [[0.48868152499198914, 0.06348331272602081]]
+        ])
+
+      actual = Axon.Activations.tanh(a)
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 1 and type {:f, 32}" do
+      a = Nx.tensor([0.006474076770246029, 0.0057099852710962296, 0.9349150061607361])
+      expected = Nx.tensor([0.9999580979347229, 0.9999673962593079, 0.4628909230232239])
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 2 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [0.09129361808300018, 0.23762618005275726],
+          [0.018757252022624016, 0.28590673208236694]
+        ])
+
+      expected =
+        Nx.tensor([
+          [0.9917115569114685, 0.9455933570861816],
+          [0.9996482133865356, 0.9225140810012817]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches jax for rank 3 and type {:f, 32}" do
+      a =
+        Nx.tensor([
+          [[0.5739016532897949, 0.3762475252151489]],
+          [[0.5405635237693787, 0.9079052209854126]]
+        ])
+
+      expected =
+        Nx.tensor([
+          [[0.7314491271972656, 0.8707997798919678]],
+          [[0.7565422058105469, 0.48141953349113464]]
+        ])
+
+      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
     end
   end
 end
