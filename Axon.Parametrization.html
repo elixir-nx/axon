@@ -7,7 +7,7 @@
     <meta name="generator" content="ExDoc v0.28.0">
     <meta name="project" content="Axon v0.1.0-dev">
 
-    <title>Search — Axon v0.1.0-dev</title>
+    <title>Axon.Parametrization — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-a816d167216329cc463d.css" />
 
     <script src="dist/sidebar_items-07210c9f9f.js"></script>
@@ -18,7 +18,7 @@
 
 
   </head>
-  <body data-type="search">
+  <body data-type="modules">
     <script>
 
       try {
@@ -80,19 +80,100 @@ Axon
   <div class="content-outer">
     <div id="content" class="content-inner">
 
-<div id="search">
-  <h1>
+<h1>
 <button class="settings display-settings">
   <i class="ri-settings-3-line"></i>
   <span class="sr-only">Settings</span>
 </button>
 
-    <span></span>
-  </h1>
 
-  <div class="loading"><div></div><div></div><div></div><div></div></div>
-</div>
-<script src="dist/search_items-3ffa1dafba.js"></script>
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/parametrization.ex#L1" title="View Source" class="view-source" rel="help">
+      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+      <span class="sr-only">View Source</span>
+    </a>
+
+  <span translate="no">Axon.Parametrization</span> 
+  <small class="app-vsn" translate="no">(Axon v0.1.0-dev)</small>
+
+</h1>
+
+
+  <section id="moduledoc">
+<p>Layer parametrization similar to PyTorch.</p><p>Parametrization alters parameters in an Axon model according
+to the parametrization function prior to the forward pass of
+the model. Parametrizations are themselves Axon models, and
+thus can have parameters and state which will be tracked
+during the backward pass for use in model optimization.</p>
+  </section>
+
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+      Summary
+    </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#parametrize/3" translate="no">parametrize(axon, name, parametrize)</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Parametrizes the given layer and parameter with the given
+parametrization model.</p></div>
+
+      </div>
+
+  </div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+Functions
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="parametrize/3">
+
+  <div class="detail-header">
+    <a href="#parametrize/3" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">parametrize(axon, name, parametrize)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/parametrization.ex#L19" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Parametrizes the given layer and parameter with the given
+parametrization model.</p><p>Name corresponds to the name of the parameter contained in
+the current layer.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
       <footer class="footer">
 
         <p>
