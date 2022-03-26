@@ -340,7 +340,12 @@ defmodule Axon.Updates do
 
     x =
       transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-        deep_new(x, fn {k, g} -> {k, g * Nx.rsqrt(-Nx.power(mu[k], 2) + nu[k] + eps)} end)
+        mu_nu =
+          deep_merge(mu, nu, fn m, n ->
+            Nx.rsqrt(-Nx.power(m, 2) + n + eps)
+          end)
+
+        deep_merge(x, mu_nu, fn g, mn -> g * mn end)
       end)
 
     {x, %{mu: mu, nu: nu}}
@@ -411,32 +416,20 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root]
     threshold = opts[:threshold]
 
-    ro_inf =
-      1
-      |> Nx.subtract(b2)
-      |> reciprocal()
-      |> Nx.multiply(2)
-      |> Nx.subtract(1)
+    ro_inf = 2.0 / (1 - b1) - 1
 
     mu = update_moment(x, mu, b1, 1)
     nu = update_moment(x, nu, b2, 2)
+    count_inc = count + 1
 
-    b2t =
-      b2
-      |> Nx.power(count + 1)
-
-    ro =
-      ro_inf
-      |> Nx.subtract(2)
-      |> Nx.multiply(count + 1)
-      |> Nx.multiply(b2t)
-      |> Nx.divide(1 - b2t)
+    b2t = Nx.power(b2, count_inc)
+    ro = ro_inf - 2 * count_inc * b2t / (1 - b2t)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
     x =
-      if Nx.greater_equal(ro, threshold) do
+      if Nx.all(Nx.greater_equal(ro, threshold)) do
         radam_update(ro, ro_inf, mu_hat, nu_hat, eps_root, eps)
       else
         mu_hat
@@ -446,25 +439,12 @@ defmodule Axon.Updates do
   end
 
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
-    top =
-      ro
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro_inf)
+    r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
 
-    bottom =
-      ro_inf
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro)
-
-    nu_hat =
-      transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
-        deep_new(nu, fn {k, t} -> {k, Nx.sqrt(t + eps_root) + eps} end)
+    transform({r, mu, nu, eps_root, eps}, fn {r, mu, nu, eps_root, eps} ->
+      deep_merge(mu, nu, fn m, v ->
+        r * m / (Nx.sqrt(v + eps_root) + eps)
       end)
-
-    transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
-      deep_merge(mu, nu_hat, fn z, t -> Nx.sqrt(top / bottom) * (z / t) end)
     end)
   end
 
@@ -692,12 +672,12 @@ defmodule Axon.Updates do
 
     mu = update_moment(x, mu, b1, 1)
 
-    signed_sq =
-      transform({x, nu}, fn {x, nu} ->
-        deep_merge(x, nu, fn g, v -> Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2) end)
+    nu =
+      transform({x, nu, b2}, fn {x, nu, b2} ->
+        deep_merge(x, nu, fn g, v ->
+          v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
+        end)
       end)
-
-    nu = update_moment(signed_sq, nu, b2, 2)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
