@@ -39,9 +39,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -112,9 +112,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -188,9 +188,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -261,9 +261,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -334,9 +334,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -407,9 +407,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -464,9 +464,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with itself" do
@@ -476,13 +476,13 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state_1, adam_state_2} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state_1
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state_2
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with stateless transformation" do
@@ -492,9 +492,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -517,7 +517,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_a, expected_a)
       assert_all_close(actual_next_mu_a, expected_next_mu_a)
       assert_all_close(actual_next_nu_a, expected_next_nu_a)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
 
     test "matches optax with nested container" do
@@ -558,7 +558,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_mu_e, expected_next_mu_e)
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
   end
 
@@ -570,9 +570,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {belief_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = belief_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with itself" do
@@ -582,13 +582,13 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {belief_state_1, belief_state_2} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = belief_state_1
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = belief_state_2
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with stateless transformation" do
@@ -598,9 +598,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {belief_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = belief_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -623,7 +623,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_a, expected_a)
       assert_all_close(actual_next_mu_a, expected_next_mu_a)
       assert_all_close(actual_next_nu_a, expected_next_nu_a)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
 
     test "matches optax with nested container" do
@@ -664,7 +664,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_mu_e, expected_next_mu_e)
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
   end
 
@@ -676,9 +676,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with itself" do
@@ -688,13 +688,13 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state_1, adam_state_2} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state_1
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state_2
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with stateless transformation" do
@@ -704,9 +704,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -729,7 +729,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_a, expected_a)
       assert_all_close(actual_next_mu_a, expected_next_mu_a)
       assert_all_close(actual_next_nu_a, expected_next_nu_a)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
 
     test "matches optax with nested container" do
@@ -770,7 +770,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_mu_e, expected_next_mu_e)
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
   end
 
@@ -782,7 +782,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rms_state} = init_fn.(params)
       assert %{nu: %{a: nu_a}} = rms_state
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "composes with itself" do
@@ -792,9 +792,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rms_state_1, rms_state_2} = init_fn.(params)
       assert %{nu: %{a: nu_a}} = rms_state_1
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
       assert %{nu: %{a: nu_a}} = rms_state_2
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "composes with stateless transformation" do
@@ -804,7 +804,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rms_state} = init_fn.(params)
       assert %{nu: %{a: nu_a}} = rms_state
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "matches optax with simple container" do
@@ -866,7 +866,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rss_state} = init_fn.(params)
       assert %{sum_of_squares: %{a: sum_of_squares_a}} = rss_state
-      assert sum_of_squares_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(sum_of_squares_a, Nx.tensor([0.1, 0.1, 0.1]))
     end
 
     test "composes with itself" do
@@ -876,9 +876,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rss_state_1, rss_state_2} = init_fn.(params)
       assert %{sum_of_squares: %{a: sum_of_squares_a}} = rss_state_1
-      assert sum_of_squares_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(sum_of_squares_a, Nx.tensor([0.1, 0.1, 0.1]))
       assert %{sum_of_squares: %{a: sum_of_squares_a}} = rss_state_2
-      assert sum_of_squares_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(sum_of_squares_a, Nx.tensor([0.1, 0.1, 0.1]))
     end
 
     test "composes with stateless transformation" do
@@ -888,7 +888,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {rss_state} = init_fn.(params)
       assert %{sum_of_squares: %{a: sum_of_squares_a}} = rss_state
-      assert sum_of_squares_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(sum_of_squares_a, Nx.tensor([0.1, 0.1, 0.1]))
     end
 
     test "matches optax with simple container" do
@@ -957,7 +957,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {schedule_state} = init_fn.(params)
       assert %{count: count} = schedule_state
-      assert count == Nx.tensor(0)
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with itself" do
@@ -971,9 +971,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {schedule_state_2, schedule_state_1} = init_fn.(params)
       assert %{count: count} = schedule_state_1
-      assert count == Nx.tensor(0)
+      assert_equal(count, Nx.tensor(0))
       assert %{count: count} = schedule_state_2
-      assert count == Nx.tensor(0)
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with stateless transformation" do
@@ -986,7 +986,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {schedule_state} = init_fn.(params)
       assert %{count: count} = schedule_state
-      assert count == Nx.tensor(0)
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -1002,7 +1002,7 @@ defmodule Axon.UpdatesTest do
       assert %{a: actual_a} = new_updates
       assert {%{count: actual_next_count}} = new_state
       assert_all_close(actual_a, expected_a)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
 
     test "matches optax with nested container" do
@@ -1033,7 +1033,7 @@ defmodule Axon.UpdatesTest do
       assert {%{count: actual_next_count}} = new_state
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
   end
 
@@ -1045,8 +1045,8 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {stddev_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}} = stddev_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.1, 0.1, 0.1]))
     end
 
     test "composes with itself" do
@@ -1059,11 +1059,11 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {stddev_state_2, stddev_state_1} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}} = stddev_state_1
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.1, 0.1, 0.1]))
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}} = stddev_state_2
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.2, 0.2, 0.2])
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.2, 0.2, 0.2]))
     end
 
     test "composes with stateless transformation" do
@@ -1073,8 +1073,8 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {stddev_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}} = stddev_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.1, 0.1, 0.1])
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.1, 0.1, 0.1]))
     end
 
     test "matches optax with simple container" do
@@ -1162,9 +1162,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {adam_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = adam_state
-      assert mu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert nu_a == Nx.tensor([0.0, 0.0, 0.0])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(nu_a, Nx.tensor([0.0, 0.0, 0.0]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -1219,9 +1219,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {yogi_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = yogi_state
-      assert mu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert nu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(nu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with itself" do
@@ -1231,13 +1231,13 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {yogi_state_1, yogi_state_2} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = yogi_state_1
-      assert mu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert nu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(nu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(count, Nx.tensor(0))
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = yogi_state_2
-      assert mu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert nu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(nu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "composes with stateless transformation" do
@@ -1247,9 +1247,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {yogi_state} = init_fn.(params)
       assert %{mu: %{a: mu_a}, nu: %{a: nu_a}, count: count} = yogi_state
-      assert mu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert nu_a == Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6])
-      assert count == Nx.tensor(0)
+      assert_equal(mu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(nu_a, Nx.tensor([1.0e-6, 1.0e-6, 1.0e-6]))
+      assert_equal(count, Nx.tensor(0))
     end
 
     test "matches optax with simple container" do
@@ -1272,7 +1272,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_a, expected_a)
       assert_all_close(actual_next_mu_a, expected_next_mu_a)
       assert_all_close(actual_next_nu_a, expected_next_nu_a)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
 
     test "matches optax with nested container" do
@@ -1313,7 +1313,7 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_mu_e, expected_next_mu_e)
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
-      assert actual_next_count == expected_next_count
+      assert_equal(actual_next_count, expected_next_count)
     end
   end
 
@@ -1325,7 +1325,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {trace_state} = init_fn.(params)
       assert %{trace: %{a: trace_a}} = trace_state
-      assert trace_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(trace_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "composes with itself" do
@@ -1335,9 +1335,9 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {trace_state_2, trace_state_1} = init_fn.(params)
       assert %{trace: %{a: trace_a}} = trace_state_1
-      assert trace_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(trace_a, Nx.tensor([0.0, 0.0, 0.0]))
       assert %{trace: %{a: trace_a}} = trace_state_2
-      assert trace_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(trace_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "composes with stateless transformation" do
@@ -1347,7 +1347,7 @@ defmodule Axon.UpdatesTest do
       assert is_function(update_fn, 3)
       assert {trace_state} = init_fn.(params)
       assert %{trace: %{a: trace_a}} = trace_state
-      assert trace_a == Nx.tensor([0.0, 0.0, 0.0])
+      assert_equal(trace_a, Nx.tensor([0.0, 0.0, 0.0]))
     end
 
     test "matches optax with simple container, nesterov: false" do

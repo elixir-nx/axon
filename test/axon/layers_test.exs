@@ -58,26 +58,28 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({3, 1, 2, 2, 1}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [1, 1, 2]) ==
-               Nx.tensor([
-                 [
-                   [
-                     [[0.0, 0.0], [3.0, 0.0], [2.0, 0.0]],
-                     [[6.0, 0.0], [14.0, 0.0], [6.0, 0.0]],
-                     [[2.0, 0.0], [3.0, 0.0], [0.0, 0.0]]
-                   ],
-                   [
-                     [[0.0, 0.0], [7.0, 0.0], [6.0, 0.0]],
-                     [[14.0, 0.0], [38.0, 0.0], [22.0, 0.0]],
-                     [[10.0, 0.0], [23.0, 0.0], [12.0, 0.0]]
-                   ],
-                   [
-                     [[0.0, 0.0], [11.0, 0.0], [10.0, 0.0]],
-                     [[22.0, 0.0], [62.0, 0.0], [38.0, 0.0]],
-                     [[18.0, 0.0], [43.0, 0.0], [24.0, 0.0]]
-                   ]
-                 ]
-               ])
+      assert_all_close(
+        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [1, 1, 2]),
+        Nx.tensor([
+          [
+            [
+              [[0.0, 0.0], [3.0, 0.0], [2.0, 0.0]],
+              [[6.0, 0.0], [14.0, 0.0], [6.0, 0.0]],
+              [[2.0, 0.0], [3.0, 0.0], [0.0, 0.0]]
+            ],
+            [
+              [[0.0, 0.0], [7.0, 0.0], [6.0, 0.0]],
+              [[14.0, 0.0], [38.0, 0.0], [22.0, 0.0]],
+              [[10.0, 0.0], [23.0, 0.0], [12.0, 0.0]]
+            ],
+            [
+              [[0.0, 0.0], [11.0, 0.0], [10.0, 0.0]],
+              [[22.0, 0.0], [62.0, 0.0], [38.0, 0.0]],
+              [[18.0, 0.0], [43.0, 0.0], [24.0, 0.0]]
+            ]
+          ]
+        ])
+      )
     end
 
     test "correct with same padding, no strides" do
@@ -85,12 +87,14 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({1, 1, 2, 2}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: :same) ==
-               Nx.tensor([
-                 [[[0.0, 3.0], [6.0, 14.0]]],
-                 [[[12.0, 23.0], [22.0, 38.0]]],
-                 [[[24.0, 43.0], [38.0, 62.0]]]
-               ])
+      assert_all_close(
+        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :same),
+        Nx.tensor([
+          [[[0.0, 3.0], [6.0, 14.0]]],
+          [[[12.0, 23.0], [22.0, 38.0]]],
+          [[[24.0, 43.0], [38.0, 62.0]]]
+        ])
+      )
     end
 
     test "correct with same padding, strides" do
@@ -114,8 +118,10 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({1, 1, 2, 1}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: [{0, 1}, {1, 2}]) ==
-               Nx.tensor([[[[0.0, 2.0, 3.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]]])
+      assert_all_close(
+        Axon.Layers.conv_transpose(inp, kernel, bias, padding: [{0, 1}, {1, 2}]),
+        Nx.tensor([[[[0.0, 2.0, 3.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]]])
+      )
     end
 
     test "correct with custom padding, strides" do
@@ -123,19 +129,21 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({1, 1, 2, 1}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias,
-               padding: [{0, 1}, {1, 2}],
-               strides: [2, 1]
-             ) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.0, 0.0, 0.0, 0.0, 0.0],
-                     [0.0, 2.0, 3.0, 0.0, 0.0],
-                     [0.0, 0.0, 0.0, 0.0, 0.0]
-                   ]
-                 ]
-               ])
+      assert_all_close(
+        Axon.Layers.conv_transpose(inp, kernel, bias,
+          padding: [{0, 1}, {1, 2}],
+          strides: [2, 1]
+        ),
+        Nx.tensor([
+          [
+            [
+              [0.0, 0.0, 0.0, 0.0, 0.0],
+              [0.0, 2.0, 3.0, 0.0, 0.0],
+              [0.0, 0.0, 0.0, 0.0, 0.0]
+            ]
+          ]
+        ])
+      )
     end
 
     test "correct with kernel dilation" do
@@ -201,7 +209,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.conv(input, kernel, bias)
       last = Axon.Layers.conv(t_input, kernel, bias, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -215,7 +223,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.depthwise_conv(input, kernel, bias)
       last = Axon.Layers.depthwise_conv(t_input, kernel, bias, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -227,7 +235,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.max_pool(input, kernel_size: {2, 2})
       last = Axon.Layers.max_pool(t_input, kernel_size: {2, 2}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "channels last same as channels first with dilation" do
@@ -243,7 +251,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -255,7 +263,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.avg_pool(input, kernel_size: {2, 2})
       last = Axon.Layers.avg_pool(t_input, kernel_size: {2, 2}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "channels last same as channels first with dilation" do
@@ -271,7 +279,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -283,7 +291,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.lp_pool(input, kernel_size: {2, 2})
       last = Axon.Layers.lp_pool(t_input, kernel_size: {2, 2}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "channels last same as channels first with dilation" do
@@ -299,7 +307,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -311,7 +319,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25})
       last = Axon.Layers.adaptive_avg_pool(t_input, output_size: {25, 25}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -323,7 +331,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25})
       last = Axon.Layers.adaptive_max_pool(t_input, output_size: {25, 25}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -335,7 +343,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25})
       last = Axon.Layers.adaptive_lp_pool(t_input, output_size: {25, 25}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
   end
 
@@ -347,7 +355,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.global_max_pool(input)
       last = Axon.Layers.global_max_pool(t_input, channels: :last)
 
-      assert first == last
+      assert_equal(first, last)
     end
   end
 
@@ -359,7 +367,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.global_avg_pool(input)
       last = Axon.Layers.global_avg_pool(t_input, channels: :last)
 
-      assert first == last
+      assert_equal(first, last)
     end
   end
 
@@ -371,7 +379,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.global_lp_pool(input)
       last = Axon.Layers.global_lp_pool(t_input, channels: :last)
 
-      assert first == last
+      assert_equal(first, last)
     end
   end
 end
