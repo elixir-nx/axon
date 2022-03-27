@@ -1,6 +1,20 @@
 defmodule Axon.LayersTest do
   use ExUnit.Case, async: true
-  doctest Axon.Layers
+  import AxonTestUtil
+
+  # Do not doctest if USE_EXLA or USE_TORCHX is set, because
+  # that will check for absolute equality and both will trigger
+  # failures
+  unless System.get_env("USE_EXLA") || System.get_env("USE_TORCHX") do
+    doctest Axon.Layers
+  end
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
 
   describe "conv_transpose" do
     test "correct valid padding, no strides" do
@@ -8,14 +22,17 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({3, 1, 2}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid) ==
-               Nx.tensor([
-                 [
-                   [0.0, 1.0, 2.0, 3.0, 0.0],
-                   [0.0, 3.0, 8.0, 13.0, 6.0],
-                   [0.0, 5.0, 14.0, 23.0, 12.0]
-                 ]
-               ])
+      expected =
+        Nx.tensor([
+          [
+            [0.0, 1.0, 2.0, 3.0, 0.0],
+            [0.0, 3.0, 8.0, 13.0, 6.0],
+            [0.0, 5.0, 14.0, 23.0, 12.0]
+          ]
+        ])
+
+      actual = Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid)
+      assert_all_close(actual, expected)
     end
 
     test "correct with valid padding, strides" do
@@ -23,14 +40,17 @@ defmodule Axon.LayersTest do
       kernel = Nx.iota({3, 1, 2, 2}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [2, 1]) ==
-               Nx.tensor([
-                 [
-                   [[0.0, 3.0, 2.0], [0.0, 1.0, 0.0], [6.0, 13.0, 6.0], [2.0, 3.0, 0.0]],
-                   [[0.0, 7.0, 6.0], [0.0, 5.0, 4.0], [14.0, 33.0, 18.0], [10.0, 23.0, 12.0]],
-                   [[0.0, 11.0, 10.0], [0.0, 9.0, 8.0], [22.0, 53.0, 30.0], [18.0, 43.0, 24.0]]
-                 ]
-               ])
+      expected =
+        Nx.tensor([
+          [
+            [[0.0, 3.0, 2.0], [0.0, 1.0, 0.0], [6.0, 13.0, 6.0], [2.0, 3.0, 0.0]],
+            [[0.0, 7.0, 6.0], [0.0, 5.0, 4.0], [14.0, 33.0, 18.0], [10.0, 23.0, 12.0]],
+            [[0.0, 11.0, 10.0], [0.0, 9.0, 8.0], [22.0, 53.0, 30.0], [18.0, 43.0, 24.0]]
+          ]
+        ])
+
+      actual = Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [2, 1])
+      assert_all_close(actual, expected)
     end
 
     test "correct with 3 spatial dimensions" do
@@ -136,18 +156,21 @@ defmodule Axon.LayersTest do
     test "bilinear without aligned corners" do
       input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
 
-      assert Axon.Layers.resize(input, shape: {5, 2}, method: :bilinear, align_corners: false) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.5, 2.5],
-                     [2.1000001430511475, 4.100000381469727],
-                     [4.5, 6.5],
-                     [6.900000095367432, 8.899999618530273],
-                     [8.5, 10.5]
-                   ]
-                 ]
-               ])
+      expected =
+        Nx.tensor([
+          [
+            [
+              [0.5, 2.5],
+              [2.1000001430511475, 4.100000381469727],
+              [4.5, 6.5],
+              [6.900000095367432, 8.899999618530273],
+              [8.5, 10.5]
+            ]
+          ]
+        ])
+
+      actual = Axon.Layers.resize(input, shape: {5, 2}, method: :bilinear, align_corners: false)
+      assert_all_close(actual, expected)
     end
 
     test "bilinear with aligned corners" do

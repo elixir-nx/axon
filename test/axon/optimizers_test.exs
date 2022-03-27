@@ -1,7 +1,13 @@
 defmodule OptimizersTest do
   use ExUnit.Case, async: true
-
   import AxonTestUtil
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
 
   @learning_rate 1.0e-1
   @iterations 100

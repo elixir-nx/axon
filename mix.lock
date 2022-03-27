@@ -1,4 +1,5 @@
 %{
+  "dll_loader_helper": {:hex, :dll_loader_helper, "0.1.0", "904c3cec32e6e0fc5914e41989ce9350d2bfd06b32f952a658fe63342b993e83", [:make, :mix], [{:elixir_make, "~> 0.6", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "b9db9151af610a2db375af543e912b3dd9cad87377d829328888386c65681473"},
   "earmark_parser": {:hex, :earmark_parser, "1.4.20", "89970db71b11b6b89759ce16807e857df154f8df3e807b2920a8c39834a9e5cf", [:mix], [], "hexpm", "1eb0d2dabeeeff200e0d17dc3048a6045aab271f73ebb82e416464832eb57bdd"},
   "elixir_make": {:hex, :elixir_make, "0.6.3", "bc07d53221216838d79e03a8019d0839786703129599e9619f4ab74c8c096eac", [:mix], [], "hexpm", "f5cbd651c5678bcaabdbb7857658ee106b12509cd976c2c2fca99688e1daf716"},
   "ex_doc": {:hex, :ex_doc, "0.28.0", "7eaf526dd8c80ae8c04d52ac8801594426ae322b52a6156cd038f30bafa8226f", [:mix], [{:earmark_parser, "~> 1.4.19", [hex: :earmark_parser, repo: "hexpm", optional: false]}, {:makeup_elixir, "~> 0.14", [hex: :makeup_elixir, repo: "hexpm", optional: false]}, {:makeup_erlang, "~> 0.1", [hex: :makeup_erlang, repo: "hexpm", optional: false]}], "hexpm", "e55cdadf69a5d1f4cfd8477122ebac5e1fadd433a8c1022dafc5025e48db0131"},
@@ -9,5 +10,6 @@
   "nimble_parsec": {:hex, :nimble_parsec, "1.2.1", "264fc6864936b59fedb3ceb89998c64e9bb91945faf1eb115d349b96913cc2ef", [:mix], [], "hexpm", "23c31d0ec38c97bf9adde35bc91bc8e1181ea5202881f48a192f4aa2d2cf4d59"},
   "nx": {:git, "https://github.com/elixir-nx/nx.git", "594cfb923bae789a8c00104070743e6c44b018b9", [sparse: "nx"]},
   "table_rex": {:hex, :table_rex, "3.1.1", "0c67164d1714b5e806d5067c1e96ff098ba7ae79413cc075973e17c38a587caa", [:mix], [], "hexpm", "678a23aba4d670419c23c17790f9dcd635a4a89022040df7d5d772cb21012490"},
+  "torchx": {:git, "https://github.com/elixir-nx/nx.git", "df18cbcaa524e9d82b774bdb026921c9482430e9", [sparse: "torchx"]},
   "xla": {:hex, :xla, "0.3.0", "7f40d3d799447bd745e6e61985c922821e355eca37c25754bac299d11f137f2e", [:make, :mix], [{:elixir_make, "~> 0.4", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "0de304f5624ea2f2ae1afdcbd72d33855364be36fed2cc5de8d6d2ec8950926e"},
 }

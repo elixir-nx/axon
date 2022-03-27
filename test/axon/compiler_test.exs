@@ -7,6 +7,7 @@ defmodule CompilerTest do
 
   setup config do
     Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
     Process.register(self(), config.test)
     :ok
   end

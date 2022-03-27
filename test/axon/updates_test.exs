@@ -1,9 +1,16 @@
 defmodule Axon.UpdatesTest do
   use ExUnit.Case
-  doctest Axon.Updates
-
   import Axon.Updates
   import AxonTestUtil
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
+
+  doctest Axon.Updates
 
   describe "add_decayed_weights" do
     test "constructs a stateless transformation" do

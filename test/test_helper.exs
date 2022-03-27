@@ -6,13 +6,24 @@ defmodule AxonTestUtil do
     if use_exla?, do: EXLA, else: Nx.Defn.Evaluator
   end
 
+  def test_backend do
+    use_torchx? = System.get_env("USE_TORCHX")
+    if use_torchx?, do: Torchx.Backend, else: Nx.BinaryBackend
+  end
+
   def check_optimizer!(optimizer, loss, x0, num_steps) do
     check_optimizer_functions!(optimizer)
     check_optimizer_run!(optimizer, loss, x0, num_steps)
   end
 
+  def assert_all_close(lhs, rhs) when is_tuple(lhs) and is_tuple(rhs) do
+    lhs
+    |> Tuple.to_list()
+    |> Enum.zip_with(Tuple.to_list(rhs), &assert_all_close/2)
+  end
+
   def assert_all_close(lhs, rhs) do
-    unless Nx.all_close(lhs, rhs) == Nx.tensor(1, type: {:u, 8}) do
+    unless Nx.to_number(Nx.all_close(lhs, rhs)) == 1 do
       raise """
       expected
 

@@ -1,7 +1,14 @@
 defmodule Axon.RecurrentTest do
   use ExUnit.Case
-
+  import AxonTestUtil
   import Nx.Defn
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
 
   describe "dynamic_unroll" do
     test "computes carry and output identical to static_unroll" do
@@ -28,8 +35,8 @@ defmodule Axon.RecurrentTest do
       {{d_carry}, d_output} =
         Axon.Recurrent.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
 
-      assert s_carry == d_carry
-      assert s_output == d_output
+      assert_all_close(s_carry, d_carry)
+      assert_all_close(s_output, d_output)
     end
 
     defn grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -66,15 +73,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_hidden_output(
-                 input,
-                 carry,
-                 input_kernel,
-                 hidden_kernel,
-                 bias,
-                 cell_fn
-               )
+      assert_all_close(
+        grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
 
     defn grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -111,8 +113,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      assert_all_close(
+        grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
 
     defn grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -149,8 +153,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      assert_all_close(
+        grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
 
     defn grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -188,8 +194,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      assert_all_close(
+        grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
 
     defn grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -228,8 +236,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      assert_all_close(
+        grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
 
     defn grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
@@ -268,8 +278,10 @@ defmodule Axon.RecurrentTest do
 
       cell_fn = &Axon.Recurrent.gru_cell/5
 
-      assert grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
-               grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      assert_all_close(
+        grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+      )
     end
   end
 end

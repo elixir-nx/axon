@@ -1,6 +1,20 @@
 defmodule Axon.LossesTest do
   use ExUnit.Case, async: true
-  doctest Axon.Losses
+  import AxonTestUtil
+
+  # Do not doctest if USE_EXLA or USE_TORCHX is set, because
+  # that will check for absolute equality and both will trigger
+  # failures
+  unless System.get_env("USE_EXLA") || System.get_env("USE_TORCHX") do
+    doctest Axon.Losses
+  end
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
 
   describe "binary_cross_entropy" do
     test "supports class weights" do
@@ -21,8 +35,12 @@ defmodule Axon.LossesTest do
       y_true = Nx.tensor([0, 1, 0, 1, 0])
       y_pred = Nx.tensor([15.0, -10.0, 6.0, 2.0, -1.0])
 
-      assert Axon.Losses.binary_cross_entropy(y_true, y_pred, from_logits: true, reduction: :mean) ==
-               Nx.tensor(6.2885422706604)
+      expected = Nx.tensor(6.2885422706604)
+
+      actual =
+        Axon.Losses.binary_cross_entropy(y_true, y_pred, from_logits: true, reduction: :mean)
+
+      assert_all_close(actual, expected)
     end
   end
 
