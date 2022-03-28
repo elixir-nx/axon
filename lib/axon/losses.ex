@@ -883,6 +883,49 @@ defmodule Axon.Losses do
   end
 
   @doc ~S"""
+  Cosine Similarity error loss function.
+
+  $$l_i = \sum_i (\hat{y_i} - y_i)^2$$
+
+  ## Argument Shapes
+
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
+
+  ## Options
+
+    * `:axes` - Defaults to `[1]`.
+    * `:eps` - Defaults to `0.000001`.
+
+  ## Examples
+      iex> y_pred = Nx.tensor([[1.0, 0.0], [1.0, 1.0]])
+      iex> y_true = Nx.tensor([[0.0, 1.0], [1.0, 1.0]])
+      #Nx.Tensor<
+        f32[2]
+        [0.0, 1.0]
+      >
+
+  ## Implemented in pytorch
+  https://github.com/pytorch/pytorch/blob/23902fb8955d48b8d1dfdd54c40e72c2744cac8e/aten/src/ATen/native/Distance.cpp#L242
+  """
+
+  defn cosine_similarity(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, axes: [1], eps: 0.000001)
+
+    transform(
+      {opts[:axes], opts[:eps]},
+      fn
+        {axes, eps} ->
+          w12 = Nx.sum(y_true * y_pred, axes: axes)
+          w1 = Nx.sum(y_true * y_true, axes: axes)
+          w2 = Nx.sum(y_pred * y_pred, axes: axes)
+          n12 = Nx.sqrt(Nx.max(w1 * w2, eps * eps))
+          w12 / n12
+      end
+    )
+  end
+
+  @doc ~S"""
   Poisson loss function.
 
   $$l_i = \frac{1}{C} \sum_i^C y_i - (\hat{y_i} \cdot \log(y_i))$$
