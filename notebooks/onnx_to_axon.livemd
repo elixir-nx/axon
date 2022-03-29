@@ -1,0 +1,136 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# ONNX To Axon
+
+## Converting an ONNX model into Axon
+
+Axon is a new machine learning capability, specific to Elixir.  We would like to take
+advantage of a large amount of models that have been written in other languages and 
+machine learning frameworks.  Let's take a look at how we could use a model developed
+in another language.
+
+Converting models developed by data scientists into production capable implementation is a 
+challenge for all languages and frameworks.  [ONNX](https://onnx.ai/) is an interchange 
+format that allows models written in one language or framework to be converted into 
+another language and framework.
+
+The source model must use constructs mapped into ONNX.  Also, the destination framework must 
+support the model's ONNX constructs. From an Elixir focus, we are interested in ONNX models 
+that [axon_onnx](https://github.com/elixir-nx/axon_onnx) can convert into Axon models.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Why is ONNX important to Axon?
+
+<!-- livebook:{"break_markdown":true} -->
+
+Elixir can get access to thousands of public models and your organization may have private models
+written in other languages and frameworks.  Axon will be hard pressed to quickly repeat the
+countless person-hours spent on developing models in other languages like Tensorflow and PyTorch.
+However, if the model can be converted into ONNX and then into Axon, we can directly run the model
+in Elixir.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### ONNX Model Zoo
+
+<!-- livebook:{"break_markdown":true} -->
+
+The ONNX team has created a central location for well known models.  The 
+[Zoo](https://github.com/onnx/models) has a wide variety of models in various
+problem domains.  For this notebook, we are going to focus on image classification
+trained on the ImageNet dataset.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Setting up our environment
+
+<!-- livebook:{"break_markdown":true} -->
+
+We need access to the Nx library but we can use the general Nx capability rather than Exla or 
+TorchX.  We won't be running the models just yet.  We'll convert from an ONNX Zoo
+model into an Axon model using axon_onnx
+
+We'll also need local access to ONNX files.  For this notebook, the data folder is alongside 
+this notebook and the data/models/onnx folder contains the ONNX model file.
+This notebook assumes the output file location will be in data/models/axon. 
+Copy your ONNX model files into the data/models/onnx folder.
+
+Let's install the needed modules.
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", override: true},
+  {:axon_onnx, github: "elixir-nx/axon_onnx"}
+])
+```
+
+This opinionated module presents a simple API for loading in an ONNX file and saving
+the converted Axon model in the provided directory.  This API will allow us to
+save multiple models pretty quickly.
+
+```elixir
+defmodule OnnxToAxon do
+  @moduledoc """
+  Documentation for `OnnxToAxon`.
+  """
+
+  @doc """
+  Loads an ONNX model into Axon and saves the model
+  
+  ## Examples
+  
+      iex> OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
+  
+  """
+  def onnx_axon(path_to_onnx_file, path_to_axon_dir) do
+    axon_name = axon_name_from_onnx_path(path_to_onnx_file)
+    path_to_axon = Path.join(path_to_axon_dir, axon_name)
+
+    if File.exists?(path_to_axon) do
+      File.rm!(path_to_axon)
+    end
+
+    {model, parameters} = load_onnx(path_to_onnx_file)
+    save_axon(model, parameters, path_to_axon)
+
+    if File.exists?(path_to_axon) do
+      IO.puts("Successfully saved axon model")
+    else
+      IO.puts("Warning:: Could not save axon model")
+    end
+  end
+
+  defp load_onnx(onnx_path) do
+    AxonOnnx.Deserialize.__import__(onnx_path)
+  end
+
+  defp save_axon(model, parameters, axon_path) do
+    model_bytes = Axon.serialize(model, parameters)
+    File.write!(axon_path, model_bytes)
+  end
+
+  defp axon_name_from_onnx_path(onnx_path) do
+    model_root =
+      Path.basename(onnx_path)
+      |> Path.rootname()
+
+    "#{model_root}.axon"
+  end
+end
+```
+
+Now let's convert an ONNX file into Axon
+
+```elixir
+path_to_onnx_file = "data/models/onnx/resnet34-v1-7.onnx"
+path_to_axon_dir = "data/models/axon"
+OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
+```
+
+```elixir
+path_to_onnx_file = "data/models/onnx/resnet18-v1-7.onnx"
+path_to_axon_dir = "data/models/axon"
+OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
+```
