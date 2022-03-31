@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.0">
+    <meta name="generator" content="ExDoc v0.28.3">
     <meta name="project" content="Axon v0.1.0-dev">
 
     <title>Axon.Recurrent — Axon v0.1.0-dev</title>
-    <link rel="stylesheet" href="dist/elixir-a816d167216329cc463d.css" />
+    <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
 
-    <script src="dist/sidebar_items-66e87d2b1e.js"></script>
+    <script src="dist/sidebar_items-199ac19220.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-80aa23c1d96b6dc3c064.js"></script>
+    <script async src="dist/app-a088a6cc33ae3464193e.js"></script>
 
 
   </head>
@@ -22,8 +22,13 @@
     <script>
 
       try {
-        if (localStorage.getItem('night-mode') === 'true') {
-          document.body.classList.add('night-mode');
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
         }
       } catch (error) { }
     </script>
@@ -32,7 +37,7 @@
 
 
 <section class="sidebar">
-  <button class="sidebar-button sidebar-toggle">
+  <button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
     <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
   </button>
 
@@ -44,6 +49,7 @@
       <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
     </button>
     <label class="search-label">
+      <p class="sr-only">Search</p>
       <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
     </label>
   </form>
@@ -103,7 +109,7 @@ Axon
 routines.</p><p>Recurrent Neural Networks are commonly used for working with
 sequences of data where there is some level of dependence between
 outputs at different timesteps.</p><p>This module contains 3 RNN Cell functions and methods to &quot;unroll&quot;
-cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="9369877992-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="9369877992-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
+cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="0306451044-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="0306451044-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
 for a singular timestep. In order to apply an RNN across multiple timesteps,
 you need to use either <code class="inline">static_unroll</code> or <code class="inline">dynamic_unroll</code> (coming soon).</p><p>Unrolling an RNN is equivalent to a <code class="inline">map_reduce</code> or <code class="inline">scan</code> starting
 from an initial carry state and ending with a final carry state and
@@ -319,7 +325,7 @@ Functions
 
         <p>
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.0) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.3) for the
           <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
         </p>
       </footer>

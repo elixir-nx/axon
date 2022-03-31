@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.0">
+    <meta name="generator" content="ExDoc v0.28.3">
     <meta name="project" content="Axon v0.1.0-dev">
 
     <title>Axon.Metrics — Axon v0.1.0-dev</title>
-    <link rel="stylesheet" href="dist/elixir-a816d167216329cc463d.css" />
+    <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
 
-    <script src="dist/sidebar_items-66e87d2b1e.js"></script>
+    <script src="dist/sidebar_items-199ac19220.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-80aa23c1d96b6dc3c064.js"></script>
+    <script async src="dist/app-a088a6cc33ae3464193e.js"></script>
 
 
   </head>
@@ -22,8 +22,13 @@
     <script>
 
       try {
-        if (localStorage.getItem('night-mode') === 'true') {
-          document.body.classList.add('night-mode');
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
         }
       } catch (error) { }
     </script>
@@ -32,7 +37,7 @@
 
 
 <section class="sidebar">
-  <button class="sidebar-button sidebar-toggle">
+  <button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
     <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
   </button>
 
@@ -44,6 +49,7 @@
       <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
     </button>
     <label class="search-label">
+      <p class="sr-only">Search</p>
       <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
     </label>
   </form>
@@ -297,18 +303,22 @@ Functions
 <p>Computes the accuracy of the given predictions.</p><p>If the size of the last axis is 1, it performs a binary
 accuracy computation with a threshold of 0.5. Otherwise,
 computes categorical accuracy.</p><h2 id="accuracy/2-argument-shapes" class="section-heading">
-  <a href="#accuracy/2-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#accuracy/2-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="accuracy/2-examples" class="section-heading">
-  <a href="#accuracy/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#accuracy/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="p" data-group-id="6115211197-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="6115211197-2">(</span><span class="p" data-group-id="6115211197-3">[</span><span class="p" data-group-id="6115211197-4">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="6115211197-4">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6115211197-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="6115211197-5">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6115211197-6">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="6115211197-6">]</span><span class="p" data-group-id="6115211197-3">]</span><span class="p" data-group-id="6115211197-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="6115211197-7">(</span><span class="p" data-group-id="6115211197-8">[</span><span class="p" data-group-id="6115211197-9">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="6115211197-9">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6115211197-10">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="6115211197-10">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6115211197-11">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="6115211197-11">]</span><span class="p" data-group-id="6115211197-8">]</span><span class="p" data-group-id="6115211197-7">)</span><span class="p" data-group-id="6115211197-1">)</span><span class="w">
-</span><span class="p" data-group-id="6115211197-12">#</span><span class="nc" data-group-id="6115211197-12">Nx.Tensor</span><span class="p" data-group-id="6115211197-12">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="p" data-group-id="0288406101-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0288406101-2">(</span><span class="p" data-group-id="0288406101-3">[</span><span class="p" data-group-id="0288406101-4">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0288406101-4">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0288406101-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="0288406101-5">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0288406101-6">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="0288406101-6">]</span><span class="p" data-group-id="0288406101-3">]</span><span class="p" data-group-id="0288406101-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0288406101-7">(</span><span class="p" data-group-id="0288406101-8">[</span><span class="p" data-group-id="0288406101-9">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0288406101-9">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0288406101-10">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="0288406101-10">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="0288406101-11">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0288406101-11">]</span><span class="p" data-group-id="0288406101-8">]</span><span class="p" data-group-id="0288406101-7">)</span><span class="p" data-group-id="0288406101-1">)</span><span class="w">
+</span><span class="p" data-group-id="0288406101-12">#</span><span class="nc" data-group-id="0288406101-12">Nx.Tensor</span><span class="p" data-group-id="0288406101-12">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.6666666865348816</span><span class="w">
-</span><span class="p" data-group-id="6115211197-12">&gt;</span></code></pre>
+</span><span class="p" data-group-id="0288406101-12">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="false_negatives/3">
@@ -334,21 +344,25 @@ computes categorical accuracy.</p><h2 id="accuracy/2-argument-shapes" class="sec
 
 <p>Computes the number of false negative predictions with respect
 to given targets.</p><h2 id="false_negatives/3-options" class="section-heading">
-  <a href="#false_negatives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#false_negatives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of predictions.
 Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="false_negatives/3-examples" class="section-heading">
-  <a href="#false_negatives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#false_negatives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1551709762-1">(</span><span class="p" data-group-id="1551709762-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1551709762-2">]</span><span class="p" data-group-id="1551709762-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1551709762-3">(</span><span class="p" data-group-id="1551709762-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="1551709762-4">]</span><span class="p" data-group-id="1551709762-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_negatives</span><span class="p" data-group-id="1551709762-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="1551709762-5">)</span><span class="w">
-</span><span class="p" data-group-id="1551709762-6">#</span><span class="nc" data-group-id="1551709762-6">Nx.Tensor</span><span class="p" data-group-id="1551709762-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5242655142-1">(</span><span class="p" data-group-id="5242655142-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="5242655142-2">]</span><span class="p" data-group-id="5242655142-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5242655142-3">(</span><span class="p" data-group-id="5242655142-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="5242655142-4">]</span><span class="p" data-group-id="5242655142-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_negatives</span><span class="p" data-group-id="5242655142-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="5242655142-5">)</span><span class="w">
+</span><span class="p" data-group-id="5242655142-6">#</span><span class="nc" data-group-id="5242655142-6">Nx.Tensor</span><span class="p" data-group-id="5242655142-6">&lt;</span><span class="w">
   </span><span class="n">u64</span><span class="w">
   </span><span class="mi">3</span><span class="w">
-</span><span class="p" data-group-id="1551709762-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="5242655142-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="false_positives/3">
@@ -374,21 +388,25 @@ Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="false_negatives/3-
 
 <p>Computes the number of false positive predictions with respect
 to given targets.</p><h2 id="false_positives/3-options" class="section-heading">
-  <a href="#false_positives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#false_positives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of predictions.
 Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="false_positives/3-examples" class="section-heading">
-  <a href="#false_positives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#false_positives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5668812813-1">(</span><span class="p" data-group-id="5668812813-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="5668812813-2">]</span><span class="p" data-group-id="5668812813-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5668812813-3">(</span><span class="p" data-group-id="5668812813-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="5668812813-4">]</span><span class="p" data-group-id="5668812813-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_positives</span><span class="p" data-group-id="5668812813-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="5668812813-5">)</span><span class="w">
-</span><span class="p" data-group-id="5668812813-6">#</span><span class="nc" data-group-id="5668812813-6">Nx.Tensor</span><span class="p" data-group-id="5668812813-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4173833945-1">(</span><span class="p" data-group-id="4173833945-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="4173833945-2">]</span><span class="p" data-group-id="4173833945-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4173833945-3">(</span><span class="p" data-group-id="4173833945-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="4173833945-4">]</span><span class="p" data-group-id="4173833945-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_positives</span><span class="p" data-group-id="4173833945-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="4173833945-5">)</span><span class="w">
+</span><span class="p" data-group-id="4173833945-6">#</span><span class="nc" data-group-id="4173833945-6">Nx.Tensor</span><span class="p" data-group-id="4173833945-6">&lt;</span><span class="w">
   </span><span class="n">u64</span><span class="w">
   </span><span class="mi">2</span><span class="w">
-</span><span class="p" data-group-id="5668812813-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="4173833945-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="mean_absolute_error/2">
@@ -412,20 +430,24 @@ Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="false_positives/3-
 
 <p>Calculates the mean absolute error of predictions
 with respect to targets.</p><p>$$l_i = \sum_i |\hat{y_i} - y_i|$$</p><h2 id="mean_absolute_error/2-argument-shapes" class="section-heading">
-  <a href="#mean_absolute_error/2-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#mean_absolute_error/2-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="mean_absolute_error/2-examples" class="section-heading">
-  <a href="#mean_absolute_error/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#mean_absolute_error/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5821081777-1">(</span><span class="p" data-group-id="5821081777-2">[</span><span class="p" data-group-id="5821081777-3">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p" data-group-id="5821081777-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5821081777-4">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="5821081777-4">]</span><span class="p" data-group-id="5821081777-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5821081777-5">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5821081777-5">}</span><span class="p" data-group-id="5821081777-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5821081777-6">(</span><span class="p" data-group-id="5821081777-7">[</span><span class="p" data-group-id="5821081777-8">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p" data-group-id="5821081777-8">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5821081777-9">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="5821081777-9">]</span><span class="p" data-group-id="5821081777-7">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5821081777-10">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5821081777-10">}</span><span class="p" data-group-id="5821081777-6">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">mean_absolute_error</span><span class="p" data-group-id="5821081777-11">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="5821081777-11">)</span><span class="w">
-</span><span class="p" data-group-id="5821081777-12">#</span><span class="nc" data-group-id="5821081777-12">Nx.Tensor</span><span class="p" data-group-id="5821081777-12">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5504009770-1">(</span><span class="p" data-group-id="5504009770-2">[</span><span class="p" data-group-id="5504009770-3">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p" data-group-id="5504009770-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5504009770-4">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="5504009770-4">]</span><span class="p" data-group-id="5504009770-2">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5504009770-5">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5504009770-5">}</span><span class="p" data-group-id="5504009770-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5504009770-6">(</span><span class="p" data-group-id="5504009770-7">[</span><span class="p" data-group-id="5504009770-8">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p" data-group-id="5504009770-8">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5504009770-9">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="5504009770-9">]</span><span class="p" data-group-id="5504009770-7">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5504009770-10">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="5504009770-10">}</span><span class="p" data-group-id="5504009770-6">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">mean_absolute_error</span><span class="p" data-group-id="5504009770-11">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="5504009770-11">)</span><span class="w">
+</span><span class="p" data-group-id="5504009770-12">#</span><span class="nc" data-group-id="5504009770-12">Nx.Tensor</span><span class="p" data-group-id="5504009770-12">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.5</span><span class="w">
-</span><span class="p" data-group-id="5821081777-12">&gt;</span></code></pre>
+</span><span class="p" data-group-id="5504009770-12">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="precision/3">
@@ -451,23 +473,29 @@ with respect to targets.</p><p>$$l_i = \sum_i |\hat{y_i} - y_i|$$</p><h2 id="mea
 
 <p>Computes the precision of the given predictions with
 respect to the given targets.</p><h2 id="precision/3-argument-shapes" class="section-heading">
-  <a href="#precision/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#precision/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="precision/3-options" class="section-heading">
-  <a href="#precision/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#precision/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of the predictions.
 Defaults to <code class="inline">0.5</code></li></ul><h2 id="precision/3-examples" class="section-heading">
-  <a href="#precision/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#precision/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">precision</span><span class="p" data-group-id="3853900535-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3853900535-2">(</span><span class="p" data-group-id="3853900535-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="3853900535-3">]</span><span class="p" data-group-id="3853900535-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3853900535-4">(</span><span class="p" data-group-id="3853900535-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="3853900535-5">]</span><span class="p" data-group-id="3853900535-4">)</span><span class="p" data-group-id="3853900535-1">)</span><span class="w">
-</span><span class="p" data-group-id="3853900535-6">#</span><span class="nc" data-group-id="3853900535-6">Nx.Tensor</span><span class="p" data-group-id="3853900535-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">precision</span><span class="p" data-group-id="7195602631-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7195602631-2">(</span><span class="p" data-group-id="7195602631-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7195602631-3">]</span><span class="p" data-group-id="7195602631-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7195602631-4">(</span><span class="p" data-group-id="7195602631-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7195602631-5">]</span><span class="p" data-group-id="7195602631-4">)</span><span class="p" data-group-id="7195602631-1">)</span><span class="w">
+</span><span class="p" data-group-id="7195602631-6">#</span><span class="nc" data-group-id="7195602631-6">Nx.Tensor</span><span class="p" data-group-id="7195602631-6">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.6666666865348816</span><span class="w">
-</span><span class="p" data-group-id="3853900535-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="7195602631-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="recall/3">
@@ -493,23 +521,29 @@ Defaults to <code class="inline">0.5</code></li></ul><h2 id="precision/3-example
 
 <p>Computes the recall of the given predictions with
 respect to the given targets.</p><h2 id="recall/3-argument-shapes" class="section-heading">
-  <a href="#recall/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#recall/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="recall/3-options" class="section-heading">
-  <a href="#recall/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#recall/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of the predictions.
 Defaults to <code class="inline">0.5</code></li></ul><h2 id="recall/3-examples" class="section-heading">
-  <a href="#recall/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#recall/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">recall</span><span class="p" data-group-id="1937307487-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1937307487-2">(</span><span class="p" data-group-id="1937307487-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="1937307487-3">]</span><span class="p" data-group-id="1937307487-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1937307487-4">(</span><span class="p" data-group-id="1937307487-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="1937307487-5">]</span><span class="p" data-group-id="1937307487-4">)</span><span class="p" data-group-id="1937307487-1">)</span><span class="w">
-</span><span class="p" data-group-id="1937307487-6">#</span><span class="nc" data-group-id="1937307487-6">Nx.Tensor</span><span class="p" data-group-id="1937307487-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">recall</span><span class="p" data-group-id="5884411337-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5884411337-2">(</span><span class="p" data-group-id="5884411337-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5884411337-3">]</span><span class="p" data-group-id="5884411337-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5884411337-4">(</span><span class="p" data-group-id="5884411337-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5884411337-5">]</span><span class="p" data-group-id="5884411337-4">)</span><span class="p" data-group-id="5884411337-1">)</span><span class="w">
+</span><span class="p" data-group-id="5884411337-6">#</span><span class="nc" data-group-id="5884411337-6">Nx.Tensor</span><span class="p" data-group-id="5884411337-6">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.6666666865348816</span><span class="w">
-</span><span class="p" data-group-id="1937307487-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="5884411337-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="running_average/1">
@@ -533,19 +567,21 @@ Defaults to <code class="inline">0.5</code></li></ul><h2 id="recall/3-examples" 
 
 <p>Returns a function which computes a running average given current average,
 new observation, and current iteration.</p><h2 id="running_average/1-examples" class="section-heading">
-  <a href="#running_average/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#running_average/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
 <pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">cur_avg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">iteration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3003574117-1">(</span><span class="p" data-group-id="3003574117-2">[</span><span class="p" data-group-id="3003574117-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="3003574117-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3003574117-4">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3003574117-4">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3003574117-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3003574117-5">]</span><span class="p" data-group-id="3003574117-2">]</span><span class="p" data-group-id="3003574117-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3003574117-6">(</span><span class="p" data-group-id="3003574117-7">[</span><span class="p" data-group-id="3003574117-8">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="3003574117-8">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3003574117-9">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3003574117-9">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3003574117-10">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3003574117-10">]</span><span class="p" data-group-id="3003574117-7">]</span><span class="p" data-group-id="3003574117-6">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">avg_acc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">running_average</span><span class="p" data-group-id="3003574117-11">(</span><span class="o">&amp;</span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="3003574117-11">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">avg_acc</span><span class="o">.</span><span class="p" data-group-id="3003574117-12">(</span><span class="n">cur_avg</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3003574117-13">[</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="3003574117-13">]</span><span class="p">,</span><span class="w"> </span><span class="n">iteration</span><span class="p" data-group-id="3003574117-12">)</span><span class="w">
-</span><span class="p" data-group-id="3003574117-14">#</span><span class="nc" data-group-id="3003574117-14">Nx.Tensor</span><span class="p" data-group-id="3003574117-14">&lt;</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1058304576-1">(</span><span class="p" data-group-id="1058304576-2">[</span><span class="p" data-group-id="1058304576-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="1058304576-3">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1058304576-4">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1058304576-4">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1058304576-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1058304576-5">]</span><span class="p" data-group-id="1058304576-2">]</span><span class="p" data-group-id="1058304576-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1058304576-6">(</span><span class="p" data-group-id="1058304576-7">[</span><span class="p" data-group-id="1058304576-8">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="1058304576-8">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1058304576-9">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1058304576-9">]</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1058304576-10">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1058304576-10">]</span><span class="p" data-group-id="1058304576-7">]</span><span class="p" data-group-id="1058304576-6">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">avg_acc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">running_average</span><span class="p" data-group-id="1058304576-11">(</span><span class="o">&amp;</span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="1058304576-11">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">avg_acc</span><span class="o">.</span><span class="p" data-group-id="1058304576-12">(</span><span class="n">cur_avg</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1058304576-13">[</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="1058304576-13">]</span><span class="p">,</span><span class="w"> </span><span class="n">iteration</span><span class="p" data-group-id="1058304576-12">)</span><span class="w">
+</span><span class="p" data-group-id="1058304576-14">#</span><span class="nc" data-group-id="1058304576-14">Nx.Tensor</span><span class="p" data-group-id="1058304576-14">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.75</span><span class="w">
-</span><span class="p" data-group-id="3003574117-14">&gt;</span></code></pre>
+</span><span class="p" data-group-id="1058304576-14">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="running_sum/1">
@@ -569,19 +605,21 @@ new observation, and current iteration.</p><h2 id="running_average/1-examples" c
 
 <p>Returns a function which computes a running sum given current sum,
 new observation, and current iteration.</p><h2 id="running_sum/1-examples" class="section-heading">
-  <a href="#running_sum/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#running_sum/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
 <pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">cur_sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12</span><span class="w">
 </span><span class="gp unselectable">iex&gt; </span><span class="n">iteration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="8677202431-1">(</span><span class="p" data-group-id="8677202431-2">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="8677202431-2">]</span><span class="p" data-group-id="8677202431-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="8677202431-3">(</span><span class="p" data-group-id="8677202431-4">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="8677202431-4">]</span><span class="p" data-group-id="8677202431-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">fps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">running_sum</span><span class="p" data-group-id="8677202431-5">(</span><span class="o">&amp;</span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_positives</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="8677202431-5">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">fps</span><span class="o">.</span><span class="p" data-group-id="8677202431-6">(</span><span class="n">cur_sum</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="8677202431-7">[</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="8677202431-7">]</span><span class="p">,</span><span class="w"> </span><span class="n">iteration</span><span class="p" data-group-id="8677202431-6">)</span><span class="w">
-</span><span class="p" data-group-id="8677202431-8">#</span><span class="nc" data-group-id="8677202431-8">Nx.Tensor</span><span class="p" data-group-id="8677202431-8">&lt;</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5051030746-1">(</span><span class="p" data-group-id="5051030746-2">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5051030746-2">]</span><span class="p" data-group-id="5051030746-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5051030746-3">(</span><span class="p" data-group-id="5051030746-4">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5051030746-4">]</span><span class="p" data-group-id="5051030746-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">fps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">running_sum</span><span class="p" data-group-id="5051030746-5">(</span><span class="o">&amp;</span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">false_positives</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="5051030746-5">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">fps</span><span class="o">.</span><span class="p" data-group-id="5051030746-6">(</span><span class="n">cur_sum</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5051030746-7">[</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="5051030746-7">]</span><span class="p">,</span><span class="w"> </span><span class="n">iteration</span><span class="p" data-group-id="5051030746-6">)</span><span class="w">
+</span><span class="p" data-group-id="5051030746-8">#</span><span class="nc" data-group-id="5051030746-8">Nx.Tensor</span><span class="p" data-group-id="5051030746-8">&lt;</span><span class="w">
   </span><span class="n">s64</span><span class="w">
   </span><span class="mi">13</span><span class="w">
-</span><span class="p" data-group-id="8677202431-8">&gt;</span></code></pre>
+</span><span class="p" data-group-id="5051030746-8">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="sensitivity/3">
@@ -607,23 +645,29 @@ new observation, and current iteration.</p><h2 id="running_sum/1-examples" class
 
 <p>Computes the sensitivity of the given predictions
 with respect to the given targets.</p><h2 id="sensitivity/3-argument-shapes" class="section-heading">
-  <a href="#sensitivity/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#sensitivity/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="sensitivity/3-options" class="section-heading">
-  <a href="#sensitivity/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#sensitivity/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of the predictions.
 Defaults to <code class="inline">0.5</code></li></ul><h2 id="sensitivity/3-examples" class="section-heading">
-  <a href="#sensitivity/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#sensitivity/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">sensitivity</span><span class="p" data-group-id="7951298108-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7951298108-2">(</span><span class="p" data-group-id="7951298108-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7951298108-3">]</span><span class="p" data-group-id="7951298108-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7951298108-4">(</span><span class="p" data-group-id="7951298108-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7951298108-5">]</span><span class="p" data-group-id="7951298108-4">)</span><span class="p" data-group-id="7951298108-1">)</span><span class="w">
-</span><span class="p" data-group-id="7951298108-6">#</span><span class="nc" data-group-id="7951298108-6">Nx.Tensor</span><span class="p" data-group-id="7951298108-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">sensitivity</span><span class="p" data-group-id="4731099243-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4731099243-2">(</span><span class="p" data-group-id="4731099243-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4731099243-3">]</span><span class="p" data-group-id="4731099243-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4731099243-4">(</span><span class="p" data-group-id="4731099243-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4731099243-5">]</span><span class="p" data-group-id="4731099243-4">)</span><span class="p" data-group-id="4731099243-1">)</span><span class="w">
+</span><span class="p" data-group-id="4731099243-6">#</span><span class="nc" data-group-id="4731099243-6">Nx.Tensor</span><span class="p" data-group-id="4731099243-6">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.6666666865348816</span><span class="w">
-</span><span class="p" data-group-id="7951298108-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="4731099243-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="specificity/3">
@@ -649,23 +693,29 @@ Defaults to <code class="inline">0.5</code></li></ul><h2 id="sensitivity/3-examp
 
 <p>Computes the specificity of the given predictions
 with respect to the given targets.</p><h2 id="specificity/3-argument-shapes" class="section-heading">
-  <a href="#specificity/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#specificity/3-argument-shapes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">argument-shapes</p>
+  </a>
   Argument Shapes
 </h2>
 <ul><li><code class="inline">y_true</code> - $(d_0, d_1, ..., d_n)$</li><li><code class="inline">y_pred</code> - $(d_0, d_1, ..., d_n)$</li></ul><h2 id="specificity/3-options" class="section-heading">
-  <a href="#specificity/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#specificity/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of the predictions.
 Defaults to <code class="inline">0.5</code></li></ul><h2 id="specificity/3-examples" class="section-heading">
-  <a href="#specificity/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#specificity/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">specificity</span><span class="p" data-group-id="0915825166-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0915825166-2">(</span><span class="p" data-group-id="0915825166-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0915825166-3">]</span><span class="p" data-group-id="0915825166-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0915825166-4">(</span><span class="p" data-group-id="0915825166-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0915825166-5">]</span><span class="p" data-group-id="0915825166-4">)</span><span class="p" data-group-id="0915825166-1">)</span><span class="w">
-</span><span class="p" data-group-id="0915825166-6">#</span><span class="nc" data-group-id="0915825166-6">Nx.Tensor</span><span class="p" data-group-id="0915825166-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">specificity</span><span class="p" data-group-id="4015720810-1">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4015720810-2">(</span><span class="p" data-group-id="4015720810-3">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4015720810-3">]</span><span class="p" data-group-id="4015720810-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4015720810-4">(</span><span class="p" data-group-id="4015720810-5">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4015720810-5">]</span><span class="p" data-group-id="4015720810-4">)</span><span class="p" data-group-id="4015720810-1">)</span><span class="w">
+</span><span class="p" data-group-id="4015720810-6">#</span><span class="nc" data-group-id="4015720810-6">Nx.Tensor</span><span class="p" data-group-id="4015720810-6">&lt;</span><span class="w">
   </span><span class="n">f32</span><span class="w">
   </span><span class="mf">0.0</span><span class="w">
-</span><span class="p" data-group-id="0915825166-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="4015720810-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="true_negatives/3">
@@ -691,21 +741,25 @@ Defaults to <code class="inline">0.5</code></li></ul><h2 id="specificity/3-examp
 
 <p>Computes the number of true negative predictions with respect
 to given targets.</p><h2 id="true_negatives/3-options" class="section-heading">
-  <a href="#true_negatives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#true_negatives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of predictions.
 Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="true_negatives/3-examples" class="section-heading">
-  <a href="#true_negatives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#true_negatives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3002488536-1">(</span><span class="p" data-group-id="3002488536-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3002488536-2">]</span><span class="p" data-group-id="3002488536-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="3002488536-3">(</span><span class="p" data-group-id="3002488536-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="3002488536-4">]</span><span class="p" data-group-id="3002488536-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">true_negatives</span><span class="p" data-group-id="3002488536-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="3002488536-5">)</span><span class="w">
-</span><span class="p" data-group-id="3002488536-6">#</span><span class="nc" data-group-id="3002488536-6">Nx.Tensor</span><span class="p" data-group-id="3002488536-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4534721019-1">(</span><span class="p" data-group-id="4534721019-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="4534721019-2">]</span><span class="p" data-group-id="4534721019-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4534721019-3">(</span><span class="p" data-group-id="4534721019-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="4534721019-4">]</span><span class="p" data-group-id="4534721019-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">true_negatives</span><span class="p" data-group-id="4534721019-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="4534721019-5">)</span><span class="w">
+</span><span class="p" data-group-id="4534721019-6">#</span><span class="nc" data-group-id="4534721019-6">Nx.Tensor</span><span class="p" data-group-id="4534721019-6">&lt;</span><span class="w">
   </span><span class="n">u64</span><span class="w">
   </span><span class="mi">1</span><span class="w">
-</span><span class="p" data-group-id="3002488536-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="4534721019-6">&gt;</span></code></pre>
   </section>
 </section>
 <section class="detail" id="true_positives/3">
@@ -731,21 +785,25 @@ Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="true_negatives/3-e
 
 <p>Computes the number of true positive predictions with respect
 to given targets.</p><h2 id="true_positives/3-options" class="section-heading">
-  <a href="#true_positives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#true_positives/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
   Options
 </h2>
 <ul><li><code class="inline">:threshold</code> - threshold for truth value of predictions.
 Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="true_positives/3-examples" class="section-heading">
-  <a href="#true_positives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a>
+  <a href="#true_positives/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
   Examples
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1618343813-1">(</span><span class="p" data-group-id="1618343813-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="1618343813-2">]</span><span class="p" data-group-id="1618343813-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1618343813-3">(</span><span class="p" data-group-id="1618343813-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="1618343813-4">]</span><span class="p" data-group-id="1618343813-3">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">true_positives</span><span class="p" data-group-id="1618343813-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="1618343813-5">)</span><span class="w">
-</span><span class="p" data-group-id="1618343813-6">#</span><span class="nc" data-group-id="1618343813-6">Nx.Tensor</span><span class="p" data-group-id="1618343813-6">&lt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">y_true</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0169213117-1">(</span><span class="p" data-group-id="0169213117-2">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="0169213117-2">]</span><span class="p" data-group-id="0169213117-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">y_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0169213117-3">(</span><span class="p" data-group-id="0169213117-4">[</span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="0169213117-4">]</span><span class="p" data-group-id="0169213117-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.Metrics</span><span class="o">.</span><span class="n">true_positives</span><span class="p" data-group-id="0169213117-5">(</span><span class="n">y_true</span><span class="p">,</span><span class="w"> </span><span class="n">y_pred</span><span class="p" data-group-id="0169213117-5">)</span><span class="w">
+</span><span class="p" data-group-id="0169213117-6">#</span><span class="nc" data-group-id="0169213117-6">Nx.Tensor</span><span class="p" data-group-id="0169213117-6">&lt;</span><span class="w">
   </span><span class="n">u64</span><span class="w">
   </span><span class="mi">1</span><span class="w">
-</span><span class="p" data-group-id="1618343813-6">&gt;</span></code></pre>
+</span><span class="p" data-group-id="0169213117-6">&gt;</span></code></pre>
   </section>
 </section>
 
@@ -756,7 +814,7 @@ Defaults to <code class="inline">0.5</code>.</li></ul><h2 id="true_positives/3-e
 
         <p>
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.0) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.3) for the
           <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
         </p>
       </footer>
