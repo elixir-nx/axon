@@ -128,6 +128,23 @@ defmodule Axon.Shared do
   end
 
   @doc """
+  Deep reduces a map with an accumulator.
+  """
+  def deep_reduce(map, acc, fun) do
+    Enum.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
+  end
+
+  defp recur_deep_reduce({_, value}, acc, fun) do
+    case value do
+      %Nx.Tensor{} = val ->
+        fun.(val, acc)
+
+      %{} = val ->
+        deep_reduce(val, acc, fun)
+    end
+  end
+
+  @doc """
   JIT given function with args and opts or apply it inside defn.
   """
   def jit_or_apply(caller, fun, args, opts \\ []) do

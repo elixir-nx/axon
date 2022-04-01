@@ -340,7 +340,12 @@ defmodule Axon.Updates do
 
     x =
       transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-        deep_new(x, fn {k, g} -> {k, g * Nx.rsqrt(-Nx.power(mu[k], 2) + nu[k] + eps)} end)
+        mu_nu =
+          deep_merge(mu, nu, fn m, n ->
+            Nx.rsqrt(-Nx.power(m, 2) + n + eps)
+          end)
+
+        deep_merge(x, mu_nu, fn g, mn -> g * mn end)
       end)
 
     {x, %{mu: mu, nu: nu}}
@@ -411,32 +416,20 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root]
     threshold = opts[:threshold]
 
-    ro_inf =
-      1
-      |> Nx.subtract(b2)
-      |> reciprocal()
-      |> Nx.multiply(2)
-      |> Nx.subtract(1)
+    ro_inf = 2.0 / (1 - b1) - 1
 
     mu = update_moment(x, mu, b1, 1)
     nu = update_moment(x, nu, b2, 2)
+    count_inc = count + 1
 
-    b2t =
-      b2
-      |> Nx.power(count + 1)
-
-    ro =
-      ro_inf
-      |> Nx.subtract(2)
-      |> Nx.multiply(count + 1)
-      |> Nx.multiply(b2t)
-      |> Nx.divide(1 - b2t)
+    b2t = Nx.power(b2, count_inc)
+    ro = ro_inf - 2 * count_inc * b2t / (1 - b2t)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
     x =
-      if Nx.greater_equal(ro, threshold) do
+      if Nx.all(Nx.greater_equal(ro, threshold)) do
         radam_update(ro, ro_inf, mu_hat, nu_hat, eps_root, eps)
       else
         mu_hat
@@ -446,25 +439,12 @@ defmodule Axon.Updates do
   end
 
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
-    top =
-      ro
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro_inf)
+    r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
 
-    bottom =
-      ro_inf
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro)
-
-    nu_hat =
-      transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
-        deep_new(nu, fn {k, t} -> {k, Nx.sqrt(t + eps_root) + eps} end)
+    transform({r, mu, nu, eps_root, eps}, fn {r, mu, nu, eps_root, eps} ->
+      deep_merge(mu, nu, fn m, v ->
+        r * m / (Nx.sqrt(v + eps_root) + eps)
       end)
-
-    transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
-      deep_merge(mu, nu_hat, fn z, t -> Nx.sqrt(top / bottom) * (z / t) end)
     end)
   end
 
@@ -552,16 +532,26 @@ defmodule Axon.Updates do
 
     g_norm =
       transform(x, fn x ->
-        deep_new(x, fn {k, z} -> {k, Nx.sqrt(Nx.sum(Nx.power(z, 2)))} end)
+        sum_gs =
+          deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
+            leaf
+            |> Nx.power(2)
+            |> Nx.sum()
+            |> Nx.add(acc)
+          end)
+
+        Nx.sqrt(sum_gs)
       end)
 
     transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      deep_merge(x, g_norm, fn z, g -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
+      deep_new(x, fn {k, z} ->
+        {k, Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)}
+      end)
     end)
   end
 
   @doc """
-  Centralize input.
+  Centralizes input by shifting updates by their mean.
   """
   def centralize(combinator \\ identity()) do
     stateless(combinator, &apply_centralize/2)
@@ -570,7 +560,7 @@ defmodule Axon.Updates do
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
       deep_new(x, fn {k, z} ->
-        if Nx.rank(z) > 1 do
+        if Elixir.Kernel.>(Nx.rank(z), 1) do
           axes = tl(Nx.axes(z))
           {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
         else
@@ -604,26 +594,23 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale_by_trust_ratio(x, params, opts \\ []) do
-    opts = keyword!(opts, min_norm: 0.0)
+    opts = keyword!(opts, min_norm: 0.0, trust_coefficient: 1.0, eps: 0.0)
     min_norm = opts[:min_norm]
+    trust_coefficient = opts[:trust_coefficient]
+    eps = opts[:eps]
 
-    param_norm = safe_norm(params, min_norm)
-    update_norm = safe_norm(x, min_norm)
+    transform({x, params}, fn {updates, params} ->
+      deep_merge(updates, params, fn g, p ->
+        param_norm = safe_norm(p, min_norm)
+        update_norm = safe_norm(g, min_norm)
 
-    trust_ratios =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g -> p / g end)
+        trust_ratio = trust_coefficient * param_norm / (update_norm + eps)
+
+        zero_norm = Nx.logical_or(Nx.equal(param_norm, 0.0), Nx.equal(update_norm, 0.0))
+        safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
+
+        Nx.multiply(g, safe_trust_ratio)
       end)
-
-    zero_norms =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g ->
-          Nx.logical_or(Nx.equal(p, 0), Nx.equal(g, 0))
-        end)
-      end)
-
-    transform({zero_norms, trust_ratios, x}, fn {zero_norms, trust_ratios, x} ->
-      deep_new(zero_norms, fn {k, z} -> {k, x[k] * Nx.select(z, 1, trust_ratios[k])} end)
     end)
   end
 
@@ -685,12 +672,12 @@ defmodule Axon.Updates do
 
     mu = update_moment(x, mu, b1, 1)
 
-    signed_sq =
-      transform({x, nu}, fn {x, nu} ->
-        deep_merge(x, nu, fn g, v -> Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2) end)
+    nu =
+      transform({x, nu, b2}, fn {x, nu, b2} ->
+        deep_merge(x, nu, fn g, v ->
+          v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
+        end)
       end)
-
-    nu = update_moment(signed_sq, nu, b2, 2)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
@@ -816,17 +803,10 @@ defmodule Axon.Updates do
     end)
   end
 
-  defnp safe_norm(x, min_norm) do
-    transform({x, min_norm}, fn {x, min_norm} ->
-      deep_new(x, fn {k, g} ->
-        norm = Nx.LinAlg.norm(g)
-        z = Nx.select(Nx.less(norm, min_norm), 1, g)
-        {k, Nx.select(Nx.less(norm, min_norm), min_norm, Nx.LinAlg.norm(z))}
-      end)
-    end)
-  end
-
-  defnp empty_state(_) do
-    {}
+  defnp safe_norm(g, min_norm) do
+    norm = Nx.LinAlg.norm(g)
+    z = Nx.select(Nx.less_equal(norm, min_norm), 1, g)
+    masked_norm = Nx.LinAlg.norm(z)
+    Nx.select(Nx.less_equal(norm, min_norm), min_norm, masked_norm)
   end
 end
