@@ -2577,7 +2577,7 @@ defmodule Axon do
     {id, name}
   end
 
-  defp unique_identifiers(type, name_fn) when is_function(name_fn, 2) do
+  defp unique_identifiers(_type, name_fn) when is_function(name_fn, 2) do
     id = System.unique_integer([:positive, :monotonic])
     {id, name_fn}
   end
