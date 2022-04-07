@@ -45,7 +45,7 @@ defmodule Axon.Updates do
         transform(
           {x, step},
           fn {updates, step} ->
-            deep_new(updates, fn {k, x} -> Nx.multiply(x, step) end)
+            deep_new(updates, x -> Nx.multiply(x, step) end)
           end
         )
       end
@@ -66,9 +66,9 @@ defmodule Axon.Updates do
       end
 
       defnp apply_my_update(updates, state) do
-        new_state = deep_new(state, fn {k, v} -> {k, Nx.add(v, 0.01)} end)
+        new_state = deep_new(state, v -> Nx.add(v, 0.01) end)
         updates = transform({updates, new_state}, fn {updates, state} ->
-          deep_merge(updates, state, fn _, g, z -> Nx.multiply(g, z) end)
+          deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
         end)
         {updates, %{state: new_state}}
       end
@@ -99,7 +99,7 @@ defmodule Axon.Updates do
     transform(
       {x, step},
       fn {updates, step} ->
-        deep_new(updates, fn {k, v} -> {k, Nx.multiply(v, step)} end)
+        deep_new(updates, fn v -> Nx.multiply(v, step) end)
       end
     )
   end
@@ -189,7 +189,7 @@ defmodule Axon.Updates do
 
     inv_sqrt_squares =
       transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
-        deep_new(sum_of_squares, fn {k, z} -> {k, Nx.rsqrt(z + eps)} end)
+        deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
       end)
 
     inv_sqrt_x_square =
@@ -371,7 +371,7 @@ defmodule Axon.Updates do
 
     updates =
       transform({x, step_size}, fn {x, step_size} ->
-        deep_new(x, fn {k, x} -> {k, x * step_size} end)
+        deep_new(x, fn x -> x * step_size end)
       end)
 
     {updates, %{count: count + 1}}
@@ -510,7 +510,7 @@ defmodule Axon.Updates do
     delta = opts[:delta]
 
     transform({x, delta}, fn {x, delta} ->
-      deep_new(x, fn {k, g} -> {k, Nx.clip(g, -delta, delta)} end)
+      deep_new(x, fn g -> Nx.clip(g, -delta, delta) end)
     end)
   end
 
@@ -544,8 +544,8 @@ defmodule Axon.Updates do
       end)
 
     transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      deep_new(x, fn {k, z} ->
-        {k, Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)}
+      deep_new(x, fn z ->
+        Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)
       end)
     end)
   end
@@ -559,12 +559,12 @@ defmodule Axon.Updates do
 
   defnp apply_centralize(x, _params) do
     transform(x, fn x ->
-      deep_new(x, fn {k, z} ->
+      deep_new(x, fn z ->
         if Elixir.Kernel.>(Nx.rank(z), 1) do
           axes = tl(Nx.axes(z))
-          {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
+          z - Nx.mean(z, axes: axes, keep_axes: true)
         else
-          {k, z}
+          z
         end
       end)
     end)
@@ -631,7 +631,7 @@ defmodule Axon.Updates do
 
     noise =
       transform(x, fn x ->
-        deep_new(x, fn {k, z} -> {k, Nx.random_normal(z)} end)
+        deep_new(x, fn z -> Nx.random_normal(z) end)
       end)
 
     updates =
@@ -799,7 +799,7 @@ defmodule Axon.Updates do
 
   defnp bias_correction(moment, decay, count) do
     transform({moment, decay, count}, fn {moment, decay, count} ->
-      deep_new(moment, fn {k, z} -> {k, z / (1 - Nx.power(decay, count))} end)
+      deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
     end)
   end
 

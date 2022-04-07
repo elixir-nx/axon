@@ -75,9 +75,7 @@ defmodule Axon.Shared do
   defn zeros_like(params) do
     transform(
       params,
-      &deep_new(&1, fn {k, x} ->
-        {k, Axon.Initializers.zeros(shape: Nx.shape(x))}
-      end)
+      &deep_new(&1, fn x -> Axon.Initializers.zeros(shape: Nx.shape(x)) end)
     )
   end
 
@@ -87,9 +85,7 @@ defmodule Axon.Shared do
   defn fulls_like(params, value) do
     transform(
       params,
-      &deep_new(&1, fn {k, x} ->
-        {k, Axon.Initializers.full(value, shape: Nx.shape(x))}
-      end)
+      &deep_new(&1, fn x -> Axon.Initializers.full(value, shape: Nx.shape(x)) end)
     )
   end
 
@@ -97,15 +93,24 @@ defmodule Axon.Shared do
   Deep merges two possibly nested maps, applying fun to leaf values.
   """
   def deep_merge(left, right, fun) do
-    Map.merge(left, right, &deep_resolve(&1, &2, &3, fun))
+    {merged, []} = Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun))
+    merged
   end
 
-  defp deep_resolve(_key, left = %Nx.Tensor{}, right = %Nx.Tensor{}, fun) do
-    fun.(left, right)
+  defp leaves(container) do
+    container
+    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
+    |> Enum.reverse()
   end
 
-  defp deep_resolve(_key, left = %{}, right = %{}, fun) do
-    deep_merge(left, right, fun)
+  defp recur_merge(left, [right | right_leaves], fun) do
+    case {left, right} do
+      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {left, right} ->
+        {deep_merge(left, right, fun), right_leaves}
+    end
   end
 
   @doc """
@@ -113,17 +118,17 @@ defmodule Axon.Shared do
   to each leaf.
   """
   def deep_new(map, fun) do
-    map
-    |> Map.new(&recur_deep_new(&1, fun))
+    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
+    cont
   end
 
-  defp recur_deep_new({key, value}, fun) do
-    case value do
-      %Nx.Tensor{} = val ->
-        fun.({key, val})
+  defp recur_traverse(item, :ok, fun) do
+    case item do
+      %Nx.Tensor{} = t ->
+        {fun.(t), :ok}
 
-      %{} = val ->
-        {key, deep_new(val, fun)}
+      container ->
+        {deep_new(container, fun), :ok}
     end
   end
 
@@ -131,15 +136,15 @@ defmodule Axon.Shared do
   Deep reduces a map with an accumulator.
   """
   def deep_reduce(map, acc, fun) do
-    Enum.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
+    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
   end
 
-  defp recur_deep_reduce({_, value}, acc, fun) do
+  defp recur_deep_reduce(value, acc, fun) do
     case value do
       %Nx.Tensor{} = val ->
         fun.(val, acc)
 
-      %{} = val ->
+      val ->
         deep_reduce(val, acc, fun)
     end
   end

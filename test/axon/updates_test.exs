@@ -79,6 +79,35 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = add_decayed_weights(decay: 0.95)
+
+      params = {
+        {
+          Nx.tensor([0.26106195, 0.52850289, 0.19788291]),
+          {{}, Nx.tensor([[0.7100145, 0.41356265, 0.35657979]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.83834362, 0.75873946, 0.54735649]),
+          {{}, Nx.tensor([[0.7384456, 0.76676084, 0.72992148]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([1.08635247, 1.26081721, 0.73534525])
+      expected_e = Nx.tensor([[1.41295937, 1.15964536, 1.06867228]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
   end
 
   describe "clip" do
@@ -148,6 +177,35 @@ defmodule Axon.UpdatesTest do
 
       assert {new_updates, new_state} = update_fn.(updates, state, params)
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = clip(delta: 1.0)
+
+      params = {
+        {
+          Nx.tensor([0.62866726, 0.04867021, 0.66160428]),
+          {{}, Nx.tensor([0.70566323, 0.52083707, 0.14541595])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.19084232, 0.09963277, 0.28141486]),
+          {{}, Nx.tensor([0.91124607, 0.2248316, 0.79530217])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.19084232, 0.09963277, 0.28141487])
+      expected_e = Nx.tensor([0.91124606, 0.2248316, 0.79530215])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
       assert new_state == {}
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
@@ -228,6 +286,35 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = clip_by_global_norm(max_norm: 1.0)
+
+      params = {
+        {
+          Nx.tensor([0.85107357, 0.67088125, 0.59811338]),
+          {{}, Nx.tensor([0.45385324, 0.05131562, 0.91526984])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.59629243, 0.86219328, 0.30155944]),
+          {{}, Nx.tensor([0.83792943, 0.22030587, 0.72606433])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.3795878, 0.54885495, 0.1919667])
+      expected_e = Nx.tensor([0.53340906, 0.14024231, 0.462198])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
   end
 
   describe "centralize" do
@@ -297,6 +384,35 @@ defmodule Axon.UpdatesTest do
 
       assert {new_updates, new_state} = update_fn.(updates, state, params)
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = centralize()
+
+      params = {
+        {
+          Nx.tensor([0.21855268, 0.21286796, 0.83114509]),
+          {{}, Nx.tensor([[0.26958357, 0.59519575, 0.87732692]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.41087112, 0.97778015, 0.51054674]),
+          {{}, Nx.tensor([[0.20577277, 0.95319838, 0.14168365]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.41087112, 0.97778015, 0.51054674])
+      expected_e = Nx.tensor([[-0.22777883, 0.51964678, -0.29186795]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
       assert new_state == {}
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
@@ -374,6 +490,35 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = identity()
+
+      params = {
+        {
+          Nx.tensor([0.26106195, 0.52850289, 0.19788291]),
+          {{}, Nx.tensor([[0.7100145, 0.41356265, 0.35657979]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.83834362, 0.75873946, 0.54735649]),
+          {{}, Nx.tensor([[0.7384456, 0.76676084, 0.72992148]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.83834362, 0.75873946, 0.54735649])
+      expected_e = Nx.tensor([[0.7384456, 0.76676084, 0.72992148]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
   end
 
   describe "scale" do
@@ -443,6 +588,35 @@ defmodule Axon.UpdatesTest do
 
       assert {new_updates, new_state} = update_fn.(updates, state, params)
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale(1.0e-2)
+
+      params = {
+        {
+          Nx.tensor([0.58813851, 0.27981229, 0.17335737]),
+          {{}, Nx.tensor([0.21444265, 0.63923396, 0.12755156])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.48363215, 0.7147937, 0.32252682]),
+          {{}, Nx.tensor([0.09518468, 0.38613084, 0.20729078])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.00483632, 0.00714794, 0.00322527])
+      expected_e = Nx.tensor([0.00095185, 0.00386131, 0.00207291])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
       assert new_state == {}
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
@@ -545,6 +719,47 @@ defmodule Axon.UpdatesTest do
       assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
       assert %{a: %{b: actual_next_mu_b, c: %{d: %{}, e: actual_next_mu_e}}} = new_mu
       assert %{a: %{b: actual_next_nu_b, c: %{d: %{}, e: actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_mu_b, expected_next_mu_b)
+      assert_all_close(actual_next_mu_e, expected_next_mu_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+      assert actual_next_count == expected_next_count
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_adam([])
+
+      params = {
+        {
+          Nx.tensor([0.16028131, 0.82155978, 0.67870557]),
+          {{}, Nx.tensor([[0.42164469, 0.59406027, 0.24703223]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.37850456, 0.80079877, 0.16309247]),
+          {{}, Nx.tensor([[0.29081831, 0.29872105, 0.48405271]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.9999934, 0.9999933, 0.99999315])
+      expected_e = Nx.tensor([[0.9999933, 0.9999933, 0.9999933]])
+      expected_next_mu_b = Nx.tensor([0.03785046, 0.08007988, 0.01630925])
+      expected_next_mu_e = Nx.tensor([[0.02908183, 0.0298721, 0.04840527]])
+      expected_next_nu_b = Nx.tensor([1.4326570e-04, 6.4127869e-04, 2.6599155e-05])
+      expected_next_nu_e = Nx.tensor([[8.4575287e-05, 8.9234265e-05, 2.3430702e-04]])
+      expected_next_count = Nx.tensor(1)
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
+      assert {{actual_next_mu_b, {{}, actual_next_mu_e}}} = new_mu
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
       assert_all_close(actual_next_mu_b, expected_next_mu_b)
@@ -659,6 +874,47 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
       assert actual_next_count == expected_next_count
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_belief([])
+
+      params = {
+        {
+          Nx.tensor([0.48266117, 0.21594939, 0.25310925]),
+          {{}, Nx.tensor([[0.08780911, 0.25273182, 0.02973737]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.15456417, 0.03338711, 0.47241908]),
+          {{}, Nx.tensor([[0.76352976, 0.86033023, 0.22758512]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.9999933, 0.9999933, 0.99999326])
+      expected_e = Nx.tensor([[0.9999934, 0.99999326, 0.9999933]])
+      expected_next_mu_b = Nx.tensor([0.01545642, 0.00333871, 0.04724191])
+      expected_next_mu_e = Nx.tensor([[0.07635298, 0.08603302, 0.02275851]])
+      expected_next_nu_b = Nx.tensor([2.3890085e-05, 1.1146991e-06, 2.2317980e-04])
+      expected_next_nu_e = Nx.tensor([[5.8297772e-04, 7.4016815e-04, 5.1794988e-05]])
+      expected_next_count = Nx.tensor(1)
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
+      assert {{actual_next_mu_b, {{}, actual_next_mu_e}}} = new_mu
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_mu_b, expected_next_mu_b)
+      assert_all_close(actual_next_mu_e, expected_next_mu_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+      assert actual_next_count == expected_next_count
+    end
   end
 
   describe "scale_by_radam" do
@@ -765,6 +1021,47 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
       assert actual_next_count == expected_next_count
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_radam([])
+
+      params = {
+        {
+          Nx.tensor([0.72504156, 0.86982723, 0.58679938]),
+          {{}, Nx.tensor([[0.26001513, 0.62556789, 0.29528421]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.01536453, 0.61977439, 0.561842]),
+          {{}, Nx.tensor([[0.03755132, 0.80392208, 0.87391938]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.01536453, 0.6197742, 0.56184185])
+      expected_e = Nx.tensor([[0.03755131, 0.8039219, 0.8739191]])
+      expected_next_mu_b = Nx.tensor([0.00153645, 0.06197744, 0.0561842])
+      expected_next_mu_e = Nx.tensor([[0.00375513, 0.0803922, 0.08739194]])
+      expected_next_nu_b = Nx.tensor([2.3606893e-07, 3.8412030e-04, 3.1566643e-04])
+      expected_next_nu_e = Nx.tensor([[1.4101014e-06, 6.4629072e-04, 7.6373509e-04]])
+      expected_next_count = Nx.tensor(1)
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
+      assert {{actual_next_mu_b, {{}, actual_next_mu_e}}} = new_mu
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_mu_b, expected_next_mu_b)
+      assert_all_close(actual_next_mu_e, expected_next_mu_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+      assert actual_next_count == expected_next_count
+    end
   end
 
   describe "scale_by_rms" do
@@ -844,6 +1141,40 @@ defmodule Axon.UpdatesTest do
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
       assert {%{nu: new_nu}} = new_state
       assert %{a: %{b: actual_next_nu_b, c: %{d: %{}, e: actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_rms([])
+
+      params = {
+        {
+          Nx.tensor([0.0553049, 0.21828064, 0.98751916]),
+          {{}, Nx.tensor([[0.17757973, 0.67966022, 0.19382288]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.61220327, 0.73535765, 0.42179138]),
+          {{}, Nx.tensor([[0.39331236, 0.27389305, 0.30131908]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([3.1622772, 3.1622772, 3.162277])
+      expected_e = Nx.tensor([[3.1622767, 3.1622758, 3.162276]])
+      expected_next_nu_b = Nx.tensor([0.03747929, 0.05407509, 0.0177908])
+      expected_next_nu_e = Nx.tensor([[0.01546946, 0.00750174, 0.00907932]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{nu: new_nu}} = new_state
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
@@ -940,6 +1271,47 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_sum_of_squares_b, expected_next_sum_of_squares_b)
       assert_all_close(actual_next_sum_of_squares_e, expected_next_sum_of_squares_e)
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_rss([])
+
+      params = {
+        {
+          Nx.tensor([0.92084601, 0.27218277, 0.56501597]),
+          {{}, Nx.tensor([[0.92937211, 0.44536295, 0.95296635]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.79292352, 0.11484326, 0.84693855]),
+          {{}, Nx.tensor([[0.13715272, 0.63276641, 0.5234425]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.92885643, 0.34135267, 0.9368279])
+      expected_e = Nx.tensor([[0.39790204, 0.894515, 0.855929]])
+      expected_next_sum_of_squares_b = Nx.tensor([0.72872776, 0.11318897, 0.8173049])
+      expected_next_sum_of_squares_e = Nx.tensor([[0.11881087, 0.50039333, 0.37399206]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{sum_of_squares: new_sum_of_squares}} = new_state
+
+      assert {
+               {
+                 actual_next_sum_of_squares_b,
+                 {{}, actual_next_sum_of_squares_e}
+               }
+             } = new_sum_of_squares
+
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_sum_of_squares_b, expected_next_sum_of_squares_b)
+      assert_all_close(actual_next_sum_of_squares_e, expected_next_sum_of_squares_e)
+    end
   end
 
   describe "scale_by_schedule" do
@@ -1023,6 +1395,37 @@ defmodule Axon.UpdatesTest do
 
       assert {new_updates, new_state} = update_fn.(updates, state, params)
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert {%{count: actual_next_count}} = new_state
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert actual_next_count == expected_next_count
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_schedule(Axon.Schedules.polynomial_decay())
+
+      params = {
+        {
+          Nx.tensor([0.3440084, 0.16096481, 0.43997161]),
+          {{}, Nx.tensor([[0.26168961, 0.40905451, 0.3061841]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.27159927, 0.37657519, 0.38219061]),
+          {{}, Nx.tensor([[0.9613661, 0.30215168, 0.24110271]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.00271599, 0.00376575, 0.00382191])
+      expected_e = Nx.tensor([[0.00961366, 0.00302152, 0.00241103]])
+      expected_next_count = Nx.tensor(1)
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
       assert {%{count: actual_next_count}} = new_state
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
@@ -1126,6 +1529,45 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_nu_b, expected_next_nu_b)
       assert_all_close(actual_next_nu_e, expected_next_nu_e)
     end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_stddev([])
+
+      params = {
+        {
+          Nx.tensor([0.49792875, 0.04941673, 0.33815839]),
+          {{}, Nx.tensor([[0.70057761, 0.3689184, 0.36608007]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.54587409, 0.04849768, 0.23020724]),
+          {{}, Nx.tensor([[0.29348535, 0.79428645, 0.76129383]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([3.333333, 3.3332546, 3.33333])
+      expected_e = Nx.tensor([[3.333331, 3.333333, 3.333333]])
+      expected_next_mu_b = Nx.tensor([0.05458741, 0.00484977, 0.02302072])
+      expected_next_mu_e = Nx.tensor([[0.02934854, 0.07942864, 0.07612938]])
+      expected_next_nu_b = Nx.tensor([0.02979785, 0.0002352, 0.00529954])
+      expected_next_nu_e = Nx.tensor([[0.00861336, 0.0630891, 0.05795683]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{mu: new_mu, nu: new_nu}} = new_state
+      assert {{actual_next_mu_b, {{}, actual_next_mu_e}}} = new_mu
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_mu_b, expected_next_mu_b)
+      assert_all_close(actual_next_mu_e, expected_next_mu_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+    end
   end
 
   describe "scale_by_trust_ratio" do
@@ -1198,6 +1640,35 @@ defmodule Axon.UpdatesTest do
 
       assert {new_updates, new_state} = update_fn.(updates, state, params)
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert new_state == {}
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_trust_ratio(min_norm: 1.0)
+
+      params = {
+        {
+          Nx.tensor([0.98282674, 0.34776357, 0.33319137]),
+          {{}, Nx.tensor([[0.95596768, 0.67948137, 0.05268411]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.53616958, 0.24854466, 0.26695091]),
+          {{}, Nx.tensor([[0.50354858, 0.91245821, 0.30518247]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.58683133, 0.27202922, 0.29217464])
+      expected_e = Nx.tensor([[0.5443927, 0.98647004, 0.3299366]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
       assert new_state == {}
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
@@ -1300,6 +1771,47 @@ defmodule Axon.UpdatesTest do
       assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
       assert %{a: %{b: actual_next_mu_b, c: %{d: %{}, e: actual_next_mu_e}}} = new_mu
       assert %{a: %{b: actual_next_nu_b, c: %{d: %{}, e: actual_next_nu_e}}} = new_nu
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_mu_b, expected_next_mu_b)
+      assert_all_close(actual_next_mu_e, expected_next_mu_e)
+      assert_all_close(actual_next_nu_b, expected_next_nu_b)
+      assert_all_close(actual_next_nu_e, expected_next_nu_e)
+      assert actual_next_count == expected_next_count
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_yogi([])
+
+      params = {
+        {
+          Nx.tensor([0.87690482, 0.80993702, 0.87935556]),
+          {{}, Nx.tensor([[0.00528695, 0.06690531, 0.12589192]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.47019351, 0.72034131, 0.32043362]),
+          {{}, Nx.tensor([[0.84200356, 0.76360484, 0.55381714]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.99564576, 0.9976599, 0.99210596])
+      expected_e = Nx.tensor([[0.9981149, 0.99784315, 0.9965868]])
+      expected_next_mu_b = Nx.tensor([0.04702025, 0.07203503, 0.03204427])
+      expected_next_mu_e = Nx.tensor([[0.08420125, 0.07636139, 0.05538262]])
+      expected_next_nu_b = Nx.tensor([0.00022208, 0.00051989, 0.00010368])
+      expected_next_nu_e = Nx.tensor([[0.00070997, 0.00058409, 0.00030771]])
+      expected_next_count = Nx.tensor(1)
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{mu: new_mu, nu: new_nu, count: actual_next_count}} = new_state
+      assert {{actual_next_mu_b, {{}, actual_next_mu_e}}} = new_mu
+      assert {{actual_next_nu_b, {{}, actual_next_nu_e}}} = new_nu
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
       assert_all_close(actual_next_mu_b, expected_next_mu_b)
@@ -1437,6 +1949,40 @@ defmodule Axon.UpdatesTest do
       assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
       assert {%{trace: new_trace}} = new_state
       assert %{a: %{b: actual_next_trace_b, c: %{d: %{}, e: actual_next_trace_e}}} = new_trace
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(actual_next_trace_b, expected_next_trace_b)
+      assert_all_close(actual_next_trace_e, expected_next_trace_e)
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = trace(nesterov: true)
+
+      params = {
+        {
+          Nx.tensor([0.81068757, 0.89196671, 0.21672469]),
+          {{}, Nx.tensor([[0.9194404, 0.19829658, 0.96960522]])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.21182614, 0.29456406, 0.50427876]),
+          {{}, Nx.tensor([[0.26525984, 0.66349034, 0.11212149]])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.40246966, 0.55967176, 0.95812964])
+      expected_e = Nx.tensor([[0.5039937, 1.2606317, 0.21303083]])
+      expected_next_trace_b = Nx.tensor([0.21182615, 0.29456407, 0.5042788])
+      expected_next_trace_e = Nx.tensor([[0.26525983, 0.66349036, 0.11212149]])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{trace: new_trace}} = new_state
+      assert {{actual_next_trace_b, {{}, actual_next_trace_e}}} = new_trace
       assert_all_close(actual_b, expected_b)
       assert_all_close(actual_e, expected_e)
       assert_all_close(actual_next_trace_b, expected_next_trace_b)
