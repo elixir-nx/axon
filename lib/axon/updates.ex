@@ -45,7 +45,7 @@ defmodule Axon.Updates do
         transform(
           {x, step},
           fn {updates, step} ->
-            deep_new(updates, x -> Nx.multiply(x, step) end)
+            deep_new(updates, fn x -> Nx.multiply(x, step) end)
           end
         )
       end
@@ -66,7 +66,7 @@ defmodule Axon.Updates do
       end
 
       defnp apply_my_update(updates, state) do
-        new_state = deep_new(state, v -> Nx.add(v, 0.01) end)
+        new_state = deep_new(state, fn v -> Nx.add(v, 0.01) end)
         updates = transform({updates, new_state}, fn {updates, state} ->
           deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
         end)

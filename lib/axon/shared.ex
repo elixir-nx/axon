@@ -93,8 +93,14 @@ defmodule Axon.Shared do
   Deep merges two possibly nested maps, applying fun to leaf values.
   """
   def deep_merge(left, right, fun) do
-    {merged, []} = Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun))
-    merged
+    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
+      {merged, []} ->
+        merged
+
+      {_merged, _leftover} ->
+        raise ArgumentError, "unable to merge arguments with incompatible" <>
+                                " structure"
+    end
   end
 
   defp leaves(container) do
