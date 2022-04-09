@@ -9,7 +9,7 @@ defmodule Axon.MixProject do
       app: :axon,
       version: @version,
       name: "Axon",
-      elixir: "~> 1.11",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs()
