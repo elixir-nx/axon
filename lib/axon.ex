@@ -217,6 +217,46 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a container layer to the network.
+
+  In certain cases you may want your model to have mulitple
+  outputs. In order to make this work, you must "join" the
+  outputs into an Axon layer using this function for use in
+  initialization and inference later on.
+
+  The given container can be any valid Axon Nx container.
+
+  ## Options
+
+    * `:name` - Layer name.
+  """
+  @doc type: :special
+  def container(container, opts \\ []) do
+    output_shape =
+      deep_new(container, fn %Axon{output_shape: shape} ->
+        shape
+      end)
+
+    layer(container, :container, output_shape, %{}, opts[:name], opts)
+  end
+
+  # TODO: This should not be duplicated
+  defp deep_new(map, fun) do
+    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
+    cont
+  end
+
+  defp recur_traverse(item, :ok, fun) do
+    case item do
+      %Axon{} = t ->
+        {fun.(t), :ok}
+
+      container ->
+        {deep_new(container, fun), :ok}
+    end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -2252,6 +2292,39 @@ defmodule Axon do
 
     defp do_axon_to_rows(
            %Axon{
+             op: :container,
+             parent: parents,
+             name: name_fn,
+             output_shape: shape,
+             policy: policy
+           },
+           cache,
+           op_counts
+         ) do
+      {input_names, {cache, op_counts}} =
+        deep_map_reduce(parents, {cache, op_counts}, fn
+          %Axon{} = graph, {cache, op_counts} ->
+            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
+            {name, {cache, op_counts}}
+        end)
+
+      op_string = "container"
+
+      name = name_fn.(:container, op_counts)
+
+      row = [
+        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{inspect(shape)}",
+        "#{inspect(policy)}",
+        0,
+        "0 bytes"
+      ]
+
+      {row, name, cache, op_counts}
+    end
+
+    defp do_axon_to_rows(
+           %Axon{
              op: op,
              params: params,
              parent: parent,
@@ -2300,6 +2373,22 @@ defmodule Axon do
       ]
 
       {row, name, cache, op_counts}
+    end
+
+    # TODO: This and other nested data structure logic should
+    # be joined somewhere
+    defp deep_map_reduce(container, acc, fun) do
+      Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
+    end
+
+    defp recur_deep_map_reduce(leaf, acc, fun) do
+      case leaf do
+        %Axon{} = leaf ->
+          fun.(leaf, acc)
+
+        container ->
+          deep_map_reduce(container, acc, fun)
+      end
     end
   end
 
