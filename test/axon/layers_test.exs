@@ -2,6 +2,135 @@ defmodule Axon.LayersTest do
   use ExUnit.Case, async: true
   doctest Axon.Layers
 
+  import Nx.Defn
+
+  describe "dense" do
+    test "forward matches tensorflow with input rank-2" do
+      inp = Nx.tensor([[0.5818032]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      expected = Nx.tensor([[0.2905983, -0.12873293, -0.1240975, 0.50677955]])
+      actual = Axon.Layers.dense(inp, kernel, bias)
+
+      assert Nx.all_close(expected, actual) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches tensorflow with input rank-3" do
+      inp = Nx.tensor([[[0.7022208], [0.17015481]], [[0.13636208], [0.05458272]]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      expected =
+        Nx.tensor([
+          [
+            [0.35074434, -0.1553772, -0.14978234, 0.61166924],
+            [0.08498871, -0.03764938, -0.03629369, 0.14821331]
+          ],
+          [
+            [0.06810995, -0.03017221, -0.02908577, 0.11877815],
+            [0.0272629, -0.01207727, -0.01164239, 0.04754426]
+          ]
+        ])
+
+      actual = Axon.Layers.dense(inp, kernel, bias)
+
+      assert Nx.all_close(actual, expected) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "forward matches tensorflow with input rank-4" do
+      inp = Nx.tensor([[[[0.8079568], [0.61292243]]], [[[0.07109654], [0.29420567]]]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      expected =
+        Nx.tensor([
+          [
+            [
+              [0.4035572, -0.17877291, -0.17233564, 0.7037706],
+              [0.3061417, -0.13561855, -0.13073517, 0.53388596]
+            ]
+          ],
+          [
+            [
+              [0.03551121, -0.01573121, -0.01516476, 0.06192862],
+              [0.14694947, -0.06509755, -0.06275351, 0.2562678]
+            ]
+          ]
+        ])
+
+      actual = Axon.Layers.dense(inp, kernel, bias)
+
+      assert Nx.all_close(actual, expected) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches tensorflow with input rank-2" do
+      inp = Nx.tensor([[0.0335058]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      {expected_k_grad, expected_b_grad} =
+        jit(
+          fn kernel, bias ->
+            grad({kernel, bias}, fn {k, b} ->
+              Nx.sum(Axon.Layers.dense(inp, k, b))
+            end)
+          end,
+          [kernel, bias]
+        )
+
+      actual_k_grad = Nx.tensor([[0.0335058, 0.0335058, 0.0335058, 0.0335058]])
+      actual_b_grad = Nx.tensor([1.0, 1.0, 1.0, 1.0])
+
+      assert Nx.all_close(actual_k_grad, expected_k_grad) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(actual_b_grad, expected_b_grad) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches tensorflow with input rank-3" do
+      inp = Nx.tensor([[[0.29668367], [0.7820021]], [[0.75896287], [0.651641]]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      {expected_k_grad, expected_b_grad} =
+        jit(
+          fn kernel, bias ->
+            grad({kernel, bias}, fn {k, b} ->
+              Nx.sum(Axon.Layers.dense(inp, k, b))
+            end)
+          end,
+          [kernel, bias]
+        )
+
+      actual_k_grad = Nx.tensor([[2.4892898, 2.4892898, 2.4892898, 2.4892898]])
+      actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
+
+      assert Nx.all_close(actual_k_grad, expected_k_grad) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(actual_b_grad, expected_b_grad) == Nx.tensor(1, type: {:u, 8})
+    end
+
+    test "backward matches tensorflow with input rank-4" do
+      inp = Nx.tensor([[[[0.5623027], [0.41169107]]], [[[0.86306655], [0.14902902]]]])
+      kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
+      bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
+
+      {expected_k_grad, expected_b_grad} =
+        jit(
+          fn kernel, bias ->
+            grad({kernel, bias}, fn {k, b} ->
+              Nx.sum(Axon.Layers.dense(inp, k, b))
+            end)
+          end,
+          [kernel, bias]
+        )
+
+      actual_k_grad = Nx.tensor([[1.9860893, 1.9860893, 1.9860893, 1.9860893]])
+      actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
+
+      assert Nx.all_close(actual_k_grad, expected_k_grad) == Nx.tensor(1, type: {:u, 8})
+      assert Nx.all_close(actual_b_grad, expected_b_grad) == Nx.tensor(1, type: {:u, 8})
+    end
+  end
+
   describe "conv_transpose" do
     test "correct valid padding, no strides" do
       inp = Nx.iota({1, 1, 4}, type: {:f, 32})

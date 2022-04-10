@@ -85,7 +85,7 @@ defmodule Axon.Layers do
 
   ## Output Shape
 
-    `{batch_size, output_features}`
+    `{batch_size, *, output_features}`
 
   ## Examples
 
