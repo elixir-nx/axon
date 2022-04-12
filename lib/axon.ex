@@ -1188,8 +1188,7 @@ defmodule Axon do
 
     gamma_initializer = opts[:gamma_initializer]
 
-    gamma =
-      param("gamma", gamma_shape, initializer: gamma_initializer)
+    gamma = param("gamma", gamma_shape, initializer: gamma_initializer)
 
     beta_initializer = opts[:beta_initializer] || :zeros
 
@@ -1245,8 +1244,7 @@ defmodule Axon do
 
     gamma_initializer = opts[:gamma_initializer]
 
-    gamma =
-      param("gamma", gamma_shape, initializer: gamma_initializer)
+    gamma = param("gamma", gamma_shape, initializer: gamma_initializer)
 
     beta_initializer = opts[:beta_initializer] || :zeros
     beta = param("beta", beta_shape, initializer: beta_initializer)
