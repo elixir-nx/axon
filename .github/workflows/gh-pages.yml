@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ELIXIR_VERSION: 1.12
+  ELIXIR_VERSION: 1.13
   OTP_VERSION: 24.0
 
 jobs:
