@@ -57,6 +57,19 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, input2) == input2
     end
 
+    test "multi-input, map" do
+      model1 = {Axon.input({nil, 1}), Axon.input({nil, 1})}
+
+      input1 = Nx.random_uniform({1, 1})
+      input2 = Nx.random_uniform({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert %{} = init_fn.()
+      assert {output1, output2} = predict_fn.(%{}, %{"input_0" => input1, "input_1" => input2})
+      assert output1 == input1
+      assert output2 == input2
+    end
+
     test "raises on bad input shape" do
       model = Axon.input({nil, 32})
       input = Nx.random_uniform({1, 16})

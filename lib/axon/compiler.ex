@@ -2237,21 +2237,33 @@ defmodule Axon.Compiler do
   end
 
   defp recur_predict_fun(
-         %Axon{id: id, op: :input, output_shape: shape, hooks: hooks},
+         %Axon{id: id, op: :input, output_shape: shape, hooks: hooks, name: name_fn},
          {cache, op_counts},
          input_map,
          _,
          inputs,
          mode
        ) do
+    name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
 
     res =
-      if is_tuple(inputs) do
-        idx = input_map[id]
-        elem(inputs, idx)
-      else
-        inputs
+      case inputs do
+        %Nx.Tensor{} = inputs ->
+          inputs
+
+        %{} = inputs ->
+          inputs[name]
+
+        inputs when is_tuple(inputs) ->
+          idx = input_map[id]
+          elem(inputs, idx)
+
+        _ ->
+          raise ArgumentError, "invalid input given to model, expected input" <>
+                                  " expected input to be a tensor, tuple, or" <>
+                                  " a map corresponding to correct input order" <>
+                                  " or names"
       end
 
     unless Axon.Shape.compatible?(Nx.shape(res), shape) do
