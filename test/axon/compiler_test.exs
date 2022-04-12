@@ -57,7 +57,7 @@ defmodule CompilerTest do
       assert predict_fn.(%{}, input2) == input2
     end
 
-    test "multi-input, map" do
+    test "multi-input, map with default names" do
       model1 = {Axon.input({nil, 1}), Axon.input({nil, 1})}
 
       input1 = Nx.random_uniform({1, 1})
@@ -68,6 +68,24 @@ defmodule CompilerTest do
       assert {output1, output2} = predict_fn.(%{}, %{"input_0" => input1, "input_1" => input2})
       assert output1 == input1
       assert output2 == input2
+    end
+
+    test "multi-input, map with custom names" do
+      x = Axon.input({nil, 1}, name: :x)
+      y = Axon.input({nil, 1}, name: :y)
+      z = Axon.input({nil, 1}, name: :z)
+      model = {z, x, y}
+
+      x_val = Nx.random_uniform({1, 1})
+      y_val = Nx.random_uniform({1, 1})
+      z_val = Nx.random_uniform({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+      assert {z_act, x_act, y_act} = predict_fn.(%{}, %{x: x_val, y: y_val, z: z_val})
+      assert x_act == x_val
+      assert y_act == y_val
+      assert z_act == z_val
     end
 
     test "raises on bad input shape" do
