@@ -130,7 +130,8 @@ defmodule Axon.LoopTest do
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
                Nx.Defn.jit(update_fn, [
-                 {{Nx.tensor([[1]]), Nx.tensor([[1]])}, {Nx.tensor([[2]]), Nx.tensor([[2]])}},
+                 {%{"input_0" => Nx.tensor([[1]]), "input_1" => Nx.tensor([[1]])},
+                  {Nx.tensor([[2]]), Nx.tensor([[2]])}},
                  pstate
                ])
 
