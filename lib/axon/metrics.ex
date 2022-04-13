@@ -49,7 +49,7 @@ defmodule Axon.Metrics do
 
   """
   defn accuracy(y_true, y_pred) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     transform({y_true, y_pred}, fn {y_true, y_pred} ->
       if elem(Nx.shape(y_pred), Nx.rank(y_pred) - 1) == 1 do
@@ -93,7 +93,7 @@ defmodule Axon.Metrics do
 
   """
   defn precision(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     true_positives = true_positives(y_true, y_pred, opts)
     false_positives = false_positives(y_true, y_pred, opts)
@@ -126,7 +126,7 @@ defmodule Axon.Metrics do
 
   """
   defn recall(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     true_positives = true_positives(y_true, y_pred, opts)
     false_negatives = false_negatives(y_true, y_pred, opts)
@@ -154,7 +154,7 @@ defmodule Axon.Metrics do
       >
   """
   defn true_positives(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -188,7 +188,7 @@ defmodule Axon.Metrics do
       >
   """
   defn false_negatives(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -222,7 +222,7 @@ defmodule Axon.Metrics do
       >
   """
   defn true_negatives(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -256,7 +256,7 @@ defmodule Axon.Metrics do
       >
   """
   defn false_positives(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -294,7 +294,7 @@ defmodule Axon.Metrics do
 
   """
   defn sensitivity(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -325,7 +325,7 @@ defmodule Axon.Metrics do
 
   """
   defn specificity(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, threshold: 0.5)
 
@@ -368,7 +368,7 @@ defmodule Axon.Metrics do
       >
   """
   defn mean_absolute_error(y_true, y_pred) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     y_true
     |> Nx.subtract(y_pred)

@@ -174,7 +174,8 @@ defmodule Axon do
   ## Options
 
     * `name` - Layer name.
-
+  
+  
   """
   @doc type: :special
   def input(input_shape, opts \\ []) do

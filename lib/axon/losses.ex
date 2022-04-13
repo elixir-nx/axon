@@ -119,7 +119,7 @@ defmodule Axon.Losses do
 
   """
   defn binary_cross_entropy(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts =
       keyword!(opts,
@@ -211,14 +211,7 @@ defmodule Axon.Losses do
           Nx.mean(weights * loss)
       end)
 
-    transform(
-      {opts[:reduction], possibly_weighted_avg_loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(possibly_weighted_avg_loss, opts[:reduction])
   end
 
   defnp sigmoid_cross_entropy_from_logits(y_true, y_pred) do
@@ -493,6 +486,8 @@ defmodule Axon.Losses do
       >
   """
   defn categorical_hinge(y_true, y_pred, opts \\ []) do
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
+
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -504,14 +499,7 @@ defmodule Axon.Losses do
       |> Nx.add(1)
       |> Nx.max(0)
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -556,7 +544,7 @@ defmodule Axon.Losses do
       >
   """
   defn hinge(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
 
@@ -568,14 +556,7 @@ defmodule Axon.Losses do
       |> Nx.max(0)
       |> Nx.mean(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -621,7 +602,7 @@ defmodule Axon.Losses do
 
   """
   defn kl_divergence(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
     epsilon = 1.0e-7
@@ -635,14 +616,7 @@ defmodule Axon.Losses do
       |> Nx.multiply(y_true)
       |> Nx.sum(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -687,7 +661,7 @@ defmodule Axon.Losses do
       >
   """
   defn log_cosh(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
 
@@ -704,14 +678,7 @@ defmodule Axon.Losses do
       |> Nx.subtract(Nx.log(2))
       |> Nx.mean(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -754,8 +721,7 @@ defmodule Axon.Losses do
       >
   """
   defn margin_ranking(y_true, {y_pred1, y_pred2}, opts \\ []) do
-    assert_shape!(y_pred1, y_pred2)
-    assert_shape!(y_true, y_pred1)
+    assert_shape!(["y_true", "y_pred1", "y_pred2"], [y_true, y_pred1, y_pred2])
 
     opts = keyword!(opts, margin: 0.0, reduction: :none)
     margin = opts[:margin]
@@ -767,14 +733,7 @@ defmodule Axon.Losses do
       |> Nx.add(margin)
       |> Nx.max(0)
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -814,6 +773,8 @@ defmodule Axon.Losses do
       >
   """
   defn soft_margin(y_true, y_pred, opts \\ []) do
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
+
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -824,14 +785,7 @@ defmodule Axon.Losses do
       |> Nx.log1p()
       |> Nx.sum(axes: [0])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -876,7 +830,7 @@ defmodule Axon.Losses do
       >
   """
   defn mean_absolute_error(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
 
@@ -886,14 +840,7 @@ defmodule Axon.Losses do
       |> Nx.abs()
       |> Nx.mean(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -938,7 +885,7 @@ defmodule Axon.Losses do
       >
   """
   defn mean_squared_error(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
 
@@ -948,14 +895,7 @@ defmodule Axon.Losses do
       |> Nx.power(2)
       |> Nx.mean(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -1000,7 +940,7 @@ defmodule Axon.Losses do
       >
   """
   defn poisson(y_true, y_pred, opts \\ []) do
-    assert_shape!(y_true, y_pred)
+    assert_shape!("y_true", y_true, "y_pred", y_pred)
 
     opts = keyword!(opts, reduction: :none)
 
@@ -1015,14 +955,7 @@ defmodule Axon.Losses do
       |> Nx.add(y_pred)
       |> Nx.mean(axes: [-1])
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc """
@@ -1091,7 +1024,7 @@ defmodule Axon.Losses do
     )
   end
 
-  defn get_limits(y_true, s_max, t_max) do
+  defnp get_limits(y_true, s_max, t_max) do
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
     {st_max, _, t_fin, _} =
@@ -1126,7 +1059,7 @@ defmodule Axon.Losses do
   end
 
   # Get `node transition` part
-  defn get_path_prob(s, y_true, prob_prev, s_lims_prev) do
+  defnp get_path_prob(s, y_true, prob_prev, s_lims_prev) do
     # Iterate over all possible transition paths
     {path_prob, _, _, _, _, _} =
       while {path_prob = Nx.broadcast(0.0, {3}), s, d = 0, y_true, prob_prev, s_lims_prev},
@@ -1150,7 +1083,7 @@ defmodule Axon.Losses do
   end
 
   # Get iteration values for acceptable nodes at a sequence step.
-  defn get_prob(prob_prev, s_lims, s_lims_prev, y_true, y_pred) do
+  defnp get_prob(prob_prev, s_lims, s_lims_prev, y_true, y_pred) do
     eps = Nx.tensor(1.0e-7)
     # Process nodes one-by-one from lower to upper bound.
     {t_prob, _, _, _, _} =
@@ -1173,7 +1106,7 @@ defmodule Axon.Losses do
     t_prob
   end
 
-  defn iterate_tree(y_true, y_pred, st_lims, t_max) do
+  defnp iterate_tree(y_true, y_pred, st_lims, t_max) do
     s_tmax_min = st_lims[t_max][0]
     s_tmax_max = st_lims[t_max][1]
     tmax_pred = y_pred[t_max]
@@ -1194,5 +1127,16 @@ defmodule Axon.Losses do
       end
 
     t0_prob
+  end
+
+  defnp reduction(loss, reduction \\ :none) do
+    transform(
+      {reduction, loss},
+      fn
+        {:mean, loss} -> Nx.mean(loss)
+        {:sum, loss} -> Nx.sum(loss)
+        {:none, loss} -> loss
+      end
+    )
   end
 end

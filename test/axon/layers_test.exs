@@ -129,6 +129,16 @@ defmodule Axon.LayersTest do
       assert Nx.all_close(actual_k_grad, expected_k_grad) == Nx.tensor(1, type: {:u, 8})
       assert Nx.all_close(actual_b_grad, expected_b_grad) == Nx.tensor(1, type: {:u, 8})
     end
+
+    test "raises with input rank less than 2" do
+      inp = Nx.tensor([1.0, 2.0, 3.0])
+      kernel = Nx.tensor([[1.0], [2.0], [3.0]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError, ~r/expected input shape to have at least rank 2/, fn ->
+        Axon.Layers.dense(inp, kernel, bias)
+      end
+    end
   end
 
   describe "conv_transpose" do
