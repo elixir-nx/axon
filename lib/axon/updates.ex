@@ -119,7 +119,21 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  def scale_by_adam(combinator \\ identity(), opts) do
+  def scale_by_adam() do
+    scale_by_adam(identity(), [])
+  end
+
+  def scale_by_adam(opts) when is_list(opts) do
+    scale_by_adam(identity(), opts)
+  end
+
+  def scale_by_adam({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_adam(combinator, [])
+  end
+
+  def scale_by_adam({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_adam/1,
@@ -163,7 +177,21 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  def scale_by_rss(combinator \\ identity(), opts) do
+  def scale_by_rss() do
+    scale_by_rss(identity(), [])
+  end
+
+  def scale_by_rss(opts) when is_list(opts) do
+    scale_by_rss(identity(), opts)
+  end
+
+  def scale_by_rss({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_rss(combinator, [])
+  end
+
+  def scale_by_rss({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 0.1)
 
     stateful(
@@ -220,7 +248,21 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_rms(combinator \\ identity(), opts) do
+  def scale_by_rms() do
+    scale_by_rms(identity(), [])
+  end
+
+  def scale_by_rms(opts) when is_list(opts) do
+    scale_by_rms(identity(), opts)
+  end
+
+  def scale_by_rms({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_rms(combinator, [])
+  end
+
+  def scale_by_rms({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -265,7 +307,21 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  def scale_by_belief(combinator \\ identity(), opts) do
+  def scale_by_belief() do
+    scale_by_belief(identity(), [])
+  end
+
+  def scale_by_belief(opts) when is_list(opts) do
+    scale_by_belief(identity(), opts)
+  end
+
+  def scale_by_belief({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_belief(combinator, [])
+  end
+
+  def scale_by_belief({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_belief/1,
@@ -314,7 +370,21 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_stddev(combinator \\ identity(), opts) do
+  def scale_by_stddev() do
+    scale_by_stddev(identity(), [])
+  end
+
+  def scale_by_stddev(opts) when is_list(opts) do
+    scale_by_stddev(identity(), opts)
+  end
+
+  def scale_by_stddev({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_stddev(combinator, [])
+  end
+
+  def scale_by_stddev({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -393,7 +463,21 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  def scale_by_radam(combinator \\ identity(), opts) do
+  def scale_by_radam() do
+    scale_by_radam(identity(), [])
+  end
+
+  def scale_by_radam(opts) when is_list(opts) do
+    scale_by_radam(identity(), opts)
+  end
+
+  def scale_by_radam({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_radam(combinator, [])
+  end
+
+  def scale_by_radam({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_radam/1,
@@ -459,7 +543,21 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  def trace(combinator \\ identity(), opts) do
+  def trace() do
+    trace(identity(), [])
+  end
+
+  def trace(opts) when is_list(opts) do
+    trace(identity(), opts)
+  end
+
+  def trace({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    trace(combinator, [])
+  end
+
+  def trace({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_trace/1,
@@ -501,7 +599,21 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
-  def clip(combinator \\ identity(), opts) do
+  def clip() do
+    clip(identity(), [])
+  end
+
+  def clip(opts) when is_list(opts) do
+    clip(identity(), opts)
+  end
+
+  def clip({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    clip(combinator, [])
+  end
+
+  def clip({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_clip(&1, &2, opts))
   end
 
@@ -522,7 +634,21 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
-  def clip_by_global_norm(combinator \\ identity(), opts) do
+  def clip_by_global_norm() do
+    clip_by_global_norm(identity(), [])
+  end
+
+  def clip_by_global_norm(opts) when is_list(opts) do
+    clip_by_global_norm(identity(), opts)
+  end
+
+  def clip_by_global_norm({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    clip_by_global_norm(combinator, [])
+  end
+
+  def clip_by_global_norm({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_clip_by_global_norm(&1, &2, opts))
   end
 
@@ -553,11 +679,25 @@ defmodule Axon.Updates do
   @doc """
   Centralizes input by shifting updates by their mean.
   """
-  def centralize(combinator \\ identity()) do
-    stateless(combinator, &apply_centralize/2)
+  def centralize() do
+    centralize(identity(), [])
   end
 
-  defnp apply_centralize(x, _params) do
+  def centralize(opts) when is_list(opts) do
+    centralize(identity(), opts)
+  end
+
+  def centralize({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    centralize(combinator, [])
+  end
+
+  def centralize({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
+    stateless(combinator, &apply_centralize(&1, &2, opts))
+  end
+
+  defnp apply_centralize(x, _params, _opts \\ []) do
     transform(x, fn x ->
       deep_new(x, fn z ->
         if Elixir.Kernel.>(Nx.rank(z), 1) do
@@ -573,7 +713,21 @@ defmodule Axon.Updates do
   @doc """
   Weight decay.
   """
-  def add_decayed_weights(combinator \\ identity(), opts) do
+  def add_decayed_weights() do
+    add_decayed_weights(identity(), [])
+  end
+
+  def add_decayed_weights(opts) when is_list(opts) do
+    add_decayed_weights(identity(), opts)
+  end
+
+  def add_decayed_weights({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    add_decayed_weights(combinator, [])
+  end
+
+  def add_decayed_weights({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_weight_decay(&1, &2, opts))
   end
 
@@ -589,7 +743,21 @@ defmodule Axon.Updates do
   @doc """
   Scale by trust ratio.
   """
-  def scale_by_trust_ratio(combinator \\ identity(), opts) do
+  def scale_by_trust_ratio() do
+    scale_by_trust_ratio(identity(), [])
+  end
+
+  def scale_by_trust_ratio(opts) when is_list(opts) do
+    scale_by_trust_ratio(identity(), opts)
+  end
+
+  def scale_by_trust_ratio({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_trust_ratio(combinator, [])
+  end
+
+  def scale_by_trust_ratio({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_scale_by_trust_ratio(&1, &2, opts))
   end
 
@@ -617,7 +785,21 @@ defmodule Axon.Updates do
   @doc """
   Add noise.
   """
-  def add_noise(combinator \\ identity(), opts) do
+  def add_noise() do
+    add_noise(identity(), [])
+  end
+
+  def add_noise(opts) when is_list(opts) do
+    add_noise(identity(), opts)
+  end
+
+  def add_noise({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    add_noise(combinator, [])
+  end
+
+  def add_noise({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(combinator, &init_add_noise/1, &apply_add_noise(&1, &2, &3, opts))
   end
 
@@ -645,7 +827,21 @@ defmodule Axon.Updates do
   @doc """
   Scale by yogi.
   """
-  def scale_by_yogi(combinator \\ identity(), opts) do
+  def scale_by_yogi() do
+    scale_by_yogi(identity(), [])
+  end
+
+  def scale_by_yogi(opts) when is_list(opts) do
+    scale_by_yogi(identity(), opts)
+  end
+
+  def scale_by_yogi({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_yogi(combinator, [])
+  end
+
+  def scale_by_yogi({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 1.0e-6)
 
     stateful(
