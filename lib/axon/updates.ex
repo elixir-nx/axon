@@ -119,9 +119,7 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  def scale_by_adam() do
-    scale_by_adam(identity(), [])
-  end
+  def scale_by_adam(combinator_or_opts \\ [])
 
   def scale_by_adam(opts) when is_list(opts) do
     scale_by_adam(identity(), opts)
@@ -246,9 +244,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_rms() do
-    scale_by_rms(identity(), [])
-  end
+  def scale_by_rms(combinator_or_opts \\ [])
 
   def scale_by_rms(opts) when is_list(opts) do
     scale_by_rms(identity(), opts)
@@ -305,9 +301,7 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  def scale_by_belief() do
-    scale_by_belief(identity(), [])
-  end
+  def scale_by_belief(combinator_or_opts \\ [])
 
   def scale_by_belief(opts) when is_list(opts) do
     scale_by_belief(identity(), opts)
@@ -368,9 +362,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_stddev() do
-    scale_by_stddev(identity(), [])
-  end
+  def scale_by_stddev(combinator_or_opts \\ [])
 
   def scale_by_stddev(opts) when is_list(opts) do
     scale_by_stddev(identity(), opts)
@@ -461,9 +453,7 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  def scale_by_radam() do
-    scale_by_radam(identity(), [])
-  end
+  def scale_by_radam(combinator_or_opts \\ [])
 
   def scale_by_radam(opts) when is_list(opts) do
     scale_by_radam(identity(), opts)
@@ -541,9 +531,7 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  def trace() do
-    trace(identity(), [])
-  end
+  def trace(combinator_or_opts \\ [])
 
   def trace(opts) when is_list(opts) do
     trace(identity(), opts)
@@ -597,9 +585,7 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
-  def clip() do
-    clip(identity(), [])
-  end
+  def clip(combinator_or_opts \\ [])
 
   def clip(opts) when is_list(opts) do
     clip(identity(), opts)
@@ -632,9 +618,7 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
-  def clip_by_global_norm() do
-    clip_by_global_norm(identity(), [])
-  end
+  def clip_by_global_norm(combinator_or_opts \\ [])
 
   def clip_by_global_norm(opts) when is_list(opts) do
     clip_by_global_norm(identity(), opts)
@@ -677,9 +661,7 @@ defmodule Axon.Updates do
   @doc """
   Centralizes input by shifting updates by their mean.
   """
-  def centralize() do
-    centralize(identity(), [])
-  end
+  def centralize(combinator_or_opts \\ [])
 
   def centralize(opts) when is_list(opts) do
     centralize(identity(), opts)
@@ -711,9 +693,7 @@ defmodule Axon.Updates do
   @doc """
   Weight decay.
   """
-  def add_decayed_weights() do
-    add_decayed_weights(identity(), [])
-  end
+  def add_decayed_weights(combinator_or_opts \\ [])
 
   def add_decayed_weights(opts) when is_list(opts) do
     add_decayed_weights(identity(), opts)
@@ -741,9 +721,7 @@ defmodule Axon.Updates do
   @doc """
   Scale by trust ratio.
   """
-  def scale_by_trust_ratio() do
-    scale_by_trust_ratio(identity(), [])
-  end
+  def scale_by_trust_ratio(combinator_or_opts \\ [])
 
   def scale_by_trust_ratio(opts) when is_list(opts) do
     scale_by_trust_ratio(identity(), opts)
@@ -783,9 +761,7 @@ defmodule Axon.Updates do
   @doc """
   Add noise.
   """
-  def add_noise() do
-    add_noise(identity(), [])
-  end
+  def add_noise(combinator_or_opts \\ [])
 
   def add_noise(opts) when is_list(opts) do
     add_noise(identity(), opts)
@@ -825,9 +801,7 @@ defmodule Axon.Updates do
   @doc """
   Scale by yogi.
   """
-  def scale_by_yogi() do
-    scale_by_yogi(identity(), [])
-  end
+  def scale_by_yogi(combinator_or_opts \\ [])
 
   def scale_by_yogi(opts) when is_list(opts) do
     scale_by_yogi(identity(), opts)
