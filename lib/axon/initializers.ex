@@ -570,7 +570,7 @@ defmodule Axon.Initializers do
     distribution = opts[:distribution]
     type = opts[:type]
 
-    assert_min_rank!(":shape", shape, 2)
+    assert_min_rank!("Axon.Initializers.orthogonal", "input_shape", shape, 2)
 
     {{m, n}, random_seed} =
       transform({shape, distribution, type}, fn {shape, distribution, type} ->

@@ -174,8 +174,8 @@ defmodule Axon do
   ## Options
 
     * `name` - Layer name.
-  
-  
+
+
   """
   @doc type: :special
   def input(input_shape, opts \\ []) do
@@ -2207,7 +2207,7 @@ defmodule Axon do
   """
   @doc type: :execution
   defmacro init(model, opts \\ []) do
-    define_init(model, :init, [], opts)
+    define_init(model, [], opts)
   end
 
   @doc """
@@ -2216,31 +2216,29 @@ defmodule Axon do
   """
   @doc type: :execution
   defmacro predict(model, params, input, opts \\ []) do
-    define_predict(model, :predict, [params, input], opts)
+    define_predict(model, [params, input], opts)
   end
 
   ## Implementation
 
-  defp define_init(model, caller, args, opts \\ []) do
+  defp define_init(model, args, opts \\ []) do
     quote do
       Nx.Defn.Kernel.transform(unquote(args), fn args ->
         model = unquote(model)
         opts = unquote(opts)
-        caller = unquote(caller)
 
-        Axon.Compiler.__jit_init__(model, caller, args, opts)
+        Axon.Compiler.__jit_init__(model, args, opts)
       end)
     end
   end
 
-  defp define_predict(model, caller, args, opts \\ []) do
+  defp define_predict(model, args, opts \\ []) do
     quote do
       Nx.Defn.Kernel.transform(unquote(args), fn args ->
         model = unquote(model)
         opts = unquote(opts)
-        caller = unquote(caller)
 
-        Axon.Compiler.__jit_predict__(model, caller, args, opts)
+        Axon.Compiler.__jit_predict__(model, args, opts)
       end)
     end
   end

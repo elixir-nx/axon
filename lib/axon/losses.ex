@@ -119,7 +119,7 @@ defmodule Axon.Losses do
 
   """
   defn binary_cross_entropy(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
+    assert_shape!("Axon.Losses.binary_cross_entropy", "y_true", y_true, "y_pred", y_pred)
 
     opts =
       keyword!(opts,
@@ -486,8 +486,6 @@ defmodule Axon.Losses do
       >
   """
   defn categorical_hinge(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -544,8 +542,6 @@ defmodule Axon.Losses do
       >
   """
   defn hinge(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -602,8 +598,6 @@ defmodule Axon.Losses do
 
   """
   defn kl_divergence(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
     epsilon = 1.0e-7
     y_true = Nx.clip(y_true, epsilon, 1)
@@ -661,8 +655,6 @@ defmodule Axon.Losses do
       >
   """
   defn log_cosh(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     x =
@@ -721,8 +713,6 @@ defmodule Axon.Losses do
       >
   """
   defn margin_ranking(y_true, {y_pred1, y_pred2}, opts \\ []) do
-    assert_shape!(["y_true", "y_pred1", "y_pred2"], [y_true, y_pred1, y_pred2])
-
     opts = keyword!(opts, margin: 0.0, reduction: :none)
     margin = opts[:margin]
 
@@ -773,8 +763,6 @@ defmodule Axon.Losses do
       >
   """
   defn soft_margin(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -830,8 +818,6 @@ defmodule Axon.Losses do
       >
   """
   defn mean_absolute_error(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -885,8 +871,6 @@ defmodule Axon.Losses do
       >
   """
   defn mean_squared_error(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     loss =
@@ -940,8 +924,6 @@ defmodule Axon.Losses do
       >
   """
   defn poisson(y_true, y_pred, opts \\ []) do
-    assert_shape!("y_true", y_true, "y_pred", y_pred)
-
     opts = keyword!(opts, reduction: :none)
 
     epsilon = 1.0e-7

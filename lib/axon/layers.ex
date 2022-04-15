@@ -103,7 +103,7 @@ defmodule Axon.Layers do
   """
   @doc type: :linear
   defn dense(input, kernel, bias) do
-    assert_min_rank!("input", input, 2)
+    assert_min_rank!("Axon.Layers.dense", "input", input, 2)
 
     input
     |> Nx.dot([Nx.rank(input) - 1], kernel, [0])
@@ -145,9 +145,10 @@ defmodule Axon.Layers do
   """
   @doc type: :linear
   defn bilinear(input1, input2, kernel, bias) do
-    assert_min_rank!("input1", input1, 2)
-    assert_min_rank!("input2", input2, 2)
-    assert_equal_rank!("input1", input1, "input2", input2)
+    assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
+    assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
+    assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
+    assert_rank!("Axon.Layers.bilinear", "kernel", kernel, 3)
 
     inp1_axes = transform(Nx.rank(input1), fn rank -> [rank - 1] end)
     inp2_axes = transform(Nx.rank(input2), fn rank -> [rank - 1] end)
@@ -282,8 +283,8 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn conv(input, kernel, bias, opts \\ []) do
-    assert_min_rank!("input", input, 3)
-    assert_equal_rank!("input", input, "kernel", kernel)
+    assert_min_rank!("Axon.Layers.conv", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
 
     opts =
       keyword!(opts,
@@ -395,8 +396,8 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn conv_transpose(input, kernel, bias, opts \\ []) do
-    assert_min_rank!("input", input, 3)
-    assert_equal_rank!("input", input, "kernel", kernel)
+    assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
     opts =
       keyword!(opts,
@@ -480,8 +481,8 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn depthwise_conv(input, kernel, bias, opts \\ []) do
-    assert_min_rank!("input", input, 3)
-    assert_equal_rank!("input", input, "kernel", kernel)
+    assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 
     opts =
       keyword!(opts,
@@ -558,6 +559,14 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn separable_conv2d(input, k1, b1, k2, b2, opts \\ []) do
+    assert_rank!("Axon.Layers.separable_conv2d", "input", input, 4)
+
+    assert_equal_rank!("Axon.Layers.separable_conv2d", ["input", "kernel1", "kernel2"], [
+      input,
+      k1,
+      k2
+    ])
+
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -612,7 +621,14 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ []) do
-    assert_min_rank!("input", input, 5)
+    assert_rank!("Axon.Layers.separable_conv3d", "input", input, 5)
+
+    assert_equal_rank!(
+      "Axon.Layers.separable_conv3d",
+      ["input", "kernel1", "kernel2", "kernel3"],
+      [input, k1, k2, k3]
+    )
+
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -671,7 +687,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn max_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.max_pool", "input", input, 3)
 
     opts =
       keyword!(
@@ -767,7 +783,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn avg_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.avg_pool", "input", input, 3)
 
     opts =
       keyword!(
@@ -885,7 +901,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn lp_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.lp_pool", "input", input, 3)
 
     opts =
       keyword!(
@@ -984,7 +1000,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_avg_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.adaptive_avg_pool", "input", input, 3)
 
     opts = keyword!(opts, [:output_size, channels: :first])
 
@@ -1031,7 +1047,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_max_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.adaptive_max_pool", "input", input, 3)
 
     opts = keyword!(opts, [:output_size, channels: :first])
 
@@ -1084,7 +1100,7 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_lp_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.adaptive_lp_pool", "input", input, 3)
 
     opts = keyword!(opts, [:output_size, norm: 2, channels: :first])
 
@@ -1146,8 +1162,6 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn batch_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1217,8 +1231,6 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, bias, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = opts[:channel_index]
 
@@ -1275,8 +1287,6 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, bias, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
@@ -1342,8 +1352,6 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn instance_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1418,8 +1426,6 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn dropout(input, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input)])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - Nx.tensor(opts[:rate], type: Nx.type(input))
     mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
@@ -1462,7 +1468,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.spatial_dropout", "input", input, 3)
 
     opts = keyword!(opts, rate: 0.5, channels: :first)
 
@@ -1496,8 +1502,6 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn alpha_dropout(input, opts \\ []) do
-    assert_min_rank!("input", input, 2)
-
     opts = keyword!(opts, rate: 0.5)
     rate = opts[:rate]
 
@@ -1534,7 +1538,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.feature_alpha_dropout", "input", input, 3)
 
     opts = keyword!(opts, rate: 0.5, channels: :first)
 
@@ -1608,7 +1612,7 @@ defmodule Axon.Layers do
       >
   """
   defn global_avg_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.global_avg_pool", "input", input, 3)
 
     opts = keyword!(opts, channels: :first, keep_axes: false)
 
@@ -1671,7 +1675,7 @@ defmodule Axon.Layers do
       >
   """
   defn global_max_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.global_max_pool", "input", input, 3)
 
     opts = keyword!(opts, keep_axes: false, channels: :first)
 
@@ -1739,7 +1743,7 @@ defmodule Axon.Layers do
       >
   """
   defn global_lp_pool(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.global_lp_pool", "input", input, 3)
 
     opts = keyword!(opts, norm: 2, keep_axes: false, channels: :first)
 
@@ -1773,7 +1777,7 @@ defmodule Axon.Layers do
 
   ## Parameter Shapes
 
-    * `input` - `{batch_size, seq_len}`
+    * `input` - `{batch_size, ..., seq_len}`
     * `kernel` - `{vocab_size, embedding_size}`
 
   ## Examples
@@ -1811,7 +1815,7 @@ defmodule Axon.Layers do
       >
   """
   defn embedding(input, kernel) do
-    assert_min_rank!("input", input, kernel)
+    assert_rank!("Axon.Layers.embedding", "kernel", kernel, 2)
     Nx.take(kernel, input, axis: 0)
   end
 
@@ -1919,7 +1923,7 @@ defmodule Axon.Layers do
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(input, opts \\ []) do
-    assert_min_rank!("input", input, 3)
+    assert_min_rank!("Axon.Layers.resize", "input", input, 3)
 
     opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false])
 
