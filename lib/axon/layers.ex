@@ -1835,9 +1835,66 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn flatten(x) do
-    new_shape = transform(Nx.shape(x), &Axon.Shape.flatten/1)
+  defn flatten(x, opts \\ []) do
+    opts = keyword!(opts, ignore_batch?: true)
+
+    new_shape =
+      transform({Nx.shape(x), opts[:ignore_batch?]}, fn {shape, ignore} ->
+        Axon.Shape.flatten(shape, ignore)
+      end)
+
     Nx.reshape(x, new_shape)
+  end
+
+  @doc false
+  # Internal version of Nx.reshape for constructing reshape layers
+  # without worrying about a batch dimension
+  defn reshape(x, opts \\ []) do
+    opts = keyword!(opts, [:shape, ignore_batch?: true])
+
+    transform({opts[:shape], opts[:ignore_batch?]}, fn
+      {shape, true} ->
+        Nx.reshape(x, put_elem(shape, 0, elem(Nx.shape(x), 0)))
+
+      {shape, false} ->
+        Nx.reshape(x, shape)
+    end)
+  end
+
+  @doc false
+  # Internal version of Nx.pad for constructing pad layers without
+  # worrying about batch or channel dimensions
+  defn pad(x, opts \\ []) do
+    opts = keyword!(opts, [:padding_config, :value, :channels])
+
+    config =
+      transform({opts[:padding_config], opts[:channels]}, fn
+        {config, :first} ->
+          [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
+
+        {config, :last} ->
+          [{0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)] ++ [{0, 0, 0}]
+      end)
+
+    Nx.pad(x, Nx.as_type(opts[:value], Nx.type(x)), config)
+  end
+
+  @doc false
+  # Internal version of Nx.transpose for constructing a transpose layer
+  # without worrying about a batch dimension
+  defn transpose(x, opts \\ []) do
+    opts = keyword!(opts, [:axes, ignore_batch?: true])
+
+    axes =
+      transform({opts[:axes], opts[:ignore_batch?]}, fn
+        {axes, true} ->
+          [0 | Enum.map(axes, &(&1 + 1))]
+
+        {axes, false} ->
+          axes
+      end)
+
+    Nx.transpose(x, axes: axes)
   end
 
   @doc false

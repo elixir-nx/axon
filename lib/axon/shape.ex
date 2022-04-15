@@ -1359,36 +1359,28 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.flatten({nil, 1, 28, 28})
+      iex> Axon.Shape.flatten({nil, 1, 28, 28}, true)
       {nil, 784}
 
-      iex> Axon.Shape.flatten({32, 128})
+      iex> Axon.Shape.flatten({32, 128}, true)
       {32, 128}
 
-      iex> Axon.Shape.flatten({nil, 10, 10})
+      iex> Axon.Shape.flatten({nil, 10, 10}, true)
       {nil, 100}
-
-  ### Error cases
-
-      iex> Axon.Shape.flatten({nil})
-      ** (ArgumentError) expected flatten input shape to have at least rank 2, got {nil} with rank 1
   """
-  def flatten(shape) do
-    unless Nx.rank(shape) >= 2 do
-      raise ArgumentError,
-            "expected flatten input shape to have at least" <>
-              " rank 2, got #{inspect(shape)} with rank #{Nx.rank(shape)}"
-    end
-
-    # Account for possibly `nil` batch dimension
+  def flatten(shape, ignore_batch?) do
     out_units =
-      if elem(shape, 0) do
-        div(Nx.size(shape), elem(shape, 0))
-      else
+      if ignore_batch? do
         Nx.size(Tuple.delete_at(shape, 0))
+      else
+        Nx.size(shape)
       end
 
-    {elem(shape, 0), out_units}
+    if ignore_batch? do
+      {elem(shape, 0), out_units}
+    else
+      {out_units}
+    end
   end
 
   @doc """
@@ -1420,26 +1412,26 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.reshape({nil, 8}, {4, 2}, false)
+      iex> Axon.Shape.reshape({nil, 8}, {4, 2}, true)
       {nil, 4, 2}
 
-      iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4}, false)
+      iex> Axon.Shape.reshape({32, 8, 8}, {4, 4, 4}, true)
       {32, 4, 4, 4}
 
-      iex> Axon.Shape.reshape({12, 2, 2}, {6, 2, 2, 2}, true)
+      iex> Axon.Shape.reshape({12, 2, 2}, {6, 2, 2, 2}, false)
       {6, 2, 2, 2}
 
   ### Error cases
 
-      iex> Axon.Shape.reshape({nil, 4, 2}, {9}, false)
+      iex> Axon.Shape.reshape({nil, 4, 2}, {9}, true)
       ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as non-batch dimensions of old shape
   """
-  def reshape(shape, new_shape, is_constant_reshape?) do
+  def reshape(shape, new_shape, ignore_batch?) do
     original_shape =
-      if is_constant_reshape? do
-        shape
-      else
+      if ignore_batch? do
         Tuple.delete_at(shape, 0)
+      else
+        shape
       end
 
     unless Nx.size(original_shape) == Nx.size(new_shape) do
@@ -1450,10 +1442,10 @@ defmodule Axon.Shape do
               " must have same size as non-batch dimensions of old shape"
     end
 
-    if is_constant_reshape? do
-      new_shape
-    else
+    if ignore_batch? do
       Tuple.insert_at(new_shape, 0, elem(shape, 0))
+    else
+      new_shape
     end
   end
 

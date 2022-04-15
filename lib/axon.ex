@@ -1432,9 +1432,10 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def flatten(%Axon{output_shape: shape} = x, opts \\ []) do
-    output_shape = Axon.Shape.flatten(shape)
-    layer(x, :flatten, output_shape, %{}, opts[:name])
+  def flatten(%Axon{op: op, output_shape: shape} = x, opts \\ []) do
+    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
+    output_shape = Axon.Shape.flatten(shape, ignore_batch?)
+    layer(x, :flatten, output_shape, %{}, opts[:name], ignore_batch?: ignore_batch?)
   end
 
   @doc """
@@ -1454,9 +1455,13 @@ defmodule Axon do
   """
   @doc type: :shape
   def reshape(%Axon{op: op, output_shape: shape} = x, new_shape, opts \\ []) do
-    is_constant_reshape? = op == :constant
-    output_shape = Axon.Shape.reshape(shape, new_shape, is_constant_reshape?)
-    layer(x, :reshape, output_shape, %{}, opts[:name], constant: is_constant_reshape?)
+    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
+    output_shape = Axon.Shape.reshape(shape, new_shape, ignore_batch?)
+
+    layer(x, :reshape, output_shape, %{}, opts[:name],
+      shape: output_shape,
+      ignore_batch?: ignore_batch?
+    )
   end
 
   @doc """
@@ -1469,13 +1474,12 @@ defmodule Axon do
       transpose operation. Defaults to true.
   """
   @doc type: :shape
-  def transpose(%Axon{output_shape: shape} = x, permutation, opts \\ []) do
-    ignore_batch? = Keyword.get(opts, :ignore_batch?, true)
-
+  def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
+    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
     output_shape = Axon.Shape.transpose(shape, permutation, ignore_batch?)
 
     layer(x, :transpose, output_shape, %{}, opts[:name],
-      permutation: permutation,
+      axes: permutation,
       ignore_batch?: ignore_batch?
     )
   end
@@ -1490,12 +1494,20 @@ defmodule Axon do
   ## Options
 
     * `:name` - Layer name.
+    * `:channels` - Channel configuration. One of `:first` or
+      `:last`. Defaults to `:first`.
   """
   @doc type: :shape
   def pad(%Axon{output_shape: shape} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
+    channels = opts[:channels] || :first
     output_shape = Axon.Shape.pad(shape, config)
-    layer(x, :pad, output_shape, %{}, opts[:name], padding_config: config, value: value)
+
+    layer(x, :pad, output_shape, %{}, opts[:name],
+      padding_config: config,
+      value: value,
+      channels: channels
+    )
   end
 
   @doc """
@@ -1725,29 +1737,14 @@ defmodule Axon do
         bo = param("bo", bias_shape, initializer: bias_initializer)
 
         %{
-          "wii" => wii,
-          "wif" => wif,
-          "wig" => wig,
-          "wio" => wio,
-          "whi" => whi,
-          "whf" => whf,
-          "whg" => whg,
-          "who" => who,
-          "bi" => bi,
-          "bf" => bf,
-          "bg" => bg,
-          "bo" => bo
+          "input_kernel" => {wii, wif, wig, wio},
+          "hidden_kernel" => {whi, whf, whg, who},
+          "bias" => {bi, bf, bg, bo}
         }
       else
         %{
-          "wii" => wii,
-          "wif" => wif,
-          "wig" => wig,
-          "wio" => wio,
-          "whi" => whi,
-          "whf" => whf,
-          "whg" => whg,
-          "who" => who
+          "input_kernel" => {wii, wif, wig, wio},
+          "hidden_kernel" => {whi, whf, whg, who}
         }
       end
 
@@ -1828,25 +1825,14 @@ defmodule Axon do
         bhn = param("bhn", bias_shape, initializer: bias_initializer)
 
         %{
-          "wir" => wir,
-          "wiz" => wiz,
-          "win" => win,
-          "whr" => whr,
-          "whz" => whz,
-          "whn" => whn,
-          "br" => br,
-          "bz" => bz,
-          "bin" => bin,
-          "bhn" => bhn
+          "input_kernel" => {wir, wiz, win},
+          "hidden_kernel" => {whr, whz, whn},
+          "bias" => {br, bz, bin, bhn}
         }
       else
         %{
-          "wir" => wir,
-          "wiz" => wiz,
-          "win" => win,
-          "whr" => whr,
-          "whz" => whz,
-          "whn" => whn
+          "input_kernel" => {wir, wiz, win},
+          "hidden_kernel" => {whr, whz, whn}
         }
       end
 
@@ -1942,12 +1928,18 @@ defmodule Axon do
     wh = param("wh", hidden_kernel_shape, initializer: kernel_initializer)
     b = param("b", bias_shape, initializer: bias_initializer)
 
+    params = %{
+      "input_kernel" => {wi},
+      "hidden_kernel" => {wh},
+      "bias" => {b}
+    }
+
     output =
       layer(
         x,
         :conv_lstm,
         {{hidden_state_shape, hidden_state_shape}, output_shape},
-        %{"wi" => wi, "wh" => wh, "b" => b},
+        params,
         opts[:name],
         hidden_state: hidden_state,
         strides: strides,
