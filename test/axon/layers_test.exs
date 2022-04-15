@@ -129,6 +129,106 @@ defmodule Axon.LayersTest do
       assert Nx.all_close(actual_k_grad, expected_k_grad) == Nx.tensor(1, type: {:u, 8})
       assert Nx.all_close(actual_b_grad, expected_b_grad) == Nx.tensor(1, type: {:u, 8})
     end
+
+    test "raises with input rank less than 2" do
+      inp = Nx.tensor([1.0, 2.0, 3.0])
+      kernel = Nx.tensor([[1.0], [2.0], [3.0]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError, ~r/expected input shape to have at least rank 2/, fn ->
+        Axon.Layers.dense(inp, kernel, bias)
+      end
+    end
+  end
+
+  describe "bilinear" do
+    test "raises on input ranks less than 2" do
+      inp1 = Nx.tensor([1.0, 2.0, 3.0])
+      inp2 = Nx.tensor([[1.0, 2.0, 3.0]])
+      kernel = Nx.tensor([[[1.0, 2.0, 3.0]]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.bilinear: expected input1 shape to have at least rank 2/,
+                   fn ->
+                     Axon.Layers.bilinear(inp1, inp2, kernel, bias)
+                   end
+
+      inp1 = Nx.tensor([[1.0]])
+      inp2 = Nx.tensor([2.0])
+      kernel = Nx.tensor([[[1.0, 2.0, 3.0]]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.bilinear: expected input2 shape to have at least rank 2/,
+                   fn ->
+                     Axon.Layers.bilinear(inp1, inp2, kernel, bias)
+                   end
+    end
+
+    test "raises on not equal input ranks" do
+      inp1 = Nx.tensor([[1.0]])
+      inp2 = Nx.tensor([[[2.0]]])
+      kernel = Nx.tensor([[[1.0]]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.bilinear: expected input1 and input2 ranks to be equal/,
+                   fn ->
+                     Axon.Layers.bilinear(inp1, inp2, kernel, bias)
+                   end
+    end
+
+    test "raises on kernel rank not equal to 3" do
+      inp1 = Nx.tensor([[1.0]])
+      inp2 = Nx.tensor([[2.0]])
+      kernel = Nx.tensor([[1.0, 2.0]])
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.bilinear: expected kernel to have rank equal to 3/,
+                   fn ->
+                     Axon.Layers.bilinear(inp1, inp2, kernel, bias)
+                   end
+    end
+  end
+
+  describe "conv" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({3, 1, 4, 4})
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv(input, kernel, bias)
+      last = Axon.Layers.conv(t_input, kernel, bias, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+      kernel = Nx.iota({2, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.conv: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.conv(inp, kernel, bias)
+                   end
+    end
+
+    test "raises on not equal input, kernel ranks" do
+      inp = Nx.iota({1, 1, 1})
+      kernel = Nx.iota({2, 1, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.conv: expected input and kernel ranks to be equal/,
+                   fn ->
+                     Axon.Layers.conv(inp, kernel, bias)
+                   end
+    end
   end
 
   describe "conv_transpose" do
@@ -259,6 +359,434 @@ defmodule Axon.LayersTest do
              ) ==
                Nx.tensor([[[[43.0, 67.0, 82.0, 49.0, 21.0], [0.0, 0.0, 0.0, 0.0, 0.0]]]])
     end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+      kernel = Nx.iota({2, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.conv_transpose: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.conv_transpose(inp, kernel, bias)
+                   end
+    end
+
+    test "raises on not equal input, kernel ranks" do
+      inp = Nx.iota({1, 1, 1})
+      kernel = Nx.iota({2, 1, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.conv_transpose: expected input and kernel ranks to be equal/,
+                   fn ->
+                     Axon.Layers.conv_transpose(inp, kernel, bias)
+                   end
+    end
+  end
+
+  describe "depthwise conv" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 3, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({6, 1, 4, 4})
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.depthwise_conv(input, kernel, bias)
+      last = Axon.Layers.depthwise_conv(t_input, kernel, bias, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+      kernel = Nx.iota({2, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.depthwise_conv: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.depthwise_conv(inp, kernel, bias)
+                   end
+    end
+
+    test "raises on not equal input, kernel ranks" do
+      inp = Nx.iota({1, 1, 1})
+      kernel = Nx.iota({2, 1, 1, 1})
+      bias = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.depthwise_conv: expected input and kernel ranks to be equal/,
+                   fn ->
+                     Axon.Layers.depthwise_conv(inp, kernel, bias)
+                   end
+    end
+  end
+
+  describe "separable_conv2d" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 3, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      k1 = Nx.random_uniform({6, 1, 4, 1})
+      k2 = Nx.random_uniform({6, 1, 1, 4})
+      b1 = Nx.tensor(0.0)
+      b2 = Nx.tensor(0.0)
+
+      first = Axon.Layers.separable_conv2d(input, k1, b1, k2, b2)
+      last = Axon.Layers.separable_conv2d(t_input, k1, b1, k2, b2, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank not equal to 4" do
+      inp = Nx.iota({1, 1, 1})
+      k1 = k2 = Nx.iota({1, 1, 1})
+      b1 = b2 = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.separable_conv2d: expected input to have rank equal to 4/,
+                   fn ->
+                     Axon.Layers.separable_conv2d(inp, k1, b1, k2, b2)
+                   end
+    end
+
+    test "raises on not equal input, kernel ranks" do
+      inp = Nx.iota({1, 1, 1, 1})
+      k1 = Nx.iota({1, 1, 1, 1})
+      k2 = Nx.iota({1, 1, 1, 1, 1})
+      b1 = b2 = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.separable_conv2d: expected all input ranks/,
+                   fn ->
+                     Axon.Layers.separable_conv2d(inp, k1, b1, k2, b2)
+                   end
+    end
+  end
+
+  describe "separable_conv3d" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 3, 8, 8, 8})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 4, 1])
+      k1 = Nx.random_uniform({6, 1, 4, 1, 1})
+      k2 = Nx.random_uniform({6, 1, 1, 4, 1})
+      k3 = Nx.random_uniform({6, 1, 1, 1, 4})
+      b1 = b2 = b3 = Nx.tensor(0.0)
+
+      first = Axon.Layers.separable_conv3d(input, k1, b1, k2, b2, k3, b3)
+      last = Axon.Layers.separable_conv3d(t_input, k1, b1, k2, b2, k3, b3, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 4, 1, 2, 3])
+    end
+
+    test "raises on input rank not equal to 5" do
+      inp = Nx.iota({1, 1, 1, 1})
+      k1 = k2 = k3 = Nx.iota({1, 1, 1, 1})
+      b1 = b2 = b3 = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.separable_conv3d: expected input to have rank equal to 5/,
+                   fn ->
+                     Axon.Layers.separable_conv3d(inp, k1, b1, k2, b2, k3, b3)
+                   end
+    end
+
+    test "raises on not equal input, kernel ranks" do
+      inp = Nx.iota({1, 1, 1, 1, 1})
+      k1 = Nx.iota({1, 1, 1, 1, 1})
+      k2 = Nx.iota({1, 1, 1, 1, 1})
+      k3 = Nx.iota({1, 1, 1, 1, 1, 1})
+      b1 = b2 = b3 = Nx.tensor([0.0])
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.separable_conv3d: expected all input ranks/,
+                   fn ->
+                     Axon.Layers.separable_conv3d(inp, k1, b1, k2, b2, k3, b3)
+                   end
+    end
+  end
+
+  describe "max_pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.max_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.max_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.max_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.max_pool(inp)
+                   end
+    end
+  end
+
+  describe "avg_pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.avg_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.avg_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.avg_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.avg_pool(inp)
+                   end
+    end
+  end
+
+  describe "lp pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2})
+      last = Axon.Layers.lp_pool(t_input, kernel_size: {2, 2}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "channels last same as channels first with dilation" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
+
+      last =
+        Axon.Layers.lp_pool(t_input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :last
+        )
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.lp_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.lp_pool(inp)
+                   end
+    end
+  end
+
+  describe "adaptive avg pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_avg_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.adaptive_avg_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.adaptive_avg_pool(inp)
+                   end
+    end
+  end
+
+  describe "adaptive max pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_max_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.adaptive_max_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.adaptive_max_pool(inp)
+                   end
+    end
+  end
+
+  describe "adaptive lp pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25})
+      last = Axon.Layers.adaptive_lp_pool(t_input, output_size: {25, 25}, channels: :last)
+
+      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.adaptive_lp_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.adaptive_lp_pool(inp)
+                   end
+    end
+  end
+
+  describe "spatial_dropout" do
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.spatial_dropout: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.spatial_dropout(inp)
+                   end
+    end
+  end
+
+  describe "feature_alpha_dropout" do
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.feature_alpha_dropout: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.feature_alpha_dropout(inp)
+                   end
+    end
+  end
+
+  describe "global_max_pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_max_pool(input)
+      last = Axon.Layers.global_max_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.global_max_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.global_max_pool(inp)
+                   end
+    end
+  end
+
+  describe "global_avg_pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_avg_pool(input)
+      last = Axon.Layers.global_avg_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.global_avg_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.global_avg_pool(inp)
+                   end
+    end
+  end
+
+  describe "global_lp_pool" do
+    test "channels last same as channels first" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first = Axon.Layers.global_lp_pool(input)
+      last = Axon.Layers.global_lp_pool(t_input, channels: :last)
+
+      assert first == last
+    end
+
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.global_lp_pool: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.global_lp_pool(inp)
+                   end
+    end
+  end
+
+  describe "embedding" do
+    test "raises on kernel rank not equal to 2" do
+      inp = Nx.iota({1})
+      kernel = Nx.iota({1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.embedding: expected kernel to have rank equal to 2/,
+                   fn ->
+                     Axon.Layers.embedding(inp, kernel)
+                   end
+    end
   end
 
   describe "resize" do
@@ -295,189 +823,15 @@ defmodule Axon.LayersTest do
                  ]
                ])
     end
-  end
 
-  describe "conv" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
-      bias = Nx.tensor(0.0)
+    test "raises on input rank less than 3" do
+      inp = Nx.iota({1, 1})
 
-      first = Axon.Layers.conv(input, kernel, bias)
-      last = Axon.Layers.conv(t_input, kernel, bias, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "depthwise conv" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({6, 1, 4, 4})
-      bias = Nx.tensor(0.0)
-
-      first = Axon.Layers.depthwise_conv(input, kernel, bias)
-      last = Axon.Layers.depthwise_conv(t_input, kernel, bias, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "max pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.max_pool(input, kernel_size: {2, 2})
-      last = Axon.Layers.max_pool(t_input, kernel_size: {2, 2}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-
-    test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
-
-      last =
-        Axon.Layers.max_pool(t_input,
-          kernel_size: {2, 2},
-          window_dilations: [2, 2],
-          channels: :last
-        )
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "avg pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2})
-      last = Axon.Layers.avg_pool(t_input, kernel_size: {2, 2}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-
-    test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
-
-      last =
-        Axon.Layers.avg_pool(t_input,
-          kernel_size: {2, 2},
-          window_dilations: [2, 2],
-          channels: :last
-        )
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "lp pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2})
-      last = Axon.Layers.lp_pool(t_input, kernel_size: {2, 2}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-
-    test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2])
-
-      last =
-        Axon.Layers.lp_pool(t_input,
-          kernel_size: {2, 2},
-          window_dilations: [2, 2],
-          channels: :last
-        )
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "adaptive avg pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25})
-      last = Axon.Layers.adaptive_avg_pool(t_input, output_size: {25, 25}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "adaptive max pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25})
-      last = Axon.Layers.adaptive_max_pool(t_input, output_size: {25, 25}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "adaptive lp pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25})
-      last = Axon.Layers.adaptive_lp_pool(t_input, output_size: {25, 25}, channels: :last)
-
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
-    end
-  end
-
-  describe "global max pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.global_max_pool(input)
-      last = Axon.Layers.global_max_pool(t_input, channels: :last)
-
-      assert first == last
-    end
-  end
-
-  describe "global avg pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.global_avg_pool(input)
-      last = Axon.Layers.global_avg_pool(t_input, channels: :last)
-
-      assert first == last
-    end
-  end
-
-  describe "global lp pool" do
-    test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
-      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-
-      first = Axon.Layers.global_lp_pool(input)
-      last = Axon.Layers.global_lp_pool(t_input, channels: :last)
-
-      assert first == last
+      assert_raise ArgumentError,
+                   ~r/Axon.Layers.resize: expected input shape to have at least rank 3/,
+                   fn ->
+                     Axon.Layers.resize(inp)
+                   end
     end
   end
 end

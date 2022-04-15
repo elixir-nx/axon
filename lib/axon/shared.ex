@@ -11,7 +11,7 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same shape as `rhs`.
   """
-  defn assert_shape!(lhs, rhs) do
+  defn assert_shape!(caller, lhs_name, lhs, rhs_name, rhs) do
     transform(
       {lhs, rhs},
       fn {lhs, rhs} ->
@@ -20,8 +20,44 @@ defmodule Axon.Shared do
 
         unless Elixir.Kernel.==(lhs, rhs) do
           raise ArgumentError,
-                "expected input shapes to be equal," <>
-                  " got #{inspect(lhs)} != #{inspect(rhs)}"
+                "#{caller}: expected input shapes #{lhs_name} and #{rhs_name}" <>
+                  " to be equal, got #{inspect(lhs)} != #{inspect(rhs)}"
+        end
+      end
+    )
+  end
+
+  @doc """
+  Asserts all shapes are equal.
+  """
+  defn assert_shape!(caller, shape_names, shapes) do
+    transform(shapes, fn [shape | shapes] ->
+      equal? =
+        Enum.all?(shapes, fn cur_shape ->
+          Elixir.Kernel.==(Nx.shape(cur_shape), Nx.shape(shape))
+        end)
+
+      unless equal? do
+        raise ArgumentError,
+              "#{caller}: expected all input shapes #{inspect(shape_names)}" <>
+                " to be equal, got #{inspect(shapes)}"
+      end
+    end)
+  end
+
+  @doc """
+  Asserts `inp` has explicit rank `rank`.
+  """
+  defn assert_rank!(caller, inp_name, inp, rank) do
+    transform(
+      {inp, rank},
+      fn {x, y} ->
+        x = Nx.rank(x)
+
+        unless Elixir.Kernel.==(x, y) do
+          raise ArgumentError,
+                "#{caller}: expected #{inp_name} to have rank equal to #{y}," <>
+                  " got #{x} != #{y}"
         end
       end
     )
@@ -30,7 +66,7 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same rank as `rhs`.
   """
-  defn assert_equal_rank!(lhs, rhs) do
+  defn assert_equal_rank!(caller, lhs_name, lhs, rhs_name, rhs) do
     transform(
       {lhs, rhs},
       fn {x, y} ->
@@ -38,16 +74,36 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError, "expected input ranks to be equal, got #{x} != #{y}"
+          raise ArgumentError,
+                "#{caller}: expected #{lhs_name} and #{rhs_name} ranks to be equal" <>
+                  " got #{x} != #{y}"
         end
       end
     )
   end
 
   @doc """
+  Asserts all ranks are equal.
+  """
+  defn assert_equal_rank!(caller, rank_names, ranks) do
+    transform(ranks, fn [rank | ranks] ->
+      equal? =
+        Enum.all?(ranks, fn cur_rank ->
+          Elixir.Kernel.==(Nx.rank(cur_rank), Nx.rank(rank))
+        end)
+
+      unless equal? do
+        raise ArgumentError,
+              "#{caller}: expected all input ranks #{inspect(rank_names)}" <>
+                " to be equal, got #{inspect(ranks)}"
+      end
+    end)
+  end
+
+  @doc """
   Asserts `lhs` has at least rank `rhs`.
   """
-  defn assert_greater_equal_rank!(lhs, rhs) do
+  defn assert_min_rank!(caller, name, lhs, rhs) do
     transform(
       {lhs, rhs},
       fn {x, y} ->
@@ -55,7 +111,8 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError, "expected input shape to have at least rank #{y}, got rank #{x}"
+          raise ArgumentError,
+                "#{caller}: expected #{name} shape to have at least rank #{y}, got rank #{x}"
         end
       end
     )
@@ -176,22 +233,6 @@ defmodule Axon.Shared do
 
       container ->
         deep_map_reduce(container, acc, fun)
-    end
-  end
-
-  @doc """
-  JIT given function with args and opts or apply it inside defn.
-  """
-  def jit_or_apply(caller, fun, args, opts \\ []) do
-    if Nx.Defn.Compiler.current() do
-      if opts != [] do
-        raise ArgumentError,
-              "cannot pass execution options to Axon.#{caller} inside defn, got: #{inspect(opts)}"
-      end
-
-      apply(fun, args)
-    else
-      Nx.Defn.jit(fun, args, opts)
     end
   end
 

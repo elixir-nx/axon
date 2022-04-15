@@ -33,9 +33,9 @@ defmodule Axon.Compiler do
   end
 
   @doc false
-  def __jit_init__(graph, caller, [] = args, opts) do
+  def __jit_init__(graph, [] = args, opts) do
     fun = compile_init(graph)
-    jit_or_apply(caller, fun, args, opts)
+    Nx.Defn.jit_or_apply(fun, args, opts)
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -169,10 +169,10 @@ defmodule Axon.Compiler do
   ## Model JIT Compilation
 
   @doc false
-  def __jit_predict__(graph, caller, args, opts) do
+  def __jit_predict__(graph, args, opts) do
     {mode, opts} = Keyword.pop(opts, :mode, :inference)
     fun = compile_predict(graph, mode)
-    jit_or_apply(caller, fun, args, opts)
+    Nx.Defn.jit_or_apply(fun, args, opts)
   end
 
   defp compile_predict(%Axon{} = graph, mode) do

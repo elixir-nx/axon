@@ -34,5 +34,13 @@ defmodule Axon.InitializersTest do
              ) ==
                Nx.tensor(0, type: {:u, 8})
     end
+
+    test "raises on input rank less than 2" do
+      assert_raise ArgumentError,
+                   ~r/Axon.Initializers.orthogonal: expected input_shape shape to have at least rank 2/,
+                   fn ->
+                     Axon.Initializers.orthogonal(shape: {1})
+                   end
+    end
   end
 end

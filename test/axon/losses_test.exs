@@ -24,6 +24,17 @@ defmodule Axon.LossesTest do
       assert Axon.Losses.binary_cross_entropy(y_true, y_pred, from_logits: true, reduction: :mean) ==
                Nx.tensor(6.2885422706604)
     end
+
+    test "raises on y_true shape not equal to y_pred" do
+      y_true = Nx.iota({1})
+      y_pred = Nx.iota({1, 1})
+
+      assert_raise ArgumentError,
+                   ~r/Axon.Losses.binary_cross_entropy: expected input shapes y_true and y_pred/,
+                   fn ->
+                     Axon.Losses.binary_cross_entropy(y_true, y_pred)
+                   end
+    end
   end
 
   describe "categorical_cross_entropy" do
