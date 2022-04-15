@@ -265,12 +265,10 @@ defmodule Axon.Compiler do
       end)
 
     param_arg =
-      case inp_params do
-        %{} ->
-          []
-
-        inp_params ->
-          [inp_params]
+      if Enum.empty?(inp_params) do
+        []
+      else
+        [inp_params]
       end
 
     res =
@@ -313,12 +311,10 @@ defmodule Axon.Compiler do
       end)
 
     param_arg =
-      case inp_params do
-        %{} ->
-          []
-
-        inp_params ->
-          [inp_params]
+      if Enum.empty?(inp_params) do
+        []
+      else
+        [inp_params]
       end
 
     input =
@@ -330,9 +326,18 @@ defmodule Axon.Compiler do
           deep_new(res, &Nx.as_type(&1, compute))
       end
 
+    args =
+      case opts do
+        [] ->
+          [input] ++ param_arg
+
+        [_ | _] = opts ->
+          [input] ++ param_arg ++ [opts]
+      end
+
     res =
       op
-      |> apply([input] ++ param_arg ++ [opts])
+      |> apply(args)
       |> Nx.as_type(output)
       |> apply_hooks(:forward, mode, hooks)
       |> apply_hooks(:backward, mode, hooks)
