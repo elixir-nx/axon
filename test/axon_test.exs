@@ -781,4 +781,44 @@ defmodule AxonTest do
       assert container(model) == Nx.tensor([[1.0]])
     end
   end
+
+  describe "serialization" do
+    test "correctly serializes and deserializes simple container" do
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 2})
+      model = Axon.container(%{a: inp1, b: inp2})
+
+      serialized = Axon.serialize(model, %{})
+      {deserialized, params} = Axon.deserialize(serialized)
+
+      input1 = Nx.tensor([[1.0]])
+      input2 = Nx.tensor([[1.0, 2.0]])
+
+      assert %{a: a, b: b} =
+               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
+
+      assert a == input1
+      assert b == input2
+    end
+
+    test "correctly serializes and deserializes nested container" do
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 2})
+      model = Axon.container({{inp1, {}}, %{a: inp1}, {%{b: inp2, c: inp1, d: %{}}}})
+
+      serialized = Axon.serialize(model, %{})
+      {deserialized, params} = Axon.deserialize(serialized)
+
+      input1 = Nx.tensor([[1.0]])
+      input2 = Nx.tensor([[1.0, 2.0]])
+
+      assert {{a, {}}, %{a: b}, {%{b: c, c: d, d: %{}}}} =
+               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
+
+      assert a == input1
+      assert b == input1
+      assert c == input2
+      assert d == input1
+    end
+  end
 end
