@@ -321,9 +321,18 @@ defmodule Axon.Compiler do
           [inp_params]
       end
 
+    input =
+      case res do
+        %Nx.Tensor{} = t ->
+          Nx.as_type(t, compute)
+
+        res ->
+          deep_new(res, &Nx.as_type(&1, compute))
+      end
+
     res =
       op
-      |> apply([res] ++ param_arg ++ [opts])
+      |> apply([input] ++ param_arg ++ [opts])
       |> Nx.as_type(output)
       |> apply_hooks(:forward, mode, hooks)
       |> apply_hooks(:backward, mode, hooks)
