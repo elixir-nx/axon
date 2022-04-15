@@ -2221,6 +2221,7 @@ defmodule Axon do
 
   defimpl Inspect do
     import Inspect.Algebra
+    import Axon.Shared
 
     def inspect(axon, _opts) do
       title = "Model"
@@ -2373,22 +2374,6 @@ defmodule Axon do
       ]
 
       {row, name, cache, op_counts}
-    end
-
-    # TODO: This and other nested data structure logic should
-    # be joined somewhere
-    defp deep_map_reduce(container, acc, fun) do
-      Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
-    end
-
-    defp recur_deep_map_reduce(leaf, acc, fun) do
-      case leaf do
-        %Axon{} = leaf ->
-          fun.(leaf, acc)
-
-        container ->
-          deep_map_reduce(container, acc, fun)
-      end
     end
   end
 
