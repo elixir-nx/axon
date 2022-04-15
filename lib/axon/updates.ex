@@ -177,9 +177,7 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  def scale_by_rss() do
-    scale_by_rss(identity(), [])
-  end
+  def scale_by_rss(combinator_or_opts \\ [])
 
   def scale_by_rss(opts) when is_list(opts) do
     scale_by_rss(identity(), opts)
