@@ -21,7 +21,7 @@ defmodule CompilerTest do
     end
 
     test "multi-input, map with default names" do
-      model1 = {Axon.input({nil, 1}), Axon.input({nil, 1})}
+      model1 = {Axon.input({nil, 1}), Axon.input({nil, 1})} |> Axon.container()
 
       input1 = Nx.random_uniform({1, 1})
       input2 = Nx.random_uniform({1, 1})
@@ -33,11 +33,44 @@ defmodule CompilerTest do
       assert output2 == input2
     end
 
+    test "output map" do
+      model = %{foo: Axon.input({nil, 1})} |> Axon.container()
+
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert %{} = init_fn.()
+      assert %{foo: output} = predict_fn.(%{}, %{"input_0" => input})
+      assert output == input
+    end
+
+    test "multi-input, multi-output, nested" do
+      input1 = Axon.input({nil, 1})
+      input2 = Axon.input({nil, 2})
+
+      model1 = {input1, {input1, {input2, {}}, input2, %{foo: input1}}} |> Axon.container()
+
+      inp1 = Nx.random_uniform({1, 1})
+      inp2 = Nx.random_uniform({1, 2})
+
+      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert %{} = init_fn.()
+
+      assert {out1, {out2, {out3, {}}, out4, %{foo: out5}}} =
+               predict_fn.(%{}, %{"input_0" => inp1, "input_1" => inp2})
+
+      assert out1 == inp1
+      assert out2 == inp1
+      assert out3 == inp2
+      assert out4 == inp2
+      assert out5 == inp1
+    end
+
     test "multi-input, map with custom names" do
       x = Axon.input({nil, 1}, name: :x)
       y = Axon.input({nil, 1}, name: :y)
       z = Axon.input({nil, 1}, name: :z)
-      model = {z, x, y}
+      model = {z, x, y} |> Axon.container()
 
       x_val = Nx.random_uniform({1, 1})
       y_val = Nx.random_uniform({1, 1})
@@ -2339,9 +2372,9 @@ defmodule CompilerTest do
     end
   end
 
-  describe "e" do
+  describe "lstm" do
     test "initializes in default case" do
-      model = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
+      model = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm") |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
 
@@ -2395,7 +2428,9 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", kernel_initializer: :zeros)
+        Axon.input({nil, 32, 10})
+        |> Axon.lstm(64, name: "lstm", kernel_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
 
@@ -2438,7 +2473,10 @@ defmodule CompilerTest do
       assert Nx.shape(bo) == {64}
       assert Nx.type(bo) == {:f, 32}
 
-      model2 = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
+      model2 =
+        Axon.input({nil, 32, 10})
+        |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
 
@@ -2487,7 +2525,11 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 8, 2}) |> Axon.lstm(2, name: "lstm", recurrent_initializer: :zeros)
+      model =
+        Axon.input({nil, 8, 2})
+        |> Axon.lstm(2, name: "lstm", recurrent_initializer: :zeros)
+        |> Axon.container()
+
       input = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
       init_carry =
@@ -2538,6 +2580,7 @@ defmodule CompilerTest do
           gate: :relu,
           activation: :sigmoid
         )
+        |> Axon.container()
 
       input1 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
@@ -2585,6 +2628,7 @@ defmodule CompilerTest do
       model2 =
         Axon.input({nil, 8, 2})
         |> Axon.lstm(2, name: "lstm", unroll: :static, recurrent_initializer: :zeros)
+        |> Axon.container()
 
       input2 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
@@ -2629,7 +2673,7 @@ defmodule CompilerTest do
     test "computes forward pass with hidden state" do
       seq = Axon.input({nil, 8, 2})
       {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.lstm(seq, 2, name: "decode", hidden_state: carry)
+      model = Axon.lstm(seq, 2, name: "decode", hidden_state: carry) |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
@@ -2730,7 +2774,8 @@ defmodule CompilerTest do
     end
 
     test "initializes with use_bias false" do
-      model = Axon.input({nil, 2, 1}) |> Axon.lstm(2, name: "lstm", use_bias: false)
+      model =
+        Axon.input({nil, 2, 1}) |> Axon.lstm(2, name: "lstm", use_bias: false) |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model)
 
@@ -2758,6 +2803,7 @@ defmodule CompilerTest do
       model =
         Axon.input({nil, 2, 1})
         |> Axon.lstm(2, name: "lstm", use_bias: false, recurrent_initializer: :zeros)
+        |> Axon.container()
 
       input = Nx.random_uniform({1, 2, 1})
 
@@ -2804,7 +2850,11 @@ defmodule CompilerTest do
       }
 
       out_channel_n = 4
-      model = Axon.input(input_shape) |> Axon.conv_lstm(out_channel_n, name: "convlstm")
+
+      model =
+        Axon.input(input_shape)
+        |> Axon.conv_lstm(out_channel_n, name: "convlstm")
+        |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model)
 
@@ -2843,6 +2893,7 @@ defmodule CompilerTest do
       model1 =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
 
@@ -2867,6 +2918,7 @@ defmodule CompilerTest do
       model2 =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
 
@@ -2906,6 +2958,7 @@ defmodule CompilerTest do
       model =
         Axon.input(input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
+        |> Axon.container()
 
       input =
         input_shape
@@ -2963,6 +3016,7 @@ defmodule CompilerTest do
           recurrent_initializer: :zeros,
           unroll: :static
         )
+        |> Axon.container()
 
       input =
         input_shape
@@ -3023,6 +3077,7 @@ defmodule CompilerTest do
           gate: :relu,
           activation: :sigmoid
         )
+        |> Axon.container()
 
       input1 =
         input_shape
@@ -3069,6 +3124,7 @@ defmodule CompilerTest do
           unroll: :static,
           recurrent_initializer: :zeros
         )
+        |> Axon.container()
 
       input2 =
         input_shape
@@ -3114,9 +3170,12 @@ defmodule CompilerTest do
       seq = Axon.input(input_shape)
 
       {carry, _} =
-        seq |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
+        seq
+        |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
 
-      model = Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
+      model =
+        Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
+        |> Axon.container()
 
       input =
         input_shape
@@ -3227,6 +3286,7 @@ defmodule CompilerTest do
           use_bias: false,
           recurrent_initializer: :zeros
         )
+        |> Axon.container()
 
       input =
         input_shape
@@ -3257,7 +3317,7 @@ defmodule CompilerTest do
 
   describe "gru" do
     test "initializes in default case" do
-      model = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru")
+      model = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru") |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model)
 
@@ -3299,7 +3359,10 @@ defmodule CompilerTest do
     end
 
     test "initializes with custom initializers" do
-      model1 = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru", kernel_initializer: :zeros)
+      model1 =
+        Axon.input({nil, 32, 10})
+        |> Axon.gru(64, name: "gru", kernel_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model1)
 
@@ -3333,7 +3396,10 @@ defmodule CompilerTest do
       assert Nx.shape(bin) == {64}
       assert Nx.type(bin) == {:f, 32}
 
-      model2 = Axon.input({nil, 32, 10}) |> Axon.gru(64, name: "gru", bias_initializer: :zeros)
+      model2 =
+        Axon.input({nil, 32, 10})
+        |> Axon.gru(64, name: "gru", bias_initializer: :zeros)
+        |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model2)
 
@@ -3371,7 +3437,11 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 8, 2}) |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros)
+      model =
+        Axon.input({nil, 8, 2})
+        |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros)
+        |> Axon.container()
+
       input = Nx.random_uniform({1, 8, 2})
       carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
@@ -3409,6 +3479,7 @@ defmodule CompilerTest do
           gate: :relu,
           activation: :sigmoid
         )
+        |> Axon.container()
 
       input1 = Nx.random_uniform({1, 8, 2})
       carry1 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
@@ -3452,6 +3523,7 @@ defmodule CompilerTest do
       model2 =
         Axon.input({nil, 8, 2})
         |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros, unroll: :static)
+        |> Axon.container()
 
       input2 = Nx.random_uniform({1, 8, 2})
       carry2 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
@@ -3484,7 +3556,7 @@ defmodule CompilerTest do
     test "computes forward pass with hidden state" do
       seq = Axon.input({nil, 8, 2})
       {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.gru(seq, 2, name: "decode", hidden_state: carry)
+      model = Axon.gru(seq, 2, name: "decode", hidden_state: carry) |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
       carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
@@ -3534,7 +3606,8 @@ defmodule CompilerTest do
     end
 
     test "initializes with use_bias false" do
-      model = Axon.input({nil, 2, 1}) |> Axon.gru(2, name: "gru", use_bias: false)
+      model =
+        Axon.input({nil, 2, 1}) |> Axon.gru(2, name: "gru", use_bias: false) |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model)
 
@@ -3560,6 +3633,7 @@ defmodule CompilerTest do
       model =
         Axon.input({nil, 2, 1})
         |> Axon.gru(2, name: "gru", use_bias: false, recurrent_initializer: :zeros)
+        |> Axon.container()
 
       input = Nx.random_uniform({1, 2, 1})
       assert {init_fn, predict_fn} = Axon.compile(model)
@@ -3852,14 +3926,14 @@ defmodule CompilerTest do
 
   describe "split" do
     test "initializes with no parameters" do
-      model = Axon.input({nil, 10}) |> Axon.split(5)
+      model = Axon.input({nil, 10}) |> Axon.split(5) |> Axon.container()
 
       assert {init_fn, _} = Axon.compile(model)
       assert init_fn.() == %{}
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 10}) |> Axon.split(5)
+      model = Axon.input({nil, 10}) |> Axon.split(5) |> Axon.container()
       input = Nx.iota({1, 10}, type: {:f, 32})
 
       assert {_, predict_fn} = Axon.compile(model)

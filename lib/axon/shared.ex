@@ -148,11 +148,34 @@ defmodule Axon.Shared do
 
   defp recur_deep_reduce(value, acc, fun) do
     case value do
+      %Axon{} = val ->
+        fun.(val, acc)
+
       %Nx.Tensor{} = val ->
         fun.(val, acc)
 
       val ->
         deep_reduce(val, acc, fun)
+    end
+  end
+
+  @doc """
+  Deep map-reduce a nested container with an accumulator.
+  """
+  def deep_map_reduce(container, acc, fun) do
+    Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
+  end
+
+  defp recur_deep_map_reduce(leaf, acc, fun) do
+    case leaf do
+      %Axon{} = leaf ->
+        fun.(leaf, acc)
+
+      %Nx.Tensor{} = leaf ->
+        fun.(leaf, acc)
+
+      container ->
+        deep_map_reduce(container, acc, fun)
     end
   end
 

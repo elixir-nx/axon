@@ -217,6 +217,73 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a container layer to the network.
+
+  In certain cases you may want your model to have multiple
+  outputs. In order to make this work, you must "join" the
+  outputs into an Axon layer using this function for use in
+  initialization and inference later on.
+
+  The given container can be any valid Axon Nx container.
+
+  ## Options
+
+    * `:name` - Layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input({nil, 1})
+      iex> inp2 = Axon.input({nil, 2})
+      iex> model = Axon.container(%{a: inp1, b: inp2})
+      iex> %{a: a, b: b} = Axon.predict(model, %{}, %{
+      ...>    "input_0" => Nx.tensor([[1.0]]),
+      ...>    "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      iex> a
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+      iex> b
+      #Nx.Tensor<
+        f32[1][2]
+        [
+          [1.0, 2.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def container(container, opts \\ []) do
+    output_shape =
+      deep_new(container, fn %Axon{output_shape: shape} ->
+        shape
+      end)
+
+    layer(container, :container, output_shape, %{}, opts[:name], opts)
+  end
+
+  # TODO: This should not be duplicated
+  defp deep_new(map, fun) do
+    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
+    cont
+  end
+
+  defp recur_traverse(item, :ok, fun) do
+    case item do
+      %Axon{} = t ->
+        {fun.(t), :ok}
+
+      %{axon: :axon} = t ->
+        {fun.(t), :ok}
+
+      container ->
+        {deep_new(container, fun), :ok}
+    end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -2181,6 +2248,7 @@ defmodule Axon do
 
   defimpl Inspect do
     import Inspect.Algebra
+    import Axon.Shared
 
     def inspect(axon, _opts) do
       title = "Model"
@@ -2238,6 +2306,39 @@ defmodule Axon do
         end
 
       name = name_fn.(op, op_counts)
+
+      row = [
+        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{inspect(shape)}",
+        "#{inspect(policy)}",
+        0,
+        "0 bytes"
+      ]
+
+      {row, name, cache, op_counts}
+    end
+
+    defp do_axon_to_rows(
+           %Axon{
+             op: :container,
+             parent: parents,
+             name: name_fn,
+             output_shape: shape,
+             policy: policy
+           },
+           cache,
+           op_counts
+         ) do
+      {input_names, {cache, op_counts}} =
+        deep_map_reduce(parents, {cache, op_counts}, fn
+          %Axon{} = graph, {cache, op_counts} ->
+            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
+            {name, {cache, op_counts}}
+        end)
+
+      op_string = "container"
+
+      name = name_fn.(:container, op_counts)
 
       row = [
         name <> " ( #{op_string} #{inspect(input_names)} )",
@@ -2338,17 +2439,27 @@ defmodule Axon do
     :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
 
-  defp axon_to_map(%Axon{parent: nil} = model), do: Map.from_struct(model)
+  defp axon_to_map(%Axon{parent: nil} = model) do
+    model
+    |> Map.from_struct()
+    |> Map.put(:axon, :axon)
+  end
+
+  defp axon_to_map(%Axon{op: :container, parent: parents} = model) do
+    parents = deep_new(parents, &axon_to_map/1)
+    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
+    %{axon_map | parent: parents}
+  end
 
   defp axon_to_map(%Axon{parent: parents} = model) when is_list(parents) do
     parents = Enum.map(parents, &axon_to_map/1)
-    axon_map = Map.from_struct(model)
+    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
     %{axon_map | parent: parents}
   end
 
   defp axon_to_map(%Axon{parent: parent} = model) do
     parent = axon_to_map(parent)
-    axon_map = Map.from_struct(model)
+    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
     %{axon_map | parent: parent}
   end
 
@@ -2379,16 +2490,29 @@ defmodule Axon do
     {model, params}
   end
 
-  defp map_to_axon(%{parent: nil} = model), do: struct(__MODULE__, model)
+  defp map_to_axon(%{parent: nil} = model) do
+    model
+    |> Map.drop([:axon])
+    |> then(&struct(__MODULE__, &1))
+  end
+
+  defp map_to_axon(%{op: :container, parent: parents} = model) do
+    parents = deep_new(parents, &map_to_axon/1)
+    model = Map.drop(model, [:axon])
+    model = %{model | parent: parents}
+    struct(__MODULE__, model)
+  end
 
   defp map_to_axon(%{parent: parents} = model) when is_list(parents) do
     parents = Enum.map(parents, &map_to_axon/1)
+    model = Map.drop(model, [:axon])
     model = %{model | parent: parents}
     struct(__MODULE__, model)
   end
 
   defp map_to_axon(%{parent: parent} = model) do
     parent = map_to_axon(parent)
+    model = Map.drop(model, [:axon])
     model = %{model | parent: parent}
     struct(__MODULE__, model)
   end

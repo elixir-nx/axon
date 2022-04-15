@@ -119,7 +119,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
-      model = {Axon.input({nil, 1}), Axon.input({nil, 1})}
+      model = {Axon.input({nil, 1}), Axon.input({nil, 1})} |> Axon.container()
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
