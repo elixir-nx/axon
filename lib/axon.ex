@@ -330,7 +330,7 @@ defmodule Axon do
         %{"kernel" => kernel}
       end
 
-    node = layer(x, :dense, output_shape, params, opts[:name], use_bias: use_bias)
+    node = layer([x], :dense, output_shape, params, opts[:name], use_bias: use_bias)
 
     if activation do
       node

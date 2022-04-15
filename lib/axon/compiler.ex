@@ -373,10 +373,12 @@ defmodule Axon.Compiler do
 
   ## Linear Layers
 
+  @linear_layers [:dense, :bilinear]
+
   defp recur_predict_fun(
          %Axon{
            id: id,
-           op: :dense,
+           op: op,
            name: name_fn,
            parent: parent,
            params: layer_params,
@@ -388,60 +390,18 @@ defmodule Axon.Compiler do
          params,
          inputs,
          mode
-       ) do
-    {res, {state, cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, params, inputs, mode)
-
-    name = name_fn.(:dense, op_counts)
-
-    op_counts = Map.update(op_counts, :dense, 1, fn x -> x + 1 end)
-
-    w = layer_param(layer_params, "kernel", params[name], compute)
-
-    b =
-      if use_bias do
-        layer_param(layer_params, "bias", params[name], compute)
-      else
-        Nx.tensor(0.0, type: compute)
-      end
-
-    res =
-      res
-      |> Nx.as_type(compute)
-      |> apply_hooks(:pre_forward, mode, hooks)
-      |> Axon.Layers.dense(w, b)
-      |> Nx.as_type(output)
-      |> apply_hooks(:forward, mode, hooks)
-      |> apply_hooks(:backward, mode, hooks)
-
-    {res, {state, Map.put(cache, id, res), op_counts}}
-  end
-
-  defp recur_predict_fun(
-         %Axon{
-           id: id,
-           name: name_fn,
-           op: :bilinear,
-           parent: parents,
-           params: layer_params,
-           policy: %{compute: compute, output: output},
-           opts: [use_bias: use_bias],
-           hooks: hooks
-         },
-         cache_and_counts,
-         params,
-         inputs,
-         mode
-       ) do
-    {[res1, res2], {state, cache, op_counts}} =
+       )
+       when op in @linear_layers do
+    {exprs, {state, cache, op_counts}} =
       Enum.map_reduce(
-        parents,
+        parent,
         cache_and_counts,
         &to_predict_fun(&1, &2, params, inputs, mode)
       )
 
-    name = name_fn.(:bilinear, op_counts)
-    op_counts = Map.update(op_counts, :bilinear, 1, fn x -> x + 1 end)
+    name = name_fn.(op, op_counts)
+
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     w = layer_param(layer_params, "kernel", params[name], compute)
 
@@ -452,14 +412,11 @@ defmodule Axon.Compiler do
         Nx.tensor(0.0, type: compute)
       end
 
-    input1 = Nx.as_type(res1, compute)
-    input2 = Nx.as_type(res2, compute)
-
-    {input1_hooked, input2_hooked} = apply_hooks({input1, input2}, :pre_forward, mode, hooks)
-
     res =
-      input1_hooked
-      |> Axon.Layers.bilinear(input2_hooked, w, b)
+      exprs
+      |> Enum.map(&Nx.as_type(&1, compute))
+      |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
+      |> then(&apply(Axon.Layers, op, &1 ++ [w, b]))
       |> Nx.as_type(output)
       |> apply_hooks(:forward, mode, hooks)
       |> apply_hooks(:backward, mode, hooks)
