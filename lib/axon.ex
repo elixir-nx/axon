@@ -229,6 +229,30 @@ defmodule Axon do
   ## Options
 
     * `:name` - Layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input({nil, 1})
+      iex> inp2 = Axon.input({nil, 2})
+      iex> model = Axon.container(%{a: inp1, b: inp2})
+      iex> %{a: a, b: b} = Axon.predict(model, %{}, %{
+      ...>    "input_0" => Nx.tensor([[1.0]]),
+      ...>    "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      iex> a
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+      iex> b
+      #Nx.Tensor<
+        f32[1][2]
+        [
+          [1.0, 2.0]
+        ]
+      >
   """
   @doc type: :special
   def container(container, opts \\ []) do
