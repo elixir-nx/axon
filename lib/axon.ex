@@ -219,7 +219,7 @@ defmodule Axon do
   @doc """
   Adds a container layer to the network.
 
-  In certain cases you may want your model to have mulitple
+  In certain cases you may want your model to have multiple
   outputs. In order to make this work, you must "join" the
   outputs into an Axon layer using this function for use in
   initialization and inference later on.
