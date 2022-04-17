@@ -782,29 +782,32 @@ defmodule CompilerTest do
         model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32})])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
-        result1 = predict_fn.(%{}, input1)
+        assert {_, predict_fn} = Axon.compile(model1, mode: :train)
+        %{prediction: result1} = predict_fn.(%{}, input1)
 
         assert Nx.shape(result1) == {1, 1, 32}
         assert Nx.type(result1) == {:f, 32}
+        assert result1 != input1
 
         model2 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
-        result2 = predict_fn.(%{}, input2)
+        assert {_, predict_fn} = Axon.compile(model2, mode: :train)
+        %{prediction: result2} = predict_fn.(%{}, input2)
 
         assert Nx.shape(result2) == {1, 1, 8, 4}
         assert Nx.type(result2) == {:f, 32}
+        assert result2 != input2
 
         model3 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
-        result3 = predict_fn.(%{}, input3)
+        assert {_, predict_fn} = Axon.compile(model3, mode: :train)
+        %{prediction: result3} = predict_fn.(%{}, input3)
 
         assert Nx.shape(result3) == {1, 1, 8, 4, 2}
         assert Nx.type(result3) == {:f, 32}
+        assert result3 != input3
       end
     end
 
@@ -814,12 +817,13 @@ defmodule CompilerTest do
         model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32}), opts1])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.compile(model1, mode: :train)
 
-        result = predict_fn.(%{}, input1)
+        %{prediction: result} = predict_fn.(%{}, input1)
 
         assert Nx.shape(result) == {1, 1, 32}
         assert Nx.type(result) == {:f, 32}
+        assert result != input1
       end
     end
 

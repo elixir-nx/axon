@@ -124,6 +124,8 @@ defmodule Axon do
 
     {id, name} = unique_identifiers(op_name, name)
 
+    parent = if parent, do: List.wrap(parent), else: nil
+
     %Axon{
       id: id,
       name: name,
@@ -2277,42 +2279,9 @@ defmodule Axon do
     end
 
     defp do_axon_to_rows(
-           %Axon{op: op, parent: parents, name: name_fn, output_shape: shape, policy: policy},
-           cache,
-           op_counts
-         )
-         when is_list(parents) do
-      {input_names, {cache, op_counts}} =
-        Enum.map_reduce(parents, {cache, op_counts}, fn
-          %Axon{} = graph, {cache, op_counts} ->
-            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
-            {name, {cache, op_counts}}
-        end)
-
-      op_string =
-        if is_atom(op) do
-          "#{Atom.to_string(op)}"
-        else
-          "#{inspect(op)}"
-        end
-
-      name = name_fn.(op, op_counts)
-
-      row = [
-        name <> " ( #{op_string} #{inspect(input_names)} )",
-        "#{inspect(shape)}",
-        "#{inspect(policy)}",
-        0,
-        "0 bytes"
-      ]
-
-      {row, name, cache, op_counts}
-    end
-
-    defp do_axon_to_rows(
            %Axon{
              op: :container,
-             parent: parents,
+             parent: [parents],
              name: name_fn,
              output_shape: shape,
              policy: policy
@@ -2345,26 +2314,30 @@ defmodule Axon do
     defp do_axon_to_rows(
            %Axon{
              op: op,
-             params: params,
-             parent: parent,
+             parent: parents,
              name: name_fn,
              output_shape: shape,
-             policy: %{params: {_, bitsize}} = policy
+             policy: %{params: {_, bitsize}} = policy,
+             params: params
            },
            cache,
            op_counts
          ) do
-      {input_name, cache, op_counts} =
-        if parent do
-          {_, input_name, cache, op_counts} = axon_to_rows(parent, cache, op_counts)
-          {input_name, cache, op_counts}
+      {input_names, {cache, op_counts}} =
+        if parents do
+          Enum.map_reduce(parents, {cache, op_counts}, fn
+            %Axon{} = graph, {cache, op_counts} ->
+              {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
+              {name, {cache, op_counts}}
+          end)
         else
-          {nil, cache, op_counts}
+          {nil, {cache, op_counts}}
         end
 
       num_params =
-        params
-        |> Enum.reduce(0, fn {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape) end)
+        Enum.reduce(params, 0, fn
+          {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape)
+        end)
 
       param_byte_size = num_params * div(bitsize, 8)
 
@@ -2375,8 +2348,8 @@ defmodule Axon do
         end
 
       inputs =
-        if input_name do
-          "[ #{inspect(input_name)} ]"
+        if input_names do
+          "#{inspect(input_names)}"
         else
           ""
         end
@@ -2436,22 +2409,16 @@ defmodule Axon do
     |> Map.put(:axon, :axon)
   end
 
-  defp axon_to_map(%Axon{op: :container, parent: parents} = model) do
+  defp axon_to_map(%Axon{op: :container, parent: [parents]} = model) do
     parents = deep_new(parents, &axon_to_map/1)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | parent: parents}
+    %{axon_map | parent: List.wrap(parents)}
   end
 
-  defp axon_to_map(%Axon{parent: parents} = model) when is_list(parents) do
+  defp axon_to_map(%Axon{parent: parents} = model) do
     parents = Enum.map(parents, &axon_to_map/1)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
     %{axon_map | parent: parents}
-  end
-
-  defp axon_to_map(%Axon{parent: parent} = model) do
-    parent = axon_to_map(parent)
-    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | parent: parent}
   end
 
   @doc """
@@ -2487,24 +2454,17 @@ defmodule Axon do
     |> then(&struct(__MODULE__, &1))
   end
 
-  defp map_to_axon(%{op: :container, parent: parents} = model) do
+  defp map_to_axon(%{op: :container, parent: [parents]} = model) do
     parents = deep_new(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
-    model = %{model | parent: parents}
+    model = %{model | parent: List.wrap(parents)}
     struct(__MODULE__, model)
   end
 
-  defp map_to_axon(%{parent: parents} = model) when is_list(parents) do
+  defp map_to_axon(%{parent: parents} = model) do
     parents = Enum.map(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
     model = %{model | parent: parents}
-    struct(__MODULE__, model)
-  end
-
-  defp map_to_axon(%{parent: parent} = model) do
-    parent = map_to_axon(parent)
-    model = Map.drop(model, [:axon])
-    model = %{model | parent: parent}
     struct(__MODULE__, model)
   end
 
