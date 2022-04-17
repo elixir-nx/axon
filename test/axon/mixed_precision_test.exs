@@ -25,11 +25,13 @@ defmodule MixedPrecisionTest do
 
       assert %Axon{
                op: :dense,
-               parent: %Axon{
-                 op: :batch_norm,
-                 parent: %Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}},
-                 policy: %Policy{compute: {:f, 32}}
-               },
+               parent: [
+                 %Axon{
+                   op: :batch_norm,
+                   parent: [%Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}}],
+                   policy: %Policy{compute: {:f, 32}}
+                 }
+               ],
                policy: %Policy{compute: {:bf, 16}}
              } = AMP.apply_policy(model, policy, except: [:batch_norm])
     end

@@ -49,7 +49,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :dense}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :dense}]} =
                Axon.input({nil, 784}) |> Axon.dense(128, activation: :relu)
     end
 
@@ -85,7 +85,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :conv}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :conv}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.conv(64, activation: :relu)
     end
 
@@ -159,7 +159,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :depthwise_conv}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :depthwise_conv}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.depthwise_conv(64, activation: :relu)
     end
 
@@ -238,7 +238,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :separable_conv2d}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv2d}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3, activation: :relu)
     end
 
@@ -325,7 +325,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :separable_conv3d}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv3d}]} =
                Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, activation: :relu)
     end
 
@@ -727,16 +727,16 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             ---------------------------------------------------------------------------------------------------
-                                                            Model
-             ===================================================================================================
-              Layer                             Shape        Policy              Parameters   Parameters Memory
-             ===================================================================================================
-              input ( input )                   {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
-              dense1 ( dense[ "input" ] )       {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
-              dense2 ( dense[ "dense1" ] )      {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
-              softmax ( softmax[ "dense2" ] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
-             ---------------------------------------------------------------------------------------------------
+             -------------------------------------------------------------------------------------------------
+                                                           Model
+             =================================================================================================
+              Layer                           Shape        Policy              Parameters   Parameters Memory
+             =================================================================================================
+              input ( input )                 {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+              dense1 ( dense["input"] )       {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+              dense2 ( dense["dense1"] )      {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
+              softmax ( softmax["dense2"] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+             -------------------------------------------------------------------------------------------------
              """
     end
 
@@ -755,18 +755,18 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             --------------------------------------------------------------------------------------------------------------------
+             -------------------------------------------------------------------------------------------------------------------
                                                                     Model
-             ====================================================================================================================
-              Layer                                              Shape        Policy              Parameters   Parameters Memory
-             ====================================================================================================================
-              input ( input )                                    {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
-              dense ( dense[ "input" ] )                         {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
-              residual_dense ( dense[ "dense" ] )                {nil, 128}   p=f32 c=f32 o=f32   16512        66048 bytes
-              residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
-              dense2 ( dense[ "residual_add" ] )                 {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
-              softmax ( softmax[ "dense2" ] )                    {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
-             --------------------------------------------------------------------------------------------------------------------
+             ===================================================================================================================
+              Layer                                             Shape        Policy              Parameters   Parameters Memory
+             ===================================================================================================================
+              input ( input )                                   {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+              dense ( dense["input"] )                          {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+              residual_dense ( dense["dense"] )                 {nil, 128}   p=f32 c=f32 o=f32   16512        66048 bytes
+              residual_add ( add["residual_dense", "dense"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
+              dense2 ( dense["residual_add"] )                  {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
+              softmax ( softmax["dense2"] )                     {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+             -------------------------------------------------------------------------------------------------------------------
              """
     end
   end
