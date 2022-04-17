@@ -3854,4 +3854,73 @@ defmodule CompilerTest do
       assert Nx.shape(bo_1) == {8}
     end
   end
+
+  describe "custom layers" do
+    test "initializes with no parameters" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.layer(fn x, _params -> x end, {nil, 1}, %{})
+
+      assert Enum.empty?(Axon.init(model))
+    end
+
+    test "initializes with parameters" do
+      kernel_param = Axon.param("kernel", {1, 1})
+
+      model =
+        Axon.input({nil, 1})
+        |> Axon.layer(fn x, _params -> x end, {nil, 1}, %{"kernel" => kernel_param})
+
+      assert %{"layer_0" => %{"kernel" => kernel}} = Axon.init(model)
+
+      assert Nx.type(kernel) == {:f, 32}
+      assert Nx.shape(kernel) == {1, 1}
+    end
+
+    test "computes forward pass with parameters" do
+      kernel_param = Axon.param("kernel", {1, 1})
+
+      model =
+        Axon.input({nil, 1})
+        |> Axon.layer(fn x, params -> Nx.multiply(x, params["kernel"]) end, {nil, 1}, %{
+          "kernel" => kernel_param
+        })
+
+      input = Nx.random_uniform({1, 1})
+
+      assert %{"layer_0" => %{"kernel" => kernel}} = params = Axon.init(model)
+
+      assert Axon.predict(model, params, input) == Nx.multiply(input, kernel)
+    end
+
+    test "computes forward pass with options" do
+      kernel_param = Axon.param("kernel", {1, 1})
+
+      layer_fun = fn x, params, opts ->
+        if opts[:add] do
+          Nx.add(x, params["kernel"])
+        else
+          Nx.multiply(x, params["kernel"])
+        end
+      end
+
+      input = Nx.random_uniform({1, 1})
+
+      model1 =
+        Axon.input({nil, 1})
+        |> Axon.layer(layer_fun, {nil, 1}, %{"kernel" => kernel_param}, "add", add: true)
+
+      assert %{"add" => %{"kernel" => kernel}} = params = Axon.init(model1)
+
+      assert Axon.predict(model1, params, input) == Nx.add(input, kernel)
+
+      model2 =
+        Axon.input({nil, 1})
+        |> Axon.layer(layer_fun, {nil, 1}, %{"kernel" => kernel_param}, "multiply", add: false)
+
+      assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
+
+      assert Axon.predict(model2, params, input) == Nx.multiply(input, kernel)
+    end
+  end
 end
