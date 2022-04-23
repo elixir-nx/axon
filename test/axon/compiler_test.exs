@@ -3722,7 +3722,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 10})
 
       assert {_, predict_fn} = Axon.compile(model)
-      assert_equal(predict_fn.(%{}, input), Nx.sin(input))
+      assert_all_close(predict_fn.(%{}, input), Nx.sin(input))
     end
   end
 
