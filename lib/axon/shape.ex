@@ -36,37 +36,7 @@ defmodule Axon.Shape do
       iex> Axon.Shape.input({32, nil, 28, 28})
       ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple with only the leading dimension as nil, if any
   """
-  def input(input_shape)
-
-  def input({}), do: {}
-
-  def input(input_shape) when is_tuple(input_shape) do
-    first_elem_nil_or_integer = is_integer(elem(input_shape, 0)) or elem(input_shape, 0) == nil
-
-    all_other_elems_integer =
-      input_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.to_list()
-      |> Enum.filter(&(not is_integer(&1)))
-      |> Enum.count()
-      |> Kernel.==(0)
-
-    unless first_elem_nil_or_integer and all_other_elems_integer do
-      raise ArgumentError,
-            "invalid input shape #{inspect(input_shape)}, input" <>
-              " shape must be a tuple with only the leading dimension" <>
-              " as nil, if any"
-    end
-
-    input_shape
-  end
-
-  def input(input_shape) do
-    raise ArgumentError,
-          "invalid input shape #{inspect(input_shape)}, input" <>
-            " shape must be a tuple with only the leading dimension" <>
-            " as nil, if any"
-  end
+  def input(input_shape), do: input_shape
 
   @doc """
   Determines if two shapes are compatible. Shapes are compatible
@@ -178,7 +148,7 @@ defmodule Axon.Shape do
               " #{Nx.rank(input_shape)}"
     end
 
-    {elem(input_shape, 0), units}
+    put_elem(input_shape, Nx.rank(input_shape) - 1, units)
   end
 
   @doc """
@@ -1434,13 +1404,7 @@ defmodule Axon.Shape do
         shape
       end
 
-    unless Nx.size(original_shape) == Nx.size(new_shape) do
-      raise ArgumentError,
-            "new shape invalid for reshape operation," <>
-              " layer shape #{inspect(shape)} is incompatible" <>
-              " with new shape #{inspect(new_shape)}, new shape" <>
-              " must have same size as non-batch dimensions of old shape"
-    end
+    new_shape = Nx.Shape.reshape(shape, new_shape)
 
     if ignore_batch? do
       Tuple.insert_at(new_shape, 0, elem(shape, 0))

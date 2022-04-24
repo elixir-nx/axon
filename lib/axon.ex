@@ -1625,7 +1625,7 @@ defmodule Axon do
         end)
 
       output_shape = Axon.Shape.element_wise(shapes)
-      layer(inputs, unquote(op), output_shape, %{}, [], opts[:name])
+      layer(inputs, unquote(op), output_shape, %{}, opts[:name])
     end
 
     @doc false
@@ -1975,6 +1975,21 @@ defmodule Axon do
     kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
 
     layer(x, :embedding, output_shape, %{"kernel" => kernel}, opts[:name])
+  end
+
+  @doc """
+  Adds a bias layer to the network.
+
+  A bias layer simply adds a trainable bias to an input.
+  """
+  @doc type: :linear
+  def bias(%Axon{output_shape: shape} = x, opts \\ []) do
+    units = elem(shape, tuple_size(shape) - 1)
+    bias_shape = Axon.Shape.dense_bias(shape, units)
+    bias_initializer = opts[:bias_initializer] || :zeros
+    bias = param("bias", bias_shape, initializer: bias_initializer)
+
+    layer(x, :bias, shape, %{"bias" => bias}, opts[:name])
   end
 
   @doc """
