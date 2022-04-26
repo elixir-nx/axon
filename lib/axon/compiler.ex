@@ -449,6 +449,7 @@ defmodule Axon.Compiler do
     res =
       res
       |> apply_hooks(:pre_forward, :inference, hooks)
+      |> safe_as_type({:s, 64})
       |> Axon.Layers.embedding(w)
       |> safe_as_type(output)
       |> apply_hooks(:forward, :inference, hooks)

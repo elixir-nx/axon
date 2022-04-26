@@ -139,6 +139,49 @@ defmodule Axon do
     }
   end
 
+  def custom_layer(%Axon{output_shape: parent_shape} = parent, op, parameters, name \\ nil, opts \\ [])
+      when is_function(op) and is_map(parameters) do
+    output_shape = infer_shape(parent_shape, op, parameters, opts)
+    layer(parent, op, output_shape, parameters, name, opts)
+  end
+
+  defp infer_shape(input_shape, fun, params, opts) do
+    {shape, batch_size} =
+      if Nx.rank(input_shape) >= 1 and elem(input_shape, 0) == nil do
+        batch_size = elem(input_shape, 0)
+        {put_elem(input_shape, 0, 1), batch_size}
+      else
+        {input_shape, nil}
+      end
+
+    input = Nx.Defn.Expr.parameter(:layer, {:f, 32}, shape, 0)
+
+    {_, params} =
+      Enum.reduce(params, {1, []}, fn {k, %{shape: shape}}, {count, params} ->
+        param = Nx.Defn.Expr.parameter(:layer, {:f, 32}, shape, count)
+        {count + 1, [{k, param}| params]}
+      end)
+
+    param_map = params |> Enum.reverse() |> Map.new()
+
+    args =
+      case opts do
+        [] ->
+          [input, param_map]
+
+        [_ | _] ->
+          [input, param_map, opts]
+      end
+
+    expr = Nx.Defn.jit(fun, args, compiler: Axon.Defn)
+
+    if Nx.rank(input_shape) >= 1 and elem(input_shape, 0) == nil do
+      put_elem(expr.shape, 0, batch_size)
+    else
+      expr.shape
+    end
+  end
+
   @doc """
   Trainable Axon parameter used to create custom layers.
 

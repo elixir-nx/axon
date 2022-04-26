@@ -1660,14 +1660,27 @@ defmodule Axon.Shape do
 
   """
   def element_wise([first | rest]) do
+    first = replace_nil(first)
+
     Enum.reduce(rest, first, fn shape, target_shape ->
       lnames = List.duplicate(nil, tuple_size(shape))
       rnames = List.duplicate(nil, tuple_size(target_shape))
+      shape = replace_nil(shape)
       # TODO(seanmor5): If this fails, I wonder if it's better to rescue
       # and re-raise with Axon specific messages?
       {out_shape, _} = Nx.Shape.binary_broadcast(shape, lnames, target_shape, rnames)
       out_shape
     end)
+  end
+
+  defp replace_nil(shape) do
+    shape
+    |> Tuple.to_list()
+    |> Enum.map(fn
+      nil -> 1
+      x -> x
+    end)
+    |> List.to_tuple()
   end
 
   @doc """
