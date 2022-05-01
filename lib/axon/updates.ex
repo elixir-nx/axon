@@ -112,7 +112,7 @@ defmodule Axon.Updates do
       * `:b1` - first moment decay. Defaults to `0.9`
       * `:b2` - second moment decay. Defaults to `0.999`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
-      * `:eps_root` - numerical stability term. Defaults to `1.0e-10`
+      * `:eps_root` - numerical stability term. Defaults to `1.0e-15`
 
   ## References
 
