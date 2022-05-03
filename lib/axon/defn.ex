@@ -10,7 +10,9 @@ defmodule Axon.Defn do
   @behaviour Nx.Defn.Compiler
 
   @impl true
-  def __jit__(_key, vars, fun, _args, _opts), do: [fun.(vars)]
+  def __jit__(_key, vars, fun, _args, _opts) do
+    [fun.(vars)]
+  end
 
   @impl true
   def __stream__(_, _, _, _, _, _, _), do: raise("not implemented")

@@ -228,6 +228,8 @@ defmodule Axon.Compiler do
         &to_predict_fun(&1, &2, params, inputs, mode)
       )
 
+    {_, opts} = Keyword.pop(opts, :layer_op)
+
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
@@ -377,6 +379,50 @@ defmodule Axon.Compiler do
     {res, {state, Map.put(cache, id, res), op_counts}}
   end
 
+  defp recur_predict_fun(
+         %Axon{
+           id: id,
+           name: name_fn,
+           op: :bias,
+           parent: parent,
+           params: layer_params,
+           policy: %{compute: compute, output: output},
+           hooks: hooks
+         },
+         cache_and_counts,
+         params,
+         inputs,
+         mode
+       ) do
+    {exprs, {state, cache, op_counts}} =
+      Enum.map_reduce(
+        parent,
+        cache_and_counts,
+        &to_predict_fun(&1, &2, params, inputs, mode)
+      )
+
+    name = name_fn.(:bias, op_counts)
+    op_counts = Map.update(op_counts, :bias, 1, fn x -> x + 1 end)
+
+    b = layer_param(layer_params, "bias", params[name], compute)
+
+    inputs =
+      exprs
+      |> Enum.map(&safe_as_type(&1, compute))
+      |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
+
+    args = inputs ++ [b]
+
+    res =
+      args
+      |> then(&apply(Axon.Layers, :bias, &1))
+      |> safe_as_type(output)
+      |> apply_hooks(:forward, mode, hooks)
+      |> apply_hooks(:backward, mode, hooks)
+
+    {res, {state, Map.put(cache, id, res), op_counts}}
+  end
+
   ## Sparse Layers
 
   defp recur_predict_fun(
@@ -405,6 +451,7 @@ defmodule Axon.Compiler do
     res =
       res
       |> apply_hooks(:pre_forward, :inference, hooks)
+      |> safe_as_type({:s, 64})
       |> Axon.Layers.embedding(w)
       |> safe_as_type(output)
       |> apply_hooks(:forward, :inference, hooks)
@@ -869,7 +916,21 @@ defmodule Axon.Compiler do
     {res, {state, cache, op_counts}} =
       to_predict_fun(parent, cache_and_counts, params, inputs, mode)
 
-    op_counts = Map.update(op_counts, :flatten, 1, fn x -> x + 1 end)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+
+    opts =
+      case op do
+        :resize ->
+          {shape, opts} = Keyword.pop(opts, :resize_shape)
+          Keyword.put(opts, :shape, shape)
+
+        :reshape ->
+          {shape, opts} = Keyword.pop(opts, :reshape_shape)
+          Keyword.put(opts, :shape, shape)
+
+        _ ->
+          opts
+      end
 
     res =
       res

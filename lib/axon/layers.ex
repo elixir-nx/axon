@@ -1908,6 +1908,12 @@ defmodule Axon.Layers do
     end
   end
 
+  @doc false
+  # Internal helper for constructing bias layers without
+  defn bias(input, bias) do
+    input + bias
+  end
+
   @doc """
   Resizes a batch of tensors to the given shape using one of a
   number of sampling methods.
