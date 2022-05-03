@@ -3,6 +3,7 @@ defmodule CompilerTest do
   import AxonTestUtil
   require Axon
   alias Axon.MixedPrecision, as: AMP
+  import Nx.Defn
 
   setup config do
     Nx.Defn.default_options(compiler: test_compiler())
@@ -3963,7 +3964,7 @@ defmodule CompilerTest do
     test "initializes with no parameters" do
       model =
         Axon.input({nil, 1})
-        |> Axon.layer(fn x, _params -> x end, {nil, 1}, %{})
+        |> Axon.layer(fn x, _params -> x end, %{})
 
       assert Enum.empty?(Axon.init(model))
     end
@@ -3973,7 +3974,7 @@ defmodule CompilerTest do
 
       model =
         Axon.input({nil, 1})
-        |> Axon.layer(fn x, _params -> x end, {nil, 1}, %{"kernel" => kernel_param})
+        |> Axon.layer(fn x, _params -> x end, %{"kernel" => kernel_param})
 
       assert %{"layer_0" => %{"kernel" => kernel}} = Axon.init(model)
 
@@ -3986,7 +3987,7 @@ defmodule CompilerTest do
 
       model =
         Axon.input({nil, 1})
-        |> Axon.layer(fn x, params -> Nx.multiply(x, params["kernel"]) end, {nil, 1}, %{
+        |> Axon.layer(fn x, params -> Nx.multiply(x, params["kernel"]) end, %{
           "kernel" => kernel_param
         })
 
@@ -3997,22 +3998,24 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, params, input), Nx.multiply(input, kernel))
     end
 
-    test "computes forward pass with options" do
-      kernel_param = Axon.param("kernel", {1, 1})
-
-      layer_fun = fn x, params, opts ->
+    defn layer_with_options(x, params, opts \\ []) do
+      transform({x, params, opts}, fn {x, params, opts} ->
         if opts[:add] do
           Nx.add(x, params["kernel"])
         else
           Nx.multiply(x, params["kernel"])
         end
-      end
+      end)
+    end
+
+    test "computes forward pass with options" do
+      kernel_param = Axon.param("kernel", {1, 1})
 
       input = Nx.random_uniform({1, 1})
 
       model1 =
         Axon.input({nil, 1})
-        |> Axon.layer(layer_fun, {nil, 1}, %{"kernel" => kernel_param}, "add", add: true)
+        |> Axon.layer(&layer_with_options/3, %{"kernel" => kernel_param}, "add", add: true)
 
       assert %{"add" => %{"kernel" => kernel}} = params = Axon.init(model1)
 
@@ -4020,7 +4023,7 @@ defmodule CompilerTest do
 
       model2 =
         Axon.input({nil, 1})
-        |> Axon.layer(layer_fun, {nil, 1}, %{"kernel" => kernel_param}, "multiply", add: false)
+        |> Axon.layer(&layer_with_options/3, %{"kernel" => kernel_param}, "multiply", add: false)
 
       assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
 

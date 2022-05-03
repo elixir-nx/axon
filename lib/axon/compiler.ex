@@ -228,6 +228,8 @@ defmodule Axon.Compiler do
         &to_predict_fun(&1, &2, params, inputs, mode)
       )
 
+    {_, opts} = Keyword.pop(opts, :layer_op)
+
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
@@ -914,7 +916,21 @@ defmodule Axon.Compiler do
     {res, {state, cache, op_counts}} =
       to_predict_fun(parent, cache_and_counts, params, inputs, mode)
 
-    op_counts = Map.update(op_counts, :flatten, 1, fn x -> x + 1 end)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+
+    opts =
+      case op do
+        :resize ->
+          {shape, opts} = Keyword.pop(opts, :resize_shape)
+          Keyword.put(opts, :shape, shape)
+
+        :reshape ->
+          {shape, opts} = Keyword.pop(opts, :reshape_shape)
+          Keyword.put(opts, :shape, shape)
+
+        _ ->
+          opts
+      end
 
     res =
       res

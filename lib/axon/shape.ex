@@ -31,12 +31,13 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.input(5)
-      ** (ArgumentError) invalid input shape 5, input shape must be a tuple with only the leading dimension as nil, if any
-
-      iex> Axon.Shape.input({32, nil, 28, 28})
-      ** (ArgumentError) invalid input shape {32, nil, 28, 28}, input shape must be a tuple with only the leading dimension as nil, if any
+      ** (ArgumentError) invalid input shape 5, input shape must be a tuple
   """
-  def input(input_shape), do: input_shape
+  def input(input_shape) when is_tuple(input_shape), do: input_shape
+
+  def input(shape) do
+    raise ArgumentError, "invalid input shape #{inspect(shape)}, input shape must be a tuple"
+  end
 
   @doc """
   Determines if two shapes are compatible. Shapes are compatible
@@ -1378,7 +1379,9 @@ defmodule Axon.Shape do
 
   @doc """
   Calculates the shape after a reshape layer, which
-  reshapes non-batch dimensions.
+  optionally reshapes non-batch dimension. Dimensions
+  in `new_shape` which are `nil` are replaced with
+  `:auto`.
 
   ## Examples
 
@@ -1391,10 +1394,16 @@ defmodule Axon.Shape do
       iex> Axon.Shape.reshape({12, 2, 2}, {6, 2, 2, 2}, false)
       {6, 2, 2, 2}
 
+      iex> Axon.Shape.reshape({nil, nil}, {nil, nil}, false)
+      {nil, nil}
+
+      iex> Axon.Shape.reshape({nil, nil}, {:auto, :auto}, false)
+      {nil, nil}
+
   ### Error cases
 
       iex> Axon.Shape.reshape({nil, 4, 2}, {9}, true)
-      ** (ArgumentError) new shape invalid for reshape operation, layer shape {nil, 4, 2} is incompatible with new shape {9}, new shape must have same size as non-batch dimensions of old shape
+      ** (ArgumentError) cannot reshape, current shape {4, 2} is not compatible with new shape {9}
   """
   def reshape(shape, new_shape, ignore_batch?) do
     original_shape =
@@ -1404,7 +1413,21 @@ defmodule Axon.Shape do
         shape
       end
 
-    new_shape = Nx.Shape.reshape(shape, new_shape)
+    new_shape =
+      if original_shape |> Tuple.to_list() |> Enum.any?(&(&1 == nil)) do
+        # If the original shape has any nil dims left over, we can just
+        # assume the reshape is correct and hope the input shapes work out
+        # at runtime
+        new_shape
+        |> Tuple.to_list()
+        |> Enum.map(fn
+          :auto -> nil
+          x -> x
+        end)
+        |> List.to_tuple()
+      else
+        Nx.Shape.reshape(original_shape, new_shape)
+      end
 
     if ignore_batch? do
       Tuple.insert_at(new_shape, 0, elem(shape, 0))
@@ -1640,7 +1663,8 @@ defmodule Axon.Shape do
 
   @doc """
   Checks if input shapes are broadcast compatible and returns
-  the output shape of the element-wise operation.
+  the output shape of the element-wise operation - allowing
+  for nil sized dimensions.
 
   ## Examples
 
@@ -1653,34 +1677,55 @@ defmodule Axon.Shape do
       iex> Axon.Shape.element_wise([{nil, 32}, {nil, 32}])
       {nil, 32}
 
-  ### Error cases
-
-      iex> Axon.Shape.element_wise([{128, 1}, {nil, 32}])
-      ** (ArgumentError) cannot broadcast tensor of dimensions {nil, 32} to {128, 1}
+      iex> Axon.Shape.element_wise([{nil, 32}, {128, 1}])
+      {128, 32}
 
   """
   def element_wise([first | rest]) do
     first = replace_nil(first)
 
-    Enum.reduce(rest, first, fn shape, target_shape ->
-      lnames = List.duplicate(nil, tuple_size(shape))
-      rnames = List.duplicate(nil, tuple_size(target_shape))
-      shape = replace_nil(shape)
-      # TODO(seanmor5): If this fails, I wonder if it's better to rescue
-      # and re-raise with Axon specific messages?
-      {out_shape, _} = Nx.Shape.binary_broadcast(shape, lnames, target_shape, rnames)
-      out_shape
-    end)
+    {out_shape, _} =
+      Enum.reduce(rest, first, fn
+        {}, {target_shape, target_indices} ->
+          {target_shape, target_indices}
+
+        shape, {{}, _target_indices} ->
+          replace_nil(shape)
+
+        shape, {target_shape, target_indices} ->
+          lnames = List.duplicate(nil, tuple_size(shape))
+          rnames = List.duplicate(nil, tuple_size(target_shape))
+          {shape, indices} = replace_nil(shape)
+          # The indices that will eventually be nil are the intersection of
+          # indices and target indices
+          indices_to_make_nil =
+            MapSet.intersection(MapSet.new(indices), MapSet.new(target_indices))
+
+          {out_shape, _} = Nx.Shape.binary_broadcast(shape, lnames, target_shape, rnames)
+
+          nillified_shape =
+            indices_to_make_nil
+            |> Enum.reduce(out_shape, fn i, shape ->
+              put_elem(shape, i, nil)
+            end)
+
+          {nillified_shape, indices_to_make_nil}
+      end)
+
+    out_shape
   end
 
-  defp replace_nil(shape) do
+  def replace_nil(shape) do
     shape
     |> Tuple.to_list()
-    |> Enum.map(fn
-      nil -> 1
-      x -> x
+    |> Enum.with_index()
+    |> Enum.reduce({shape, []}, fn
+      {nil, i}, {new_shape, indices} ->
+        {put_elem(new_shape, i, 1), [i | indices]}
+
+      _, acc ->
+        acc
     end)
-    |> List.to_tuple()
   end
 
   @doc """
