@@ -181,6 +181,10 @@ defmodule Axon.Shared do
   Creates a new map-like structure from a possible nested map, applying `fun`
   to each leaf.
   """
+  def deep_new(item, fun) when is_integer(item) do
+    fun.(item)
+  end
+
   def deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont
