@@ -93,6 +93,8 @@ defmodule Axon do
   }
   defstruct [:id, :name, :output_shape, :parent, :op, :params, :policy, :hooks, :opts]
 
+  defguardp is_valid_name(name) when is_binary(name) or is_atom(name)
+
   @doc """
   Custom Axon layer with given parent and trainable parameters.
 
@@ -1883,7 +1885,7 @@ defmodule Axon do
             "lstm_#{op_counts[:lstm]}_c_hidden_state"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_c_hidden_state"
       end
 
@@ -1894,7 +1896,7 @@ defmodule Axon do
             "lstm_#{op_counts[:lstm]}_h_hidden_state"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_h_hidden_state"
       end
 
@@ -1905,7 +1907,7 @@ defmodule Axon do
             "lstm_#{op_counts[:lstm]}_output_sequence"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_output_sequence"
       end
 
@@ -2007,7 +2009,7 @@ defmodule Axon do
         nil ->
           "gru_hidden_state"
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_hidden_state"
       end
 
@@ -2016,7 +2018,7 @@ defmodule Axon do
         nil ->
           "gru_output_sequence"
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_output_sequence"
       end
 
@@ -2127,7 +2129,7 @@ defmodule Axon do
             "conv_lstm_#{op_counts[:lstm]}_c_hidden_state"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_c_hidden_state"
       end
 
@@ -2138,7 +2140,7 @@ defmodule Axon do
             "conv_lstm_#{op_counts[:lstm]}_h_hidden_state"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_h_hidden_state"
       end
 
@@ -2149,7 +2151,7 @@ defmodule Axon do
             "conv_lstm_#{op_counts[:lstm]}_output_sequence"
           end
 
-        name when is_binary(name) ->
+        name when is_valid_name(name) ->
           "#{name}_output_sequence"
       end
 
@@ -2523,7 +2525,7 @@ defmodule Axon do
       name = name_fn.(:container, op_counts)
 
       row = [
-        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{name} ( #{op_string} #{inspect(input_names)} )",
         "#{inspect(shape)}",
         "#{inspect(policy)}",
         0,
@@ -2590,7 +2592,7 @@ defmodule Axon do
       name = name_fn.(op, op_counts)
 
       row = [
-        name <> " ( #{op_inspect}#{inputs} )",
+        "#{name} ( #{op_inspect}#{inputs} )",
         "#{inspect(shape)}",
         "#{inspect(policy)}",
         "#{num_params}",
