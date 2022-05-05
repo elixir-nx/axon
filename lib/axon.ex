@@ -2559,7 +2559,15 @@ defmodule Axon do
 
       num_params =
         Enum.reduce(params, 0, fn
-          {_, %Axon.Parameter{shape: shape}}, acc -> acc + Nx.size(shape)
+          {_, %Axon.Parameter{shape: shape}}, acc ->
+            acc + Nx.size(shape)
+
+          {_, params_tuple}, acc ->
+            params_tuple
+            |> Tuple.to_list()
+            |> Enum.reduce(acc, fn %Axon.Parameter{shape: shape}, acc ->
+              acc + Nx.size(shape)
+            end)
         end)
 
       param_byte_size = num_params * div(bitsize, 8)
