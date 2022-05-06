@@ -632,11 +632,15 @@ defmodule Axon.Activations do
   """
   defn softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
+    axes = transform(opts[:axis], &List.wrap/1)
 
-    transform({x, opts}, fn {x, opts} ->
-      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
-        raise ArgumentError, "softmax axis must be within rank of tensor"
-      end
+    transform({x, axes}, fn {x, axes} ->
+      Enum.each(axes, fn axis ->
+        axis = Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
+        if Elixir.Kernel.<=(Nx.rank(x), axis) do
+          raise ArgumentError, "softmax axis must be within rank of tensor"
+        end
+      end)
     end)
 
     # This is a scaling term designed to prevent over/under flow when x is very
@@ -653,7 +657,7 @@ defmodule Axon.Activations do
     # We are essentially treating the max value as a constant term, C. Thus there
     # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
     # for a note on performance.
-    max_val = stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
 
     stable_exp =
       x
@@ -662,7 +666,7 @@ defmodule Axon.Activations do
 
     res =
       stable_exp
-      |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+      |> Nx.sum(axes: axes, keep_axes: true)
       |> reciprocal()
       |> Nx.multiply(stable_exp)
 
