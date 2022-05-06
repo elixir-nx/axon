@@ -223,6 +223,8 @@ defmodule Axon.Shared do
   @doc """
   Deep map-reduce a nested container with an accumulator.
   """
+  def deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
+
   def deep_map_reduce(container, acc, fun) do
     Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
   end

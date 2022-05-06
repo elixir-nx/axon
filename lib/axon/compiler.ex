@@ -66,7 +66,6 @@ defmodule Axon.Compiler do
            op: op,
            name: name_fn,
            params: params,
-           opts: opts,
            policy: %{params: dtype},
            hooks: hooks
          },
@@ -80,19 +79,11 @@ defmodule Axon.Compiler do
         {_, nil} ->
           cache_and_counts
 
-        {_, parents} ->
+        {_, parents} when is_list(parents) ->
           Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
-      end
 
-    {cache, op_counts} =
-      case opts[:hidden_state] do
-        state when is_tuple(state) ->
-          state
-          |> Tuple.to_list()
-          |> Enum.reduce({cache, op_counts}, &to_init_fun/2)
-
-        nil ->
-          {cache, op_counts}
+        {_, parents} when is_tuple(parents) ->
+          deep_reduce(parents, cache_and_counts, &to_init_fun/2)
       end
 
     case cache do
@@ -151,14 +142,18 @@ defmodule Axon.Compiler do
     {root_id, {cache, _op_counts}} = to_predict_fun(graph, {%{}, %{}}, mode)
 
     predict_fn = fn params, inputs ->
-      case mode do
-        :train ->
-          {pred_expr, state_expr} = cache[root_id].(params, inputs, %{}, cache)
-          %{prediction: pred_expr, state: state_expr}
+      try do
+        case mode do
+          :train ->
+            {pred_expr, state_expr} = cache[root_id].(params, inputs, %{}, cache)
+            %{prediction: pred_expr, state: state_expr}
 
-        :inference ->
-          {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache)
-          pred_expr
+          :inference ->
+            {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache)
+            pred_expr
+        end
+      rescue
+        e -> reraise Axon.CompilerError.exception(graph: graph, exception: e), __STACKTRACE__
       end
     end
 
@@ -187,6 +182,19 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp call_cache(parent_id, params, inputs, state, cache) do
+    key = {:cache, parent_id}
+
+    case state do
+      %{^key => expr} ->
+        {expr, state}
+
+      %{} ->
+        {expr, state} = cache[parent_id].(params, inputs, state, cache)
+        {expr, Map.put(state, key, expr)}
+    end
+  end
+
   defp recur_predict_fun(
          %Axon{id: id, op: :container, parent: [parents]},
          cache_and_counts,
@@ -199,7 +207,7 @@ defmodule Axon.Compiler do
 
     fun = fn params, inputs, state, cache ->
       deep_map_reduce(parent_ids, state, fn parent_id, state ->
-        cache[parent_id].(params, inputs, state, cache)
+        call_cache(parent_id, params, inputs, state, cache)
       end)
     end
 
@@ -235,15 +243,16 @@ defmodule Axon.Compiler do
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
-    layer_params = Enum.map(layer_params, fn {k, %{name: v, frozen: frz}} ->
-      {k, {v, frz}}
-    end)
+    layer_params =
+      Enum.map(layer_params, fn {k, %{name: v, frozen: frz}} ->
+        {k, {v, frz}}
+      end)
 
     fun = fn params, inputs, state, cache ->
-      {layer_inputs, state} =
+      {res, state} =
         parent_ids
         |> Enum.map_reduce(state, fn parent_id, state ->
-          cache[parent_id].(params, inputs, state, cache)
+          call_cache(parent_id, params, inputs, state, cache)
         end)
 
       inp_params =
@@ -252,7 +261,7 @@ defmodule Axon.Compiler do
         end)
 
       inputs =
-        layer_inputs
+        res
         |> Enum.map(&safe_as_type(&1, compute))
         |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
 
@@ -298,25 +307,27 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @activation_layers do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     fun = fn params, inputs, state, cache ->
-      {input, state} =
+      {res, state} =
         params
         |> cache[parent_id].(inputs, state, cache)
+
+      res =
+        res
         |> safe_as_type(compute)
         |> apply_hooks(:pre_forward, mode, hooks)
 
       args =
         case opts do
           [] ->
-            [input]
+            [res]
 
           [_ | _] ->
-            [input, opts]
+            [res, opts]
         end
 
       res =
@@ -358,16 +369,19 @@ defmodule Axon.Compiler do
         &to_predict_fun(&1, &2, mode)
       )
 
-    name = name_fn.(op, op_counts)
+    layer_name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop(opts, :use_bias, true)
+
+    %{frozen: w_frz} = layer_params["kernel"]
+    %{frozen: b_frz} = if use_bias, do: layer_params["bias"], else: %{frozen: false}
 
     fun = fn params, inputs, state, cache ->
       {res, state} =
         parent_ids
         |> Enum.map_reduce(state, fn parent_id, state ->
-          cache[parent_id].(params, inputs, state, cache)
+          call_cache(parent_id, params, inputs, state, cache)
         end)
 
       inputs =
@@ -375,10 +389,11 @@ defmodule Axon.Compiler do
         |> Enum.map(&safe_as_type(&1, compute))
         |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
 
-      w = safe_as_type(params[name]["kernel"], compute)
+      w = get_param(params, layer_name, "kernel", w_frz, compute)
+
       b =
         if use_bias do
-          safe_as_type(params[name]["bias"], compute)
+          get_param(params, layer_name, "bias", b_frz, compute)
         else
           Nx.tensor(0.0, type: compute)
         end
@@ -425,20 +440,22 @@ defmodule Axon.Compiler do
         &to_predict_fun(&1, &2, mode)
       )
 
-    name = name_fn.(:bias, op_counts)
+    layer_name = name_fn.(:bias, op_counts)
     op_counts = Map.update(op_counts, :bias, 1, fn x -> x + 1 end)
 
+    %{frozen: b_frz} = layer_params["bias"]
+
     fun = fn params, inputs, state, cache ->
-      {inputs, state} =
+      {res, state} =
         parent_ids
         |> Enum.map_reduce(state, fn parent_id, state ->
-          cache[parent_id].(params, inputs, state, cache)
+          call_cache(parent_id, params, inputs, state, cache)
         end)
 
-      b = safe_as_type(params[name]["bias"], compute)
+      b = get_param(params, layer_name, "bias", b_frz, compute)
 
       inputs =
-        inputs
+        res
         |> Enum.map(&safe_as_type(&1, compute))
         |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
 
@@ -472,16 +489,17 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        ) do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
-    name = name_fn.(:embedding, op_counts)
+    layer_name = name_fn.(:embedding, op_counts)
     op_counts = Map.update(op_counts, :embedding, 1, fn x -> x + 1 end)
 
-    fun = fn params, inputs, state, cache ->
-      {res, state} = cache[parent_id].(params, inputs, state, cache)
+    %{frozen: w_frz} = layer_params["kernel"]
 
-      w = safe_as_type(params[name]["kernel"], compute)
+    fun = fn params, inputs, state, cache ->
+      {res, state} = call_cache(parent_id, params, inputs, state, cache)
+
+      w = get_param(params, layer_name, "kernel", w_frz, compute)
 
       res =
         res
@@ -517,15 +535,13 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @pooling_layers do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
-    parent_fun = cache[parent_id]
+    fun = fn params, inputs, state, cache ->
+      {res, state} = call_cache(parent_id, params, inputs, state, cache)
 
-    fun = fn parents, inputs, state ->
-      {res, state} = parent_fun.(parents, inputs, state)
       res =
         res
         |> safe_as_type(compute)
@@ -558,14 +574,12 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @dropout_layers do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
-
     fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
+      {inputs, state} = call_cache(parent_id, params, inputs, state, cache)
 
       res =
         case mode do
@@ -603,24 +617,27 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        ) do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     name = name_fn.(:separable_conv2d, op_counts)
     op_counts = Map.update(op_counts, :separable_conv2d, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
+    %{frozen: k1_frz} = layer_params["k1"]
+    %{frozen: k2_frz} = layer_params["k2"]
+    %{frozen: b1_frz} = if use_bias, do: layer_params["b1"], else: %{frozen: false}
+    %{frozen: b2_frz} = if use_bias, do: layer_params["b2"], else: %{frozen: false}
 
     fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
+      {inputs, state} = call_cache(parent_id, params, inputs, state, cache)
 
-      k1 = layer_param(layer_params, "k1", params[name], compute)
-      k2 = layer_param(layer_params, "k2", params[name], compute)
+      k1 = get_param(params, name, "kernel_1", k1_frz, compute)
+      k2 = get_param(params, name, "kernel_2", k2_frz, compute)
 
       {b1, b2} =
         if use_bias do
-          {layer_param(layer_params, "b1", params[name], compute),
-           layer_param(layer_params, "b2", params[name], compute)}
+          {get_param(params, name, "bias_1", b1_frz, compute),
+           get_param(params, name, "bias_2", b2_frz, compute)}
         else
           {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute)}
         end
@@ -654,26 +671,32 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        ) do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     name = name_fn.(:separable_conv3d, op_counts)
     op_counts = Map.update(op_counts, :separable_conv3d, 1, fn x -> x + 1 end)
 
     {use_bias, opts} = Keyword.pop!(opts, :use_bias)
 
-    fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
+    %{frozen: k1_frz} = layer_params["k1"]
+    %{frozen: k2_frz} = layer_params["k2"]
+    %{frozen: k3_frz} = layer_params["k3"]
+    %{frozen: b1_frz} = if use_bias, do: layer_params["b1"], else: %{frozen: false}
+    %{frozen: b2_frz} = if use_bias, do: layer_params["b2"], else: %{frozen: false}
+    %{frozen: b3_frz} = if use_bias, do: layer_params["b3"], else: %{frozen: false}
 
-      k1 = layer_param(layer_params, "k1", params[name], compute)
-      k2 = layer_param(layer_params, "k2", params[name], compute)
-      k3 = layer_param(layer_params, "k3", params[name], compute)
+    fun = fn params, inputs, state, cache ->
+      {inputs, state} = call_cache(parent_id, params, inputs, state, cache)
+
+      k1 = get_param(params, name, "kernel_1", k1_frz, compute)
+      k2 = get_param(params, name, "kernel_2", k2_frz, compute)
+      k3 = get_param(params, name, "kernel_3", k3_frz, compute)
 
       {b1, b2, b3} =
         if use_bias do
-          {layer_param(layer_params, "b1", params[name], compute),
-           layer_param(layer_params, "b2", params[name], compute),
-           layer_param(layer_params, "b3", params[name], compute)}
+          {get_param(params, name, "bias_1", b1_frz, compute),
+           get_param(params, name, "bias_2", b2_frz, compute),
+           get_param(params, name, "bias_3", b3_frz, compute)}
         else
           {Nx.tensor(0, type: compute), Nx.tensor(0, type: compute), Nx.tensor(0, type: compute)}
         end
@@ -712,8 +735,7 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @normalization_with_stats do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
@@ -727,13 +749,18 @@ defmodule Axon.Compiler do
       training?: training?
     ]
 
-    fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
+    %{frozen: g_frz} = layer_params["gamma"]
+    %{frozen: b_frz} = layer_params["beta"]
+    %{frozen: mean_frz} = layer_params["mean"]
+    %{frozen: var_frz} = layer_params["var"]
 
-      g = layer_param(layer_params, "gamma", params[name], compute)
-      b = layer_param(layer_params, "beta", params[name], compute)
-      mean = layer_param(layer_params, "mean", params[name], compute)
-      var = layer_param(layer_params, "var", params[name], compute)
+    fun = fn params, inputs, state, cache ->
+      {inputs, state} = call_cache(parent_id, params, inputs, state, cache)
+
+      g = get_param(params, name, "gamma", g_frz, compute)
+      b = get_param(params, name, "beta", b_frz, compute)
+      mean = get_param(params, name, "mean", mean_frz, compute)
+      var = get_param(params, name, "var", var_frz, compute)
 
       case mode do
         :train ->
@@ -785,17 +812,19 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @normalization_layers do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
-    fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
+    %{frozen: g_frz} = layer_params["gamma"]
+    %{frozen: b_frz} = layer_params["beta"]
 
-      g = layer_param(layer_params, "gamma", params[name], compute)
-      b = layer_param(layer_params, "beta", params[name], compute)
+    fun = fn params, inputs, state, cache ->
+      {inputs, state} = call_cache(parent_id, params, inputs, state, cache)
+
+      g = get_param(params, name, "gamma", g_frz, compute)
+      b = get_param(params, name, "beta", b_frz, compute)
 
       res =
         inputs
@@ -809,8 +838,6 @@ defmodule Axon.Compiler do
       {res, state}
     end
 
-
-
     {id, {Map.put(cache, id, fun), op_counts}}
   end
 
@@ -823,7 +850,7 @@ defmodule Axon.Compiler do
            id: id,
            name: name_fn,
            op: op,
-           parent: [parent],
+           parent: parents,
            params: layer_params,
            policy: %{compute: compute, output: output},
            opts: opts,
@@ -833,43 +860,61 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @recurrent_layers do
-    {parent_id, cache_and_counts} = to_predict_fun(parent, cache_and_counts, mode)
+    {[input_id, hidden_state_id], {cache, op_counts}} =
+      Enum.map_reduce(parents, cache_and_counts, &to_predict_fun(&1, &2, mode))
 
     num_bias = if op == :conv_lstm, do: 1, else: 4
 
-    {hidden_state, opts} = Keyword.pop(opts, :hidden_state)
     {activation, opts} = Keyword.pop(opts, :activation)
     {gate, opts} = Keyword.pop(opts, :gate)
     {use_bias, opts} = Keyword.pop(opts, :use_bias)
     {unroll, conv_opts} = Keyword.pop(opts, :unroll)
 
-    {hidden_state_id, {cache, op_counts}} =
-      to_hidden_state(
-        hidden_state,
-        cache_and_counts,
-        mode
-      )
-
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
+    input_kernel = layer_params["input_kernel"]
+    hidden_kernel = layer_params["hidden_kernel"]
+
+    bias =
+      if use_bias,
+        do: layer_params["bias"],
+        else: List.to_tuple(List.duplicate(%{frozen: false}, num_bias))
+
+    input_kernel_frozen =
+      input_kernel
+      |> Tuple.to_list()
+      |> Enum.map(fn %{frozen: frz} -> frz end)
+      |> List.to_tuple()
+
+    hidden_kernel_frozen =
+      hidden_kernel
+      |> Tuple.to_list()
+      |> Enum.map(fn %{frozen: frz} -> frz end)
+      |> List.to_tuple()
+
+    bias_frozen =
+      bias
+      |> Tuple.to_list()
+      |> Enum.map(fn %{frozen: frz} -> frz end)
+      |> List.to_tuple()
 
     fun = fn params, inputs, state, cache ->
-      {inputs, state} = cache[parent_id].(params, inputs, state, cache)
-      {hidden_state, state} = cache[hidden_state_id].(params, inputs, state, cache)
+      {input, state} = call_cache(input_id, params, inputs, state, cache)
+      {hidden_state, state} = call_cache(hidden_state_id, params, inputs, state, cache)
 
-      input_kernel = layer_param(layer_params, "input_kernel", params[name], compute)
-      hidden_kernel = layer_param(layer_params, "hidden_kernel", params[name], compute)
+      input_kernel = get_param(params, name, "input_kernel", input_kernel_frozen, compute)
+      hidden_kernel = get_param(params, name, "hidden_kernel", hidden_kernel_frozen, compute)
 
       bias =
         if use_bias do
-          layer_param(layer_params, "bias", params[name], compute)
+          get_param(params, name, "bias", bias_frozen, compute)
         else
           List.duplicate(Nx.tensor(0, type: compute), num_bias)
           |> List.to_tuple()
         end
 
-      input = safe_as_type(inputs, compute)
+      input = safe_as_type(input, compute)
       carry = deep_new(hidden_state, &safe_as_type(&1, compute))
 
       # TODO: Should these be hooked together? Not at all?
@@ -936,9 +981,10 @@ defmodule Axon.Compiler do
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     fun = fn params, inputs, state, cache ->
-      {[expr | exprs], state} = Enum.map_reduce(parent_ids, state, fn parent_id, state ->
-        cache[parent_id].(params, inputs, state, cache)
-      end)
+      {[expr | exprs], state} =
+        Enum.map_reduce(parent_ids, state, fn parent_id, state ->
+          call_cache(parent_id, params, inputs, state, cache)
+        end)
 
       [expr | exprs] =
         [expr | exprs]
@@ -979,8 +1025,7 @@ defmodule Axon.Compiler do
          mode
        )
        when op in @shape_layers do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
@@ -999,7 +1044,8 @@ defmodule Axon.Compiler do
       end
 
     fun = fn params, inputs, state, cache ->
-      {res, state} = cache[parent_id].(params, inputs, state, cache)
+      {res, state} = call_cache(parent_id, params, inputs, state, cache)
+
       res =
         res
         |> safe_as_type(compute)
@@ -1037,9 +1083,10 @@ defmodule Axon.Compiler do
     op_counts = Map.update(op_counts, :concatenate, 1, fn x -> x + 1 end)
 
     fun = fn params, inputs, state, cache ->
-      {exprs, state} = Enum.map_reduce(parent_ids, state, fn parent_id, state ->
-        cache[parent_id].(params, inputs, state)
-      end)
+      {exprs, state} =
+        Enum.map_reduce(parent_ids, state, fn parent_id, state ->
+          call_cache(parent_id, params, inputs, state, cache)
+        end)
 
       inps = Enum.map(exprs, &safe_as_type(&1, compute))
 
@@ -1084,9 +1131,10 @@ defmodule Axon.Compiler do
     op_counts = Map.update(op_counts, :cond, 1, fn x -> x + 1 end)
 
     fun = fn params, inputs, state, cache ->
-      {exprs, state} = Enum.map_reduce(parent_ids, state, fn parent_id, state ->
-        cache[parent_id].(params, inputs, state, cache)
-      end)
+      {exprs, state} =
+        Enum.map_reduce(parent_ids, state, fn parent_id, state ->
+          call_cache(parent_id, params, inputs, state, cache)
+        end)
 
       [cond_input_expr, true_expr, false_expr] = exprs
 
@@ -1136,13 +1184,13 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        ) do
-    {parent_id, {cache, op_counts}} =
-      to_predict_fun(parent, cache_and_counts, mode)
+    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
 
     op_counts = Map.update(op_counts, :nx, 1, fn x -> x + 1 end)
 
     fun = fn params, inputs, state, cache ->
-      {res, state} = cache[parent_id].(params, inputs, state, cache)
+      {res, state} = call_cache(parent_id, params, inputs, state, cache)
+
       res =
         res
         |> safe_as_type(compute)
@@ -1249,31 +1297,6 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp to_hidden_state(
-         hidden_state,
-         cache_and_counts,
-         mode
-       ) do
-    case hidden_state do
-      {%Axon{} = c, %Axon{} = h} ->
-        {c_id, cache_and_counts} = to_predict_fun(c, cache_and_counts, mode)
-
-        {h_id, cache_and_counts} = to_predict_fun(h, cache_and_counts, mode)
-
-        {{c_id, h_id}, cache_and_counts}
-
-      {%Axon{} = c} ->
-        {h_id, cache_and_counts} = to_predict_fun(c, cache_and_counts, mode)
-
-        {{h_id}, cache_and_counts}
-
-      %Axon{} = x ->
-        {h_id, cache_and_counts} = to_predict_fun(x, cache_and_counts, mode)
-
-        {h_id, cache_and_counts}
-    end
-  end
-
   defp get_cell_fn(op, gate, activation, conv_opts) do
     case op do
       :lstm ->
@@ -1291,19 +1314,19 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp layer_param(layer_params, key, param_name, compute) do
-    case layer_params[key] do
-      %{name: p, frozen: frozen} ->
-        safe_as_type(maybe_freeze(param_name[p], frozen), compute)
-
-      params when is_tuple(params) ->
-        params
+  defp get_param(params, layer_name, param_name, frozen?, type) do
+    case params[layer_name][param_name] do
+      tuple when is_tuple(tuple) ->
+        tuple
         |> Tuple.to_list()
-        |> Enum.with_index(fn param, i ->
-          %{frozen: frozen} = param
-          safe_as_type(maybe_freeze(elem(param_name[key], i), frozen), compute)
-        end)
+        |> Enum.zip_with(Tuple.to_list(frozen?), &maybe_freeze/2)
         |> List.to_tuple()
+        |> safe_as_type(type)
+
+      param ->
+        param
+        |> maybe_freeze(frozen?)
+        |> safe_as_type(type)
     end
   end
 
