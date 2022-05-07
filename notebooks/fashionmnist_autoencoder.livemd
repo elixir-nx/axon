@@ -98,7 +98,7 @@ defp train_model(model, train_images, epochs) do
 end
 ```
 
-To better understand what is mean absolute error and mean square error let's go trough an example.
+To better understand what is mean absolute error and mean square error let's go through an example.
 
 ```elixir
 defmodule Example do

@@ -2765,7 +2765,7 @@ defmodule Axon do
     end
   end
 
-  # Names are generated lazily at inspect, intialization, and compile
+  # Names are generated lazily at inspect, initialization, and compile
   # time, so for name we return a function which takes `op` and `op_count`
   # and returns a unique name for the given model.
   defp unique_identifiers(type, nil) do
