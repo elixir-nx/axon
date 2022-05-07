@@ -1,17 +1,15 @@
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.3"}
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
+  {:scidata, "~> 0.1.6"}
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Mnist do
   require Axon
-
-  alias Axon.Loop.State
 
   defp transform_images({bin, type, shape}) do
     bin
@@ -34,7 +32,7 @@ defmodule Mnist do
   end
 
   defp build_model(input_shape) do
-    Axon.input(input_shape)
+    Axon.input(input_shape, "input")
     |> Axon.dense(128, activation: :relu)
     |> Axon.dropout()
     |> Axon.dense(10, activation: :softmax)
@@ -44,14 +42,14 @@ defmodule Mnist do
     model
     |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(train_images, train_labels), epochs: epochs)
+    |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs)
   end
 
   defp test_model(model, model_state, test_images, test_labels) do
     model
-    |> Axon.Loop.evaluator(model_state)
+    |> Axon.Loop.evaluator()
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(test_images, test_labels))
+    |> Axon.Loop.run(Stream.zip(test_images, test_labels), model_state)
   end
 
   def run do

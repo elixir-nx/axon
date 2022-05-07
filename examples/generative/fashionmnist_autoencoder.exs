@@ -1,12 +1,12 @@
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
-  {:exla, github: "elixir-nx/exla", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.3"},
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
+  {:scidata, "~> 0.1.6"}
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Fashionmist do
   require Axon
@@ -26,7 +26,7 @@ defmodule Fashionmist do
     end
 
     def build_model(input_shape, latent_dim) do
-      Axon.input(input_shape)
+      Axon.input(input_shape, "input")
       |> encoder(latent_dim)
       |> decoder()
     end
@@ -44,7 +44,7 @@ defmodule Fashionmist do
     model
     |> Axon.Loop.trainer(:mean_squared_error, :adam)
     |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.run(Stream.zip(train_images, train_images), epochs: epochs, compiler: EXLA)
+    |> Axon.Loop.run(Stream.zip(train_images, train_images), %{}, epochs: epochs, compiler: EXLA)
   end
 
   def run do
@@ -52,17 +52,17 @@ defmodule Fashionmist do
 
     train_images = transform_images(images)
 
-    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect
+    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect()
 
     model_state = train_model(model, train_images, 5)
 
     sample_image =
       train_images
       |> hd()
-      |> Nx.slice_axis(0, 1, 0)
+      |> Nx.slice_along_axis(0, 1)
       |> Nx.reshape({1, 1, 28, 28})
 
-    sample_image |> Nx.to_heatmap() |> IO.inspect
+    sample_image |> Nx.to_heatmap() |> IO.inspect()
 
     model
     |> Axon.predict(model_state, sample_image, compiler: EXLA)

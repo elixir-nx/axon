@@ -19,8 +19,8 @@ First, we have to import some essential packages. `Axon` will be the primary too
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:exla, "~> 0.2.0"},
-  {:nx, "~> 0.2.0"},
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
   {:scidata, "~> 0.1.5"}
 ])
 ```
@@ -30,7 +30,7 @@ Mix.install([
 EXLA provides JIT compilation to hardware accelerators. We'll start by telling EXLA which order of accelerators to use. If you have a specific target in mind, such as `:cuda` or `:rocm`, you can adjust the precedence to reflect that. The order of precedence here is `tpu` > `cuda` > `rocm` > `host`:
 
 ```elixir
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 ```
 
 ## Downloading Data
@@ -87,7 +87,7 @@ defmodule Autoencoder do
   end
 
   def build_model(input_shape, latent_dim) do
-    Axon.input(input_shape)
+    Axon.input(input_shape, "input")
     |> encoder(latent_dim)
     |> decoder()
   end
@@ -104,7 +104,7 @@ defmodule Trainer do
     model
     |> Axon.Loop.trainer(:mean_squared_error, :adam)
     |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.run(Stream.zip(train_images, train_images), epochs: epochs, compiler: EXLA)
+    |> Axon.Loop.run(Stream.zip(train_images, train_images), %{}, epochs: epochs, compiler: EXLA)
   end
 end
 ```

@@ -1,11 +1,11 @@
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.0"}
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
+  {:scidata, "~> 0.1.6"}
 ])
 
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule MnistDenoising do
   require Axon
@@ -33,7 +33,7 @@ defmodule MnistDenoising do
     model_state =
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
-      |> Axon.Loop.run(train_data, epochs: @epochs, compiler: EXLA)
+      |> Axon.Loop.run(train_data, %{}, epochs: @epochs, compiler: EXLA)
 
     # Predict on batches of test images
     test = noisy_test_images |> Enum.take(1) |> hd()
@@ -64,7 +64,7 @@ defmodule MnistDenoising do
 
   defp display_image(images) do
     images
-    |> Nx.slice_axis(0, 1, 0)
+    |> Nx.slice_along_axis(0, 1)
     |> Nx.reshape({1, 28, 28})
     |> Nx.to_heatmap()
     |> IO.inspect()
@@ -78,7 +78,7 @@ defmodule MnistDenoising do
 
   defp encoder(input_shape) do
     input_shape
-    |> Axon.input()
+    |> Axon.input("input")
     |> Axon.conv(32, kernel_size: {3, 3}, padding: :same, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
     |> Axon.conv(32, kernel_size: {3, 3}, padding: :same, activation: :relu)

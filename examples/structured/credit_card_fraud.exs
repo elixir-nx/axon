@@ -1,11 +1,11 @@
 Mix.install([
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, path: "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:explorer, "~> 0.1.0-dev", github: "elixir-nx/explorer"}
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
+  {:explorer, "~> 0.1.1"}
 ])
 
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule CreditCardFraud do
   alias Axon.Loop.State
@@ -65,12 +65,12 @@ defmodule CreditCardFraud do
   defp df_to_tensor(df) do
     df
     |> Explorer.DataFrame.names()
-    |> Enum.map(&Explorer.Series.to_tensor(df[&1]) |> Nx.new_axis(-1))
+    |> Enum.map(&(Explorer.Series.to_tensor(df[&1]) |> Nx.new_axis(-1)))
     |> Nx.concatenate(axis: 1)
   end
 
   defp build_model(num_features) do
-    Axon.input({nil, num_features})
+    Axon.input({nil, num_features}, "input")
     |> Axon.dense(256)
     |> Axon.relu()
     |> Axon.dense(256)
@@ -112,16 +112,16 @@ defmodule CreditCardFraud do
 
   defp test_model(model, model_state, test_data) do
     model
-    |> Axon.Loop.evaluator(model_state)
+    |> Axon.Loop.evaluator()
     |> metrics()
     |> Axon.Loop.handle(:epoch_completed, &summarize/1)
-    |> Axon.Loop.run(test_data, compiler: EXLA)
+    |> Axon.Loop.run(test_data, model_state, compiler: EXLA)
   end
 
   defp train_model(model, loss, optimizer, train_data) do
     model
     |> Axon.Loop.trainer(loss, optimizer)
-    |> Axon.Loop.run(train_data, epochs: 30, compiler: EXLA)
+    |> Axon.Loop.run(train_data, %{}, epochs: 30, compiler: EXLA)
   end
 
   def run() do
@@ -146,13 +146,15 @@ defmodule CreditCardFraud do
     IO.write("\n\n")
 
     model = build_model(30)
-    loss = &Axon.Losses.binary_cross_entropy(
-      &1,
-      &2,
-      negative_weight: 1 / legit,
-      positive_weight: 1 / fraud,
-      reduction: :mean
-    )
+
+    loss =
+      &Axon.Losses.binary_cross_entropy(
+        &1,
+        &2,
+        negative_weight: 1 / legit,
+        positive_weight: 1 / fraud,
+        reduction: :mean
+      )
 
     optimizer = Axon.Optimizers.adam(1.0e-2)
 
