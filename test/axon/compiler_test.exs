@@ -3912,7 +3912,7 @@ defmodule CompilerTest do
       assert Nx.shape(b1) == {1}
     end
 
-    test "recurrent model initalizes correctly" do
+    test "recurrent model initializes correctly" do
       input = Axon.input({nil, 8, 2})
 
       {state, _} = input |> Axon.lstm(4)
