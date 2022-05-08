@@ -1791,7 +1791,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a long short-term memory (LSTM) layer to the network.
+  See `lstm/3`.
+  """
+  @doc type: :recurrent
+  def lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
+    lstm(x, units, [])
+  end
+
+  @doc """
+  Adds a long short-term memory (LSTM) layer to the network
+  with a random initial hidden state.
 
   LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
   sequence and return:
@@ -1799,23 +1808,59 @@ defmodule Axon do
       {{new_cell, new_hidden}, output_sequence}
 
   You can use the output state as the hidden state of another
-  LSTM layer with the `:hidden_state` option.
+  LSTM layer.
 
   ## Options
 
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+    * `:recurrent_initializer` - Initializer for hidden state.
+  """
+  @doc type: :recurrent
+  def lstm(%Axon{output_shape: shape} = x, units, opts)
+      when is_integer(units) and units > 0 and is_list(opts) do
+    c = rnn_state(x, shape, units, :lstm, opts[:name], "c", opts[:recurrent_initializer])
+    h = rnn_state(x, shape, units, :lstm, opts[:name], "h", opts[:recurrent_initializer])
+    lstm(x, {c, h}, units, opts)
+  end
+
+  def lstm(%Axon{} = x, {%Axon{}, %Axon{}} = hidden_state, units)
+      when is_integer(units) and units > 0 do
+    lstm(x, hidden_state, units, [])
+  end
+
+  @doc """
+  Adds a long short-term memory (LSTM) layer to the network
+  with the given initial hidden state.
+
+  LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  LSTM layer.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
 
   """
   @doc type: :recurrent
-  def lstm(%Axon{output_shape: shape} = x, units, opts \\ [])
-      when is_integer(units) and units > 0 do
+  def lstm(
+        %Axon{output_shape: shape} = x,
+        {%Axon{output_shape: h_shape}, %Axon{output_shape: h_shape}} = hidden_state,
+        units,
+        opts \\ []
+      )
+      when is_integer(units) and units > 0 and is_list(opts) do
     activation = opts[:activation] || :tanh
     gate = opts[:gate] || :sigmoid
-    hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
 
     use_bias = Keyword.get(opts, :use_bias, true)
@@ -1824,10 +1869,8 @@ defmodule Axon do
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :lstm)
     hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :lstm)
     bias_shape = Axon.Shape.rnn_bias(shape, units, :lstm)
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :lstm)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
-    recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
 
     # Parameters
     wii = param("wii", input_kernel_shape, initializer: kernel_initializer)
@@ -1860,20 +1903,28 @@ defmodule Axon do
         }
       end
 
+    hidden_state_name =
+      case opts[:name] do
+        nil ->
+          fn _, op_counts ->
+            "lstm_#{op_counts[:lstm]}_hidden_state"
+          end
+
+        name when is_binary(name) ->
+          "#{name}_hidden_state"
+      end
+
     output =
       layer(
-        x,
+        [x, Axon.container(hidden_state, name: hidden_state_name)],
         :lstm,
         params,
         opts[:name],
         activation: activation,
         gate: gate,
-        hidden_state: hidden_state,
-        hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer,
         unroll: unroll,
         use_bias: use_bias,
-        shape: {{hidden_state_shape, hidden_state_shape}, output_shape}
+        shape: {{h_shape, h_shape}, output_shape}
       )
 
     new_c_name =
@@ -1909,11 +1960,9 @@ defmodule Axon do
           "#{name}_output_sequence"
       end
 
-    new_c =
-      layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_c_name, shape: hidden_state_shape)
+    new_c = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_c_name, shape: h_shape)
 
-    new_h =
-      layer(output, fn x, _ -> elem(elem(x, 0), 1) end, %{}, new_h_name, shape: hidden_state_shape)
+    new_h = layer(output, fn x, _ -> elem(elem(x, 0), 1) end, %{}, new_h_name, shape: h_shape)
 
     output_sequence =
       layer(output, fn x, _ -> elem(x, 1) end, %{}, output_sequence_name, shape: output_shape)
@@ -1922,7 +1971,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a gated recurrent unit (GRU) layer to the network.
+  See `gru/3`.
+  """
+  @doc type: :recurrent
+  def gru(%Axon{} = x, units) do
+    gru(x, units, [])
+  end
+
+  @doc """
+  Adds a gated recurrent unit (GRU) layer to the network with
+  a random initial hidden state.
 
   GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
   sequence and return:
@@ -1930,34 +1988,68 @@ defmodule Axon do
       {{new_hidden}, output_sequence}
 
   You can use the output state as the hidden state of another
-  LSTM layer with the `:hidden_state` option.
+  GRU layer.
 
   ## Options
 
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+    * `:recurrent_initializer` - Initializer for hidden state.
+
+  """
+  @doc type: :recurrent
+  def gru(%Axon{output_shape: shape} = x, units, opts)
+      when is_integer(units) and units > 0
+      when is_list(opts) do
+    h = rnn_state(x, shape, units, :gru, opts[:name], "h", opts[:recurrent_initializer])
+    gru(x, {h}, units, opts)
+  end
+
+  def gru(%Axon{} = x, {%Axon{}} = hidden_state, units) when is_integer(units) and units > 0 do
+    gru(x, hidden_state, units, [])
+  end
+
+  @doc """
+  Adds a gated recurrent unit (GRU) layer to the network with
+  the given initial hidden state.
+
+  GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
+  sequence and return:
+
+      {{new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  GRU layer.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
 
   """
   @doc type: :recurrent
-  def gru(%Axon{output_shape: shape} = x, units, opts \\ [])
-      when is_integer(units) and units > 0 do
+  def gru(
+        %Axon{output_shape: shape} = x,
+        {%Axon{output_shape: h_shape}} = hidden_state,
+        units,
+        opts
+      )
+      when is_integer(units) and units > 0 and is_list(opts) do
     use_bias = Keyword.get(opts, :use_bias, true)
     activation = opts[:activation] || :tanh
     gate = opts[:gate] || :sigmoid
-    hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
 
     output_shape = Axon.Shape.rnn(shape, units, :gru)
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :gru)
     hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :gru)
     bias_shape = Axon.Shape.rnn_bias(shape, units, :gru)
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :gru)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
-    recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
 
     wir = param("wir", input_kernel_shape, initializer: kernel_initializer)
     wiz = param("wiz", input_kernel_shape, initializer: kernel_initializer)
@@ -1986,26 +2078,36 @@ defmodule Axon do
         }
       end
 
+    hidden_state_name =
+      case opts[:name] do
+        nil ->
+          fn _, op_counts ->
+            "gru_#{op_counts[:gru]}_hidden_state"
+          end
+
+        name when is_binary(name) ->
+          "#{name}_hidden_state"
+      end
+
     output =
       layer(
-        x,
+        [x, Axon.container(hidden_state, name: hidden_state_name)],
         :gru,
         params,
         opts[:name],
         activation: activation,
         gate: gate,
-        hidden_state: hidden_state,
-        hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer,
         unroll: unroll,
         use_bias: use_bias,
-        shape: {{hidden_state_shape}, output_shape}
+        shape: {{h_shape}, output_shape}
       )
 
     new_h_name =
       case opts[:name] do
         nil ->
-          "gru_hidden_state"
+          fn _, op_counts ->
+            "gru_#{op_counts[:gru]}_hidden_state"
+          end
 
         name when is_binary(name) ->
           "#{name}_hidden_state"
@@ -2014,14 +2116,15 @@ defmodule Axon do
     output_sequence_name =
       case opts[:name] do
         nil ->
-          "gru_output_sequence"
+          fn _, op_counts ->
+            "gru_#{op_counts[:gru]}_output_sequence"
+          end
 
         name when is_binary(name) ->
           "#{name}_output_sequence"
       end
 
-    new_h =
-      layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_h_name, shape: hidden_state_shape)
+    new_h = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_h_name, shape: h_shape)
 
     output_sequence =
       layer(output, fn x, _ -> elem(x, 1) end, %{}, output_sequence_name, shape: output_shape)
@@ -2030,7 +2133,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a convolutional long short-term memory (LSTM) layer to the network.
+  See `conv_lstm/3`.
+  """
+  @doc type: :recurrent
+  def conv_lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
+    conv_lstm(x, units, [])
+  end
+
+  @doc """
+  Adds a convolutional long short-term memory (LSTM) layer to the network
+  with a random initial hidden state.
 
   ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
   sequence and return:
@@ -2045,17 +2157,56 @@ defmodule Axon do
     * `:padding` - convolutional padding. Defaults to `:same`.
     * `:kernel_size` - convolutional kernel size. Defaults to `1`.
     * `:strides` - convolutional strides. Defaults to `1`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+    * `:recurrent_initializer` - Initializer for hidden state.
+
+  """
+  @doc type: :recurrent
+  def conv_lstm(%Axon{output_shape: shape} = x, units, opts)
+      when is_integer(units) and units > 0 and is_list(opts) do
+    c = rnn_state(x, shape, units, :conv_lstm, opts[:name], "c", opts[:recurrent_initializer])
+    h = rnn_state(x, shape, units, :conv_lstm, opts[:name], "h", opts[:recurrent_initializer])
+    conv_lstm(x, {c, h}, units, opts)
+  end
+
+  def conv_lstm(%Axon{} = x, {%Axon{}, %Axon{}} = hidden_state, units)
+      when is_integer(units) and units > 0 do
+    conv_lstm(x, hidden_state, units, [])
+  end
+
+  @doc """
+  Adds a convolutional long short-term memory (LSTM) layer to the network
+  with the given initial hidden state..
+
+  ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  ConvLSTM layer.
+
+  ## Options
+
+    * `:padding` - convolutional padding. Defaults to `:same`.
+    * `:kernel_size` - convolutional kernel size. Defaults to `1`.
+    * `:strides` - convolutional strides. Defaults to `1`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
 
   """
   @doc type: :recurrent
-  def conv_lstm(%Axon{output_shape: shape} = x, units, opts \\ []) do
+  def conv_lstm(
+        %Axon{output_shape: shape} = x,
+        {%Axon{output_shape: h_shape}, %Axon{output_shape: h_shape}} = hidden_state,
+        units,
+        opts
+      )
+      when is_integer(units) and units > 0 and is_list(opts) do
     padding = opts[:padding] || :same
     kernel_size = opts[:kernel_size] || 1
     strides = opts[:strides] || 1
-    hidden_state = opts[:hidden_state]
     unroll = opts[:unroll] || :dynamic
     inner_rank = Nx.rank(shape) - 3
     sequence_length = elem(shape, 1)
@@ -2065,10 +2216,8 @@ defmodule Axon do
     input_dilation = List.duplicate(1, inner_rank)
     kernel_dilation = List.duplicate(1, inner_rank)
 
-    hidden_state_shape = Axon.Shape.rnn_hidden_state(shape, units, :conv_lstm)
-
     conv_shape = Tuple.delete_at(shape, 1)
-    conv_hidden_state_shape = Tuple.delete_at(hidden_state_shape, 1)
+    conv_hidden_state_shape = Tuple.delete_at(h_shape, 1)
 
     hidden_kernel_shape =
       Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first)
@@ -2092,7 +2241,6 @@ defmodule Axon do
       |> Tuple.insert_at(1, sequence_length)
 
     kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
-    recurrent_initializer = opts[:recurrent_initializer] || :glorot_uniform
     bias_initializer = opts[:bias_initializer] || :zeros
 
     wi = param("wi", input_kernel_shape, initializer: kernel_initializer)
@@ -2105,19 +2253,27 @@ defmodule Axon do
       "bias" => {b}
     }
 
+    hidden_state_name =
+      case opts[:name] do
+        nil ->
+          fn _, op_counts ->
+            "conv_lstm_#{op_counts[:conv_lstm]}_hidden_state"
+          end
+
+        name when is_binary(name) ->
+          "#{name}_hidden_state"
+      end
+
     output =
       layer(
-        x,
+        [x, Axon.container(hidden_state, name: hidden_state_name)],
         :conv_lstm,
         params,
         opts[:name],
-        hidden_state: hidden_state,
         strides: strides,
         padding: padding,
-        hidden_state_shape: hidden_state_shape,
-        recurrent_initializer: recurrent_initializer,
         unroll: unroll,
-        shape: {{hidden_state_shape, hidden_state_shape}, output_shape}
+        shape: {{h_shape, h_shape}, output_shape}
       )
 
     new_c_name =
@@ -2153,16 +2309,45 @@ defmodule Axon do
           "#{name}_output_sequence"
       end
 
-    new_c =
-      layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_c_name, shape: hidden_state_shape)
+    new_c = layer(output, fn x, _ -> elem(elem(x, 0), 0) end, %{}, new_c_name, shape: h_shape)
 
-    new_h =
-      layer(output, fn x, _ -> elem(elem(x, 0), 1) end, %{}, new_h_name, shape: hidden_state_shape)
+    new_h = layer(output, fn x, _ -> elem(elem(x, 0), 1) end, %{}, new_h_name, shape: h_shape)
 
     output_sequence =
       layer(output, fn x, _ -> elem(x, 1) end, %{}, output_sequence_name, shape: output_shape)
 
     {{new_c, new_h}, output_sequence}
+  end
+
+  defp rnn_state(x, shape, units, rnn_type, parent_name, state_name, initializer) do
+    initializer = initializer || :glorot_uniform
+
+    name =
+      case parent_name do
+        nil ->
+          fn _, op_counts ->
+            "lstm_#{op_counts[rnn_type]}_#{state_name}_hidden_state"
+          end
+
+        parent_name when is_binary(parent_name) ->
+          "#{parent_name}_#{state_name}_hidden_state"
+      end
+
+    shape = Axon.Shape.rnn_hidden_state(shape, units, rnn_type)
+
+    fun = fn inputs, _ ->
+      shape = put_elem(shape, 0, elem(Nx.shape(inputs), 0))
+
+      case initializer do
+        fun when is_function(fun) ->
+          fun.(shape: shape)
+
+        fun when is_atom(fun) ->
+          apply(Axon.Initializers, fun, [[shape: shape]])
+      end
+    end
+
+    layer(x, fun, %{}, name, layer_op: :recurrent_state)
   end
 
   @doc """
@@ -2513,7 +2698,7 @@ defmodule Axon do
          ) do
       {input_names, {cache, op_counts}} =
         deep_map_reduce(parents, {cache, op_counts}, fn
-          %Axon{} = graph, {cache, op_counts} ->
+          graph, {cache, op_counts} ->
             {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
             {name, {cache, op_counts}}
         end)
@@ -2549,7 +2734,7 @@ defmodule Axon do
       {input_names, {cache, op_counts}} =
         if parents do
           Enum.map_reduce(parents, {cache, op_counts}, fn
-            %Axon{} = graph, {cache, op_counts} ->
+            graph, {cache, op_counts} ->
               {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
               {name, {cache, op_counts}}
           end)

@@ -181,6 +181,10 @@ defmodule Axon.Shared do
   Creates a new map-like structure from a possible nested map, applying `fun`
   to each leaf.
   """
+  def deep_new(item, fun) when is_integer(item) do
+    fun.(item)
+  end
+
   def deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont
@@ -219,6 +223,8 @@ defmodule Axon.Shared do
   @doc """
   Deep map-reduce a nested container with an accumulator.
   """
+  def deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
+
   def deep_map_reduce(container, acc, fun) do
     Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
   end

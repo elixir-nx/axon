@@ -2705,7 +2705,7 @@ defmodule CompilerTest do
     test "computes forward pass with hidden state" do
       seq = Axon.input({nil, 8, 2})
       {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.lstm(seq, 2, name: "decode", hidden_state: carry) |> Axon.container()
+      model = Axon.lstm(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
 
       assert {init_fn, predict_fn} = Axon.compile(model)
@@ -3131,7 +3131,7 @@ defmodule CompilerTest do
         |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
 
       model =
-        Axon.conv_lstm(seq, out_channel_n, name: "decode", hidden_state: carry)
+        Axon.conv_lstm(seq, carry, out_channel_n, name: "decode")
         |> Axon.container()
 
       input =
@@ -3435,7 +3435,7 @@ defmodule CompilerTest do
     test "computes forward pass with hidden state" do
       seq = Axon.input({nil, 8, 2})
       {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
-      model = Axon.gru(seq, 2, name: "decode", hidden_state: carry) |> Axon.container()
+      model = Axon.gru(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
       carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
 
@@ -3916,7 +3916,7 @@ defmodule CompilerTest do
       input = Axon.input({nil, 8, 2})
 
       {state, _} = input |> Axon.lstm(4)
-      {_, out} = input |> Axon.lstm(8, hidden_state: state)
+      {_, out} = input |> Axon.lstm(state, 8)
 
       assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = Axon.init(out)
 
