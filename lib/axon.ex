@@ -1791,7 +1791,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a long short-term memory (LSTM) layer to the network.
+  See `lstm/3`.
+  """
+  @doc type: :recurrent
+  def lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
+    lstm(x, units, [])
+  end
+
+  @doc """
+  Adds a long short-term memory (LSTM) layer to the network
+  with a random initial hidden state.
 
   LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
   sequence and return:
@@ -1799,21 +1808,17 @@ defmodule Axon do
       {{new_cell, new_hidden}, output_sequence}
 
   You can use the output state as the hidden state of another
-  LSTM layer with the `:hidden_state` option.
+  LSTM layer.
 
   ## Options
 
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
-
+    * `:recurrent_initializer` - Initializer for hidden state.
   """
-  def lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
-    lstm(x, units, [])
-  end
-
+  @doc type: :recurrent
   def lstm(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     c = rnn_state(x, shape, units, :lstm, opts[:name], "c", opts[:recurrent_initializer])
@@ -1826,6 +1831,26 @@ defmodule Axon do
     lstm(x, hidden_state, units, [])
   end
 
+  @doc """
+  Adds a long short-term memory (LSTM) layer to the network
+  with the given initial hidden state.
+
+  LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  LSTM layer.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+
+  """
   @doc type: :recurrent
   def lstm(
         %Axon{output_shape: shape} = x,
@@ -1946,7 +1971,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a gated recurrent unit (GRU) layer to the network.
+  See `gru/3`.
+  """
+  @doc type: :recurrent
+  def gru(%Axon{} = x, units) do
+    gru(x, units, [])
+  end
+
+  @doc """
+  Adds a gated recurrent unit (GRU) layer to the network with
+  a random initial hidden state.
 
   GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
   sequence and return:
@@ -1954,21 +1988,18 @@ defmodule Axon do
       {{new_hidden}, output_sequence}
 
   You can use the output state as the hidden state of another
-  LSTM layer with the `:hidden_state` option.
+  GRU layer.
 
   ## Options
 
     * `:activation` - recurrent activation. Defaults to `:tanh`.
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
+    * `:recurrent_initializer` - Initializer for hidden state.
 
   """
-  def gru(%Axon{} = x, units) do
-    gru(x, units, [])
-  end
-
+  @doc type: :recurrent
   def gru(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0
       when is_list(opts) do
@@ -1980,6 +2011,26 @@ defmodule Axon do
     gru(x, hidden_state, units, [])
   end
 
+  @doc """
+  Adds a gated recurrent unit (GRU) layer to the network with
+  the given initial hidden state.
+
+  GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
+  sequence and return:
+
+      {{new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  GRU layer.
+
+  ## Options
+
+    * `:activation` - recurrent activation. Defaults to `:tanh`.
+    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+
+  """
   @doc type: :recurrent
   def gru(
         %Axon{output_shape: shape} = x,
@@ -2082,7 +2133,16 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a convolutional long short-term memory (LSTM) layer to the network.
+  See `conv_lstm/3`.
+  """
+  @doc type: :recurrent
+  def conv_lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
+    conv_lstm(x, units, [])
+  end
+
+  @doc """
+  Adds a convolutional long short-term memory (LSTM) layer to the network
+  with a random initial hidden state.
 
   ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
   sequence and return:
@@ -2097,15 +2157,12 @@ defmodule Axon do
     * `:padding` - convolutional padding. Defaults to `:same`.
     * `:kernel_size` - convolutional kernel size. Defaults to `1`.
     * `:strides` - convolutional strides. Defaults to `1`.
-    * `:hidden_state` - initial hidden state. Defaults to `nil`.
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
+    * `:recurrent_initializer` - Initializer for hidden state.
 
   """
-  def conv_lstm(%Axon{} = x, units) when is_integer(units) and units > 0 do
-    conv_lstm(x, units, [])
-  end
-
+  @doc type: :recurrent
   def conv_lstm(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     c = rnn_state(x, shape, units, :conv_lstm, opts[:name], "c", opts[:recurrent_initializer])
@@ -2118,6 +2175,27 @@ defmodule Axon do
     conv_lstm(x, hidden_state, units, [])
   end
 
+  @doc """
+  Adds a convolutional long short-term memory (LSTM) layer to the network
+  with the given initial hidden state..
+
+  ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
+  sequence and return:
+
+      {{new_cell, new_hidden}, output_sequence}
+
+  You can use the output state as the hidden state of another
+  ConvLSTM layer.
+
+  ## Options
+
+    * `:padding` - convolutional padding. Defaults to `:same`.
+    * `:kernel_size` - convolutional kernel size. Defaults to `1`.
+    * `:strides` - convolutional strides. Defaults to `1`.
+    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
+      unrolling of RNN.
+
+  """
   @doc type: :recurrent
   def conv_lstm(
         %Axon{output_shape: shape} = x,

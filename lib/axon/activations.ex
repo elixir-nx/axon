@@ -636,10 +636,7 @@ defmodule Axon.Activations do
 
     transform({x, axes}, fn {x, axes} ->
       Enum.each(axes, fn axis ->
-        axis = Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
-        if Elixir.Kernel.<=(Nx.rank(x), axis) do
-          raise ArgumentError, "softmax axis must be within rank of tensor"
-        end
+        Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
       end)
     end)
 

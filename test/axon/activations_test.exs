@@ -1233,7 +1233,7 @@ defmodule Axon.ActivationsTest do
 
   describe "softmax" do
     test "raises on bad axis" do
-      assert_raise ArgumentError, ~r/softmax axis must be within rank of tensor/, fn ->
+      assert_raise ArgumentError, "given axis (2) invalid for shape with rank 2", fn ->
         Axon.Activations.softmax(Nx.iota({1, 3}), axis: 2)
       end
     end
