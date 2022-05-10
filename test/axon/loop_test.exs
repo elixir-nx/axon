@@ -395,4 +395,35 @@ defmodule Axon.LoopTest do
       assert state == deserialized
     end
   end
+
+  describe "checkpoint" do
+    setup do
+      File.rm_rf!("checkpoint")
+
+      loop =
+        Axon.input({nil, 1})
+        |> Axon.dense(1)
+        |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
+
+      [loop: loop]
+    end
+
+    test "saves a ceckpoint on each epoch", %{loop: loop} do
+      loop
+      |> Loop.checkpoint()
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], epochs: 3)
+
+      assert ["checkpoint_0.ckpt", "checkpoint_1.ckpt", "checkpoint_2.ckpt"] ==
+               File.ls!("checkpoint") |> Enum.sort()
+    end
+
+    test "uses the custom file_pattern function", %{loop: loop} do
+      loop
+      |> Loop.checkpoint(file_pattern: &"ckp_#{&1.epoch}.ckpt")
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], epochs: 3)
+
+      assert ["ckp_0.ckpt", "ckp_1.ckpt", "ckp_2.ckpt"] ==
+               File.ls!("checkpoint") |> Enum.sort()
+    end
+  end
 end
