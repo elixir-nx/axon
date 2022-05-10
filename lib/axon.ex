@@ -2708,7 +2708,7 @@ defmodule Axon do
       name = name_fn.(:container, op_counts)
 
       row = [
-        name <> " ( #{op_string} #{inspect(input_names)} )",
+        "#{name} ( #{op_string} #{inspect(input_names)} )",
         "#{inspect(shape)}",
         "#{inspect(policy)}",
         0,
@@ -2775,7 +2775,7 @@ defmodule Axon do
       name = name_fn.(op, op_counts)
 
       row = [
-        name <> " ( #{op_inspect}#{inputs} )",
+        "#{name} ( #{op_inspect}#{inputs} )",
         "#{inspect(shape)}",
         "#{inspect(policy)}",
         "#{num_params}",
@@ -2969,7 +2969,13 @@ defmodule Axon do
     {id, name_fn}
   end
 
-  defp unique_identifiers(_type, name) do
+  defp unique_identifiers(_type, name) when is_binary(name) do
     {System.unique_integer([:positive, :monotonic]), fn _, _ -> name end}
+  end
+
+  defp unique_identifiers(_, name) do
+    raise ArgumentError,
+          "expected layer name to be a binary, a function or nil, " <>
+            "got: #{inspect(name)}"
   end
 end

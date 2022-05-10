@@ -65,9 +65,9 @@ defmodule CompilerTest do
     end
 
     test "multi-input, map with custom names" do
-      x = Axon.input({nil, 1}, name: :x)
-      y = Axon.input({nil, 1}, name: :y)
-      z = Axon.input({nil, 1}, name: :z)
+      x = Axon.input({nil, 1}, name: "x")
+      y = Axon.input({nil, 1}, name: "y")
+      z = Axon.input({nil, 1}, name: "z")
       model = {z, x, y} |> Axon.container()
 
       x_val = Nx.random_uniform({1, 1})
@@ -76,7 +76,11 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.compile(model)
       assert %{} = init_fn.()
-      assert_equal({z_val, x_val, y_val}, predict_fn.(%{}, %{x: x_val, y: y_val, z: z_val}))
+
+      assert_equal(
+        {z_val, x_val, y_val},
+        predict_fn.(%{}, %{"x" => x_val, "y" => y_val, "z" => z_val})
+      )
     end
 
     test "raises on bad input shape" do
@@ -4028,6 +4032,32 @@ defmodule CompilerTest do
       assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
 
       assert_equal(Axon.predict(model2, params, input), Nx.multiply(input, kernel))
+    end
+  end
+
+  describe "layer names" do
+    test "only accepts binaries, functions or nil" do
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: "a_binary_name")
+
+      assert "a_binary_name" == name_fn.(op, input: 1)
+
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: fn op, _ -> "custom_#{op}" end)
+
+      assert "custom_#{op}" == name_fn.(op, input: 1)
+
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: nil)
+
+      assert "input_10" == name_fn.(op, input: 10)
+    end
+
+    @invalid_names [:atom, {"tuple"}, ["list"], 123]
+
+    test "raises on invalid names" do
+      Enum.each(@invalid_names, fn name ->
+        assert_raise ArgumentError, fn ->
+          Axon.input({nil, 1}, name: name)
+        end
+      end)
     end
   end
 end
