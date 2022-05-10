@@ -1161,7 +1161,7 @@ defmodule Axon.Layers do
     * [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
   """
   @doc type: :normalization
-  defn batch_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+  defn batch_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1176,9 +1176,9 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias, ra_mean, ra_var} =
+    {gamma, beta, ra_mean, ra_var} =
       transform(
-        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        {gamma, beta, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
         fn {g, b, m, v, rank, num_channels, channel_idx} ->
           new_shape =
             1
@@ -1192,7 +1192,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
        opts[:training?]},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
@@ -1230,7 +1230,7 @@ defmodule Axon.Layers do
       axes for mean and variance calculation.
   """
   @doc type: :normalization
-  defn layer_norm(input, gamma, bias, opts \\ []) do
+  defn layer_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = opts[:channel_index]
 
@@ -1241,8 +1241,8 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+    {gamma, beta} =
+      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
                                                                                 num_channels,
                                                                                 channel_idx} ->
         new_shape =
@@ -1255,7 +1255,7 @@ defmodule Axon.Layers do
       end)
 
     {mean, var} = mean_and_variance(input, axes: [axes])
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    normalize(input, mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -1286,7 +1286,7 @@ defmodule Axon.Layers do
     * [Group Normalization](https://arxiv.org/abs/1803.08494v3)
   """
   @doc type: :normalization
-  defn group_norm(input, gamma, bias, opts \\ []) do
+  defn group_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
@@ -1302,8 +1302,8 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+    {gamma, beta} =
+      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
                                                                                 num_channels,
                                                                                 channel_idx} ->
         new_shape =
@@ -1318,7 +1318,7 @@ defmodule Axon.Layers do
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
-    normalize(Nx.reshape(x, input), mean, var, gamma, bias, epsilon: opts[:epsilon])
+    normalize(Nx.reshape(x, input), mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -1351,7 +1351,7 @@ defmodule Axon.Layers do
     * [Instance Normalization: The Missing Ingredient for Fast Stylization](https://arxiv.org/abs/1607.08022v3)
   """
   @doc type: :normalization
-  defn instance_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+  defn instance_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1366,9 +1366,9 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias, ra_mean, ra_var} =
+    {gamma, beta, ra_mean, ra_var} =
       transform(
-        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        {gamma, beta, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
         fn {g, b, m, v, rank, num_channels, channel_idx} ->
           new_shape =
             1
@@ -1382,7 +1382,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
        opts[:training?]},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
