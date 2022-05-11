@@ -870,7 +870,10 @@ defmodule Axon.Loop do
   of `checkpoint_{epoch}.ckpt`. You can customize the path and pattern
   with the `:path` and `:file_pattern` options:
 
-      my_file_pattern = fn epoch, iter -> "checkpoint_\#{epoch}_\#{iter}" end
+      my_file_pattern = 
+        fn %Axon.Loop.State{epoch: epoch, iteration: iter} -> 
+          "checkpoint_\#{epoch}_\#{iter}" 
+        end
 
       loop
       |> Axon.Loop.checkpoint(path: "my_checkpoints", file_pattern: my_file_pattern)
@@ -893,13 +896,11 @@ defmodule Axon.Loop do
     {event, opts} = Keyword.pop(opts, :event, :epoch_completed)
     {filter, opts} = Keyword.pop(opts, :filter, :always)
     {path, opts} = Keyword.pop(opts, :path, "checkpoint")
-    {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/2)
+    {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/1)
     {criteria, opts} = Keyword.pop(opts, :criteria)
     {mode, serialize_opts} = Keyword.pop(opts, :mode, :min)
 
     checkpoint_fn = fn %State{
-                         epoch: epoch,
-                         iteration: iter,
                          metrics: metrics,
                          handler_metadata: handle_meta
                        } = state ->
@@ -954,7 +955,7 @@ defmodule Axon.Loop do
         end
 
       if save? do
-        filename = Path.join([path, file_pattern.(epoch, iter)])
+        filename = Path.join([path, file_pattern.(state)])
         dirname = Path.dirname(filename)
         File.mkdir_p!(dirname)
         File.write!(filename, serialized_state)
@@ -966,7 +967,7 @@ defmodule Axon.Loop do
     handle(loop, event, checkpoint_fn, filter)
   end
 
-  defp default_checkpoint_file(epoch, _iter), do: "checkpoint_#{epoch}.ckpt"
+  defp default_checkpoint_file(%State{epoch: epoch}), do: "checkpoint_#{epoch}.ckpt"
 
   @doc """
   Adds a handler function which halts a loop if the given

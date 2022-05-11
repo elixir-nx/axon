@@ -29,3 +29,5 @@ examples/vision/humans/
 # Temporary files for e.g. tests
 /tmp/
 /config/
+
+/checkpoint/
