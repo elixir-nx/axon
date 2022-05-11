@@ -8,22 +8,12 @@ defmodule AxonTest do
     test "works with defaults" do
       assert %Axon{op: :input, parent: nil} = Axon.input({32, 1, 28, 28})
     end
-
-    test "works with name" do
-      assert %Axon{op: :input, parent: nil, name: "input"} =
-               Axon.input({nil, 1, 28, 28}, name: "input")
-    end
   end
 
   describe "constant" do
     test "works with defaults" do
       assert %Axon{op: :constant, opts: [value: value]} = Axon.constant(Nx.tensor(1.0))
       assert value == Nx.tensor(1.0)
-    end
-
-    test "works with name" do
-      assert %Axon{op: :constant, name: "constant"} =
-               Axon.constant(Nx.tensor(1.0), name: "constant")
     end
 
     test "raises on bad value" do
@@ -49,11 +39,6 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
-    test "works with name" do
-      assert %Axon{op: :dense, name: "dense1"} =
-               Axon.input({nil, 784}) |> Axon.dense(128, name: "dense1")
-    end
-
     test "works with parameter initializer" do
       assert %Axon{op: :dense, params: %{"kernel" => weight, "bias" => bias}} =
                Axon.input({nil, 784})
@@ -64,7 +49,7 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :dense}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :dense}]} =
                Axon.input({nil, 784}) |> Axon.dense(128, activation: :relu)
     end
 
@@ -99,13 +84,8 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
-    test "works with name" do
-      assert %Axon{op: :conv, name: "conv1"} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.conv(64, name: "conv1")
-    end
-
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :conv}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :conv}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.conv(64, activation: :relu)
     end
 
@@ -178,13 +158,8 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
-    test "works with name" do
-      assert %Axon{op: :depthwise_conv, name: "depthwise_conv1"} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.depthwise_conv(3, name: "depthwise_conv1")
-    end
-
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :depthwise_conv}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :depthwise_conv}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.depthwise_conv(64, activation: :relu)
     end
 
@@ -262,13 +237,8 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = b2
     end
 
-    test "works with name" do
-      assert %Axon{op: :separable_conv2d, name: "separable_conv1"} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3, name: "separable_conv1")
-    end
-
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :separable_conv2d}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv2d}]} =
                Axon.input({nil, 1, 28, 28}) |> Axon.separable_conv2d(3, activation: :relu)
     end
 
@@ -354,14 +324,8 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = b3
     end
 
-    test "works with name" do
-      assert %Axon{op: :separable_conv3d, name: "separable_conv1"} =
-               Axon.input({nil, 1, 28, 28, 3})
-               |> Axon.separable_conv3d(3, name: "separable_conv1")
-    end
-
     test "works with activation" do
-      assert %Axon{op: :relu, parent: %Axon{op: :separable_conv3d}} =
+      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv3d}]} =
                Axon.input({nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, activation: :relu)
     end
 
@@ -444,16 +408,6 @@ defmodule AxonTest do
         assert act2 == act
       end
     end
-
-    test "works with names" do
-      for act <- @activation_layers do
-        assert %Axon{name: "activation"} =
-                 Axon.input({nil, 32}) |> Axon.activation(act, name: "activation")
-
-        assert %Axon{name: "activation"} =
-                 apply(Axon, act, [Axon.input({nil, 32}), [name: "activation"]])
-      end
-    end
   end
 
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
@@ -464,13 +418,6 @@ defmodule AxonTest do
         assert %Axon{op: drop1, opts: opts} = apply(Axon, dropout, [Axon.input({nil, 32})])
         assert drop1 == dropout
         assert opts[:rate] == 0.5
-      end
-    end
-
-    test "works with names" do
-      for dropout <- @dropout_layers do
-        assert %Axon{name: "dropout"} =
-                 apply(Axon, dropout, [Axon.input({nil, 32}), [name: "dropout"]])
       end
     end
   end
@@ -486,13 +433,6 @@ defmodule AxonTest do
         assert opts[:padding] == :valid
         assert opts[:strides] == [1, 1]
         assert opts[:kernel_size] == {1, 1}
-      end
-    end
-
-    test "works with names" do
-      for pool <- @pooling_layers do
-        assert %Axon{name: "pool"} =
-                 apply(Axon, pool, [Axon.input({nil, 1, 28, 28}), [name: "pool"]])
       end
     end
 
@@ -518,7 +458,7 @@ defmodule AxonTest do
   describe "adaptive pooling" do
     test "works with options" do
       for pool <- @adaptive_pooling_layers do
-        assert %Axon{name: "pool"} =
+        assert %Axon{} =
                  apply(Axon, pool, [
                    Axon.input({nil, 1, 28, 28}),
                    [output_size: {26, 26}, name: "pool"]
@@ -532,7 +472,7 @@ defmodule AxonTest do
   describe "global pooling" do
     test "works with options" do
       for pool <- @global_pooling_layers do
-        assert %Axon{name: "pool", output_shape: {nil, 1}} =
+        assert %Axon{output_shape: {nil, 1}} =
                  apply(Axon, pool, [
                    Axon.input({nil, 1, 28, 28}),
                    [keep_axes: false, name: "pool"]
@@ -556,12 +496,6 @@ defmodule AxonTest do
 
         assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
         assert %Axon.Parameter{initializer: :zeros} = beta
-      end
-    end
-
-    test "works with name" do
-      for norm <- @normalization_layers do
-        assert %Axon{name: "norm"} = apply(Axon, norm, [Axon.input({nil, 784}), [name: "norm"]])
       end
     end
 
@@ -604,10 +538,6 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = beta
     end
 
-    test "works with names" do
-      assert %Axon{name: "norm"} = Axon.input({nil, 784}) |> Axon.group_norm(3, name: "norm")
-    end
-
     test "works with parameter initializer" do
       assert %Axon{params: %{"gamma" => gamma, "beta" => beta}} =
                Axon.input({nil, 3, 28, 28})
@@ -632,11 +562,6 @@ defmodule AxonTest do
     test "works with defaults" do
       assert %Axon{op: :flatten, output_shape: {nil, 784}} =
                Axon.input({nil, 1, 28, 28}) |> Axon.flatten()
-    end
-
-    test "works with names" do
-      assert %Axon{name: "flatten"} =
-               Axon.input({nil, 1, 28, 28}) |> Axon.flatten(name: "flatten")
     end
   end
 
@@ -802,16 +727,16 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             -----------------------------------------------
-                                  Model
-             ===============================================
-              Layer                 Shape        Parameters
-             ===============================================
-              input ( input )       {nil, 784}   0
-              dense1 ( dense )      {nil, 128}   100480
-              dense2 ( dense )      {nil, 10}    1290
-              softmax ( softmax )   {nil, 10}    0
-             -----------------------------------------------
+             -------------------------------------------------------------------------------------------------
+                                                           Model
+             =================================================================================================
+              Layer                           Shape        Policy              Parameters   Parameters Memory
+             =================================================================================================
+              input ( input )                 {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+              dense1 ( dense["input"] )       {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+              dense2 ( dense["dense1"] )      {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
+              softmax ( softmax["dense2"] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+             -------------------------------------------------------------------------------------------------
              """
     end
 
@@ -830,18 +755,37 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             ----------------------------------------------------------------------------
-                                                Model
-             ============================================================================
-              Layer                                              Shape        Parameters
-             ============================================================================
-              input ( input )                                    {nil, 784}   0
-              dense ( dense )                                    {nil, 128}   100480
-              residual_dense ( dense )                           {nil, 128}   16512
-              residual_add ( add ["residual_dense", "dense"] )   {nil, 128}   0
-              dense2 ( dense )                                   {nil, 10}    1290
-              softmax ( softmax )                                {nil, 10}    0
-             ----------------------------------------------------------------------------
+             -------------------------------------------------------------------------------------------------------------------
+                                                                    Model
+             ===================================================================================================================
+              Layer                                             Shape        Policy              Parameters   Parameters Memory
+             ===================================================================================================================
+              input ( input )                                   {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+              dense ( dense["input"] )                          {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+              residual_dense ( dense["dense"] )                 {nil, 128}   p=f32 c=f32 o=f32   16512        66048 bytes
+              residual_add ( add["residual_dense", "dense"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
+              dense2 ( dense["residual_add"] )                  {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
+              softmax ( softmax["dense2"] )                     {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+             -------------------------------------------------------------------------------------------------------------------
+             """
+    end
+
+    test "works with rnns" do
+      {_, out_sequence} = Axon.input({nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
+
+      assert inspect(out_sequence) == """
+             -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                     Model
+             =====================================================================================================================================================================================
+              Layer                                                                            Shape                                           Policy              Parameters   Parameters Memory
+             =====================================================================================================================================================================================
+              input_0 ( input )                                                                {nil, 32, 10}                                   p=f32 c=f32 o=f32   0            0 bytes
+              lstm_c_hidden_state ( recurrent_state["input_0"] )                               {nil, 1, 64}                                    p=f32 c=f32 o=f32   0            0 bytes
+              lstm_h_hidden_state ( recurrent_state["input_0"] )                               {nil, 1, 64}                                    p=f32 c=f32 o=f32   0            0 bytes
+              lstm_hidden_state ( container {"lstm_c_hidden_state", "lstm_h_hidden_state"} )   {{nil, 1, 64}, {nil, 1, 64}}                    p=f32 c=f32 o=f32   0            0 bytes
+              lstm ( lstm["input_0", "lstm_hidden_state"] )                                    {{{nil, 1, 64}, {nil, 1, 64}}, {nil, 32, 64}}   p=f32 c=f32 o=f32   19200        76800 bytes
+              lstm_output_sequence ( custom["lstm"] )                                          {nil, 32, 64}                                   p=f32 c=f32 o=f32   0            0 bytes
+             -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
              """
     end
   end
@@ -854,6 +798,46 @@ defmodule AxonTest do
     test "correctly derives container" do
       model = Axon.input({nil, 1})
       assert container(model) == Nx.tensor([[1.0]])
+    end
+  end
+
+  describe "serialization" do
+    test "correctly serializes and deserializes simple container" do
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 2})
+      model = Axon.container(%{a: inp1, b: inp2})
+
+      serialized = Axon.serialize(model, %{})
+      {deserialized, params} = Axon.deserialize(serialized)
+
+      input1 = Nx.tensor([[1.0]])
+      input2 = Nx.tensor([[1.0, 2.0]])
+
+      assert %{a: a, b: b} =
+               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
+
+      assert a == input1
+      assert b == input2
+    end
+
+    test "correctly serializes and deserializes nested container" do
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 2})
+      model = Axon.container({{inp1, {}}, %{a: inp1}, {%{b: inp2, c: inp1, d: %{}}}})
+
+      serialized = Axon.serialize(model, %{})
+      {deserialized, params} = Axon.deserialize(serialized)
+
+      input1 = Nx.tensor([[1.0]])
+      input2 = Nx.tensor([[1.0, 2.0]])
+
+      assert {{a, {}}, %{a: b}, {%{b: c, c: d, d: %{}}}} =
+               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
+
+      assert a == input1
+      assert b == input1
+      assert c == input2
+      assert d == input1
     end
   end
 end

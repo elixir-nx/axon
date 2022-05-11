@@ -9,7 +9,7 @@ defmodule Axon.MixProject do
       app: :axon,
       version: @version,
       name: "Axon",
-      elixir: "~> 1.11",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs()
@@ -28,8 +28,8 @@ defmodule Axon.MixProject do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.1.0-dev", exla_opts()},
-      {:nx, "~> 0.1.0-dev", nx_opts()},
+      {:exla, "~> 0.2.0", exla_opts()},
+      {:nx, "~> 0.2.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:table_rex, "~> 3.1.1"}
     ]
@@ -39,7 +39,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      [github: "elixir-nx/nx", sparse: "nx", override: true]
+      []
     end
   end
 
@@ -47,7 +47,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path, only: :test]
     else
-      [github: "elixir-nx/nx", sparse: "exla", only: :test]
+      []
     end
   end
 

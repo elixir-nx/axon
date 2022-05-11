@@ -11,7 +11,7 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same shape as `rhs`.
   """
-  defn assert_shape!(lhs, rhs) do
+  defn assert_shape!(caller, lhs_name, lhs, rhs_name, rhs) do
     transform(
       {lhs, rhs},
       fn {lhs, rhs} ->
@@ -20,8 +20,44 @@ defmodule Axon.Shared do
 
         unless Elixir.Kernel.==(lhs, rhs) do
           raise ArgumentError,
-                "expected input shapes to be equal," <>
-                  " got #{inspect(lhs)} != #{inspect(rhs)}"
+                "#{caller}: expected input shapes #{lhs_name} and #{rhs_name}" <>
+                  " to be equal, got #{inspect(lhs)} != #{inspect(rhs)}"
+        end
+      end
+    )
+  end
+
+  @doc """
+  Asserts all shapes are equal.
+  """
+  defn assert_shape!(caller, shape_names, shapes) do
+    transform(shapes, fn [shape | shapes] ->
+      equal? =
+        Enum.all?(shapes, fn cur_shape ->
+          Elixir.Kernel.==(Nx.shape(cur_shape), Nx.shape(shape))
+        end)
+
+      unless equal? do
+        raise ArgumentError,
+              "#{caller}: expected all input shapes #{inspect(shape_names)}" <>
+                " to be equal, got #{inspect(shapes)}"
+      end
+    end)
+  end
+
+  @doc """
+  Asserts `inp` has explicit rank `rank`.
+  """
+  defn assert_rank!(caller, inp_name, inp, rank) do
+    transform(
+      {inp, rank},
+      fn {x, y} ->
+        x = Nx.rank(x)
+
+        unless Elixir.Kernel.==(x, y) do
+          raise ArgumentError,
+                "#{caller}: expected #{inp_name} to have rank equal to #{y}," <>
+                  " got #{x} != #{y}"
         end
       end
     )
@@ -30,7 +66,7 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same rank as `rhs`.
   """
-  defn assert_equal_rank!(lhs, rhs) do
+  defn assert_equal_rank!(caller, lhs_name, lhs, rhs_name, rhs) do
     transform(
       {lhs, rhs},
       fn {x, y} ->
@@ -38,16 +74,36 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError, "expected input ranks to be equal, got #{x} != #{y}"
+          raise ArgumentError,
+                "#{caller}: expected #{lhs_name} and #{rhs_name} ranks to be equal" <>
+                  " got #{x} != #{y}"
         end
       end
     )
   end
 
   @doc """
+  Asserts all ranks are equal.
+  """
+  defn assert_equal_rank!(caller, rank_names, ranks) do
+    transform(ranks, fn [rank | ranks] ->
+      equal? =
+        Enum.all?(ranks, fn cur_rank ->
+          Elixir.Kernel.==(Nx.rank(cur_rank), Nx.rank(rank))
+        end)
+
+      unless equal? do
+        raise ArgumentError,
+              "#{caller}: expected all input ranks #{inspect(rank_names)}" <>
+                " to be equal, got #{inspect(ranks)}"
+      end
+    end)
+  end
+
+  @doc """
   Asserts `lhs` has at least rank `rhs`.
   """
-  defn assert_greater_equal_rank!(lhs, rhs) do
+  defn assert_min_rank!(caller, name, lhs, rhs) do
     transform(
       {lhs, rhs},
       fn {x, y} ->
@@ -55,7 +111,8 @@ defmodule Axon.Shared do
         y = if is_integer(y), do: y, else: Nx.rank(y)
 
         unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError, "expected input shape to have at least rank #{y}, got rank #{x}"
+          raise ArgumentError,
+                "#{caller}: expected #{name} shape to have at least rank #{y}, got rank #{x}"
         end
       end
     )
@@ -75,9 +132,7 @@ defmodule Axon.Shared do
   defn zeros_like(params) do
     transform(
       params,
-      &deep_new(&1, fn {k, x} ->
-        {k, Axon.Initializers.zeros(shape: Nx.shape(x))}
-      end)
+      &deep_new(&1, fn x -> Axon.Initializers.zeros(shape: Nx.shape(x)) end)
     )
   end
 
@@ -87,9 +142,7 @@ defmodule Axon.Shared do
   defn fulls_like(params, value) do
     transform(
       params,
-      &deep_new(&1, fn {k, x} ->
-        {k, Axon.Initializers.full(value, shape: Nx.shape(x))}
-      end)
+      &deep_new(&1, fn x -> Axon.Initializers.full(value, shape: Nx.shape(x)) end)
     )
   end
 
@@ -97,49 +150,95 @@ defmodule Axon.Shared do
   Deep merges two possibly nested maps, applying fun to leaf values.
   """
   def deep_merge(left, right, fun) do
-    Map.merge(left, right, &deep_resolve(&1, &2, &3, fun))
+    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
+      {merged, []} ->
+        merged
+
+      {_merged, _leftover} ->
+        raise ArgumentError,
+              "unable to merge arguments with incompatible" <>
+                " structure"
+    end
   end
 
-  defp deep_resolve(_key, left = %Nx.Tensor{}, right = %Nx.Tensor{}, fun) do
-    fun.(left, right)
+  defp leaves(container) do
+    container
+    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
+    |> Enum.reverse()
   end
 
-  defp deep_resolve(_key, left = %{}, right = %{}, fun) do
-    deep_merge(left, right, fun)
+  defp recur_merge(left, [right | right_leaves], fun) do
+    case {left, right} do
+      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {left, right} ->
+        {deep_merge(left, right, fun), right_leaves}
+    end
   end
 
   @doc """
   Creates a new map-like structure from a possible nested map, applying `fun`
   to each leaf.
   """
-  def deep_new(map, fun) do
-    map
-    |> Map.new(&recur_deep_new(&1, fun))
+  def deep_new(item, fun) when is_integer(item) do
+    fun.(item)
   end
 
-  defp recur_deep_new({key, value}, fun) do
-    case value do
-      %Nx.Tensor{} = val ->
-        fun.({key, val})
+  def deep_new(map, fun) do
+    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
+    cont
+  end
 
-      %{} = val ->
-        {key, deep_new(val, fun)}
+  defp recur_traverse(item, :ok, fun) do
+    case item do
+      %Nx.Tensor{} = t ->
+        {fun.(t), :ok}
+
+      container ->
+        {deep_new(container, fun), :ok}
     end
   end
 
   @doc """
-  JIT given function with args and opts or apply it inside defn.
+  Deep reduces a map with an accumulator.
   """
-  def jit_or_apply(caller, fun, args, opts \\ []) do
-    if Nx.Defn.Compiler.current() do
-      if opts != [] do
-        raise ArgumentError,
-              "cannot pass execution options to Axon.#{caller} inside defn, got: #{inspect(opts)}"
-      end
+  def deep_reduce(map, acc, fun) do
+    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
+  end
 
-      apply(fun, args)
-    else
-      Nx.Defn.jit(fun, args, opts)
+  defp recur_deep_reduce(value, acc, fun) do
+    case value do
+      %Axon{} = val ->
+        fun.(val, acc)
+
+      %Nx.Tensor{} = val ->
+        fun.(val, acc)
+
+      val ->
+        deep_reduce(val, acc, fun)
+    end
+  end
+
+  @doc """
+  Deep map-reduce a nested container with an accumulator.
+  """
+  def deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
+
+  def deep_map_reduce(container, acc, fun) do
+    Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
+  end
+
+  defp recur_deep_map_reduce(leaf, acc, fun) do
+    case leaf do
+      %Axon{} = leaf ->
+        fun.(leaf, acc)
+
+      %Nx.Tensor{} = leaf ->
+        fun.(leaf, acc)
+
+      container ->
+        deep_map_reduce(container, acc, fun)
     end
   end
 

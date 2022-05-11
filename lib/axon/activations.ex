@@ -380,7 +380,13 @@ defmodule Axon.Activations do
   Log-softmax activation.
   """
   defn log_softmax(x, opts \\ []) do
-    opts = keyword!(opts, axis: 1)
+    opts = keyword!(opts, axis: -1)
+
+    transform({x, opts}, fn {x, opts} ->
+      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
+        raise ArgumentError, "log_softmax axis must be within rank of tensor"
+      end
+    end)
 
     shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
 
@@ -486,6 +492,11 @@ defmodule Axon.Activations do
 
   $$f(x_i) = \frac{1}{1 + e^{-x_i}}$$
 
+  **Implementation Note: Sigmoid logits are cached as metadata
+  in the expression and can be used in calculations later on.
+  For example, they are used in cross-entropy calculations for
+  better stability.**
+
   ## Examples
 
       iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
@@ -589,6 +600,11 @@ defmodule Axon.Activations do
 
   $$\frac{e^{x_i}}{\sum_i e^{x_i}}$$
 
+  **Implementation Note: Sigmoid logits are cached as metadata
+  in the expression and can be used in calculations later on.
+  For example, they are used in cross-entropy calculations for
+  better stability.**
+
   ## Options
 
     * `:axis` - softmax axis along which to calculate distribution.
@@ -615,12 +631,13 @@ defmodule Axon.Activations do
 
   """
   defn softmax(x, opts \\ []) do
-    opts = keyword!(opts, axis: 1)
+    opts = keyword!(opts, axis: -1)
+    axes = transform(opts[:axis], &List.wrap/1)
 
-    transform({x, opts}, fn {x, opts} ->
-      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
-        raise ArgumentError, "softmax axis must be within rank of tensor"
-      end
+    transform({x, axes}, fn {x, axes} ->
+      Enum.each(axes, fn axis ->
+        Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
+      end)
     end)
 
     # This is a scaling term designed to prevent over/under flow when x is very
@@ -637,7 +654,7 @@ defmodule Axon.Activations do
     # We are essentially treating the max value as a constant term, C. Thus there
     # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
     # for a note on performance.
-    max_val = stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
 
     stable_exp =
       x
@@ -646,7 +663,7 @@ defmodule Axon.Activations do
 
     res =
       stable_exp
-      |> Nx.sum(axes: [opts[:axis]], keep_axes: true)
+      |> Nx.sum(axes: axes, keep_axes: true)
       |> reciprocal()
       |> Nx.multiply(stable_exp)
 

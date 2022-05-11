@@ -570,7 +570,7 @@ defmodule Axon.Initializers do
     distribution = opts[:distribution]
     type = opts[:type]
 
-    assert_greater_equal_rank!(shape, 2)
+    assert_min_rank!("Axon.Initializers.orthogonal", "input_shape", shape, 2)
 
     {{m, n}, random_seed} =
       transform({shape, distribution, type}, fn {shape, distribution, type} ->
@@ -587,10 +587,10 @@ defmodule Axon.Initializers do
         random_seed =
           case distribution do
             :uniform ->
-              Nx.random_uniform(flat_shape, type: type, backend: Nx.Defn.Expr)
+              Nx.random_uniform(flat_shape, type: type)
 
             :normal ->
-              Nx.random_normal(flat_shape, type: type, backend: Nx.Defn.Expr)
+              Nx.random_normal(flat_shape, type: type)
 
             dist ->
               raise ArgumentError,

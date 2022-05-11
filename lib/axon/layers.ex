@@ -51,7 +51,7 @@ defmodule Axon.Layers do
 
       {w1, b1, w2, b2}
 
-  where `w1` and `w2` are layer *weights*, and `b1` and `b2` are layer
+  where `w1` and `w2` are layer *kernels*, and `b1` and `b2` are layer
   *biases*.
 
   """
@@ -69,30 +69,30 @@ defmodule Axon.Layers do
   $$y = xW^T + b$$
 
   A dense layer or fully connected layer transforms
-  the input using the given weight matrix and bias
+  the input using the given kernel matrix and bias
   to compute:
 
-      Nx.dot(input, weight) + bias
+      Nx.dot(input, kernel) + bias
 
-  Typically, both `weight` and `bias` are learnable
+  Typically, both `kernel` and `bias` are learnable
   parameters trained using gradient-based optimization.
 
   ## Parameter Shapes
 
-    * `input` - `{batch_size, ..., input_features}`
-    * `weight` - `{input_features, output_features}`
-    * `bias` - `{output_features}`
+    * `input` - `{batch_size, * input_features}`
+    * `kernel` - `{input_features, output_features}`
+    * `bias` - `{}` or `{output_features}`
 
   ## Output Shape
 
-    `{batch_size, output_features}`
+    `{batch_size, *, output_features}`
 
   ## Examples
 
       iex> input = Nx.tensor([[1.0, 0.5, 1.0, 0.5], [0.0, 0.0, 0.0, 0.0]], type: {:f, 32})
-      iex> weight = Nx.tensor([[0.2], [0.3], [0.5], [0.8]], type: {:f, 32})
+      iex> kernel = Nx.tensor([[0.2], [0.3], [0.5], [0.8]], type: {:f, 32})
       iex> bias = Nx.tensor([1.0], type: {:f, 32})
-      iex> Axon.Layers.dense(input, weight, bias)
+      iex> Axon.Layers.dense(input, kernel, bias)
       #Nx.Tensor<
         f32[2][1]
         [
@@ -102,9 +102,11 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn dense(input, weight, bias) do
+  defn dense(input, kernel, bias) do
+    assert_min_rank!("Axon.Layers.dense", "input", input, 2)
+
     input
-    |> Nx.dot([Nx.rank(input) - 1], weight, [0])
+    |> Nx.dot([Nx.rank(input) - 1], kernel, [0])
     |> Nx.add(bias)
   end
 
@@ -119,7 +121,7 @@ defmodule Axon.Layers do
 
     * `input1` - `{batch_size, ..., input1_features}`
     * `input2` - `{batch_size, ..., input2_features}`
-    * `weight` - `{out_features, input1_features, input2_features}`
+    * `kernel` - `{out_features, input1_features, input2_features}`
 
   ## Output Shape
 
@@ -129,9 +131,9 @@ defmodule Axon.Layers do
 
       iex> inp1 = Nx.iota({3, 2}, type: {:f, 32})
       iex> inp2 = Nx.iota({3, 4}, type: {:f, 32})
-      iex> weight = Nx.iota({1, 2, 4}, type: {:f, 32})
+      iex> kernel = Nx.iota({1, 2, 4}, type: {:f, 32})
       iex> bias = Nx.tensor(1.0)
-      iex> Axon.Layers.bilinear(inp1, inp2, weight, bias)
+      iex> Axon.Layers.bilinear(inp1, inp2, kernel, bias)
       #Nx.Tensor<
         f32[3][1]
         [
@@ -142,12 +144,17 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn bilinear(input1, input2, weight, bias) do
+  defn bilinear(input1, input2, kernel, bias) do
+    assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
+    assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
+    assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
+    assert_rank!("Axon.Layers.bilinear", "kernel", kernel, 3)
+
     inp1_axes = transform(Nx.rank(input1), fn rank -> [rank - 1] end)
     inp2_axes = transform(Nx.rank(input2), fn rank -> [rank - 1] end)
 
     input1
-    |> Nx.dot(inp1_axes, [], weight, [1], [])
+    |> Nx.dot(inp1_axes, [], kernel, [1], [])
     |> Nx.dot([2], [0], input2, inp2_axes, [0])
     |> Nx.add(bias)
   end
@@ -169,8 +176,8 @@ defmodule Axon.Layers do
   ## Parameter Shapes
 
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
-    * `weight` - `{output_channels, input_channels, kernel_spatial0, ..., kernel_spatialN}`
-    * `bias` - `{output_channels}` or `{}`
+    * `kernel` - `{output_channels, input_channels, kernel_spatial0, ..., kernel_spatialN}`
+    * `bias` - `{}` or `{output_channels}`
 
   ## Options
 
@@ -201,9 +208,9 @@ defmodule Axon.Layers do
   ### One-dimensional convolution
 
       iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
-      iex> weight = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
+      iex> kernel = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
       iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
-      iex> Axon.Layers.conv(input, weight, bias)
+      iex> Axon.Layers.conv(input, kernel, bias)
       #Nx.Tensor<
         f32[2][3][2]
         [
@@ -223,13 +230,13 @@ defmodule Axon.Layers do
   ### Two-dimensional convolution
 
       iex> input = Nx.tensor([[[[-1.0476, -0.5041], [-0.9336, 1.5907]]]], type: {:f, 32})
-      iex> weight = Nx.tensor([
+      iex> kernel = Nx.tensor([
       ...>  [[[0.7514, 0.7356], [1.3909,  0.6800]]],
       ...>  [[[-0.3450,  0.4551], [-0.6275, -0.9875]]],
       ...>  [[[1.8587, 0.4722], [0.6058, -1.0301]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([1.9564, 0.2822, -0.5385], type: {:f, 32})
-      iex> Axon.Layers.conv(input, weight, bias)
+      iex> Axon.Layers.conv(input, kernel, bias)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -247,35 +254,38 @@ defmodule Axon.Layers do
         ]
       >
 
-    ### Three-dimensional convolution
+  ### Three-dimensional convolution
 
-    iex> input = Nx.tensor([[[[[-0.6497], [1.0939]], [[-2.5465], [0.7801]]]]], type: {:f, 32})
-    iex> weight = Nx.tensor([
-    ...>  [[[[ 0.7390], [-0.0927]], [[-0.8675], [-0.9209]]]],
-    ...>  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
-    ...> ], type: {:f, 32})
-    iex> bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
-    iex> Axon.Layers.conv(input, weight, bias)
-    #Nx.Tensor<
-      f32[1][2][1][1][1]
-      [
+      iex> input = Nx.tensor([[[[[-0.6497], [1.0939]], [[-2.5465], [0.7801]]]]], type: {:f, 32})
+      iex> kernel = Nx.tensor([
+      ...>  [[[[ 0.7390], [-0.0927]], [[-0.8675], [-0.9209]]]],
+      ...>  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
+      ...> ], type: {:f, 32})
+      iex> bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
+      iex> Axon.Layers.conv(input, kernel, bias)
+      #Nx.Tensor<
+        f32[1][2][1][1][1]
         [
           [
             [
-              [0.49906185269355774]
-            ]
-          ],
-          [
+              [
+                [0.49906185269355774]
+              ]
+            ],
             [
-              [0.38622811436653137]
+              [
+                [0.38622811436653137]
+              ]
             ]
           ]
         ]
-      ]
-    >
+      >
   """
   @doc type: :convolutional
-  defn conv(input, weight, bias, opts \\ []) do
+  defn conv(input, kernel, bias, opts \\ []) do
+    assert_min_rank!("Axon.Layers.conv", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
+
     opts =
       keyword!(opts,
         strides: 1,
@@ -307,7 +317,7 @@ defmodule Axon.Layers do
       end)
 
     input
-    |> Nx.conv(weight,
+    |> Nx.conv(kernel,
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
@@ -385,8 +395,9 @@ defmodule Axon.Layers do
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
-  defn conv_transpose(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
+  defn conv_transpose(input, kernel, bias, opts \\ []) do
+    assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
     opts =
       keyword!(opts,
@@ -407,7 +418,7 @@ defmodule Axon.Layers do
 
     padding =
       transform(
-        {Nx.shape(weight), opts[:kernel_dilation], strides, opts[:padding]},
+        {Nx.shape(kernel), opts[:kernel_dilation], strides, opts[:padding]},
         fn {shape, k_dilation, strides, padding} ->
           Axon.Shape.conv_transpose_padding(shape, k_dilation, strides, padding)
         end
@@ -415,7 +426,7 @@ defmodule Axon.Layers do
 
     ones = transform(Nx.rank(input), &List.duplicate(1, &1 - 2))
 
-    conv(input, weight, bias,
+    conv(input, kernel, bias,
       strides: ones,
       padding: padding,
       input_dilation: strides,
@@ -438,7 +449,7 @@ defmodule Axon.Layers do
   ## Parameter Shapes
 
     * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
-    * `weight` - `{output_channels, 1, kernel_spatial0, ..., kernel_spatialN}`
+    * `kernel` - `{output_channels, 1, kernel_spatial0, ..., kernel_spatialN}`
     * `bias` - `{output_channels}` or `{}`
 
     `output_channels` must be a multiple of the input channels.
@@ -469,8 +480,9 @@ defmodule Axon.Layers do
 
   """
   @doc type: :convolutional
-  defn depthwise_conv(input, weight, bias, opts \\ []) do
-    assert_equal_rank!(input, weight)
+  defn depthwise_conv(input, kernel, bias, opts \\ []) do
+    assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
+    assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 
     opts =
       keyword!(opts,
@@ -490,7 +502,7 @@ defmodule Axon.Layers do
           elem(shape, tuple_size(shape) - 1)
       end)
 
-    conv(input, weight, bias,
+    conv(input, kernel, bias,
       strides: opts[:strides],
       padding: opts[:padding],
       input_dilation: opts[:input_dilation],
@@ -547,6 +559,14 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn separable_conv2d(input, k1, b1, k2, b2, opts \\ []) do
+    assert_rank!("Axon.Layers.separable_conv2d", "input", input, 4)
+
+    assert_equal_rank!("Axon.Layers.separable_conv2d", ["input", "kernel1", "kernel2"], [
+      input,
+      k1,
+      k2
+    ])
+
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -561,7 +581,7 @@ defmodule Axon.Layers do
 
   ## Parameter Shapes
 
-    * `input` - `{batch_size, input_channels, input_spatial0, ..., input_spatialN}`
+    * `input` - `{batch_size, input_channels, input_spatial0, input_spatial1, input_spatial2}`
     * `k1` - `{output_channels, 1, kernel_spatial0, 1, 1}`
     * `b1` - `{output_channels}` or `{}`
     * `k2` - `{output_channels, 1, 1, kernel_spatial1, 1}`
@@ -601,6 +621,14 @@ defmodule Axon.Layers do
   """
   @doc type: :convolutional
   defn separable_conv3d(input, k1, b1, k2, b2, k3, b3, opts \\ []) do
+    assert_rank!("Axon.Layers.separable_conv3d", "input", input, 5)
+
+    assert_equal_rank!(
+      "Axon.Layers.separable_conv3d",
+      ["input", "kernel1", "kernel2", "kernel3"],
+      [input, k1, k2, k3]
+    )
+
     input
     |> depthwise_conv(k1, b1, opts)
     |> depthwise_conv(k2, b2, opts)
@@ -659,6 +687,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn max_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.max_pool", "input", input, 3)
+
     opts =
       keyword!(
         opts,
@@ -685,6 +715,17 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
+        fn
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -700,13 +741,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_max(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -744,6 +783,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn avg_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.avg_pool", "input", input, 3)
+
     opts =
       keyword!(
         opts,
@@ -770,6 +811,17 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
+        fn
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -785,13 +837,11 @@ defmodule Axon.Layers do
         end
       )
 
-    opts = transform(opts, &Keyword.delete(&1, :kernel_size))
-
     input
     |> Nx.window_mean(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
   end
 
@@ -851,6 +901,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn lp_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.lp_pool", "input", input, 3)
+
     opts =
       keyword!(
         opts,
@@ -884,6 +936,17 @@ defmodule Axon.Layers do
         end
       )
 
+    dilations =
+      transform(
+        {Nx.rank(input), opts[:window_dilations], opts[:channels]},
+        fn
+          {_, [_ | _] = dilations, :first} -> [1, 1 | dilations]
+          {rank, dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+          {_, [_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+          {rank, dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
+        end
+      )
+
     padding =
       transform(
         opts[:padding],
@@ -906,7 +969,7 @@ defmodule Axon.Layers do
     |> Nx.window_sum(window_dimensions,
       strides: strides,
       padding: padding,
-      window_dilations: opts[:window_dilations]
+      window_dilations: dilations
     )
     |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
@@ -937,6 +1000,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_avg_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.adaptive_avg_pool", "input", input, 3)
+
     opts = keyword!(opts, [:output_size, channels: :first])
 
     window_strides =
@@ -982,6 +1047,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_max_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.adaptive_max_pool", "input", input, 3)
+
     opts = keyword!(opts, [:output_size, channels: :first])
 
     window_strides =
@@ -1033,6 +1100,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn adaptive_lp_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.adaptive_lp_pool", "input", input, 3)
+
     opts = keyword!(opts, [:output_size, norm: 2, channels: :first])
 
     norm = opts[:norm]
@@ -1092,7 +1161,7 @@ defmodule Axon.Layers do
     * [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
   """
   @doc type: :normalization
-  defn batch_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+  defn batch_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1107,9 +1176,9 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias, ra_mean, ra_var} =
+    {gamma, beta, ra_mean, ra_var} =
       transform(
-        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        {gamma, beta, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
         fn {g, b, m, v, rank, num_channels, channel_idx} ->
           new_shape =
             1
@@ -1123,7 +1192,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
        opts[:training?]},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
@@ -1161,7 +1230,7 @@ defmodule Axon.Layers do
       axes for mean and variance calculation.
   """
   @doc type: :normalization
-  defn layer_norm(input, gamma, bias, opts \\ []) do
+  defn layer_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1)
     axes = opts[:channel_index]
 
@@ -1172,8 +1241,8 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+    {gamma, beta} =
+      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
                                                                                 num_channels,
                                                                                 channel_idx} ->
         new_shape =
@@ -1186,7 +1255,7 @@ defmodule Axon.Layers do
       end)
 
     {mean, var} = mean_and_variance(input, axes: [axes])
-    normalize(input, mean, var, gamma, bias, epsilon: opts[:epsilon])
+    normalize(input, mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -1217,7 +1286,7 @@ defmodule Axon.Layers do
     * [Group Normalization](https://arxiv.org/abs/1803.08494v3)
   """
   @doc type: :normalization
-  defn group_norm(input, gamma, bias, opts \\ []) do
+  defn group_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1])
 
     group_shape =
@@ -1233,8 +1302,8 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias} =
-      transform({gamma, bias, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
+    {gamma, beta} =
+      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
                                                                                 num_channels,
                                                                                 channel_idx} ->
         new_shape =
@@ -1249,7 +1318,7 @@ defmodule Axon.Layers do
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
-    normalize(Nx.reshape(x, input), mean, var, gamma, bias, epsilon: opts[:epsilon])
+    normalize(Nx.reshape(x, input), mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
   @doc """
@@ -1282,7 +1351,7 @@ defmodule Axon.Layers do
     * [Instance Normalization: The Missing Ingredient for Fast Stylization](https://arxiv.org/abs/1607.08022v3)
   """
   @doc type: :normalization
-  defn instance_norm(input, gamma, bias, ra_mean, ra_var, opts \\ []) do
+  defn instance_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, training?: false)
 
     axes =
@@ -1297,9 +1366,9 @@ defmodule Axon.Layers do
         elem(Nx.shape(inp), channel_idx)
       end)
 
-    {gamma, bias, ra_mean, ra_var} =
+    {gamma, beta, ra_mean, ra_var} =
       transform(
-        {gamma, bias, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
+        {gamma, beta, ra_mean, ra_var, Nx.rank(input), num_channels, channel_index},
         fn {g, b, m, v, rank, num_channels, channel_idx} ->
           new_shape =
             1
@@ -1313,7 +1382,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, bias, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
        opts[:training?]},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
@@ -1347,7 +1416,7 @@ defmodule Axon.Layers do
     * `:rate` - dropout rate. Used to determine probability a connection
       will be dropped. Required.
 
-    # `:noise_shape` - input noise shape. Shape of `mask` which can be useful
+    * `:noise_shape` - input noise shape. Shape of `mask` which can be useful
       for broadcasting `mask` across feature channels or other dimensions.
       Defaults to shape of input tensor.
 
@@ -1399,8 +1468,15 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn spatial_dropout(input, opts \\ []) do
-    opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
+    assert_min_rank!("Axon.Layers.spatial_dropout", "input", input, 3)
+
+    opts = keyword!(opts, rate: 0.5, channels: :first)
+
+    noise_shape =
+      transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
+        Axon.Shape.spatial_dropout_noise_shape(shape, channels)
+      end)
+
     dropout(input, rate: opts[:rate], noise_shape: noise_shape)
   end
 
@@ -1462,8 +1538,15 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, rate: 0.5)
-    noise_shape = transform(Nx.shape(input), &Axon.Shape.spatial_dropout_noise_shape/1)
+    assert_min_rank!("Axon.Layers.feature_alpha_dropout", "input", input, 3)
+
+    opts = keyword!(opts, rate: 0.5, channels: :first)
+
+    noise_shape =
+      transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
+        Axon.Shape.spatial_dropout_noise_shape(shape, channels)
+      end)
+
     keep_prob = 1 - opts[:rate]
     mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
 
@@ -1529,6 +1612,8 @@ defmodule Axon.Layers do
       >
   """
   defn global_avg_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.global_avg_pool", "input", input, 3)
+
     opts = keyword!(opts, channels: :first, keep_axes: false)
 
     all_but_batch_and_feature =
@@ -1589,11 +1674,13 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn global_max_pool(x, opts \\ []) do
+  defn global_max_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.global_max_pool", "input", input, 3)
+
     opts = keyword!(opts, keep_axes: false, channels: :first)
 
     all_but_batch_and_feature =
-      transform({Nx.rank(x), opts[:channels]}, fn
+      transform({Nx.rank(input), opts[:channels]}, fn
         {rank, :first} ->
           for i <- 2..(rank - 1), do: i
 
@@ -1601,7 +1688,7 @@ defmodule Axon.Layers do
           for i <- 1..(rank - 2), do: i
       end)
 
-    Nx.reduce_max(x, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
+    Nx.reduce_max(input, axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
   end
 
   @doc """
@@ -1655,13 +1742,15 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn global_lp_pool(x, opts \\ []) do
+  defn global_lp_pool(input, opts \\ []) do
+    assert_min_rank!("Axon.Layers.global_lp_pool", "input", input, 3)
+
     opts = keyword!(opts, norm: 2, keep_axes: false, channels: :first)
 
     norm = opts[:norm]
 
     all_but_batch_and_feature =
-      transform({Nx.rank(x), opts[:channels]}, fn
+      transform({Nx.rank(input), opts[:channels]}, fn
         {rank, :first} ->
           for i <- 2..(rank - 1), do: i
 
@@ -1669,32 +1758,32 @@ defmodule Axon.Layers do
           for i <- 1..(rank - 2), do: i
       end)
 
-    x
+    input
     |> Nx.power(norm)
     |> Nx.sum(axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
-    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(x)), norm))
+    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   ## Sparse
 
   @doc """
-  Computes embedding by treating weight matrix as a lookup table
+  Computes embedding by treating kernel matrix as a lookup table
   for discrete tokens.
 
   `input` is a vector of discrete values, typically representing tokens
-  (e.g. words, characters, etc.) from a vocabulary. `weights` is a weight
+  (e.g. words, characters, etc.) from a vocabulary. `kernel` is a kernel
   matrix of shape `{vocab_size, embedding_size}` from which the dense
   embeddings will be drawn.
 
   ## Parameter Shapes
 
-    * `input` - `{batch_size, seq_len}`
-    * `weights` - `{vocab_size, embedding_size}`
+    * `input` - `{batch_size, ..., seq_len}`
+    * `kernel` - `{vocab_size, embedding_size}`
 
   ## Examples
 
       iex> input = Nx.tensor([[1, 2, 4, 5], [4, 3, 2, 9]])
-      iex> weights = Nx.tensor([
+      iex> kernels = Nx.tensor([
       ...>  [0.46299999952316284, 0.5562999844551086, 0.18170000612735748],
       ...>  [0.9801999926567078, 0.09780000150203705, 0.5333999991416931],
       ...>  [0.6980000138282776, 0.9240999817848206, 0.23479999601840973],
@@ -1706,7 +1795,7 @@ defmodule Axon.Layers do
       ...>  [0.6622999906539917, 0.02329999953508377, 0.8205999732017517],
       ...>  [0.9855999946594238, 0.36419999599456787, 0.5372999906539917]
       ...> ])
-      iex> Axon.Layers.embedding(input, weights)
+      iex> Axon.Layers.embedding(input, kernels)
       #Nx.Tensor<
         f32[2][4][3]
         [
@@ -1725,8 +1814,9 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn embedding(input, weights) do
-    Nx.take(weights, input, axis: 0)
+  defn embedding(input, kernel) do
+    assert_rank!("Axon.Layers.embedding", "kernel", kernel, 2)
+    Nx.take(kernel, input, axis: 0)
   end
 
   ## Shape
@@ -1745,9 +1835,66 @@ defmodule Axon.Layers do
         ]
       >
   """
-  defn flatten(x) do
-    new_shape = transform(Nx.shape(x), &Axon.Shape.flatten/1)
+  defn flatten(x, opts \\ []) do
+    opts = keyword!(opts, ignore_batch?: true)
+
+    new_shape =
+      transform({Nx.shape(x), opts[:ignore_batch?]}, fn {shape, ignore} ->
+        Axon.Shape.flatten(shape, ignore)
+      end)
+
     Nx.reshape(x, new_shape)
+  end
+
+  @doc false
+  # Internal version of Nx.reshape for constructing reshape layers
+  # without worrying about a batch dimension
+  defn reshape(x, opts \\ []) do
+    opts = keyword!(opts, [:shape, ignore_batch?: true])
+
+    transform({opts[:shape], opts[:ignore_batch?]}, fn
+      {shape, true} ->
+        Nx.reshape(x, put_elem(shape, 0, elem(Nx.shape(x), 0)))
+
+      {shape, false} ->
+        Nx.reshape(x, shape)
+    end)
+  end
+
+  @doc false
+  # Internal version of Nx.pad for constructing pad layers without
+  # worrying about batch or channel dimensions
+  defn pad(x, opts \\ []) do
+    opts = keyword!(opts, [:padding_config, :value, :channels])
+
+    config =
+      transform({opts[:padding_config], opts[:channels]}, fn
+        {config, :first} ->
+          [{0, 0, 0}, {0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)]
+
+        {config, :last} ->
+          [{0, 0, 0} | Enum.map(config, fn {x, y} -> {x, y, 0} end)] ++ [{0, 0, 0}]
+      end)
+
+    Nx.pad(x, Nx.as_type(opts[:value], Nx.type(x)), config)
+  end
+
+  @doc false
+  # Internal version of Nx.transpose for constructing a transpose layer
+  # without worrying about a batch dimension
+  defn transpose(x, opts \\ []) do
+    opts = keyword!(opts, [:axes, ignore_batch?: true])
+
+    axes =
+      transform({opts[:axes], opts[:ignore_batch?]}, fn
+        {axes, true} ->
+          [0 | Enum.map(axes, &(&1 + 1))]
+
+        {axes, false} ->
+          axes
+      end)
+
+    Nx.transpose(x, axes: axes)
   end
 
   @doc false
@@ -1761,6 +1908,12 @@ defmodule Axon.Layers do
     end
   end
 
+  @doc false
+  # Internal helper for constructing bias layers without
+  defn bias(input, bias) do
+    input + bias
+  end
+
   @doc """
   Resizes a batch of tensors to the given shape using one of a
   number of sampling methods.
@@ -1770,7 +1923,8 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported reize methods are `:nearest`.
+  Supported resize methods are `:nearest, :linear, :bilinear, :trilinear,
+  :cubic, :bicubic, :tricubic`.
 
   ## Examples
 
@@ -1832,15 +1986,11 @@ defmodule Axon.Layers do
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
   defn resize(input, opts \\ []) do
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first])
-    output_shape = opts[:shape]
+    assert_min_rank!("Axon.Layers.resize", "input", input, 3)
 
-    # Input must be at least rank 3
-    transform(Nx.rank(input), fn rank ->
-      unless rank > 3 do
-        raise ArgumentError, "input rank must be at least 3, got #{inspect(rank)}"
-      end
-    end)
+    opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false])
+
+    output_shape = opts[:shape]
 
     spatial_dimensions =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1867,11 +2017,29 @@ defmodule Axon.Layers do
         end
       end)
 
-    transform({input, output_shape, spatial_dimensions, opts[:method]}, fn
-      {img, shape, spatial_dimensions, :nearest} ->
+    transform({input, output_shape, spatial_dimensions, opts[:method], opts[:align_corners]}, fn
+      {img, shape, spatial_dimensions, :nearest, _} ->
         resize_nearest(img, shape, spatial_dimensions)
 
-      {_, _, _, method} ->
+      {img, shape, spatial_dimensions, :linear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :bilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :trilinear, align_corners} ->
+        resize_linear(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :cubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :bicubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
+      {img, shape, spatial_dimensions, :tricubic, align_corners} ->
+        resize_cubic(img, shape, spatial_dimensions, align_corners)
+
+      {_, _, _, method, _} ->
         raise ArgumentError,
               "invalid resize method #{inspect(method)}, resize method" <>
                 " must be one of :nearest"
@@ -1899,5 +2067,182 @@ defmodule Axon.Layers do
           Nx.take_along_axis(input, offset, axis: d)
       end
     end)
+  end
+
+  defp resize_linear(input, output_shape, spatial_dimensions, align_corners) do
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        case align_corners do
+          true -> resize_linear_align(input, output_shape, d)
+          false -> resize_linear_noalign(input, output_shape, d)
+        end
+    end
+  end
+
+  defp resize_cubic(input, output_shape, spatial_dimensions, align_corners) do
+    input_shape = Nx.shape(input)
+
+    for d <- spatial_dimensions, reduce: input do
+      input ->
+        if elem(input_shape, d) == elem(output_shape, d) do
+          input
+        else
+          case align_corners do
+            true -> resize_cubic_align(input, output_shape, d)
+            false -> resize_cubic_noalign(input, output_shape, d)
+          end
+        end
+    end
+  end
+
+  defnp resize_cubic_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    pad_left1 =
+      Nx.subtract(
+        Nx.multiply(Nx.take(input, Nx.tensor([0]), axis: spatial_dimension), 2),
+        Nx.take(input, Nx.tensor([1]), axis: spatial_dimension)
+      )
+
+    t_n = Nx.take(input, Nx.tensor([in_size - 2]), axis: spatial_dimension)
+    t_nn = Nx.take(input, Nx.tensor([in_size - 1]), axis: spatial_dimension)
+    delta_right = Nx.subtract(t_nn, t_n)
+    pad_right1 = Nx.add(t_nn, delta_right)
+    pad_right2 = Nx.add(t_nn, Nx.multiply(delta_right, 2.0))
+
+    input_padded =
+      Nx.concatenate([pad_left1, input, pad_right1, pad_right2], axis: spatial_dimension)
+
+    id1 = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_delta = Nx.subtract(ids, id1)
+    id0 = id1
+    id1 = Nx.add(id0, 1)
+    id2 = Nx.add(id1, 1)
+    id3 = Nx.add(id2, 1)
+    p = Nx.take(input_padded, Nx.stack([id0, id1, id2, id3]), axis: spatial_dimension)
+
+    d =
+      Nx.tensor([
+        [-0.5, 1.5, -1.5, 0.5],
+        [1.0, -2.5, 2.0, -0.5],
+        [-0.5, 0.0, 0.5, 0.0],
+        [0.0, 1.0, 0.0, 0.0]
+      ])
+
+    c = Nx.dot(d, [1], p, [spatial_dimension])
+
+    x =
+      Nx.stack([
+        Nx.power(id_delta, 3),
+        Nx.power(id_delta, 2),
+        id_delta,
+        Nx.broadcast(1.0, Nx.shape(id_delta))
+      ])
+      |> Nx.broadcast(Nx.shape(c), axes: [0, spatial_dimension + 1])
+
+    Nx.multiply(c, x) |> Nx.sum(axes: [0])
+  end
+
+  defnp resize_cubic_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    t_0 = Nx.take(input, Nx.tensor([0]), axis: spatial_dimension)
+    t_1 = Nx.take(input, Nx.tensor([1]), axis: spatial_dimension)
+    delta_left = Nx.subtract(t_1, t_0)
+    pad_left1 = Nx.subtract(t_0, delta_left)
+    pad_left2 = Nx.subtract(t_0, Nx.multiply(delta_left, 2))
+    t_n = Nx.take(input, Nx.tensor([in_size - 2]), axis: spatial_dimension)
+    t_nn = Nx.take(input, Nx.tensor([in_size - 1]), axis: spatial_dimension)
+    delta_right = Nx.subtract(t_nn, t_n)
+    pad_right1 = Nx.add(t_nn, delta_right)
+    pad_right2 = Nx.add(t_nn, Nx.multiply(delta_right, 2.0))
+
+    input_padded =
+      Nx.concatenate([pad_left2, pad_left1, input, pad_right1, pad_right2],
+        axis: spatial_dimension
+      )
+
+    id1 = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_delta = Nx.subtract(ids, id1)
+    id0 = Nx.add(id1, 1)
+    id1 = Nx.add(id0, 1)
+    id2 = Nx.add(id1, 1)
+    id3 = Nx.add(id2, 1)
+    p = Nx.take(input_padded, Nx.stack([id0, id1, id2, id3]), axis: spatial_dimension)
+
+    d =
+      Nx.tensor([
+        [-0.5, 1.5, -1.5, 0.5],
+        [1.0, -2.5, 2.0, -0.5],
+        [-0.5, 0.0, 0.5, 0.0],
+        [0.0, 1.0, 0.0, 0.0]
+      ])
+
+    c = Nx.dot(d, [1], p, [spatial_dimension])
+
+    x =
+      Nx.stack([
+        Nx.power(id_delta, 3),
+        Nx.power(id_delta, 2),
+        id_delta,
+        Nx.broadcast(1.0, Nx.shape(id_delta))
+      ])
+      |> Nx.broadcast(Nx.shape(c), axes: [0, spatial_dimension + 1])
+
+    Nx.multiply(c, x) |> Nx.sum(axes: [0])
+  end
+
+  defnp resize_linear_align(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(in_size - 1)
+      |> Nx.divide(out_size - 1)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1) |> Nx.min(in_size - 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, id_prev, axis: spatial_dimension)
+    val_next = Nx.take(input, id_next, axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
+  end
+
+  defnp resize_linear_noalign(input, output_shape, spatial_dimension) do
+    in_size = elem(Nx.shape(input), spatial_dimension)
+    out_size = elem(output_shape, spatial_dimension)
+    w = in_size / out_size
+
+    ids =
+      Nx.iota({out_size})
+      |> Nx.multiply(w)
+      |> Nx.add(w / 2.0 - 0.5)
+
+    id_prev = Nx.floor(ids) |> Nx.as_type({:s, 8})
+    id_next = Nx.add(id_prev, 1)
+    w_prev = Nx.subtract(id_next, ids)
+    w_next = Nx.subtract(1.0, w_prev)
+    val_prev = Nx.take(input, Nx.max(id_prev, 0), axis: spatial_dimension)
+    val_next = Nx.take(input, Nx.min(id_next, in_size - 1), axis: spatial_dimension)
+    w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
+    w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
+    Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
   end
 end

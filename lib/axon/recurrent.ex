@@ -147,7 +147,7 @@ defmodule Axon.Recurrent do
         end
 
       split_dims
-      |> Enum.map(fn {start, len} -> Nx.slice_axis(gates, start, len, 1) end)
+      |> Enum.map(fn {start, len} -> Nx.slice_along_axis(gates, start, len, axis: 1) end)
       |> List.to_tuple()
     end)
   end
@@ -171,7 +171,7 @@ defmodule Axon.Recurrent do
     {_, carry, output, _, _, _, _} =
       while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias},
             Nx.less(i, time_steps) do
-        sequence = Nx.slice_axis(input_sequence, i, 1, 1)
+        sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
         indices = transform({feature_dims, i}, fn {feature_dims, i} -> [0, i] ++ feature_dims end)
         {carry, output} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
         update_sequence = Nx.put_slice(init_sequence, indices, output)
@@ -193,7 +193,7 @@ defmodule Axon.Recurrent do
         {carry, outputs} =
           for t <- 0..(time_steps - 1), reduce: {carry, []} do
             {carry, outputs} ->
-              input = Nx.slice_axis(input_sequence, t, 1, 1)
+              input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
               {carry, output} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
               {carry, [output | outputs]}
           end

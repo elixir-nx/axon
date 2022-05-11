@@ -98,7 +98,7 @@ defp train_model(model, train_images, epochs) do
 end
 ```
 
-To better understand what is mean absolute error and mean square error let's go trough an example.
+To better understand what is mean absolute error and mean square error let's go through an example.
 
 ```elixir
 defmodule Example do
@@ -159,9 +159,9 @@ defmodule Example do
     different_images_mae_error = calculate_mae(shoe_image, random_image)
 
     %{
-      :same => {[mse: same_images_mse_error], [mae: same_images_mae_error]},
-      :similar => {[mse: similar_images_mse_error], [mae: similar_images_mae_error]},
-      :different => {[mse: different_images_mse_error], [mae: different_images_mae_error]}
+      same: {[mse: same_images_mse_error], [mae: same_images_mae_error]},
+      similar: {[mse: similar_images_mse_error], [mae: similar_images_mae_error]},
+      different: {[mse: different_images_mse_error], [mae: different_images_mae_error]}
     }
   end
 end

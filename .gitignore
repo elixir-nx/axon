@@ -22,8 +22,12 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 axon-*.tar
 
+# Downloaded fixtures
+examples/vision/horses/
+examples/vision/humans/
 
 # Temporary files for e.g. tests
-/tmp
-
+/tmp/
 /config/
+
+/checkpoint/

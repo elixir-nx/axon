@@ -25,11 +25,13 @@ defmodule MixedPrecisionTest do
 
       assert %Axon{
                op: :dense,
-               parent: %Axon{
-                 op: :batch_norm,
-                 parent: %Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}},
-                 policy: %Policy{compute: {:f, 32}}
-               },
+               parent: [
+                 %Axon{
+                   op: :batch_norm,
+                   parent: [%Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}}],
+                   policy: %Policy{compute: {:f, 32}}
+                 }
+               ],
                policy: %Policy{compute: {:bf, 16}}
              } = AMP.apply_policy(model, policy, except: [:batch_norm])
     end
@@ -63,6 +65,16 @@ defmodule MixedPrecisionTest do
       assert Nx.type(params["dense2"]["bias"]) == {:bf, 16}
       assert Nx.type(params["batch_norm"]["gamma"]) == {:f, 32}
       assert Nx.type(params["batch_norm"]["beta"]) == {:f, 32}
+    end
+  end
+
+  describe "inspection" do
+    test "works" do
+      policy = AMP.create_policy()
+
+      assert inspect(policy) == """
+             p=f32 c=f32 o=f32\
+             """
     end
   end
 end

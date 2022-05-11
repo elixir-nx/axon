@@ -45,7 +45,7 @@ defmodule Axon.Updates do
         transform(
           {x, step},
           fn {updates, step} ->
-            deep_new(updates, fn {k, x} -> Nx.multiply(x, step) end)
+            deep_new(updates, fn x -> Nx.multiply(x, step) end)
           end
         )
       end
@@ -66,9 +66,9 @@ defmodule Axon.Updates do
       end
 
       defnp apply_my_update(updates, state) do
-        new_state = deep_new(state, fn {k, v} -> {k, Nx.add(v, 0.01)} end)
+        new_state = deep_new(state, fn v -> Nx.add(v, 0.01) end)
         updates = transform({updates, new_state}, fn {updates, state} ->
-          deep_merge(updates, state, fn _, g, z -> Nx.multiply(g, z) end)
+          deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
         end)
         {updates, %{state: new_state}}
       end
@@ -99,7 +99,7 @@ defmodule Axon.Updates do
     transform(
       {x, step},
       fn {updates, step} ->
-        deep_new(updates, fn {k, v} -> {k, Nx.multiply(v, step)} end)
+        deep_new(updates, fn v -> Nx.multiply(v, step) end)
       end
     )
   end
@@ -112,14 +112,26 @@ defmodule Axon.Updates do
       * `:b1` - first moment decay. Defaults to `0.9`
       * `:b2` - second moment decay. Defaults to `0.999`
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
-      * `:eps_root` - numerical stability term. Defaults to `1.0e-10`
+      * `:eps_root` - numerical stability term. Defaults to `1.0e-15`
 
   ## References
 
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  def scale_by_adam(combinator \\ identity(), opts) do
+  def scale_by_adam(combinator_or_opts \\ [])
+
+  def scale_by_adam(opts) when is_list(opts) do
+    scale_by_adam(identity(), opts)
+  end
+
+  def scale_by_adam({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_adam(combinator, [])
+  end
+
+  def scale_by_adam({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_adam/1,
@@ -163,7 +175,19 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  def scale_by_rss(combinator \\ identity(), opts) do
+  def scale_by_rss(combinator_or_opts \\ [])
+
+  def scale_by_rss(opts) when is_list(opts) do
+    scale_by_rss(identity(), opts)
+  end
+
+  def scale_by_rss({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_rss(combinator, [])
+  end
+
+  def scale_by_rss({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 0.1)
 
     stateful(
@@ -189,7 +213,7 @@ defmodule Axon.Updates do
 
     inv_sqrt_squares =
       transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
-        deep_new(sum_of_squares, fn {k, z} -> {k, Nx.rsqrt(z + eps)} end)
+        deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
       end)
 
     inv_sqrt_x_square =
@@ -220,7 +244,19 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_rms(combinator \\ identity(), opts) do
+  def scale_by_rms(combinator_or_opts \\ [])
+
+  def scale_by_rms(opts) when is_list(opts) do
+    scale_by_rms(identity(), opts)
+  end
+
+  def scale_by_rms({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_rms(combinator, [])
+  end
+
+  def scale_by_rms({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -265,7 +301,19 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  def scale_by_belief(combinator \\ identity(), opts) do
+  def scale_by_belief(combinator_or_opts \\ [])
+
+  def scale_by_belief(opts) when is_list(opts) do
+    scale_by_belief(identity(), opts)
+  end
+
+  def scale_by_belief({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_belief(combinator, [])
+  end
+
+  def scale_by_belief({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_belief/1,
@@ -314,7 +362,19 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  def scale_by_stddev(combinator \\ identity(), opts) do
+  def scale_by_stddev(combinator_or_opts \\ [])
+
+  def scale_by_stddev(opts) when is_list(opts) do
+    scale_by_stddev(identity(), opts)
+  end
+
+  def scale_by_stddev({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_stddev(combinator, [])
+  end
+
+  def scale_by_stddev({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     {initial, opts} = Keyword.pop(opts, :initial_scale, 0.0)
 
     stateful(
@@ -340,7 +400,12 @@ defmodule Axon.Updates do
 
     x =
       transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-        deep_new(x, fn {k, g} -> {k, g * Nx.rsqrt(-Nx.power(mu[k], 2) + nu[k] + eps)} end)
+        mu_nu =
+          deep_merge(mu, nu, fn m, n ->
+            Nx.rsqrt(-Nx.power(m, 2) + n + eps)
+          end)
+
+        deep_merge(x, mu_nu, fn g, mn -> g * mn end)
       end)
 
     {x, %{mu: mu, nu: nu}}
@@ -366,7 +431,7 @@ defmodule Axon.Updates do
 
     updates =
       transform({x, step_size}, fn {x, step_size} ->
-        deep_new(x, fn {k, x} -> {k, x * step_size} end)
+        deep_new(x, fn x -> x * step_size end)
       end)
 
     {updates, %{count: count + 1}}
@@ -388,7 +453,19 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  def scale_by_radam(combinator \\ identity(), opts) do
+  def scale_by_radam(combinator_or_opts \\ [])
+
+  def scale_by_radam(opts) when is_list(opts) do
+    scale_by_radam(identity(), opts)
+  end
+
+  def scale_by_radam({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_radam(combinator, [])
+  end
+
+  def scale_by_radam({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_scale_by_radam/1,
@@ -411,32 +488,20 @@ defmodule Axon.Updates do
     eps_root = opts[:eps_root]
     threshold = opts[:threshold]
 
-    ro_inf =
-      1
-      |> Nx.subtract(b2)
-      |> reciprocal()
-      |> Nx.multiply(2)
-      |> Nx.subtract(1)
+    ro_inf = 2.0 / (1 - b1) - 1
 
     mu = update_moment(x, mu, b1, 1)
     nu = update_moment(x, nu, b2, 2)
+    count_inc = count + 1
 
-    b2t =
-      b2
-      |> Nx.power(count + 1)
-
-    ro =
-      ro_inf
-      |> Nx.subtract(2)
-      |> Nx.multiply(count + 1)
-      |> Nx.multiply(b2t)
-      |> Nx.divide(1 - b2t)
+    b2t = Nx.power(b2, count_inc)
+    ro = ro_inf - 2 * count_inc * b2t / (1 - b2t)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
     x =
-      if Nx.greater_equal(ro, threshold) do
+      if Nx.all(Nx.greater_equal(ro, threshold)) do
         radam_update(ro, ro_inf, mu_hat, nu_hat, eps_root, eps)
       else
         mu_hat
@@ -446,25 +511,12 @@ defmodule Axon.Updates do
   end
 
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
-    top =
-      ro
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro_inf)
+    r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
 
-    bottom =
-      ro_inf
-      |> Nx.subtract(4)
-      |> Nx.multiply(Nx.subtract(ro, 2))
-      |> Nx.multiply(ro)
-
-    nu_hat =
-      transform({nu, eps, eps_root}, fn {nu, eps, eps_root} ->
-        deep_new(nu, fn {k, t} -> {k, Nx.sqrt(t + eps_root) + eps} end)
+    transform({r, mu, nu, eps_root, eps}, fn {r, mu, nu, eps_root, eps} ->
+      deep_merge(mu, nu, fn m, v ->
+        r * m / (Nx.sqrt(v + eps_root) + eps)
       end)
-
-    transform({mu, nu_hat, top, bottom}, fn {mu, nu_hat, top, bottom} ->
-      deep_merge(mu, nu_hat, fn z, t -> Nx.sqrt(top / bottom) * (z / t) end)
     end)
   end
 
@@ -479,7 +531,19 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  def trace(combinator \\ identity(), opts) do
+  def trace(combinator_or_opts \\ [])
+
+  def trace(opts) when is_list(opts) do
+    trace(identity(), opts)
+  end
+
+  def trace({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    trace(combinator, [])
+  end
+
+  def trace({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(
       combinator,
       &init_trace/1,
@@ -521,7 +585,19 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
-  def clip(combinator \\ identity(), opts) do
+  def clip(combinator_or_opts \\ [])
+
+  def clip(opts) when is_list(opts) do
+    clip(identity(), opts)
+  end
+
+  def clip({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    clip(combinator, [])
+  end
+
+  def clip({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_clip(&1, &2, opts))
   end
 
@@ -530,7 +606,7 @@ defmodule Axon.Updates do
     delta = opts[:delta]
 
     transform({x, delta}, fn {x, delta} ->
-      deep_new(x, fn {k, g} -> {k, Nx.clip(g, -delta, delta)} end)
+      deep_new(x, fn g -> Nx.clip(g, -delta, delta) end)
     end)
   end
 
@@ -542,7 +618,19 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
-  def clip_by_global_norm(combinator \\ identity(), opts) do
+  def clip_by_global_norm(combinator_or_opts \\ [])
+
+  def clip_by_global_norm(opts) when is_list(opts) do
+    clip_by_global_norm(identity(), opts)
+  end
+
+  def clip_by_global_norm({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    clip_by_global_norm(combinator, [])
+  end
+
+  def clip_by_global_norm({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_clip_by_global_norm(&1, &2, opts))
   end
 
@@ -552,29 +640,51 @@ defmodule Axon.Updates do
 
     g_norm =
       transform(x, fn x ->
-        deep_new(x, fn {k, z} -> {k, Nx.sqrt(Nx.sum(Nx.power(z, 2)))} end)
+        sum_gs =
+          deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
+            leaf
+            |> Nx.power(2)
+            |> Nx.sum()
+            |> Nx.add(acc)
+          end)
+
+        Nx.sqrt(sum_gs)
       end)
 
     transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      deep_merge(x, g_norm, fn z, g -> Nx.select(Nx.less(g, max_norm), z, z / g * max_norm) end)
+      deep_new(x, fn z ->
+        Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)
+      end)
     end)
   end
 
   @doc """
-  Centralize input.
+  Centralizes input by shifting updates by their mean.
   """
-  def centralize(combinator \\ identity()) do
-    stateless(combinator, &apply_centralize/2)
+  def centralize(combinator_or_opts \\ [])
+
+  def centralize(opts) when is_list(opts) do
+    centralize(identity(), opts)
   end
 
-  defnp apply_centralize(x, _params) do
+  def centralize({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    centralize(combinator, [])
+  end
+
+  def centralize({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
+    stateless(combinator, &apply_centralize(&1, &2, opts))
+  end
+
+  defnp apply_centralize(x, _params, _opts \\ []) do
     transform(x, fn x ->
-      deep_new(x, fn {k, z} ->
-        if Nx.rank(z) > 1 do
+      deep_new(x, fn z ->
+        if Elixir.Kernel.>(Nx.rank(z), 1) do
           axes = tl(Nx.axes(z))
-          {k, z - Nx.mean(z, axes: axes, keep_axes: true)}
+          z - Nx.mean(z, axes: axes, keep_axes: true)
         else
-          {k, z}
+          z
         end
       end)
     end)
@@ -583,7 +693,19 @@ defmodule Axon.Updates do
   @doc """
   Weight decay.
   """
-  def add_decayed_weights(combinator \\ identity(), opts) do
+  def add_decayed_weights(combinator_or_opts \\ [])
+
+  def add_decayed_weights(opts) when is_list(opts) do
+    add_decayed_weights(identity(), opts)
+  end
+
+  def add_decayed_weights({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    add_decayed_weights(combinator, [])
+  end
+
+  def add_decayed_weights({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_weight_decay(&1, &2, opts))
   end
 
@@ -599,38 +721,59 @@ defmodule Axon.Updates do
   @doc """
   Scale by trust ratio.
   """
-  def scale_by_trust_ratio(combinator \\ identity(), opts) do
+  def scale_by_trust_ratio(combinator_or_opts \\ [])
+
+  def scale_by_trust_ratio(opts) when is_list(opts) do
+    scale_by_trust_ratio(identity(), opts)
+  end
+
+  def scale_by_trust_ratio({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_trust_ratio(combinator, [])
+  end
+
+  def scale_by_trust_ratio({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, &apply_scale_by_trust_ratio(&1, &2, opts))
   end
 
   defnp apply_scale_by_trust_ratio(x, params, opts \\ []) do
-    opts = keyword!(opts, min_norm: 0.0)
+    opts = keyword!(opts, min_norm: 0.0, trust_coefficient: 1.0, eps: 0.0)
     min_norm = opts[:min_norm]
+    trust_coefficient = opts[:trust_coefficient]
+    eps = opts[:eps]
 
-    param_norm = safe_norm(params, min_norm)
-    update_norm = safe_norm(x, min_norm)
+    transform({x, params}, fn {updates, params} ->
+      deep_merge(updates, params, fn g, p ->
+        param_norm = safe_norm(p, min_norm)
+        update_norm = safe_norm(g, min_norm)
 
-    trust_ratios =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g -> p / g end)
+        trust_ratio = trust_coefficient * param_norm / (update_norm + eps)
+
+        zero_norm = Nx.logical_or(Nx.equal(param_norm, 0.0), Nx.equal(update_norm, 0.0))
+        safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
+
+        Nx.multiply(g, safe_trust_ratio)
       end)
-
-    zero_norms =
-      transform({param_norm, update_norm}, fn {param_norm, update_norm} ->
-        deep_merge(param_norm, update_norm, fn p, g ->
-          Nx.logical_or(Nx.equal(p, 0), Nx.equal(g, 0))
-        end)
-      end)
-
-    transform({zero_norms, trust_ratios, x}, fn {zero_norms, trust_ratios, x} ->
-      deep_new(zero_norms, fn {k, z} -> {k, x[k] * Nx.select(z, 1, trust_ratios[k])} end)
     end)
   end
 
   @doc """
   Add noise.
   """
-  def add_noise(combinator \\ identity(), opts) do
+  def add_noise(combinator_or_opts \\ [])
+
+  def add_noise(opts) when is_list(opts) do
+    add_noise(identity(), opts)
+  end
+
+  def add_noise({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    add_noise(combinator, [])
+  end
+
+  def add_noise({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateful(combinator, &init_add_noise/1, &apply_add_noise(&1, &2, &3, opts))
   end
 
@@ -644,7 +787,7 @@ defmodule Axon.Updates do
 
     noise =
       transform(x, fn x ->
-        deep_new(x, fn {k, z} -> {k, Nx.random_normal(z)} end)
+        deep_new(x, fn z -> Nx.random_normal(z) end)
       end)
 
     updates =
@@ -658,7 +801,19 @@ defmodule Axon.Updates do
   @doc """
   Scale by yogi.
   """
-  def scale_by_yogi(combinator \\ identity(), opts) do
+  def scale_by_yogi(combinator_or_opts \\ [])
+
+  def scale_by_yogi(opts) when is_list(opts) do
+    scale_by_yogi(identity(), opts)
+  end
+
+  def scale_by_yogi({init_fn, apply_fn} = combinator)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
+    scale_by_yogi(combinator, [])
+  end
+
+  def scale_by_yogi({init_fn, apply_fn} = combinator, opts)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) do
     {initial, opts} = Keyword.pop(opts, :initial_accumulator_value, 1.0e-6)
 
     stateful(
@@ -685,12 +840,12 @@ defmodule Axon.Updates do
 
     mu = update_moment(x, mu, b1, 1)
 
-    signed_sq =
-      transform({x, nu}, fn {x, nu} ->
-        deep_merge(x, nu, fn g, v -> Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2) end)
+    nu =
+      transform({x, nu, b2}, fn {x, nu, b2} ->
+        deep_merge(x, nu, fn g, v ->
+          v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
+        end)
       end)
-
-    nu = update_moment(signed_sq, nu, b2, 2)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
@@ -812,21 +967,14 @@ defmodule Axon.Updates do
 
   defnp bias_correction(moment, decay, count) do
     transform({moment, decay, count}, fn {moment, decay, count} ->
-      deep_new(moment, fn {k, z} -> {k, z / (1 - Nx.power(decay, count))} end)
+      deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
     end)
   end
 
-  defnp safe_norm(x, min_norm) do
-    transform({x, min_norm}, fn {x, min_norm} ->
-      deep_new(x, fn {k, g} ->
-        norm = Nx.LinAlg.norm(g)
-        z = Nx.select(Nx.less(norm, min_norm), 1, g)
-        {k, Nx.select(Nx.less(norm, min_norm), min_norm, Nx.LinAlg.norm(z))}
-      end)
-    end)
-  end
-
-  defnp empty_state(_) do
-    {}
+  defnp safe_norm(g, min_norm) do
+    norm = Nx.LinAlg.norm(g)
+    z = Nx.select(Nx.less_equal(norm, min_norm), 1, g)
+    masked_norm = Nx.LinAlg.norm(z)
+    Nx.select(Nx.less_equal(norm, min_norm), min_norm, masked_norm)
   end
 end

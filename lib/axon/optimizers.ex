@@ -23,7 +23,8 @@ defmodule Axon.Optimizers do
   defined elsewhere):
 
       defmodule Learning do
-        @default_defn_compiler EXLA
+
+        import Nx.Defn
 
         defn init(params, init_fn) do
           init_fn.(params)
@@ -31,7 +32,7 @@ defmodule Axon.Optimizers do
 
         defn update(params, optimizer_state, inputs, targets, update_fn) do
           {loss, gradient} = value_and_grad(params, &objective(&1, inputs, targets))
-          {new_optimizer_state, scaled_updates} = update_fn.(gradient, optimizer_state, params)
+          {scaled_updates, new_optimizer_state} = update_fn.(gradient, optimizer_state, params)
           {Axon.Updates.apply_updates(params, scaled_updates), new_optimizer_state, loss}
         end
       end
@@ -97,7 +98,7 @@ defmodule Axon.Optimizers do
     * `:b1` - first moment decay. Defaults to `0.9`
     * `:b2` - second moment decay. Defaults to `0.999`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
-    * `:eps_root` - numerical stability term. Defaults to `1.0e-9`
+    * `:eps_root` - numerical stability term. Defaults to `1.0e-15`
 
   ## References
 
