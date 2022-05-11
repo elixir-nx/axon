@@ -46,7 +46,6 @@ defmodule Axon.Compiler do
            op: op,
            name: name_fn,
            params: params,
-           opts: opts,
            policy: %{params: dtype},
            hooks: hooks
          },
@@ -62,17 +61,6 @@ defmodule Axon.Compiler do
 
         {_, parents} ->
           Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
-      end
-
-    {cache, op_counts} =
-      case opts[:hidden_state] do
-        state when is_tuple(state) ->
-          state
-          |> Tuple.to_list()
-          |> Enum.reduce({cache, op_counts}, &to_init_fun/2)
-
-        nil ->
-          {cache, op_counts}
       end
 
     case cache do
