@@ -1,23 +1,3 @@
-defmodule Axon.CompilerError do
-  defexception [:exception, :graph]
-
-  @impl true
-  def message(%{graph: %Axon{op: op}, exception: exception}) do
-    op_inspect =
-      if is_atom(op) do
-        Atom.to_string(op)
-      else
-        "#{inspect(op)}"
-      end
-
-    """
-    error while building prediction for #{op_inspect}:
-
-    ** (#{inspect(exception.__struct__)}) #{Exception.message(exception)}
-    """
-  end
-end
-
 defmodule Axon.Compiler do
   @moduledoc false
   require Logger
@@ -142,18 +122,14 @@ defmodule Axon.Compiler do
     {root_id, {cache, _op_counts}} = to_predict_fun(graph, {%{}, %{}}, mode)
 
     predict_fn = fn params, inputs ->
-      try do
-        case mode do
-          :train ->
-            {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
-            %{prediction: pred_expr, state: state_expr}
+      case mode do
+        :train ->
+          {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
+          %{prediction: pred_expr, state: state_expr}
 
-          :inference ->
-            {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
-            pred_expr
-        end
-      rescue
-        e -> reraise Axon.CompilerError.exception(graph: graph, exception: e), __STACKTRACE__
+        :inference ->
+          {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
+          pred_expr
       end
     end
 
@@ -174,11 +150,7 @@ defmodule Axon.Compiler do
         {id, {cache, op_counts}}
 
       %{} ->
-        try do
-          recur_predict_fun(graph, {cache, op_counts}, mode)
-        rescue
-          e -> reraise Axon.CompilerError.exception(graph: graph, exception: e), __STACKTRACE__
-        end
+        recur_predict_fun(graph, {cache, op_counts}, mode)
     end
   end
 
@@ -1155,7 +1127,7 @@ defmodule Axon.Compiler do
       cond_type = Nx.type(cond_expr)
 
       unless cond_rank == 0 and cond_type == {:u, 8} do
-        raise Axon.CompilerError,
+        raise ArgumentError,
               "cond_fn must return a scalar-boolean tensor" <>
                 " got result with rank #{inspect(cond_rank)} and" <>
                 " type #{inspect(cond_type)}"

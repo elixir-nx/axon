@@ -88,13 +88,10 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 16})
       assert {_, predict_fn} = Axon.compile(model)
 
-      exception = assert_raise Axon.CompilerError, fn -> predict_fn.(%{}, input) end
+      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
 
       assert Exception.message(exception) =~
-               "error while building prediction for input:"
-
-      assert Exception.message(exception) =~
-               "** (ArgumentError) invalid input shape given to model"
+               "invalid input shape given to model"
     end
 
     test "raises if input not found" do
@@ -102,13 +99,10 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 16})
       assert {_, predict_fn} = Axon.compile(model)
 
-      exception = assert_raise Axon.CompilerError, fn -> predict_fn.(%{}, %{foo: input}) end
+      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{foo: input}) end
 
       assert Exception.message(exception) =~
-               "error while building prediction for input:"
-
-      assert Exception.message(exception) =~
-               "** (ArgumentError) unable to find input input_0"
+               "unable to find input"
     end
   end
 
@@ -3782,7 +3776,7 @@ defmodule CompilerTest do
 
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
-      assert_raise Axon.CompilerError, ~r/error while building prediction/, fn ->
+      assert_raise ArgumentError, ~r/cond_fn must return a scalar/, fn ->
         {_, predict_fn} = Axon.compile(model)
         predict_fn.(%{}, Nx.random_uniform({1, 1, 10}))
       end
@@ -4032,32 +4026,6 @@ defmodule CompilerTest do
       assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
 
       assert_equal(Axon.predict(model2, params, input), Nx.multiply(input, kernel))
-    end
-  end
-
-  describe "layer names" do
-    test "only accepts binaries, functions or nil" do
-      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: "a_binary_name")
-
-      assert "a_binary_name" == name_fn.(op, input: 1)
-
-      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: fn op, _ -> "custom_#{op}" end)
-
-      assert "custom_#{op}" == name_fn.(op, input: 1)
-
-      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: nil)
-
-      assert "input_10" == name_fn.(op, input: 10)
-    end
-
-    @invalid_names [:atom, {"tuple"}, ["list"], 123]
-
-    test "raises on invalid names" do
-      Enum.each(@invalid_names, fn name ->
-        assert_raise ArgumentError, fn ->
-          Axon.input({nil, 1}, name: name)
-        end
-      end)
     end
   end
 end

@@ -840,4 +840,30 @@ defmodule AxonTest do
       assert d == input1
     end
   end
+
+  describe "layer names" do
+    test "only accepts binaries, functions or nil" do
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: "a_binary_name")
+
+      assert "a_binary_name" == name_fn.(op, input: 1)
+
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: fn op, _ -> "custom_#{op}" end)
+
+      assert "custom_#{op}" == name_fn.(op, input: 1)
+
+      %Axon{name: name_fn, op: op} = Axon.input({nil, 1}, name: nil)
+
+      assert "input_10" == name_fn.(op, input: 10)
+    end
+
+    @invalid_names [:atom, {"tuple"}, ["list"], 123]
+
+    test "raises on invalid names" do
+      Enum.each(@invalid_names, fn name ->
+        assert_raise ArgumentError, fn ->
+          Axon.input({nil, 1}, name: name)
+        end
+      end)
+    end
+  end
 end
