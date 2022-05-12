@@ -2,7 +2,7 @@
 
 ## Introduction
 
-ResNet, which stands for Residual Network, is a CNN which won in 2015 ILSVRC, a renowned and prestige competition for Computer Vision scientists. The winning version of ResNet has 152 layers, but all concepts stay the same with 50 layers.
+ResNet, which stands for Residual Network, is a Convolutional Neural Network (CNN) which won ILSVRC 2015. ILSVRC is a renowned and prestigious competition for Computer Vision scientists. The winning version of ResNet has 152 layers, but there are popular variants with fewer layers.
 
 The key concept introduced in ResNet is a skip connection.
 
@@ -12,9 +12,9 @@ The key concept introduced in ResNet is a skip connection.
 | :------------------------------------------------------------------: |
 | Figure 1: An example of skip connection                              |
 
-As we can see in the picture above, an input to layer l is not only output from layer l-1 but also output from l-2. In other words, a signal from l-2 skips the l-1 in one of the connections.
+As we can see in the picture above, an input to layer l is not only output from layer l-1 but also output from l-2. In other words, a signal from l-2 skips l-1 in one of the connections.
 
-The ResNet architecture has a few benefits over NN without skip connections.
+The ResNet architecture has a few benefits over neural networks without skip connections.
 
 The first one is acceleration in learning. In the beginning, all the weights of NN are almost zero. After adding skip connections at the beginning of the learning process, layers pass only the copy of the input. Layers simulate the identity function. However, if the target function is similar to the identity function (which is often the case), then learning process is dramatically sped up.
 
