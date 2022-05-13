@@ -2,6 +2,7 @@ defmodule Axon.Compiler do
   @moduledoc false
   require Logger
 
+  alias Axon.Parameter
   import Axon.Shared
 
   ## Init JIT Compilation
@@ -42,22 +43,26 @@ defmodule Axon.Compiler do
   defp to_init_fun(
          %Axon{
            id: id,
-           parent: parent,
+           inputs: inputs,
            op: op,
            name: name_fn,
-           params: params,
            policy: %{params: dtype},
            hooks: hooks
          },
          cache_and_counts
        ) do
+    {parameters, parents} = Enum.reduce(inputs, {[], []}, fn
+      %Axon{} = parent, {parameters, parents} ->
+        {parameters, [parent | parents]}
+
+      %Parameter{} = parameter, {parameters, parents} ->
+        {[parameter | parameters], parents}
+      end)
+
     {cache, op_counts} =
-      case {op, parent} do
+      case {op, parents} do
         {:container, [parent]} ->
           deep_reduce(parent, cache_and_counts, &to_init_fun/2)
-
-        {_, nil} ->
-          cache_and_counts
 
         {_, parents} when is_list(parents) ->
           Enum.reduce(parents, cache_and_counts, &to_init_fun/2)
@@ -71,11 +76,11 @@ defmodule Axon.Compiler do
         {cache, op_counts}
 
       %{} ->
-        if Enum.empty?(params) do
+        if Enum.empty?(parameters) do
           {cache, op_counts}
         else
           layer_params =
-            Enum.reduce(params, %{}, fn param, layer_params ->
+            Enum.reduce(parameters, %{}, fn param, layer_params ->
               init_param(param, layer_params, dtype)
             end)
 
@@ -93,11 +98,9 @@ defmodule Axon.Compiler do
   end
 
   defp init_param(param, layer_params, dtype) do
-    case param do
-      %{name: name, shape: shape, initializer: initializer} ->
-        fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
-        Map.put(layer_params, name, fun)
-    end
+    %{name: name, shape: shape, initializer: initializer} = param
+    fun = apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+    Map.put(layer_params, name, fun)
   end
 
   ## Model JIT Compilation
@@ -161,7 +164,7 @@ defmodule Axon.Compiler do
   end
 
   defp recur_predict_fun(
-         %Axon{id: id, op: :container, parent: [parents]},
+         %Axon{id: id, op: :container, inputs: [parents]},
          cache_and_counts,
          mode
        ) do
@@ -200,8 +203,7 @@ defmodule Axon.Compiler do
            id: id,
            name: name_fn,
            op: op,
-           parent: parents,
-           params: layer_params,
+           inputs: inputs,
            opts: opts,
            policy: %{compute: compute, output: output},
            hooks: hooks
@@ -209,53 +211,97 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        )
-       when is_function(op) or op in @axon_layers and is_list(parents) do
+       when is_function(op) or op in @axon_layers and is_list(inputs) do
+    # Get index of inputs to preserve order as processing parameters
+    # and layer inputs is different
+    ordered_inputs = Enum.with_index(inputs)
+    # Split params and parents to process differently
+    {layer_params, parents} = Enum.reduce(ordered_inputs, {[], []}, fn
+      {%Axon{} = parent, i}, {params, parents} ->
+        {params, [{parent, i} | parents]}
+
+      {%Parameter{} = parameter, i}, {params, parents} ->
+        {[{parameter, i} | params], parents}
+      end)
+    # Traverse to accumulate cache and get parent_ids for
+    # application within the function. We work only with
+    # functions and IDs to avoid leaking entire graphs into
+    # the closure
     {parent_ids, {cache, op_counts}} =
       Enum.map_reduce(
         parents,
         cache_and_counts,
-        &to_predict_fun(&1, &2, mode)
+        fn {x, i}, acc -> 
+          {out, acc} = to_predict_fun(x, acc, mode) 
+          {{out, i}, acc}
+        end
       )
-
-    {_, opts} = Keyword.pop(opts, :layer_op)
-
+    # Names are computed lazily, so compute name from current
+    # op and aggregate op_counts.
     name = name_fn.(op, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
+    # Sub-inference functions contain `params` - trainable parameters
+    # passed to `predict`, `inputs` - inputs passed to `predict`, `state` -
+    # an accumulator of layer state during the recursive building of the
+    # inference function, `cache` - the built function cache for accessing
+    # previous layer expressions, and `result_cache` - cached results to
+    # avoid recomputing expressions in combined graphs.
     fun = fn params, inputs, state, cache, result_cache ->
-      {res, {state, result_cache}} =
-        parent_ids
-        |> Enum.map_reduce({state, result_cache}, fn parent_id, {state, result_cache} ->
-          call_cache(parent_id, params, inputs, state, cache, result_cache)
+      # Recurse graph inputs and invoke cache to get parent results,
+      # state, and result_cache and then apply dtype policy and hooks
+      # to each input
+      {layer_inputs, {state, result_cache}} =
+        Enum.map_reduce(parent_ids, {state, result_cache}, fn {parent_id, i}, {state, result_cache} ->
+          {layer_input, {state, result_cache}} =
+            call_cache(parent_id, params, inputs, state, cache, result_cache)
+          layer_input =
+            layer_input
+            |> safe_as_type(compute)
+            |> apply_hooks(:pre_forward, mode, hooks)
+          {{layer_input, i}, {state, result_cache}}
         end)
 
-      inp_params =
-        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          safe_as_type(maybe_freeze(params[name][v], frz), compute)
+      # Parameters are just accessed in the layer sub-map of the nested
+      # parameter map, so we just need to extract them and then apply
+      # freezing and dtype policy
+      parameter_inputs =
+        Enum.map(layer_params, fn {%{name: v, frozen: frz}, i} ->
+          {safe_as_type(maybe_freeze(params[name][v], frz), compute), i}
         end)
 
-      inputs =
-        res
-        |> Enum.map(&safe_as_type(&1, compute))
-        |> Enum.map(&apply_hooks(&1, :pre_forward, mode, hooks))
+      # Reorder the inputs according to the original input ordering
+      # so the function is invoked correctly
+      tensor_inputs =
+        layer_inputs
+        |> Kernel.++(parameter_inputs)
+        |> Enum.sort_by(fn {_, i} -> i end, :asc)
+        |> Enum.map(&elem(&1, 0))
 
-      tensor_inputs = inputs ++ inp_params
+      # Compute arguments to be forwarded and ensure `:mode` is included
+      # for inference/training behavior dependent functions
       args = tensor_inputs ++ [Keyword.put(opts, :mode, mode)]
 
-      out =
-        args
-        |> then(fn args ->
-          case op do
-            op when is_function(op) ->
-              apply(op, args)
+      # For built-in layers we always just apply the equivalent function
+      # in Axon.Layers. The implication of this is that every function which
+      # can be invoked as a layer must have a definition in Axon.Layers even
+      # if there is a distinction (e.g. with activations)
+      result =
+        case op do
+          op when is_function(op) ->
+            apply(op, args)
 
-            op when op in @axon_layers ->
-              apply(Axon.Layers, op, args)
-          end
-        end)
+          op when op in @axon_layers ->
+            apply(Axon.Layers, op, args)
+        end
 
+      # Final stage is to extract correct output form by determining if
+      # the layer had stateful output, apply hooks, and cast back to policy
+      # dtype for outputs
+      # TODO: This works well enough for now, but we should consider something
+      # more graceful which allows for better error checking of stateful layers
       {out, state} =
-        case out do
+        case result do
           {out, state} ->
             new_out =
               out
@@ -280,128 +326,11 @@ defmodule Axon.Compiler do
     {id, {Map.put(cache, id, fun), op_counts}}
   end
 
-  ## Recurrent Layers
-
-  @recurrent_layers [:gru, :lstm, :conv_lstm]
-
-  defp recur_predict_fun(
-         %Axon{
-           id: id,
-           name: name_fn,
-           op: op,
-           parent: parents,
-           params: layer_params,
-           policy: %{compute: compute, output: output},
-           opts: opts,
-           hooks: hooks
-         },
-         cache_and_counts,
-         mode
-       )
-       when op in @recurrent_layers do
-    {[input_id, hidden_state_id], {cache, op_counts}} =
-      Enum.map_reduce(parents, cache_and_counts, &to_predict_fun(&1, &2, mode))
-
-    num_bias = if op == :conv_lstm, do: 1, else: 4
-
-    {activation, opts} = Keyword.pop(opts, :activation)
-    {gate, opts} = Keyword.pop(opts, :gate)
-    {use_bias, opts} = Keyword.pop(opts, :use_bias)
-    {unroll, conv_opts} = Keyword.pop(opts, :unroll)
-
-    name = name_fn.(op, op_counts)
-    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-
-    input_kernel = layer_params["input_kernel"]
-    hidden_kernel = layer_params["hidden_kernel"]
-
-    bias =
-      if use_bias,
-        do: layer_params["bias"],
-        else: List.to_tuple(List.duplicate(%{frozen: false}, num_bias))
-
-    input_kernel_frozen =
-      input_kernel
-      |> Tuple.to_list()
-      |> Enum.map(fn %{frozen: frz} -> frz end)
-      |> List.to_tuple()
-
-    hidden_kernel_frozen =
-      hidden_kernel
-      |> Tuple.to_list()
-      |> Enum.map(fn %{frozen: frz} -> frz end)
-      |> List.to_tuple()
-
-    bias_frozen =
-      bias
-      |> Tuple.to_list()
-      |> Enum.map(fn %{frozen: frz} -> frz end)
-      |> List.to_tuple()
-
-    fun = fn params, inputs, state, cache, result_cache ->
-      {input, {state, result_cache}} =
-        call_cache(input_id, params, inputs, state, cache, result_cache)
-
-      {hidden_state, {state, result_cache}} =
-        call_cache(hidden_state_id, params, inputs, state, cache, result_cache)
-
-      input_kernel = get_param(params, name, "input_kernel", input_kernel_frozen, compute)
-      hidden_kernel = get_param(params, name, "hidden_kernel", hidden_kernel_frozen, compute)
-
-      bias =
-        if use_bias do
-          get_param(params, name, "bias", bias_frozen, compute)
-        else
-          List.duplicate(Nx.tensor(0, type: compute), num_bias)
-          |> List.to_tuple()
-        end
-
-      input = safe_as_type(input, compute)
-      carry = deep_new(hidden_state, &safe_as_type(&1, compute))
-
-      # TODO: Should these be hooked together? Not at all?
-      {input, carry} = apply_hooks({input, carry}, :pre_forward, mode, hooks)
-
-      cell_fn = get_cell_fn(op, gate, activation, conv_opts)
-
-      {carry, out} =
-        case unroll do
-          :static ->
-            Axon.Recurrent.static_unroll(
-              cell_fn,
-              input,
-              carry,
-              input_kernel,
-              hidden_kernel,
-              bias
-            )
-
-          :dynamic ->
-            Axon.Recurrent.dynamic_unroll(
-              cell_fn,
-              input,
-              carry,
-              input_kernel,
-              hidden_kernel,
-              bias
-            )
-        end
-
-      res = {deep_new(carry, &safe_as_type(&1, output)), safe_as_type(out, output)}
-      res = apply_hooks(res, :forward, mode, hooks)
-      res = apply_hooks(res, :backward, mode, hooks)
-
-      {res, {state, result_cache}}
-    end
-
-    {id, {Map.put(cache, id, fun), op_counts}}
-  end
-
   defp recur_predict_fun(
          %Axon{
            id: id,
            op: :concatenate,
-           parent: parents,
+           inputs: parents,
            opts: [axis: axis],
            policy: %{compute: compute, output: output},
            hooks: hooks
@@ -536,39 +465,6 @@ defmodule Axon.Compiler do
         expr
       end
     end)
-  end
-
-  defp get_cell_fn(op, gate, activation, conv_opts) do
-    case op do
-      :lstm ->
-        gate_fn = &apply(Axon.Activations, gate, [&1])
-        activation_fn = &apply(Axon.Activations, activation, [&1])
-        &Axon.Recurrent.lstm_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn)
-
-      :gru ->
-        gate_fn = &apply(Axon.Activations, gate, [&1])
-        activation_fn = &apply(Axon.Activations, activation, [&1])
-        &Axon.Recurrent.gru_cell(&1, &2, &3, &4, &5, gate_fn, activation_fn)
-
-      :conv_lstm ->
-        &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, conv_opts)
-    end
-  end
-
-  defp get_param(params, layer_name, param_name, frozen?, type) do
-    case params[layer_name][param_name] do
-      tuple when is_tuple(tuple) ->
-        tuple
-        |> Tuple.to_list()
-        |> Enum.zip_with(Tuple.to_list(frozen?), &maybe_freeze/2)
-        |> List.to_tuple()
-        |> safe_as_type(type)
-
-      param ->
-        param
-        |> maybe_freeze(frozen?)
-        |> safe_as_type(type)
-    end
   end
 
   defp safe_as_type(container_or_tensor, type) do

@@ -25,10 +25,10 @@ defmodule MixedPrecisionTest do
 
       assert %Axon{
                op: :dense,
-               parent: [
+               inputs: [
                  %Axon{
                    op: :batch_norm,
-                   parent: [%Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}}],
+                   inputs: [%Axon{op: :dense, policy: %Policy{compute: {:bf, 16}}}],
                    policy: %Policy{compute: {:f, 32}}
                  }
                ],
