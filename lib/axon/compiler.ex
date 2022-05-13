@@ -181,19 +181,19 @@ defmodule Axon.Compiler do
 
   ## Custom Layers
 
-  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                       [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
-                       [:log_softmax]
-
   @axon_layers [:dense, :bilinear, :conv, :depthwise_conv, :conv_transpose] ++
                    [:separable_conv2d, :separable_conv3d, :embedding, :bias] ++
                    [:max_pool, :avg_pool, :adaptive_avg_pool] ++
                    [:adaptive_max_pool, :adaptive_lp_pool, :lp_pool] ++
                    [:global_lp_pool, :global_max_pool, :global_avg_pool] ++
-                   [:layer_norm, :group_norm] ++
+                   [:batch_norm, :instance_norm, :layer_norm, :group_norm] ++
                    [:resize, :flatten, :reshape, :transpose, :pad] ++
-                   [:dropout, :spatial_dropout, :alpha_dropout, :feature_alpha_dropout]
+                   [:dropout, :spatial_dropout, :alpha_dropout, :feature_alpha_dropout] ++
+                   [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                   [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
+                   [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                   [:log_softmax] ++
+                   [:cond, :add, :multiply, :subtract]
 
   defp recur_predict_fun(
          %Axon{
@@ -209,7 +209,7 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        )
-       when is_function(op) or op in @activation_layers or op in @axon_layers and is_list(parents) do
+       when is_function(op) or op in @axon_layers and is_list(parents) do
     {parent_ids, {cache, op_counts}} =
       Enum.map_reduce(
         parents,
@@ -249,99 +249,32 @@ defmodule Axon.Compiler do
             op when is_function(op) ->
               apply(op, args)
 
-            op when op in @activation_layers ->
-              fun = fn
-                x, [mode: _] ->
-                  apply(Axon.Activations, op, [x])
-
-                x, opts ->
-                  apply(Axon.Activations, op, [x] ++ [Keyword.delete(opts, :mode)])
-              end 
-
-              apply(fun, args)
-
             op when op in @axon_layers ->
               apply(Axon.Layers, op, args)
           end
         end)
-        |> apply_hooks(:forward, mode, hooks)
-        |> apply_hooks(:backward, mode, hooks)
-        |> safe_as_type(output)
+
+      {out, state} =
+        case out do
+          {out, state} ->
+            new_out =
+              out
+              |> apply_hooks(:forward, mode, hooks)
+              |> apply_hooks(:backward, mode, hooks)
+              |> safe_as_type(output)
+            new_state = Map.put(state, name, state)
+            {new_out, new_state}
+
+          out ->
+            new_out =
+              out
+              |> apply_hooks(:forward, mode, hooks)
+              |> apply_hooks(:backward, mode, hooks)
+              |> safe_as_type(output)
+            {new_out, state}
+        end
 
       {out, {state, result_cache}}
-    end
-
-    {id, {Map.put(cache, id, fun), op_counts}}
-  end
-
-  ## Normalization Layers
-
-  @normalization_with_stats [:batch_norm, :instance_norm]
-
-  defp recur_predict_fun(
-         %Axon{
-           id: id,
-           name: name_fn,
-           op: op,
-           parent: [parent],
-           opts: [epsilon: epsilon, channel_index: channel_index, momentum: momentum],
-           params: layer_params,
-           policy: %{compute: compute, output: output},
-           hooks: hooks
-         },
-         cache_and_counts,
-         mode
-       )
-       when op in @normalization_with_stats do
-    {parent_id, {cache, op_counts}} = to_predict_fun(parent, cache_and_counts, mode)
-
-    name = name_fn.(op, op_counts)
-    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-
-    norm_opts = [
-      epsilon: epsilon,
-      channel_index: channel_index,
-      momentum: momentum,
-      mode: mode
-    ]
-
-    fun = fn params, inputs, state, cache, result_cache ->
-      {inputs, {state, result_cache}} =
-        call_cache(parent_id, params, inputs, state, cache, result_cache)
-
-      [g, b, mean, var] =
-        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          safe_as_type(maybe_freeze(params[name][v], frz), compute)
-        end)
-
-      case mode do
-        :train ->
-          {out, ra_mean, ra_var} =
-            inputs
-            |> safe_as_type(compute)
-            |> apply_hooks(:pre_forward, :train, hooks)
-            |> then(&apply(Axon.Layers, op, [&1, g, b, mean, var, norm_opts]))
-            |> then(fn {y, m, v} -> {safe_as_type(y, output), m, v} end)
-            |> apply_hooks(:forward, :train, hooks)
-            |> apply_hooks(:backward, :train, hooks)
-
-          res = safe_as_type(out, output)
-          state = Map.put(state, name, %{"mean" => ra_mean, "var" => ra_var})
-
-          {res, {state, result_cache}}
-
-        :inference ->
-          res =
-            inputs
-            |> safe_as_type(compute)
-            |> apply_hooks(:pre_forward, :inference, hooks)
-            |> then(&apply(Axon.Layers, op, [&1, g, b, mean, var, norm_opts]))
-            |> safe_as_type(output)
-            |> apply_hooks(:forward, :inference, hooks)
-            |> apply_hooks(:backward, :inference, hooks)
-
-          {res, {state, result_cache}}
-      end
     end
 
     {id, {Map.put(cache, id, fun), op_counts}}
@@ -464,57 +397,6 @@ defmodule Axon.Compiler do
     {id, {Map.put(cache, id, fun), op_counts}}
   end
 
-  @element_wise_layers [:add, :subtract, :multiply]
-
-  defp recur_predict_fun(
-         %Axon{
-           id: id,
-           op: op,
-           parent: parents,
-           policy: %{compute: compute, output: output},
-           hooks: hooks
-         },
-         cache_and_counts,
-         mode
-       )
-       when op in @element_wise_layers do
-    {parent_ids, {cache, op_counts}} =
-      Enum.map_reduce(
-        parents,
-        cache_and_counts,
-        &to_predict_fun(&1, &2, mode)
-      )
-
-    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-
-    fun = fn params, inputs, state, cache, result_cache ->
-      {[expr | exprs], {state, result_cache}} =
-        Enum.map_reduce(parent_ids, {state, result_cache}, fn parent_id, {state, result_cache} ->
-          call_cache(parent_id, params, inputs, state, cache, result_cache)
-        end)
-
-      [expr | exprs] =
-        [expr | exprs]
-        |> List.to_tuple()
-        |> apply_hooks(:pre_forward, mode, hooks)
-        |> Tuple.to_list()
-
-      res =
-        Enum.reduce(exprs, expr, fn next_expr, acc ->
-          input = safe_as_type(next_expr, compute)
-          acc = safe_as_type(acc, compute)
-          safe_as_type(apply(Nx, op, [acc, input]), output)
-        end)
-
-      res = apply_hooks(res, :forward, mode, hooks)
-      res = apply_hooks(res, :backward, mode, hooks)
-
-      {res, {state, result_cache}}
-    end
-
-    {id, {Map.put(cache, id, fun), op_counts}}
-  end
-
   defp recur_predict_fun(
          %Axon{
            id: id,
@@ -557,67 +439,6 @@ defmodule Axon.Compiler do
         |> apply_hooks(:forward, mode, hooks)
         |> apply_hooks(:backward, mode, hooks)
 
-      {res, {state, result_cache}}
-    end
-
-    {id, {Map.put(cache, id, fun), op_counts}}
-  end
-
-  defp recur_predict_fun(
-         %Axon{
-           id: id,
-           op: :cond,
-           parent: parents,
-           opts: [cond: cond_fn],
-           policy: %{compute: compute, output: output},
-           hooks: hooks
-         },
-         cache_and_counts,
-         mode
-       ) do
-    {parent_ids, {cache, op_counts}} =
-      Enum.map_reduce(
-        parents,
-        cache_and_counts,
-        &to_predict_fun(&1, &2, mode)
-      )
-
-    op_counts = Map.update(op_counts, :cond, 1, fn x -> x + 1 end)
-
-    fun = fn params, inputs, state, cache, result_cache ->
-      {exprs, {state, result_cache}} =
-        Enum.map_reduce(parent_ids, {state, result_cache}, fn parent_id, {state, result_cache} ->
-          call_cache(parent_id, params, inputs, state, cache, result_cache)
-        end)
-
-      [cond_input_expr, true_expr, false_expr] = exprs
-
-      cond_expr = cond_fn.(cond_input_expr)
-      cond_rank = Nx.rank(cond_expr)
-      cond_type = Nx.type(cond_expr)
-
-      unless cond_rank == 0 and cond_type == {:u, 8} do
-        raise ArgumentError,
-              "cond_fn must return a scalar-boolean tensor" <>
-                " got result with rank #{inspect(cond_rank)} and" <>
-                " type #{inspect(cond_type)}"
-      end
-
-      {cond_expr, on_true, on_false} =
-        [cond_expr, true_expr, false_expr]
-        |> List.to_tuple()
-        |> apply_hooks(:pre_forward, mode, hooks)
-
-      res =
-        Axon.Layers.cond(
-          Nx.all(cond_expr),
-          safe_as_type(on_true, compute),
-          safe_as_type(on_false, compute)
-        )
-
-      res = safe_as_type(res, output)
-      res = apply_hooks(res, :forward, mode, hooks)
-      res = apply_hooks(res, :backward, mode, hooks)
       {res, {state, result_cache}}
     end
 

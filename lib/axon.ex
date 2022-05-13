@@ -1659,7 +1659,7 @@ defmodule Axon do
     @doc type: :composition
     def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
       output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
-      layer([x, y], unquote(op), [], opts[:name], shape: output_shape)
+      layer(container({x, y}), unquote(op), [], opts[:name], shape: output_shape)
     end
 
     @doc """
@@ -1683,7 +1683,7 @@ defmodule Axon do
         end)
 
       output_shape = Axon.Shape.element_wise(shapes)
-      layer(inputs, unquote(op), [], opts[:name], shape: output_shape)
+      layer(container(List.to_tuple(inputs)), unquote(op), [], opts[:name], shape: output_shape)
     end
 
     @doc false

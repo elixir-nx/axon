@@ -1229,7 +1229,9 @@ defmodule Axon.Layers do
         {x, g, b, m, v, axes, eps, alpha, true} ->
           {new_mean, new_var} = mean_and_variance(x, axes: axes)
           out = normalize(x, new_mean, new_var, g, b, epsilon: eps)
-          {out, update_ema(new_mean, m, alpha), update_ema(new_var, v, alpha)}
+          ra_mean = update_ema(new_mean, m, alpha)
+          ra_var = update_ema(new_var, v, alpha)
+          {out, %{"ra_mean" => ra_mean, "ra_var" => ra_var}}
 
         {x, g, b, m, v, _, eps, _, _} ->
           normalize(x, m, v, g, b, epsilon: eps)
@@ -1960,7 +1962,24 @@ defmodule Axon.Layers do
   @doc false
   # Internal helper for constructing conditional layers without
   # needing to use the if-macros in Axon.Compiler
-  defn cond(cond_expr, on_true_expr, on_false_expr) do
+  defn cond(cond_input_expr, on_true_expr, on_false_expr, opts \\ []) do
+    opts = keyword!(opts, [:cond, mode: :inference])
+    cond_expr = opts[:cond].(cond_input_expr)
+
+    transform(cond_expr, fn cond_expr ->
+      cond_rank = Nx.rank(cond_expr)
+      cond_type = Nx.type(cond_expr)
+      unless Elixir.Kernel.and(
+          Elixir.Kernel.==(cond_rank, 0),
+          Elixir.Kernel.==(cond_type, {:u, 8})
+        ) do
+        raise ArgumentError,
+              "cond_fn must return a scalar-boolean tensor" <>
+                " got result with rank #{inspect(cond_rank)} and" <>
+                " type #{inspect(cond_type)}"
+      end
+    end)
+
     if cond_expr do
       on_true_expr
     else
@@ -2304,5 +2323,35 @@ defmodule Axon.Layers do
     w_prev = Nx.broadcast(w_prev, Nx.shape(val_prev), axes: [spatial_dimension])
     w_next = Nx.broadcast(w_next, Nx.shape(val_next), axes: [spatial_dimension])
     Nx.add(Nx.multiply(w_prev, val_prev), Nx.multiply(w_next, val_next))
+  end
+
+  # Private Axon.Layers implementation of activations for the compiler
+  # to use when invoking activation layers.
+  @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                     [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
+                     [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                     [:log_softmax]
+
+  for activation <- @activation_layers do
+    @doc false
+    def unquote(activation)(input, _opts \\ []) do
+      apply(Axon.Activations, unquote(activation), [input])
+    end
+  end
+
+  # Private combinator implementations that expect variable
+  # arguments
+  @doc false
+  @element_wise_layers [:add, :subtract, :multiply]
+
+  for op <- @element_wise_layers do
+    defn unquote(op)(inputs, opts \\ []) do
+      transform(inputs, fn inputs ->
+        [first | rest] = Tuple.to_list(inputs)
+        Enum.reduce(rest, first, fn next, acc ->
+          apply(Nx, unquote(op), [acc, next])
+        end)
+      end)
+    end
   end
 end
