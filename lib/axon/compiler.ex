@@ -2,7 +2,6 @@ defmodule Axon.Compiler do
   @moduledoc false
   require Logger
 
-  alias Axon.Parameter
   import Axon.Shared
 
   ## Init JIT Compilation
@@ -43,7 +42,8 @@ defmodule Axon.Compiler do
   defp to_init_fun(
          %Axon{
            id: id,
-           inputs: inputs,
+           parent: parents,
+           parameters: parameters,
            op: op,
            name: name_fn,
            policy: %{params: dtype},
@@ -51,14 +51,6 @@ defmodule Axon.Compiler do
          },
          cache_and_counts
        ) do
-    {parameters, parents} = Enum.reduce(inputs, {[], []}, fn
-      %Axon{} = parent, {parameters, parents} ->
-        {parameters, [parent | parents]}
-
-      %Parameter{} = parameter, {parameters, parents} ->
-        {[parameter | parameters], parents}
-      end)
-
     {cache, op_counts} =
       case {op, parents} do
         {:container, [parent]} ->
@@ -164,7 +156,7 @@ defmodule Axon.Compiler do
   end
 
   defp recur_predict_fun(
-         %Axon{id: id, op: :container, inputs: [parents]},
+         %Axon{id: id, op: :container, parent: [parents]},
          cache_and_counts,
          mode
        ) do
@@ -185,25 +177,27 @@ defmodule Axon.Compiler do
   ## Custom Layers
 
   @axon_layers [:dense, :bilinear, :conv, :depthwise_conv, :conv_transpose] ++
-                   [:separable_conv2d, :separable_conv3d, :embedding, :bias] ++
-                   [:max_pool, :avg_pool, :adaptive_avg_pool] ++
-                   [:adaptive_max_pool, :adaptive_lp_pool, :lp_pool] ++
-                   [:global_lp_pool, :global_max_pool, :global_avg_pool] ++
-                   [:batch_norm, :instance_norm, :layer_norm, :group_norm] ++
-                   [:resize, :flatten, :reshape, :transpose, :pad] ++
-                   [:dropout, :spatial_dropout, :alpha_dropout, :feature_alpha_dropout] ++
-                   [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                   [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                   [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
-                   [:log_softmax] ++
-                   [:cond, :add, :multiply, :subtract]
+                 [:separable_conv2d, :separable_conv3d, :embedding, :bias] ++
+                 [:max_pool, :avg_pool, :adaptive_avg_pool] ++
+                 [:adaptive_max_pool, :adaptive_lp_pool, :lp_pool] ++
+                 [:global_lp_pool, :global_max_pool, :global_avg_pool] ++
+                 [:batch_norm, :instance_norm, :layer_norm, :group_norm] ++
+                 [:resize, :flatten, :reshape, :transpose, :pad] ++
+                 [:dropout, :spatial_dropout, :alpha_dropout, :feature_alpha_dropout] ++
+                 [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
+                 [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
+                 [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                 [:log_softmax] ++
+                 [:cond, :add, :multiply, :subtract]
 
   defp recur_predict_fun(
          %Axon{
            id: id,
            name: name_fn,
            op: op,
-           inputs: inputs,
+           parent: inputs,
+           parameters: layer_params,
+           args: args,
            opts: opts,
            policy: %{compute: compute, output: output},
            hooks: hooks
@@ -211,31 +205,18 @@ defmodule Axon.Compiler do
          cache_and_counts,
          mode
        )
-       when is_function(op) or op in @axon_layers and is_list(inputs) do
-    # Get index of inputs to preserve order as processing parameters
-    # and layer inputs is different
-    ordered_inputs = Enum.with_index(inputs)
-    # Split params and parents to process differently
-    {layer_params, parents} = Enum.reduce(ordered_inputs, {[], []}, fn
-      {%Axon{} = parent, i}, {params, parents} ->
-        {params, [{parent, i} | parents]}
-
-      {%Parameter{} = parameter, i}, {params, parents} ->
-        {[{parameter, i} | params], parents}
-      end)
+       when is_function(op) or (op in @axon_layers and is_list(inputs)) do
     # Traverse to accumulate cache and get parent_ids for
     # application within the function. We work only with
     # functions and IDs to avoid leaking entire graphs into
     # the closure
     {parent_ids, {cache, op_counts}} =
       Enum.map_reduce(
-        parents,
+        inputs,
         cache_and_counts,
-        fn {x, i}, acc -> 
-          {out, acc} = to_predict_fun(x, acc, mode) 
-          {{out, i}, acc}
-        end
+        &to_predict_fun(&1, &2, mode)
       )
+
     # Names are computed lazily, so compute name from current
     # op and aggregate op_counts.
     name = name_fn.(op, op_counts)
@@ -252,35 +233,40 @@ defmodule Axon.Compiler do
       # state, and result_cache and then apply dtype policy and hooks
       # to each input
       {layer_inputs, {state, result_cache}} =
-        Enum.map_reduce(parent_ids, {state, result_cache}, fn {parent_id, i}, {state, result_cache} ->
+        Enum.map_reduce(parent_ids, {state, result_cache}, fn parent_id, {state, result_cache} ->
           {layer_input, {state, result_cache}} =
             call_cache(parent_id, params, inputs, state, cache, result_cache)
+
           layer_input =
             layer_input
             |> safe_as_type(compute)
             |> apply_hooks(:pre_forward, mode, hooks)
-          {{layer_input, i}, {state, result_cache}}
+
+          {layer_input, {state, result_cache}}
         end)
 
       # Parameters are just accessed in the layer sub-map of the nested
       # parameter map, so we just need to extract them and then apply
       # freezing and dtype policy
       parameter_inputs =
-        Enum.map(layer_params, fn {%{name: v, frozen: frz}, i} ->
-          {safe_as_type(maybe_freeze(params[name][v], frz), compute), i}
+        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
+          safe_as_type(maybe_freeze(params[name][v], frz), compute)
         end)
 
       # Reorder the inputs according to the original input ordering
       # so the function is invoked correctly
-      tensor_inputs =
-        layer_inputs
-        |> Kernel.++(parameter_inputs)
-        |> Enum.sort_by(fn {_, i} -> i end, :asc)
-        |> Enum.map(&elem(&1, 0))
+      {[], [], tensor_inputs} =
+        Enum.reduce(args, {layer_inputs, parameter_inputs, []}, fn
+          :layer, {[layer | rest], parameters, inputs} ->
+            {rest, parameters, [layer | inputs]}
+
+          :parameter, {layer_inputs, [param | rest], inputs} ->
+            {layer_inputs, rest, [param | inputs]}
+        end)
 
       # Compute arguments to be forwarded and ensure `:mode` is included
       # for inference/training behavior dependent functions
-      args = tensor_inputs ++ [Keyword.put(opts, :mode, mode)]
+      args = Enum.reverse(tensor_inputs) ++ [Keyword.put(opts, :mode, mode)]
 
       # For built-in layers we always just apply the equivalent function
       # in Axon.Layers. The implication of this is that every function which
@@ -308,6 +294,7 @@ defmodule Axon.Compiler do
               |> apply_hooks(:forward, mode, hooks)
               |> apply_hooks(:backward, mode, hooks)
               |> safe_as_type(output)
+
             new_state = Map.put(state, name, state)
             {new_out, new_state}
 
@@ -317,6 +304,7 @@ defmodule Axon.Compiler do
               |> apply_hooks(:forward, mode, hooks)
               |> apply_hooks(:backward, mode, hooks)
               |> safe_as_type(output)
+
             {new_out, state}
         end
 
@@ -330,7 +318,7 @@ defmodule Axon.Compiler do
          %Axon{
            id: id,
            op: :concatenate,
-           inputs: parents,
+           parent: parents,
            opts: [axis: axis],
            policy: %{compute: compute, output: output},
            hooks: hooks

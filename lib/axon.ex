@@ -90,9 +90,9 @@ defmodule Axon do
   @derive {
     Nx.Container,
     containers: [],
-    keep: [:id, :name, :output_shape, :inputs, :op, :policy, :hooks, :opts]
+    keep: [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts]
   }
-  defstruct [:id, :name, :output_shape, :inputs, :op, :policy, :hooks, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts]
 
   @doc """
   Custom Axon layer with given inputs.
@@ -105,7 +105,7 @@ defmodule Axon do
 
     * `:shape` - Specify layer output shape to bypass shape inference.
     * `:name` - Layer name.
-  
+
   Note this means your layer should not use these as input options,
   as they will always be dropped during inference compilation.
 
@@ -122,8 +122,26 @@ defmodule Axon do
       end
   """
   @doc type: :special
-  def layer(op, inputs, opts \\ []) when is_atom(op) or is_function(op) and is_list(inputs) do
+  def layer(op, inputs, opts \\ []) when is_atom(op) or (is_function(op) and is_list(inputs)) do
+    {inputs, params, args, input_shapes} =
+      Enum.reduce(inputs, {[], [], [], []}, fn
+        %Axon{output_shape: shape} = layer, {layers, params, args, shapes} ->
+          {[layer | layers], params, [:layer | args], [shape | shapes]}
+
+        %Parameter{shape: shape} = param, {layers, params, args, shapes} ->
+          {layers, [param | params], [:parameter | args], [shape | shapes]}
+
+        invalid, _ ->
+          raise ArgumentError, "invalid input given to layer: #{inspect(invalid)}"
+      end)
+
+    inputs = Enum.reverse(inputs)
+    params = Enum.reverse(params)
+    args = Enum.reverse(args)
+    input_shapes = Enum.reverse(input_shapes)
+
     {name, opts} = Keyword.pop(opts, :name)
+
     {shape, opts} =
       if op in [:reshape, :resize] do
         {opts[:shape], opts}
@@ -140,13 +158,6 @@ defmodule Axon do
         shape
       else
         # TODO: This does not properly handle containers
-        input_shapes = Enum.map(inputs, fn
-          %{output_shape: shape} ->
-            shape
-
-          %{shape: shape} ->
-            shape
-        end)
         infer_shape(input_shapes, op, opts)
       end
 
@@ -154,7 +165,9 @@ defmodule Axon do
       id: id,
       name: name,
       output_shape: output_shape,
-      inputs: inputs,
+      parent: inputs,
+      parameters: params,
+      args: args,
       op: op,
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
@@ -339,7 +352,7 @@ defmodule Axon do
         shape
       end)
 
-    layer(:container, container, name: opts[:name], shape: output_shape)
+    layer(:container, [container], name: opts[:name], shape: output_shape)
   end
 
   # TODO: This should not be duplicated
@@ -1035,12 +1048,12 @@ defmodule Axon do
 
   def activation(%Axon{output_shape: shape} = x, activation, opts) when is_atom(activation) do
     opts = [shape: shape] ++ opts
-    layer([x], activation, opts)
+    layer(activation, [x], opts)
   end
 
   def activation(%Axon{output_shape: shape} = x, activation, opts)
       when is_function(activation, 1) do
-    layer([x], activation, [shape: shape] ++ opts)
+    layer(activation, [x], [shape: shape] ++ opts)
   end
 
   ## Activation
@@ -1229,7 +1242,14 @@ defmodule Axon do
     opts =
       if pool == :adaptive_lp_pool do
         norm = opts[:norm] || 2
-        [name: name, output_size: output_size, norm: norm, channels: channels, shape: output_shape]
+
+        [
+          name: name,
+          output_size: output_size,
+          norm: norm,
+          channels: channels,
+          shape: output_shape
+        ]
       else
         [name: name, output_size: output_size, channels: channels, shape: output_shape]
       end
@@ -1575,7 +1595,7 @@ defmodule Axon do
     channels = opts[:channels] || :first
     output_shape = Axon.Shape.resize(shape, resize_shape, channels)
 
-    layer(:resize, [x], 
+    layer(:resize, [x],
       name: opts[:name],
       method: method,
       channels: channels,
@@ -1641,7 +1661,7 @@ defmodule Axon do
     @doc type: :composition
     def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
       output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
-      layer(unquote(op), container({x, y}), name: opts[:name], shape: output_shape)
+      layer(unquote(op), [container({x, y})], name: opts[:name], shape: output_shape)
     end
 
     @doc """
@@ -1665,7 +1685,11 @@ defmodule Axon do
         end)
 
       output_shape = Axon.Shape.element_wise(shapes)
-      layer(unquote(op), container(List.to_tuple(inputs)), name: opts[:name], shape: output_shape)
+
+      layer(unquote(op), [container(List.to_tuple(inputs))],
+        name: opts[:name],
+        shape: output_shape
+      )
     end
 
     @doc false
@@ -2303,7 +2327,7 @@ defmodule Axon do
 
     shape = Axon.Shape.rnn_hidden_state(shape, units, rnn_type)
 
-    fun = fn inputs, _ ->
+    fun = fn inputs, _opts ->
       shape = put_elem(shape, 0, elem(Nx.shape(inputs), 0))
 
       case initializer do
@@ -2315,7 +2339,7 @@ defmodule Axon do
       end
     end
 
-    layer(fun, [], name: name, layer_op: :recurrent_state)
+    layer(fun, [x], name: name, layer_op: :recurrent_state)
   end
 
   @doc """
@@ -2388,17 +2412,17 @@ defmodule Axon do
   """
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
     parameters =
-      tree_reduce(model, MapSet.new(), fn %Axon{inputs: inputs}, acc ->
-        Enum.reduce(inputs, acc, fn param, acc ->
+      tree_reduce(model, MapSet.new(), fn %Axon{parameters: params}, acc ->
+        Enum.reduce(params, acc, fn param, acc ->
           MapSet.put(acc, param)
         end)
       end)
 
     parameters_to_freeze = fun.(Enum.to_list(parameters))
 
-    tree_map(model, fn %Axon{inputs: inputs} = axon ->
+    tree_map(model, fn %Axon{parameters: params} = axon ->
       frozen_params =
-        Enum.map(inputs, fn %{name: param_name} = v ->
+        Enum.map(params, fn %{name: param_name} = v ->
           if Enum.any?(parameters_to_freeze, fn %{name: name} -> name == param_name end) do
             %{v | frozen: true}
           else
@@ -2406,7 +2430,7 @@ defmodule Axon do
           end
         end)
 
-      %{axon | inputs: frozen_params}
+      %{axon | parent: frozen_params}
     end)
   end
 
@@ -2468,54 +2492,16 @@ defmodule Axon do
   @doc """
   Traverses a model tree applying `fun` to each layer.
   """
-  def tree_map(%Axon{op: op} = axon, fun)
-      when is_function(fun, 1) and op in [:input, :constant] do
-    fun.(axon)
-  end
-
-  def tree_map(%Axon{inputs: x} = axon, fun) when is_list(x) do
+  def tree_map(%Axon{parent: x} = axon, fun) when is_list(x) do
     x = Enum.map(x, &tree_map(&1, fun))
-    %{fun.(axon) | inputs: x}
-  end
-
-  def tree_map(%Axon{inputs: x, opts: opts} = axon, fun) do
-    opts =
-      case opts[:hidden_state] do
-        %Axon{} = hidden_state ->
-          hidden_state = tree_map(hidden_state, fun)
-          Keyword.replace(opts, :hidden_state, hidden_state)
-
-        nil ->
-          opts
-      end
-
-    x = tree_map(x, fun)
-    %{fun.(axon) | inputs: x, opts: opts}
+    %{fun.(axon) | parent: x}
   end
 
   @doc """
   Traverses a model applying `fun` with an accumulator.
   """
-  def tree_reduce(%Axon{op: op} = axon, acc, fun)
-      when is_function(fun, 2) and op in [:input, :constant] do
-    fun.(axon, acc)
-  end
-
-  def tree_reduce(%Axon{inputs: x} = axon, acc, fun) when is_list(x) do
+  def tree_reduce(%Axon{parent: x} = axon, acc, fun) when is_list(x) do
     Enum.reduce(x, fun.(axon, acc), &tree_reduce(&1, &2, fun))
-  end
-
-  def tree_reduce(%Axon{inputs: x, opts: opts} = axon, acc, fun) do
-    acc =
-      case opts[:hidden_state] do
-        %Axon{} = hidden_state ->
-          tree_reduce(hidden_state, acc, fun)
-
-        nil ->
-          acc
-      end
-
-    tree_reduce(x, fun.(axon, acc), fun)
   end
 
   ## Utilities
@@ -2656,7 +2642,7 @@ defmodule Axon do
     defp do_axon_to_rows(
            %Axon{
              op: :container,
-             inputs: [parents],
+             parent: [parents],
              name: name_fn,
              output_shape: shape,
              policy: policy
@@ -2689,7 +2675,8 @@ defmodule Axon do
     defp do_axon_to_rows(
            %Axon{
              op: op,
-             inputs: parents,
+             parent: parents,
+             parameters: params,
              name: name_fn,
              output_shape: shape,
              policy: %{params: {_, bitsize}} = policy,
@@ -2698,22 +2685,6 @@ defmodule Axon do
            cache,
            op_counts
          ) do
-      {params, parents} =
-        if parents do
-          Enum.reduce(parents, {[], []}, fn
-            %Axon{} = parent, {params, parents} ->
-              {params, [parent | parents]}
-
-            %Parameter{} = parameter, {params, parents} ->
-              {[parameter | params], parents}
-          end)
-        else
-          {[], nil}
-        end
-
-      params = Enum.reverse(params)
-      parents = Enum.reverse(parents)
-
       {input_names, {cache, op_counts}} =
         if parents do
           Enum.map_reduce(parents, {cache, op_counts}, fn
@@ -2797,26 +2768,16 @@ defmodule Axon do
     :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
 
-  defp axon_to_map(%Parameter{} = parameter) do
-    Map.from_struct(parameter) |> Map.put(:axon, :parameter)    
-  end
-
-  defp axon_to_map(%Axon{inputs: nil} = model) do
-    model
-    |> Map.from_struct()
-    |> Map.put(:axon, :axon)
-  end
-
-  defp axon_to_map(%Axon{op: :container, inputs: [parents]} = model) do
+  defp axon_to_map(%Axon{op: :container, parent: [parents]} = model) do
     parents = deep_new(parents, &axon_to_map/1)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | inputs: List.wrap(parents)}
+    %{axon_map | parent: List.wrap(parents)}
   end
 
-  defp axon_to_map(%Axon{inputs: parents} = model) do
+  defp axon_to_map(%Axon{parent: parents} = model) do
     parents = Enum.map(parents, &axon_to_map/1)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | inputs: parents}
+    %{axon_map | parent: parents}
   end
 
   @doc """
@@ -2846,28 +2807,17 @@ defmodule Axon do
     {model, params}
   end
 
-  defp map_to_axon(%{inputs: nil} = model) do
-    model
-    |> Map.drop([:axon])
-    |> then(&struct(__MODULE__, &1))
-  end
-
-  defp map_to_axon(%{op: :container, inputs: [parents]} = model) do
+  defp map_to_axon(%{op: :container, parent: [parents]} = model) do
     parents = deep_new(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
-    model = %{model | inputs: List.wrap(parents)}
+    model = %{model | parent: List.wrap(parents)}
     struct(__MODULE__, model)
   end
 
-  defp map_to_axon(%{axon: :parameter} = parameter) do
-    parameter = Map.drop(parameter, [:axon])
-    struct(Parameter, parameter)    
-  end
-
-  defp map_to_axon(%{axon: :axon, inputs: parents} = model) do
+  defp map_to_axon(%{axon: :axon, parent: parents} = model) do
     parents = Enum.map(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
-    model = %{model | inputs: parents}
+    model = %{model | parent: parents}
     struct(__MODULE__, model)
   end
 

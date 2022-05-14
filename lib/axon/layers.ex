@@ -813,7 +813,14 @@ defmodule Axon.Layers do
     opts =
       keyword!(
         opts,
-        [:kernel_size, strides: nil, padding: :valid, window_dilations: 1, channels: :first, mode: :inference]
+        [
+          :kernel_size,
+          strides: nil,
+          padding: :valid,
+          window_dilations: 1,
+          channels: :first,
+          mode: :inference
+        ]
       )
 
     window_dimensions =
@@ -1190,10 +1197,11 @@ defmodule Axon.Layers do
   defn batch_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
 
-    training? = transform(opts[:mode], fn
-      :inference -> false
-      :train -> true
-    end)
+    training? =
+      transform(opts[:mode], fn
+        :inference -> false
+        :train -> true
+      end)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1223,8 +1231,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
-       training?},
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum], training?},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
           {new_mean, new_var} = mean_and_variance(x, axes: axes)
@@ -1387,10 +1394,11 @@ defmodule Axon.Layers do
   defn instance_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
     opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
 
-    training? = transform(opts[:mode], fn
-      :inference -> false
-      :train -> true
-    end)
+    training? =
+      transform(opts[:mode], fn
+        :inference -> false
+        :train -> true
+      end)
 
     axes =
       transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
@@ -1420,8 +1428,7 @@ defmodule Axon.Layers do
       )
 
     transform(
-      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum],
-       training?},
+      {input, gamma, beta, ra_mean, ra_var, axes, opts[:epsilon], opts[:momentum], training?},
       fn
         {x, g, b, m, v, axes, eps, alpha, true} ->
           {new_mean, new_var} = mean_and_variance(x, axes: axes)
@@ -1969,10 +1976,11 @@ defmodule Axon.Layers do
     transform(cond_expr, fn cond_expr ->
       cond_rank = Nx.rank(cond_expr)
       cond_type = Nx.type(cond_expr)
+
       unless Elixir.Kernel.and(
-          Elixir.Kernel.==(cond_rank, 0),
-          Elixir.Kernel.==(cond_type, {:u, 8})
-        ) do
+               Elixir.Kernel.==(cond_rank, 0),
+               Elixir.Kernel.==(cond_type, {:u, 8})
+             ) do
         raise ArgumentError,
               "cond_fn must return a scalar-boolean tensor" <>
                 " got result with rank #{inspect(cond_rank)} and" <>
@@ -2067,7 +2075,14 @@ defmodule Axon.Layers do
   defn resize(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.resize", "input", input, 3)
 
-    opts = keyword!(opts, [:shape, method: :nearest, channels: :first, align_corners: false, mode: :inference])
+    opts =
+      keyword!(opts, [
+        :shape,
+        method: :nearest,
+        channels: :first,
+        align_corners: false,
+        mode: :inference
+      ])
 
     output_shape = opts[:shape]
 
@@ -2328,9 +2343,9 @@ defmodule Axon.Layers do
   # Private Axon.Layers implementation of activations for the compiler
   # to use when invoking activation layers.
   @activation_layers [:celu, :elu, :exp, :gelu, :hard_sigmoid, :hard_silu, :hard_tanh] ++
-                     [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
-                     [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
-                     [:log_softmax]
+                       [:leaky_relu, :linear, :log_sigmoid, :mish, :relu, :relu6] ++
+                       [:sigmoid, :silu, :selu, :softmax, :softplus, :softsign, :tanh] ++
+                       [:log_softmax]
 
   for activation <- @activation_layers do
     @doc false
@@ -2348,6 +2363,7 @@ defmodule Axon.Layers do
     defn unquote(op)(inputs, opts \\ []) do
       transform(inputs, fn inputs ->
         [first | rest] = Tuple.to_list(inputs)
+
         Enum.reduce(rest, first, fn next, acc ->
           apply(Nx, unquote(op), [acc, next])
         end)
