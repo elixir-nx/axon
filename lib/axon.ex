@@ -200,6 +200,7 @@ defmodule Axon do
       tuple
       |> Tuple.to_list()
       |> Enum.reduce(acc, &recur_break_shapes/2)
+
     {:container, shape}
   end
 

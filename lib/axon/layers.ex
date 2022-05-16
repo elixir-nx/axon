@@ -2397,11 +2397,14 @@ defmodule Axon.Layers do
   end
 
   @activation_layers_with_opts [:celu, :elu, :hard_sigmoid, :hard_silu, :leaky_relu] ++
-                                  [:log_softmax, :selu, :softmax]
+                                 [:log_softmax, :selu, :softmax]
   for activation <- @activation_layers_with_opts do
     defn unquote(activation)(input, opts \\ []) do
       transform(input, fn inp ->
-        Elixir.Kernel.apply(Axon.Activations, unquote(activation), [inp, Keyword.delete(opts, :mode)])
+        Elixir.Kernel.apply(Axon.Activations, unquote(activation), [
+          inp,
+          Keyword.delete(opts, :mode)
+        ])
       end)
     end
   end
