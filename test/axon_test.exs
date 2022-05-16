@@ -377,7 +377,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :separable_conv3d, parameters: [_, _, _], opts: opts} =
+      assert %Axon{op: :separable_conv3d, parameters: [_, _, _]} =
                Axon.input({nil, 1, 2, 2, 2}) |> Axon.separable_conv3d(1, use_bias: false)
     end
   end
@@ -468,12 +468,12 @@ defmodule AxonTest do
     end
   end
 
-  @normalization_layers [:batch_norm, :layer_norm, :instance_norm]
+  @stateful_normalization [:batch_norm, :instance_norm]
 
-  describe "normalization" do
+  describe "stateful normalization" do
     test "works with defaults" do
-      for norm <- @normalization_layers do
-        assert %Axon{op: norm1, opts: opts, parameters: [gamma, beta]} =
+      for norm <- @stateful_normalization do
+        assert %Axon{op: norm1, opts: opts, parameters: [gamma, beta, mean, var]} =
                  apply(Axon, norm, [Axon.input({nil, 784})])
 
         assert norm1 == norm
@@ -483,11 +483,13 @@ defmodule AxonTest do
 
         assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
         assert %Axon.Parameter{initializer: :zeros} = beta
+        assert %Axon.Parameter{initializer: :zeros} = mean
+        assert %Axon.Parameter{initializer: :ones} = var
       end
     end
 
     test "works with parameter initializer" do
-      for norm <- @normalization_layers do
+      for norm <- @stateful_normalization do
         assert %Axon{parameters: [gamma, beta, mean, var]} =
                  apply(Axon, norm, [
                    Axon.input({nil, 784}),
@@ -502,7 +504,7 @@ defmodule AxonTest do
     end
 
     test "fails on bad initializers" do
-      for norm <- @normalization_layers do
+      for norm <- @stateful_normalization do
         assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
           apply(Axon, norm, [Axon.input({nil, 784}), [gamma_initializer: :foo]])
         end
@@ -510,6 +512,40 @@ defmodule AxonTest do
         assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
           apply(Axon, norm, [Axon.input({nil, 784}), [beta_initializer: :foo]])
         end
+      end
+    end
+  end
+
+  describe "layer normalization" do
+    test "works with defaults" do
+      assert %Axon{op: :layer_norm, opts: opts, parameters: [gamma, beta]} =
+               Axon.layer_norm(Axon.input({nil, 784}))
+
+      assert opts[:channel_index] == 1
+      assert opts[:epsilon] == 1.0e-5
+
+      assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
+      assert %Axon.Parameter{initializer: :zeros} = beta
+    end
+
+    test "works with parameter initializer" do
+      assert %Axon{parameters: [gamma, beta]} =
+               Axon.layer_norm(Axon.input({nil, 784}),
+                 gamma_initializer: :lecun_normal,
+                 beta_initializer: :ones
+               )
+
+      assert %Axon.Parameter{initializer: :lecun_normal} = gamma
+      assert %Axon.Parameter{initializer: :ones} = beta
+    end
+
+    test "fails on bad initializers" do
+      assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
+        Axon.layer_norm(Axon.input({nil, 784}), gamma_initializer: :foo)
+      end
+
+      assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
+        Axon.layer_norm(Axon.input({nil, 784}), beta_initializer: :foo)
       end
     end
   end
@@ -556,12 +592,12 @@ defmodule AxonTest do
 
   describe "concatenate" do
     test "works with 2 inputs" do
-      assert %Axon{op: :concatenate, parent: [%Axon{}, %Axon{}]} =
+      assert %Axon{op: :concatenate, parent: [%Axon{parent: [{%Axon{}, %Axon{}}]}]} =
                Axon.concatenate(Axon.input({nil, 32}), Axon.input({nil, 32}))
     end
 
     test "works with many inputs" do
-      assert %Axon{op: :concatenate, parent: [%Axon{}, %Axon{}, %Axon{}]} =
+      assert %Axon{op: :concatenate, parent: [%Axon{parent: [{%Axon{}, %Axon{}, %Axon{}}]}]} =
                Axon.concatenate([
                  Axon.input({nil, 32}),
                  Axon.input({nil, 32}),
@@ -575,7 +611,7 @@ defmodule AxonTest do
   describe "element-wise layers" do
     test "works with 2 inputs" do
       for op <- @element_wise_layers do
-        assert %Axon{op: op1, parent: [%Axon{}, %Axon{}]} =
+        assert %Axon{op: op1, parent: [%Axon{parent: [{%Axon{}, %Axon{}}]}]} =
                  apply(Axon, op, [Axon.input({nil, 32}), Axon.input({nil, 32})])
 
         assert op1 == op
@@ -584,7 +620,7 @@ defmodule AxonTest do
 
     test "works with many inputs" do
       for op <- @element_wise_layers do
-        assert %Axon{op: op1, parent: [%Axon{}, %Axon{}, %Axon{}]} =
+        assert %Axon{op: op1, parent: [%Axon{parent: [{%Axon{}, %Axon{}, %Axon{}}]}]} =
                  apply(Axon, op, [
                    [Axon.input({nil, 32}), Axon.input({nil, 32}), Axon.input({nil, 32})]
                  ])
@@ -700,9 +736,10 @@ defmodule AxonTest do
         |> Axon.dense(128)
         |> Axon.freeze()
 
-      assert %Axon{parameters: %{"kernel" => %{frozen: true}, "bias" => %{frozen: true}}} = model
+      assert %Axon{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
+               model
 
-      assert %Axon{parameters: %{"kernel" => %{frozen: false}, "bias" => %{frozen: false}}} =
+      assert %Axon{parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]} =
                model |> Axon.dense(10)
     end
   end
@@ -744,18 +781,19 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             -------------------------------------------------------------------------------------------------------------------
-                                                                    Model
-             ===================================================================================================================
-              Layer                                             Shape        Policy              Parameters   Parameters Memory
-             ===================================================================================================================
-              input ( input )                                   {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
-              dense ( dense["input"] )                          {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
-              residual_dense ( dense["dense"] )                 {nil, 128}   p=f32 c=f32 o=f32   16512        66048 bytes
-              residual_add ( add["residual_dense", "dense"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
-              dense2 ( dense["residual_add"] )                  {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
-              softmax ( softmax["dense2"] )                     {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
-             -------------------------------------------------------------------------------------------------------------------
+             ---------------------------------------------------------------------------------------------------------------------------------------
+                                                                              Model
+             =======================================================================================================================================
+              Layer                                                   Shape                      Policy              Parameters   Parameters Memory
+             =======================================================================================================================================
+              input ( input )                                         {nil, 784}                 p=f32 c=f32 o=f32   0            0 bytes
+              dense ( dense["input"] )                                {nil, 128}                 p=f32 c=f32 o=f32   100480       401920 bytes
+              residual_dense ( dense["dense"] )                       {nil, 128}                 p=f32 c=f32 o=f32   16512        66048 bytes
+              container_0 ( container {"residual_dense", "dense"} )   {{nil, 128}, {nil, 128}}   p=f32 c=f32 o=f32   0            0 bytes
+              residual_add ( add["container_0"] )                     {nil, 128}                 p=f32 c=f32 o=f32   0            0 bytes
+              dense2 ( dense["residual_add"] )                        {nil, 10}                  p=f32 c=f32 o=f32   1290         5160 bytes
+              softmax ( softmax["dense2"] )                           {nil, 10}                  p=f32 c=f32 o=f32   0            0 bytes
+             ---------------------------------------------------------------------------------------------------------------------------------------
              """
     end
 
