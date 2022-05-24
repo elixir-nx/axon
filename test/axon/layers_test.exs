@@ -793,7 +793,7 @@ defmodule Axon.LayersTest do
     test "bilinear without aligned corners" do
       input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
 
-      assert Axon.Layers.resize(input, shape: {5, 2}, method: :bilinear, align_corners: false) ==
+      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: false) ==
                Nx.tensor([
                  [
                    [
@@ -810,7 +810,7 @@ defmodule Axon.LayersTest do
     test "bilinear with aligned corners" do
       input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
 
-      assert Axon.Layers.resize(input, shape: {5, 2}, method: :bilinear, align_corners: true) ==
+      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: true) ==
                Nx.tensor([
                  [
                    [

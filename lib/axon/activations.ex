@@ -257,9 +257,9 @@ defmodule Axon.Activations do
       >
 
   """
-  defn hard_silu(x) do
+  defn hard_silu(x, opts \\ []) do
     x
-    |> hard_sigmoid()
+    |> hard_sigmoid(opts)
     |> Nx.multiply(x)
   end
 

@@ -203,6 +203,10 @@ defmodule Axon.Shared do
   @doc """
   Deep reduces a map with an accumulator.
   """
+  def deep_reduce(item, acc, fun) when is_integer(item) do
+    fun.(item, acc)
+  end
+
   def deep_reduce(map, acc, fun) do
     Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
   end

@@ -26,7 +26,6 @@ defmodule Axon.Recurrent do
   """
   import Nx.Defn
   import Axon.Layers
-  import Axon.Activations
 
   @doc """
   GRU Cell.
