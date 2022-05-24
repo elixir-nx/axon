@@ -7,7 +7,7 @@
     <meta name="generator" content="ExDoc v0.28.3">
     <meta name="project" content="Axon v0.1.0-dev">
 
-    <title>404 — Axon v0.1.0-dev</title>
+    <title>Axon.StatefulOutput — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
 
     <script src="dist/sidebar_items-bcfed893cb.js"></script>
@@ -18,7 +18,7 @@
 
 
   </head>
-  <body data-type="extras">
+  <body data-type="modules">
     <script>
 
       try {
@@ -92,15 +92,34 @@ Axon
   <span class="sr-only">Settings</span>
 </button>
 
-  <span>Page not found</span>
+
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/stateful_output.ex#L1" title="View Source" class="view-source" rel="help">
+      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+      <span class="sr-only">View Source</span>
+    </a>
+
+  <span translate="no">Axon.StatefulOutput</span> 
+  <small class="app-vsn" translate="no">(Axon v0.1.0-dev)</small>
+
 </h1>
 
-<p>Sorry, but the page you were trying to get to, does not exist. You
-may want to try searching this site using the sidebar
 
-  or using our <a href="api-reference.html">API Reference</a> page
+  <section id="moduledoc">
+<p>Container for returning stateful outputs from Axon layers.</p><p>Some layers, such as <code class="inline">Axon.batch_norm/3</code>, keep a running internal
+state which is updated continuously at train time and used statically
+at inference time. In order for the Axon compiler to differentiate
+ordinary layer outputs from internal state, you must mark output
+as stateful.</p><p>Stateful Outputs consist of two fields:</p><pre><code class="makeup elixir" translate="no"><span class="ss">:output</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Actual</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">forwarded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="n">layer</span><span class="w">
+</span><span class="ss">:state</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Internal</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">tracked</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">updated</span></code></pre><p><code class="inline">:output</code> is simply forwarded to the next layer. <code class="inline">:state</code> is aggregated
+with other stateful outputs, and then is treated specially by internal
+Axon training functions such that update state parameters reflect returned
+values from stateful outputs.</p><p><code class="inline">:state</code> must be a map with keys that map directly to layer internal
+state names. For example, <code class="inline">Axon.Layers.batch_norm</code> returns StatefulOutput
+with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&quot;</code> and <code class="inline">&quot;var&quot;</code>.</p>
+  </section>
 
-to find what you were looking for.</p>
+
+
       <footer class="footer">
 
         <p>

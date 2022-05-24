@@ -10,6 +10,7 @@ Axon.MixedPrecision.html
 Axon.Optimizers.html
 Axon.Recurrent.html
 Axon.Schedules.html
+Axon.StatefulOutput.html
 Axon.Updates.html
 Axon.html
 api-reference.html
@@ -20,7 +21,7 @@ dist/html/fonts/remixicon.svg
 dist/html/fonts/remixicon.ttf
 dist/html/fonts/remixicon.woff
 dist/html/fonts/remixicon.woff2
-dist/search_items-d97b7e9f5c.js
-dist/sidebar_items-d57da1d6ff.js
+dist/search_items-cd1e2f5478.js
+dist/sidebar_items-bcfed893cb.js
 index.html
 search.html
