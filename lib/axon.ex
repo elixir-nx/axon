@@ -473,7 +473,8 @@ defmodule Axon do
         [x, kernel]
       end
 
-    node = layer(:dense, inputs, name: opts[:name], shape: output_shape)
+    op = if use_bias, do: :dense, else: &Axon.Layers.dense(&1, &2, 0, &3)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape)
 
     if activation do
       activation(node, activation)
@@ -538,7 +539,8 @@ defmodule Axon do
         [input1, input2, kernel]
       end
 
-    node = layer(:bilinear, inputs, name: opts[:name], shape: output_shape)
+    op = if use_bias, do: :bilinear, else: &Axon.Layers.bilinear(&1, &2, &3, 0, &4)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape)
 
     if activation do
       activation(node, activation)
@@ -618,8 +620,10 @@ defmodule Axon do
         [x, kernel]
       end
 
+    op = if use_bias, do: :conv, else: &Axon.Layers.conv(&1, &2, 0, &3)
+
     node =
-      layer(:conv, inputs,
+      layer(op, inputs,
         name: opts[:name],
         strides: strides,
         padding: padding,
@@ -691,6 +695,8 @@ defmodule Axon do
         [x, kernel]
       end
 
+    op = if use_bias, do: :conv_transpose, else: &Axon.Layers.conv_transpose(&1, &2, 0, &3)
+
     output_shape =
       Axon.Shape.conv_transpose(
         parent_shape,
@@ -702,7 +708,7 @@ defmodule Axon do
       )
 
     node =
-      layer(:conv_transpose, inputs,
+      layer(op, inputs,
         name: opts[:name],
         strides: strides,
         padding: padding,
@@ -797,8 +803,10 @@ defmodule Axon do
         [x, kernel]
       end
 
+    op = if use_bias, do: :depthwise_conv, else: &Axon.Layers.depthwise_conv(&1, &2, 0, &3)
+
     node =
-      layer(:depthwise_conv, inputs,
+      layer(op, inputs,
         name: opts[:name],
         strides: strides,
         padding: padding,

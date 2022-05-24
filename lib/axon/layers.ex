@@ -102,20 +102,8 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn dense(input, kernel, bias \\ 0, _opts \\ []) do
+  defn dense(input, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.dense", "input", input, 2)
-
-    bias =
-      transform(bias, fn
-        [] ->
-          0
-
-        [_ | _] ->
-          0
-
-        bias ->
-          bias
-      end)
 
     input
     |> Nx.dot([Nx.rank(input) - 1], kernel, [0])
@@ -156,23 +144,11 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn bilinear(input1, input2, kernel, bias \\ 0, _opts \\ []) do
+  defn bilinear(input1, input2, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
     assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
     assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
     assert_rank!("Axon.Layers.bilinear", "kernel", kernel, 3)
-
-    bias =
-      transform(bias, fn
-        [] ->
-          0
-
-        [_ | _] ->
-          0
-
-        bias ->
-          bias
-      end)
 
     inp1_axes = transform(Nx.rank(input1), fn rank -> [rank - 1] end)
     inp2_axes = transform(Nx.rank(input2), fn rank -> [rank - 1] end)
@@ -306,21 +282,9 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :convolutional
-  defn conv(input, kernel, bias \\ 0, opts \\ []) do
+  defn conv(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
-
-    {bias, opts} =
-      transform({bias, opts}, fn
-        {%Nx.Tensor{} = bias, opts} ->
-          {bias, opts}
-
-        {[_ | _] = opts, _opts} ->
-          {0, opts}
-
-        {bias, opts} ->
-          {bias, opts}
-      end)
 
     opts =
       keyword!(opts,
@@ -432,7 +396,7 @@ defmodule Axon.Layers do
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
-  defn conv_transpose(input, kernel, bias \\ 0, opts \\ []) do
+  defn conv_transpose(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
@@ -518,7 +482,7 @@ defmodule Axon.Layers do
 
   """
   @doc type: :convolutional
-  defn depthwise_conv(input, kernel, bias \\ 0, opts \\ []) do
+  defn depthwise_conv(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 

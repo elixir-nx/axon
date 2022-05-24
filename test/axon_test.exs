@@ -63,8 +63,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :dense, parameters: [_]} =
-               Axon.input({nil, 784}) |> Axon.dense(128, use_bias: false)
+      assert %Axon{parameters: [_]} = Axon.input({nil, 784}) |> Axon.dense(128, use_bias: false)
     end
   end
 
@@ -134,8 +133,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :conv, parameters: [_]} =
-               Axon.input({nil, 1, 2}) |> Axon.conv(2, use_bias: false)
+      assert %Axon{parameters: [_]} = Axon.input({nil, 1, 2}) |> Axon.conv(2, use_bias: false)
     end
   end
 
@@ -205,7 +203,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :depthwise_conv, parameters: [_]} =
+      assert %Axon{parameters: [_]} =
                Axon.input({nil, 1, 2}) |> Axon.depthwise_conv(1, use_bias: false)
     end
   end
