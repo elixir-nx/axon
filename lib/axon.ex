@@ -474,7 +474,7 @@ defmodule Axon do
       end
 
     op = if use_bias, do: :dense, else: &Axon.Layers.dense(&1, &2, 0, &3)
-    node = layer(op, inputs, name: opts[:name], shape: output_shape)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape, layer_op: :dense)
 
     if activation do
       activation(node, activation)
@@ -540,7 +540,7 @@ defmodule Axon do
       end
 
     op = if use_bias, do: :bilinear, else: &Axon.Layers.bilinear(&1, &2, &3, 0, &4)
-    node = layer(op, inputs, name: opts[:name], shape: output_shape)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape, layer_op: :bilinear)
 
     if activation do
       activation(node, activation)
@@ -630,7 +630,8 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape
+        shape: output_shape,
+        layer_op: :conv
       )
 
     if activation do
@@ -714,7 +715,8 @@ defmodule Axon do
         padding: padding,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape
+        shape: output_shape,
+        layer_op: :conv_transpose
       )
 
     if activation do
@@ -813,7 +815,8 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape
+        shape: output_shape,
+        layer_op: :depthwise_conv
       )
 
     if activation do
@@ -929,7 +932,8 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape
+        shape: output_shape,
+        layer_op: :separable_conv2d
       )
 
     if activation do
@@ -1059,7 +1063,8 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape
+        shape: output_shape,
+        layer_op: :separable_conv3d
       )
 
     if activation do
@@ -1990,7 +1995,8 @@ defmodule Axon do
         activation: activation,
         gate: gate,
         unroll: unroll,
-        shape: {{h_shape, h_shape}, output_shape}
+        shape: {{h_shape, h_shape}, output_shape},
+        layer_op: :lstm
       )
 
     new_c_name =
@@ -2160,7 +2166,8 @@ defmodule Axon do
         activation: activation,
         gate: gate,
         unroll: unroll,
-        shape: {{h_shape}, output_shape}
+        shape: {{h_shape}, output_shape},
+        layer_op: :gru
       )
 
     new_h_name =
