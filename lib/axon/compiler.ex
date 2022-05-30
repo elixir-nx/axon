@@ -202,6 +202,8 @@ defmodule Axon.Compiler do
          {cache, op_counts},
          _
        ) do
+    tensor = Nx.backend_transfer(tensor, Nx.Defn.Expr)
+
     fun = fn _params, _inputs, state, _cache, result_cache ->
       out = safe_as_type(tensor, output)
       {out, {state, result_cache}}
