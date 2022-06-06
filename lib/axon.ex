@@ -2712,7 +2712,7 @@ defmodule Axon do
     def inspect(axon, _opts) do
       title = "Model"
       header = ["Layer", "Shape", "Policy", "Parameters", "Parameters Memory"]
-      {_, _, cache, _} = axon_to_rows(axon, %{}, %{})
+      {_, _, cache, _, model_info} = axon_to_rows(axon, %{}, %{}, %{})
 
       rows =
         cache
@@ -2728,19 +2728,23 @@ defmodule Axon do
         title_separator_symbol: "=",
         vertical_style: :off
       )
+      |> then(&(&1 <> "Total Parameters: #{model_info.num_params}\n"))
+      |> then(&(&1 <> "Total Parameters Memory: #{model_info.total_param_byte_size} bytes\n"))
       |> string()
     end
 
-    defp axon_to_rows(%{id: id, op: op} = graph, cache, op_counts) do
+    defp axon_to_rows(%{id: id, op: op} = graph, cache, op_counts, model_info) do
       case cache do
         %{^id => {row, name}} ->
-          {row, name, cache, op_counts}
+          {row, name, cache, op_counts, model_info}
 
         %{} ->
-          {row, name, cache, op_counts} = do_axon_to_rows(graph, cache, op_counts)
+          {row, name, cache, op_counts, model_info} =
+            do_axon_to_rows(graph, cache, op_counts, model_info)
+
           cache = Map.put(cache, id, {row, name})
           op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-          {row, name, cache, op_counts}
+          {row, name, cache, op_counts, model_info}
       end
     end
 
@@ -2753,13 +2757,16 @@ defmodule Axon do
              policy: policy
            },
            cache,
-           op_counts
+           op_counts,
+           model_info
          ) do
-      {input_names, {cache, op_counts}} =
-        deep_map_reduce(parents, {cache, op_counts}, fn
-          graph, {cache, op_counts} ->
-            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
-            {name, {cache, op_counts}}
+      {input_names, {cache, op_counts, model_info}} =
+        deep_map_reduce(parents, {cache, op_counts, model_info}, fn
+          graph, {cache, op_counts, model_info} ->
+            {_, name, cache, op_counts, model_info} =
+              axon_to_rows(graph, cache, op_counts, model_info)
+
+            {name, {cache, op_counts, model_info}}
         end)
 
       op_string = "container"
@@ -2774,7 +2781,7 @@ defmodule Axon do
         "0 bytes"
       ]
 
-      {row, name, cache, op_counts}
+      {row, name, cache, op_counts, model_info}
     end
 
     defp do_axon_to_rows(
@@ -2788,13 +2795,16 @@ defmodule Axon do
              opts: opts
            },
            cache,
-           op_counts
+           op_counts,
+           model_info
          ) do
-      {input_names, {cache, op_counts}} =
-        Enum.map_reduce(parents, {cache, op_counts}, fn
-          graph, {cache, op_counts} ->
-            {_, name, cache, op_counts} = axon_to_rows(graph, cache, op_counts)
-            {name, {cache, op_counts}}
+      {input_names, {cache, op_counts, model_info}} =
+        Enum.map_reduce(parents, {cache, op_counts, model_info}, fn
+          graph, {cache, op_counts, model_info} ->
+            {_, name, cache, op_counts, model_info} =
+              axon_to_rows(graph, cache, op_counts, model_info)
+
+            {name, {cache, op_counts, model_info}}
         end)
 
       num_params =
@@ -2835,7 +2845,12 @@ defmodule Axon do
         "#{param_byte_size} bytes"
       ]
 
-      {row, name, cache, op_counts}
+      model_info =
+        model_info
+        |> Map.update(:num_params, 0, &(&1 + num_params))
+        |> Map.update(:total_param_byte_size, 0, &(&1 + param_byte_size))
+
+      {row, name, cache, op_counts, model_info}
     end
   end
 
