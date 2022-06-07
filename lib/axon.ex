@@ -217,14 +217,7 @@ defmodule Axon do
       |> Enum.map(&Axon.Shape.replace_nil/1)
       |> Enum.unzip()
 
-    {inputs, _} =
-      input_shapes
-      |> Enum.reduce({[], 0}, fn input, {params, i} ->
-        {param, count} = container_param(:layer, {:f, 32}, input, i)
-        {[param | params], count}
-      end)
-
-    inputs = Enum.reverse(inputs)
+    inputs = Enum.map(input_shapes, fn shape -> Nx.template(shape, {:f, 32}) end)
 
     opts = Keyword.put(opts, :mode, :inference)
 
@@ -260,25 +253,6 @@ defmodule Axon do
     Enum.reduce(indices_to_make_nil, expr.shape, fn i, shape ->
       put_elem(shape, i, nil)
     end)
-  end
-
-  defp container_param(context, type, container, i) do
-    case container do
-      {:container, container} ->
-        {exprs, count} =
-          container
-          |> Tuple.to_list()
-          |> Enum.reduce({[], i}, fn inner, {acc, i} ->
-            {inner_expr, new_count} = container_param(context, type, inner, i)
-            {[inner_expr | acc], new_count}
-          end)
-
-        {List.to_tuple(Enum.reverse(exprs)), count}
-
-      shape ->
-        param = Nx.Defn.Expr.parameter(:layer, {:f, 32}, shape, i)
-        {param, i + 1}
-    end
   end
 
   @doc """

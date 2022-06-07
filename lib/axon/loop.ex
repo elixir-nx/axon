@@ -316,10 +316,10 @@ defmodule Axon.Loop do
       optimizer_state = init_optimizer_fn.(model_state)
 
       %{
-        i: Nx.tensor(0, backend: Nx.Defn.Expr),
-        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        loss: Nx.tensor(0.0, backend: Nx.Defn.Expr),
+        i: Nx.tensor(0),
+        y_true: Nx.tensor(0.0),
+        y_pred: Nx.tensor(0.0),
+        loss: Nx.tensor(0.0),
         model_state: model_state,
         optimizer_state: optimizer_state
       }
@@ -384,8 +384,8 @@ defmodule Axon.Loop do
 
     init_fn = fn ->
       %{
-        y_true: Nx.tensor(0.0, backend: Nx.Defn.Expr),
-        y_pred: Nx.tensor(0.0, backend: Nx.Defn.Expr)
+        y_true: Nx.tensor(0.0),
+        y_pred: Nx.tensor(0.0)
       }
     end
 
@@ -1183,7 +1183,7 @@ defmodule Axon.Loop do
 
     final_metrics_map =
       for i <- 0..(max_epochs - 1) do
-        {i, Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, backend: Nx.Defn.Expr)} end)}
+        {i, Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)}
       end
       |> Map.new()
 
@@ -1449,7 +1449,7 @@ defmodule Axon.Loop do
       [{_, _} | _] = losses ->
         fn y_true, y_pred ->
           {_, loss} =
-            Enum.reduce(losses, {0, Nx.tensor(0, backend: Nx.Defn.Expr)}, fn {loss, weight},
+            Enum.reduce(losses, {0, Nx.tensor(0)}, fn {loss, weight},
                                                                              {i, acc_loss} ->
               loss_fn = build_loss_fn(loss)
 

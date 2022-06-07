@@ -28,8 +28,8 @@ defmodule Axon.MixProject do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.2.0", exla_opts()},
-      {:nx, "~> 0.2.0", nx_opts()},
+      {:exla, "~> 0.2.1", exla_opts()},
+      {:nx, "~> 0.2.1", nx_opts()},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:table_rex, "~> 3.1.1"}
     ]
@@ -47,7 +47,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path, only: :test]
     else
-      []
+      [only: :test]
     end
   end
 
