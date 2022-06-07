@@ -16,6 +16,9 @@ defmodule Axon.Metrics do
   monitor the performance of a neural network during training.
   Metrics such as accuracy provide useful feedback during
   training, whereas loss can sometimes be difficult to interpret.
+    
+  You can attach any of these functions as metrics within the
+  `Axon.Loop` API using `Axon.Loop.metric/3`.
 
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
