@@ -1449,8 +1449,7 @@ defmodule Axon.Loop do
       [{_, _} | _] = losses ->
         fn y_true, y_pred ->
           {_, loss} =
-            Enum.reduce(losses, {0, Nx.tensor(0)}, fn {loss, weight},
-                                                                             {i, acc_loss} ->
+            Enum.reduce(losses, {0, Nx.tensor(0)}, fn {loss, weight}, {i, acc_loss} ->
               loss_fn = build_loss_fn(loss)
 
               y_true_i = elem(y_true, i)
