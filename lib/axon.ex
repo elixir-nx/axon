@@ -90,9 +90,33 @@ defmodule Axon do
   @derive {
     Nx.Container,
     containers: [],
-    keep: [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts, :meta]
+    keep: [
+      :id,
+      :name,
+      :output_shape,
+      :parent,
+      :parameters,
+      :args,
+      :op,
+      :policy,
+      :hooks,
+      :opts,
+      :meta
+    ]
   }
-  defstruct [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts, :meta]
+  defstruct [
+    :id,
+    :name,
+    :output_shape,
+    :parent,
+    :parameters,
+    :args,
+    :op,
+    :policy,
+    :hooks,
+    :opts,
+    :meta
+  ]
 
   @doc """
   Custom Axon layer with given inputs.
