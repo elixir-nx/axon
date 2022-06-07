@@ -311,10 +311,6 @@ defmodule Axon.Compiler do
         &to_predict_fun(&1, &2, mode)
       )
 
-    # TODO: This should be changed/moved when we add a metadata field
-    # to the Axon struct
-    {_, opts} = Keyword.pop(opts, :layer_op)
-
     # Names are computed lazily, so compute name from current
     # op and aggregate op_counts.
     name = name_fn.(op, op_counts)

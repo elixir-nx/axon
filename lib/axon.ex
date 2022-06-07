@@ -90,9 +90,9 @@ defmodule Axon do
   @derive {
     Nx.Container,
     containers: [],
-    keep: [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts]
+    keep: [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts, :meta]
   }
-  defstruct [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts]
+  defstruct [:id, :name, :output_shape, :parent, :parameters, :args, :op, :policy, :hooks, :opts, :meta]
 
   @doc """
   Custom Axon layer with given inputs.
@@ -132,6 +132,7 @@ defmodule Axon do
 
     {name, opts} = Keyword.pop(opts, :name)
     {shape, opts} = Keyword.pop(opts, :shape)
+    {meta, opts} = Keyword.pop(opts, :meta)
 
     op_name = if is_atom(op), do: op, else: :custom
 
@@ -155,7 +156,8 @@ defmodule Axon do
       op: op,
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
-      opts: opts
+      opts: opts,
+      meta: meta
     }
   end
 
@@ -210,8 +212,6 @@ defmodule Axon do
   end
 
   defp infer_shape(input_shapes, fun, opts) do
-    {_, opts} = Keyword.pop(opts, :layer_op)
-
     {input_shapes, indices} =
       input_shapes
       |> Enum.map(&Axon.Shape.replace_nil/1)
@@ -448,7 +448,7 @@ defmodule Axon do
       end
 
     op = if use_bias, do: :dense, else: &Axon.Layers.dense(&1, &2, 0, &3)
-    node = layer(op, inputs, name: opts[:name], shape: output_shape, layer_op: :dense)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape, meta: [op: :dense])
 
     if activation do
       activation(node, activation)
@@ -514,7 +514,7 @@ defmodule Axon do
       end
 
     op = if use_bias, do: :bilinear, else: &Axon.Layers.bilinear(&1, &2, &3, 0, &4)
-    node = layer(op, inputs, name: opts[:name], shape: output_shape, layer_op: :bilinear)
+    node = layer(op, inputs, name: opts[:name], shape: output_shape, meta: [op: :bilinear])
 
     if activation do
       activation(node, activation)
@@ -605,7 +605,7 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         channels: channels,
         shape: output_shape,
-        layer_op: :conv
+        meta: [op: :conv]
       )
 
     if activation do
@@ -690,7 +690,7 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         channels: channels,
         shape: output_shape,
-        layer_op: :conv_transpose
+        meta: [op: :conv_transpose]
       )
 
     if activation do
@@ -790,7 +790,7 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         channels: channels,
         shape: output_shape,
-        layer_op: :depthwise_conv
+        meta: [op: :depthwise_conv]
       )
 
     if activation do
@@ -907,7 +907,7 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         channels: channels,
         shape: output_shape,
-        layer_op: :separable_conv2d
+        meta: [op: :separable_conv2d]
       )
 
     if activation do
@@ -1038,7 +1038,7 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         channels: channels,
         shape: output_shape,
-        layer_op: :separable_conv3d
+        meta: [op: :separable_conv3d]
       )
 
     if activation do
@@ -1970,7 +1970,7 @@ defmodule Axon do
         gate: gate,
         unroll: unroll,
         shape: {{h_shape, h_shape}, output_shape},
-        layer_op: :lstm
+        meta: [op: :lstm]
       )
 
     new_c_name =
@@ -2141,7 +2141,7 @@ defmodule Axon do
         gate: gate,
         unroll: unroll,
         shape: {{h_shape}, output_shape},
-        layer_op: :gru
+        meta: [op: :gru]
       )
 
     new_h_name =
@@ -2388,7 +2388,7 @@ defmodule Axon do
       end
     end
 
-    layer(fun, [x], name: name, layer_op: :recurrent_state)
+    layer(fun, [x], name: name, meta: [op: :recurrent_state])
   end
 
   @doc """
@@ -2766,7 +2766,7 @@ defmodule Axon do
              name: name_fn,
              output_shape: shape,
              policy: %{params: {_, bitsize}} = policy,
-             opts: opts
+             meta: meta
            },
            cache,
            op_counts,
@@ -2793,7 +2793,7 @@ defmodule Axon do
       param_byte_size = num_params * div(bitsize, 8)
 
       op_inspect =
-        case {op, opts[:layer_op]} do
+        case {op, meta[:op]} do
           {op, _} when is_atom(op) -> Atom.to_string(op)
           {_, nil} -> "custom"
           {_, layer_op} when is_atom(layer_op) -> Atom.to_string(layer_op)
