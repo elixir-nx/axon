@@ -761,6 +761,8 @@ defmodule AxonTest do
               dense2 ( dense["dense1"] )      {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
               softmax ( softmax["dense2"] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
              -------------------------------------------------------------------------------------------------
+             Total Parameters: 101770
+             Total Parameters Memory: 407080 bytes
              """
     end
 
@@ -792,6 +794,8 @@ defmodule AxonTest do
               dense2 ( dense["residual_add"] )                        {nil, 10}                  p=f32 c=f32 o=f32   1290         5160 bytes
               softmax ( softmax["dense2"] )                           {nil, 10}                  p=f32 c=f32 o=f32   0            0 bytes
              ---------------------------------------------------------------------------------------------------------------------------------------
+             Total Parameters: 118282
+             Total Parameters Memory: 473128 bytes
              """
     end
 
@@ -811,6 +815,8 @@ defmodule AxonTest do
               lstm ( lstm["input_0", "lstm_hidden_state"] )                                    {{{nil, 1, 64}, {nil, 1, 64}}, {nil, 32, 64}}   p=f32 c=f32 o=f32   19200        76800 bytes
               lstm_output_sequence ( custom["lstm"] )                                          {nil, 32, 64}                                   p=f32 c=f32 o=f32   0            0 bytes
              -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+             Total Parameters: 19200
+             Total Parameters Memory: 76800 bytes
              """
     end
   end
