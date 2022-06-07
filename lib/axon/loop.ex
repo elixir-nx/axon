@@ -384,15 +384,17 @@ defmodule Axon.Loop do
 
     init_fn = fn ->
       %{
+        model_state: model_state,
         y_true: Nx.tensor(0.0),
         y_pred: Nx.tensor(0.0)
       }
     end
 
-    step_fn = fn {inp, tar}, _ ->
+    step_fn = fn {inp, tar}, %{model_state: model_state} ->
       %{
+        model_state: model_state,
         y_true: tar,
-        y_pred: forward_model_fn.(Nx.backend_copy(model_state), inp)
+        y_pred: forward_model_fn.(model_state, inp)
       }
     end
 
