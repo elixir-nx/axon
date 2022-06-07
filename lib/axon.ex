@@ -5,15 +5,19 @@ defmodule Axon do
   Axon is built entirely on top of Nx numerical definitions,
   so every neural network can be JIT or AOT compiled using
   any Nx compiler, or even transformed into high-level neural
-  network formats like TensorFlow Lite and ONNX.
+  network formats like TensorFlow Lite and
+  [ONNX](https://github.com/elixir-nx/axon_onnx).
+  
+  ## Model Creation
 
   All Axon models start with an input layer, specifying the
   expected input shape of the training data:
 
       input = Axon.input({nil, 784})
 
-  Notice you can specify the batch dimension as `nil`. You can
-  then compose inputs with other layers:
+  Notice you can specify some dimensions as `nil`, indicating
+  that the dimension size will be filled in at model runtime.
+  You can then compose inputs with other layers:
 
       model =
         input
@@ -29,21 +33,116 @@ defmodule Axon do
 
       IO.inspect(model)
 
-      -----------------------------------------------------
-                        Model
-      =====================================================
-       Layer                       Shape        Parameters
-      =====================================================
-       input_1 (input)             {nil, 784}   0
-       dense_2 (dense)             {nil, 128}   100480
-       relu_3 (relu)               {nil, 128}   0
-       batch_norm_4 (batch_norm)   {nil, 128}   256
-       dropout_5 (dropout)         {nil, 128}   0
-       dense_6 (dense)             {nil, 64}    8256
-       tanh_7 (tanh)               {nil, 64}    0
-       dense_8 (dense)             {nil, 10}    650
-       softmax_9 (softmax)         {nil, 10}    0
-      -----------------------------------------------------
+      ---------------------------------------------------------------------------------------------------------
+                                                        Model
+      =========================================================================================================
+       Layer                                   Shape        Policy              Parameters   Parameters Memory
+      =========================================================================================================
+       input_0 ( input )                       {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+       dense_0 ( dense["input_0"] )            {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+       relu_0 ( relu["dense_0"] )              {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
+       batch_norm_0 ( batch_norm["relu_0"] )   {nil, 128}   p=f32 c=f32 o=f32   512          2048 bytes
+       dropout_0 ( dropout["batch_norm_0"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
+       dense_1 ( dense["dropout_0"] )          {nil, 64}    p=f32 c=f32 o=f32   8256         33024 bytes
+       tanh_0 ( tanh["dense_1"] )              {nil, 64}    p=f32 c=f32 o=f32   0            0 bytes
+       dense_2 ( dense["tanh_0"] )             {nil, 10}    p=f32 c=f32 o=f32   650          2600 bytes
+       softmax_0 ( softmax["dense_2"] )        {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+      ---------------------------------------------------------------------------------------------------------
+  
+  ### Multiple Inputs
+
+  Creating a model with multiple inputs is as easy as declaring an
+  additional input in your Axon graph. Every input layer present in
+  the final Axon graph will be required to be passed as input at the
+  time of model execution.
+
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 1})
+
+      # Both inputs will be used
+      model1 = Axon.add(inp1, inp2)
+
+      # Only inp2 will be used
+      model2 = Axon.add(inp2, inp2)
+
+  Axon graphs are immutable, which means composing and manipulating
+  an Axon graph creates an entirely new graph. Additionally, layer
+  names are lazily generated at model execution time. This especially
+  has implications when working with multiple inputs, because inputs
+  are referenced by name at execution time:
+
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 1})
+
+      model1 = Axon.add(inp1, inp2)
+      params1 = Axon.init(model1)
+      # Inputs are referenced by name, by op, numbered in order of
+      # graph appearance
+      Axon.predict(model1, params1, %{"input_0" => x, "input_1" => y})
+
+      model2 = Axon.add(inp2, inp2)
+      params2 = Axon.init(model2)
+      # Input 2 is no longer the 2nd input! The name has changed on
+      # us
+      Axon.predict(model2, params2, %{"input_0" => x})
+
+  ### Multiple Outputs
+
+  Nx offers robust [container](https://hexdocs.pm/nx/Nx.Container.html) support
+  which is extended to Axon. Axon allows you to wrap any valid Nx container
+  in a layer. Containers are most commonly used to structure outputs:
+
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 1})
+      model = Axon.container(%{foo: inp1, bar: inp2})
+  
+  Containers can be arbitrarily nested:
+
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 1})
+      model = Axon.container({%{foo: {inp1, %{bar: inp2}}}})
+
+  You can even use custom structs which implement the container protocol:
+
+      inp1 = Axon.input({nil, 1})
+      inp2 = Axon.input({nil, 1})
+      model = Axon.container(%MyStruct{foo: inp1, bar: inp2})
+
+  ### Custom Layers
+
+  If you find that Axon's built-in layers are insufficient for your needs,
+  you can create your own using the custom layer API. All of Axon's built-in
+  layers (aside from special ones such as `input`, `constant`, and `container`)
+  make use of this same API.
+
+  Axon layers are really just placeholders for Nx computations with trainable
+  parameters and possibly state. To define a custom layer, you just need to
+  define a `defn` implementation:
+
+      defn my_layer(x, weight, _opts \\ []) do
+        Nx.atan2(x, weight)
+      end
+
+  Notice the only stipulation is that your custom layer implementation must
+  accept at least 1 input and a list of options. At execution time, every
+  layer will be passed a `:mode` option which can be used to control behavior
+  at training and inference time.
+
+  Inputs to your custom layer can be either Axon graph inputs or trainable
+  parameters. You can pass Axon graph inputs as-is to a custom layer. To
+  declare trainable parameters, use `Axon.param/3`:
+
+      weight = Axon.param(input_shape, "weight")
+
+  To create a custom layer, you "wrap" your implementation and inputs into
+  a layer using `Axon.layer`. You'll notice the API mirrors Elixir's `apply`:
+
+      def atan2_layer(%Axon{output_shape: shape} = input) do
+        weight = Axon.param(input_shape, "weight")
+        Axon.layer(&my_layer/3, [input, weight])
+      end
+
+  ## Model Execution
 
   Under the hood, Axon models are represented as Elixir structs. You
   can initialize and apply models using the macros `Axon.init/2` and
@@ -52,6 +151,14 @@ defmodule Axon do
       params = Axon.init(model, compiler: EXLA)
 
       Axon.predict(model, params, inputs, compiler: EXLA, mode: :train)
+  
+  It is suggested that you set compiler options globally rather than pass
+  them as options to execution macros:
+      
+      Nx.Defn.default_options(compiler: EXLA)
+
+      params = Axon.init(model, compiler: EXLA)
+      Axon.predict(model, params, inputs, mode: :train)
 
   `Axon.predict/4` by default runs in inference mode, which performs certain
   optimizations and removes layers such as dropout layers. If constructing
@@ -59,6 +166,8 @@ defmodule Axon do
 
   Both `Axon.init/2` and `Axon.predict/4` can be used from within
   Nx defn or outside.
+  
+  ## Model Training
 
   Combining the Axon model creation API with the optimization and training
   APIs, you can create and train neural networks with ease:
@@ -76,6 +185,9 @@ defmodule Axon do
         model
         |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
         |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
+
+  See `Axon.Updates` and `Axon.Loop` for a more in-depth treatment of
+  model optimization and model training.
   """
   alias __MODULE__, as: Axon
   alias Axon.Parameter

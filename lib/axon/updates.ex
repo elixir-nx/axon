@@ -26,8 +26,9 @@ defmodule Axon.Updates do
       end
 
   Updates are maps of updates, often associated with parameters of
-  the same names. Using `Axon.Updates.apply_updates/2` will merge updates
-  and parameters by adding associated parameters and updates.
+  the same names. Using `Axon.Updates.apply_updates/3` will merge updates
+  and parameters by adding associated parameters and updates, and
+  ensuring any given model state is preserved.
 
   ## Custom combinators
 
