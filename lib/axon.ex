@@ -158,7 +158,7 @@ defmodule Axon do
 
     {name, opts} = Keyword.pop(opts, :name)
     {shape, opts} = Keyword.pop(opts, :shape)
-    {op_name, opts} = Keyword.pop(opts, :op_name)
+    {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
 
     type = if op_name, do: op_name, else: :custom
 
