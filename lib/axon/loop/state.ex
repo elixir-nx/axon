@@ -12,7 +12,7 @@ defmodule Axon.Loop.State do
         metrics: map(string(), container()),
         times: map(integer(), integer()),
         step_state: container(),
-        handler_meta: container()
+        handler_metadata: container()
       }
 
   `epoch` is the current epoch, starting at 0, of the nested loop.

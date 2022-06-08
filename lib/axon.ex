@@ -7,7 +7,7 @@ defmodule Axon do
   any Nx compiler, or even transformed into high-level neural
   network formats like TensorFlow Lite and
   [ONNX](https://github.com/elixir-nx/axon_onnx).
-  
+
   ## Model Creation
 
   All Axon models start with an input layer, specifying the
@@ -48,7 +48,7 @@ defmodule Axon do
        dense_2 ( dense["tanh_0"] )             {nil, 10}    p=f32 c=f32 o=f32   650          2600 bytes
        softmax_0 ( softmax["dense_2"] )        {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
       ---------------------------------------------------------------------------------------------------------
-  
+
   ### Multiple Inputs
 
   Creating a model with multiple inputs is as easy as declaring an
@@ -95,7 +95,7 @@ defmodule Axon do
       inp1 = Axon.input({nil, 1})
       inp2 = Axon.input({nil, 1})
       model = Axon.container(%{foo: inp1, bar: inp2})
-  
+
   Containers can be arbitrarily nested:
 
       inp1 = Axon.input({nil, 1})
@@ -151,7 +151,7 @@ defmodule Axon do
       params = Axon.init(model, compiler: EXLA)
 
       Axon.predict(model, params, inputs, compiler: EXLA, mode: :train)
-  
+
   It is suggested that you set compiler options globally rather than pass
   them as options to execution macros:
       
@@ -166,7 +166,7 @@ defmodule Axon do
 
   Both `Axon.init/2` and `Axon.predict/4` can be used from within
   Nx defn or outside.
-  
+
   ## Model Training
 
   Combining the Axon model creation API with the optimization and training

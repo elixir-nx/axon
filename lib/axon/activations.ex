@@ -378,6 +378,25 @@ defmodule Axon.Activations do
 
   @doc """
   Log-softmax activation.
+
+  $$f(x_i) = -\log(\sum{e^x_i})$$
+
+  ## Examples
+
+      iex> Axon.Activations.log_softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
+      #Nx.Tensor<
+        f32[data: 7]
+        [-6.457762718200684, -5.457762718200684, -4.457762718200684, -3.4577627182006836, -2.4577627182006836, -1.4577628374099731, -0.45776283740997314]
+      >
+
+      iex> Axon.Activations.log_softmax(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
+      #Nx.Tensor<
+        bf16[batch: 2][data: 3]
+        [
+          [-0.404296875, -1.3984375, -2.390625],
+          [-2.390625, -1.3984375, -0.404296875]
+        ]
+      >
   """
   defn log_softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
