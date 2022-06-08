@@ -2686,7 +2686,8 @@ defmodule Axon do
     def inspect(axon, _opts) do
       title = "Model"
       header = ["Layer", "Shape", "Policy", "Parameters", "Parameters Memory"]
-      {_, _, cache, _, model_info} = axon_to_rows(axon, %{}, %{}, %{})
+      model_info = %{num_params: 0, total_param_byte_size: 0, inputs: []}
+      {_, _, cache, _, model_info} = axon_to_rows(axon, %{}, %{}, model_info)
 
       rows =
         cache
@@ -2704,6 +2705,7 @@ defmodule Axon do
       )
       |> then(&(&1 <> "Total Parameters: #{model_info.num_params}\n"))
       |> then(&(&1 <> "Total Parameters Memory: #{model_info.total_param_byte_size} bytes\n"))
+      |> then(&(&1 <> "Inputs: #{inspect(Map.new(model_info.inputs))}\n"))
       |> string()
     end
 
@@ -2823,6 +2825,9 @@ defmodule Axon do
         model_info
         |> Map.update(:num_params, 0, &(&1 + num_params))
         |> Map.update(:total_param_byte_size, 0, &(&1 + param_byte_size))
+        |> Map.update(:inputs, [], fn inputs ->
+          if op == :input, do: [{name, shape} | inputs], else: inputs
+        end)
 
       {row, name, cache, op_counts, model_info}
     end
