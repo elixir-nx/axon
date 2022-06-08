@@ -160,7 +160,7 @@ defmodule Axon do
     {shape, opts} = Keyword.pop(opts, :shape)
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
 
-    {id, name} = unique_identifiers(type, name)
+    {id, name} = unique_identifiers(op_name, name)
 
     output_shape =
       if shape do
@@ -2814,7 +2814,7 @@ defmodule Axon do
       |> string()
     end
 
-    defp axon_to_rows(%{id: id, op_name: op_name} = graph, cache, op_counts) do
+    defp axon_to_rows(%{id: id, op_name: op_name} = graph, cache, op_counts, model_info) do
       case cache do
         %{^id => {row, name}} ->
           {row, name, cache, op_counts, model_info}
@@ -2825,7 +2825,7 @@ defmodule Axon do
 
           cache = Map.put(cache, id, {row, name})
           op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
-          {row, name, cache, op_counts}
+          {row, name, cache, op_counts, model_info}
       end
     end
 
