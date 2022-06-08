@@ -67,7 +67,8 @@ defmodule Axon.Compiler do
            op: op,
            name: name_fn,
            policy: %{params: dtype},
-           hooks: hooks
+           hooks: hooks,
+           op_name: op_name
          },
          cache_and_counts
        ) do
@@ -80,8 +81,9 @@ defmodule Axon.Compiler do
           Enum.map_reduce(parents, cache_and_counts, &to_init_fun/2)
       end
 
-    name = name_fn.(op, op_counts)
-    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+    op_name = if op_name, do: op_name, else: :custom
+    name = name_fn.(op_name, op_counts)
+    op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
 
     init_fn = fn cache, result_cache ->
       result_cache =
@@ -294,7 +296,8 @@ defmodule Axon.Compiler do
            args: args,
            opts: opts,
            policy: %{compute: compute, output: output},
-           hooks: hooks
+           hooks: hooks,
+           op_name: op_name
          },
          cache_and_counts,
          mode
@@ -313,7 +316,8 @@ defmodule Axon.Compiler do
 
     # Names are computed lazily, so compute name from current
     # op and aggregate op_counts.
-    name = name_fn.(op, op_counts)
+    op_name = if op_name, do: op_name, else: :custom
+    name = name_fn.(op_name, op_counts)
     op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
 
     # Sub-inference functions contain `params` - trainable parameters
