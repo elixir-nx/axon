@@ -160,8 +160,6 @@ defmodule Axon do
     {shape, opts} = Keyword.pop(opts, :shape)
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
 
-    type = if op_name, do: op_name, else: :custom
-
     {id, name} = unique_identifiers(type, name)
 
     output_shape =
@@ -2826,7 +2824,6 @@ defmodule Axon do
             do_axon_to_rows(graph, cache, op_counts, model_info)
 
           cache = Map.put(cache, id, {row, name})
-          op_name = if op_name, do: op_name, else: :custom
           op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
           {row, name, cache, op_counts}
       end
@@ -2901,12 +2898,7 @@ defmodule Axon do
 
       param_byte_size = num_params * div(bitsize, 8)
 
-      op_inspect =
-        if op_name do
-          Atom.to_string(op_name)
-        else
-          "custom"
-        end
+      op_inspect = Atom.to_string(op_name)
 
       inputs =
         case input_names do
