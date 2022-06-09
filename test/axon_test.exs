@@ -815,7 +815,7 @@ defmodule AxonTest do
               lstm_h_hidden_state ( recurrent_state["input_0"] )                               {nil, 1, 64}                                    p=f32 c=f32 o=f32   0            0 bytes
               lstm_hidden_state ( container {"lstm_c_hidden_state", "lstm_h_hidden_state"} )   {{nil, 1, 64}, {nil, 1, 64}}                    p=f32 c=f32 o=f32   0            0 bytes
               lstm ( lstm["input_0", "lstm_hidden_state"] )                                    {{{nil, 1, 64}, {nil, 1, 64}}, {nil, 32, 64}}   p=f32 c=f32 o=f32   19200        76800 bytes
-              lstm_output_sequence ( custom["lstm"] )                                          {nil, 32, 64}                                   p=f32 c=f32 o=f32   0            0 bytes
+              lstm_output_sequence ( elem["lstm"] )                                            {nil, 32, 64}                                   p=f32 c=f32 o=f32   0            0 bytes
              -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
              Total Parameters: 19200
              Total Parameters Memory: 76800 bytes

@@ -3978,6 +3978,19 @@ defmodule CompilerTest do
       assert Nx.shape(kernel) == {1, 1}
     end
 
+    test "initializes with two custom layers and no op_name" do
+      k1 = Axon.param("kernel", {1, 1})
+      k2 = Axon.param("kernel", {1, 1})
+
+      layer = fn x, k -> Axon.layer(fn y, _kernel, _opts -> y end, [x, k]) end
+
+      input = Axon.input({nil, 1})
+
+      model = input |> layer.(k1) |> layer.(k2)
+
+      assert %{"custom_0" => %{"kernel" => _}, "custom_1" => %{"kernel" => _}} = Axon.init(model)
+    end
+
     test "computes forward pass with parameters" do
       input = Axon.input({nil, 1})
       kernel_param = Axon.param("kernel", {1, 1})
