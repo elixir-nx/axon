@@ -2926,7 +2926,7 @@ defmodule Axon do
         |> Map.update(:num_params, 0, &(&1 + num_params))
         |> Map.update(:total_param_byte_size, 0, &(&1 + param_byte_size))
         |> Map.update(:inputs, [], fn inputs ->
-          if op == :input, do: [{name, shape} | inputs], else: inputs
+          if op_name == :input, do: [{name, shape} | inputs], else: inputs
         end)
 
       {row, name, cache, op_counts, model_info}
