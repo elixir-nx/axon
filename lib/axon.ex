@@ -2488,10 +2488,11 @@ defmodule Axon do
 
       case initializer do
         fun when is_function(fun) ->
-          fun.(shape: shape)
+          fun.(shape)
 
         fun when is_atom(fun) ->
-          apply(Axon.Initializers, fun, [[shape: shape]])
+          fun = apply(Axon.Initializers, fun, [])
+          fun.(shape, {:f, 32})
       end
     end
 
@@ -3032,14 +3033,14 @@ defmodule Axon do
     :ok
   end
 
-  defp validate_initializer!(initializer) when is_function(initializer, 1) do
+  defp validate_initializer!(initializer) when is_function(initializer, 2) do
     :ok
   end
 
   defp validate_initializer!(initializer) do
     raise ArgumentError,
           "initializer must be one of #{inspect(@valid_initializers)}," <>
-            " or an arity-1 function accepting initializer options" <>
+            " or an arity-2 function accepting initializer shape and type" <>
             " got #{inspect(initializer)}"
   end
 

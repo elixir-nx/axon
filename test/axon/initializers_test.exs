@@ -1,24 +1,27 @@
 defmodule Axon.InitializersTest do
   use ExUnit.Case, async: true
+
+  import AxonTestUtil
+
   doctest Axon.Initializers
 
   describe "orthogonal/1" do
     test "property" do
-      t1 = Axon.Initializers.orthogonal(shape: {3, 3})
+      init_fn = Axon.Initializers.orthogonal()
+      t1 = init_fn.({3, 3}, {:f, 32})
       identity_left_t1 = t1 |> Nx.transpose() |> Nx.dot(t1)
 
-      assert Nx.all_close(identity_left_t1, Nx.eye(identity_left_t1), atol: 1.0e-3, rtol: 1.0e-3) ==
-               Nx.tensor(1, type: {:u, 8})
+      assert_all_close(identity_left_t1, Nx.eye(identity_left_t1), atol: 1.0e-3, rtol: 1.0e-3)
 
       identity_right_t1 = t1 |> Nx.dot(t1 |> Nx.transpose())
 
-      assert Nx.all_close(identity_right_t1, Nx.eye(identity_right_t1),
-               atol: 1.0e-3,
-               rtol: 1.0e-3
-             ) ==
-               Nx.tensor(1, type: {:u, 8})
+      assert_all_close(identity_right_t1, Nx.eye(identity_right_t1),
+        atol: 1.0e-3,
+        rtol: 1.0e-3
+      )
 
-      t2 = Axon.Initializers.orthogonal(shape: {1, 2, 3, 4, 5}) |> Nx.reshape({24, 5})
+      init_fn = Axon.Initializers.orthogonal()
+      t2 = init_fn.({1, 2, 3, 4, 5}, {:f, 32}) |> Nx.reshape({24, 5})
 
       identity_left_t2 = t2 |> Nx.transpose() |> Nx.dot(t2)
 
@@ -39,7 +42,8 @@ defmodule Axon.InitializersTest do
       assert_raise ArgumentError,
                    ~r/Axon.Initializers.orthogonal: expected input_shape shape to have at least rank 2/,
                    fn ->
-                     Axon.Initializers.orthogonal(shape: {1})
+                     init_fn = Axon.Initializers.orthogonal()
+                     init_fn.({1}, {:f, 32})
                    end
     end
   end

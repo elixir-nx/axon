@@ -44,7 +44,8 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.zeros(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.zeros()
+      iex> init_fn.({2, 2}, {:f, 32})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -53,7 +54,13 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  defn zeros(opts \\ []) do
+  def zeros() do
+    fn shape, type ->
+      zeros_impl(shape: shape, type: type)
+    end
+  end
+
+  defnp zeros_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     Nx.broadcast(Nx.tensor(0, type: opts[:type]), opts[:shape])
   end
@@ -63,7 +70,8 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.ones(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.ones()
+      iex> init_fn.({2, 2}, {:f, 32})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -72,7 +80,13 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  defn ones(opts \\ []) do
+  def ones() do
+    fn shape, type ->
+      ones_impl(shape: shape, type: type)
+    end
+  end
+
+  defnp ones_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     Nx.broadcast(Nx.tensor(1, type: opts[:type]), opts[:shape])
   end
@@ -82,7 +96,8 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.full(1.00, shape: {2, 2})
+      iex> init_fn = Axon.Initializers.full(1.00)
+      iex> init_fn.({2, 2}, {:f, 32})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -91,7 +106,13 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  defn full(value, opts \\ []) do
+  def full(value) do
+    fn shape, type ->
+      full_impl(value, shape: shape, type: type)
+    end
+  end
+
+  defnp full_impl(value, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     Nx.as_type(Nx.broadcast(value, opts[:shape]), opts[:type])
   end
@@ -101,7 +122,8 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> Axon.Initializers.identity(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.identity()
+      iex> init_fn.({2, 2}, {:f, 32})
       #Nx.Tensor<
         f32[2][2]
         [
@@ -110,7 +132,13 @@ defmodule Axon.Initializers do
         ]
       >
   """
-  defn identity(opts \\ []) do
+  def identity() do
+    fn shape, type ->
+      identity_impl(shape: shape, type: type)
+    end
+  end
+
+  defnp identity_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     Nx.eye(opts[:shape], type: opts[:type])
   end
@@ -120,26 +148,33 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
 
   ## Examples
 
-      iex> t = Axon.Initializers.uniform(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.uniform()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.uniform(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.uniform(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
 
   """
-  defn uniform(opts \\ []) do
+  def uniform(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0e-2
+      uniform_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp uniform_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
     shape = Nx.shape(opts[:shape])
     Nx.random_uniform(shape, Nx.negate(opts[:scale]), opts[:scale], type: opts[:type])
@@ -150,27 +185,35 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:mean` - mean of the output distribution. Defaults to `0.0`
     * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
 
   ## Examples
 
-      iex> t = Axon.Initializers.normal(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.normal()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.normal(shape: {2, 2}, type: {:bf, 16}, mean: 1.0, scale: 1.0)
+      iex> init_fn = Axon.Initializers.normal(mean: 1.0, scale: 1.0)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
 
   """
-  defn normal(opts \\ []) do
+  def normal(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0e-2
+      mean = opts[:mean] || 0.0
+      normal_impl(shape: shape, type: type, scale: scale, mean: mean)
+    end
+  end
+
+  defnp normal_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mean: 0.0])
     Nx.random_normal(opts[:shape], opts[:mean], opts[:scale], type: opts[:type])
   end
@@ -184,19 +227,19 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.lecun_uniform(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.lecun_uniform()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.lecun_uniform(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.lecun_uniform(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -207,10 +250,17 @@ defmodule Axon.Initializers do
     * [Efficient BackProp](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
 
   """
-  defn lecun_uniform(opts \\ []) do
+  def lecun_uniform(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0
+      lecun_uniform_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp lecun_uniform_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -228,19 +278,19 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.lecun_uniform(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.lecun_normal()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.lecun_uniform(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.lecun_normal(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -251,10 +301,17 @@ defmodule Axon.Initializers do
     * [Efficient BackProp](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
 
   """
-  defn lecun_normal(opts \\ []) do
+  def lecun_normal(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0
+      lecun_normal_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp lecun_normal_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -275,19 +332,19 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.glorot_uniform(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.glorot_uniform()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.glorot_uniform(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.glorot_uniform(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -298,10 +355,17 @@ defmodule Axon.Initializers do
     * [Understanding the difficulty of training deep feedforward neural networks](http://proceedings.mlr.press/v9/glorot10a.html)
 
   """
-  defn glorot_uniform(opts \\ []) do
+  def glorot_uniform(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0
+      glorot_uniform_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp glorot_uniform_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -322,19 +386,19 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.glorot_normal(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.glorot_normal()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.glorot_normal(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.glorot_normal(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -345,10 +409,17 @@ defmodule Axon.Initializers do
     * [Understanding the difficulty of training deep feedforward neural networks](http://proceedings.mlr.press/v9/glorot10a.html)
 
   """
-  defn glorot_normal(opts \\ []) do
+  def glorot_normal(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0
+      glorot_normal_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp glorot_normal_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -366,19 +437,19 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `2.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.he_uniform(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.he_uniform()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.he_uniform(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.he_uniform(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -389,10 +460,17 @@ defmodule Axon.Initializers do
     * [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html)
 
   """
-  defn he_uniform(opts \\ []) do
+  def he_uniform(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 2.0
+      he_uniform_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp he_uniform_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -405,24 +483,24 @@ defmodule Axon.Initializers do
   Initializes parameters with the He normal initializer.
 
   The He normal initializer is equivalent to calling
-  `Axon.Initializers.variance_scaling` with `mode: :fan_ni`
+  `Axon.Initializers.variance_scaling` with `mode: :fan_in`
   and `distribution: :truncated_normal`.
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `2.0`
 
   ## Examples
 
-      iex> t = Axon.Initializers.he_normal(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.he_normal()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.he_normal(shape: {2, 2}, type: {:bf, 16}, scale: 1.0e-3)
+      iex> init_fn = Axon.Initializers.he_normal(scale: 1.0e-3)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
@@ -433,10 +511,17 @@ defmodule Axon.Initializers do
     * [Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification](https://www.cv-foundation.org/openaccess/content_iccv_2015/html/He_Delving_Deep_into_ICCV_2015_paper.html)
 
   """
-  defn he_normal(opts \\ []) do
+  def he_normal(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 2.0
+      he_normal_impl(shape: shape, type: type, scale: scale)
+    end
+  end
+
+  defnp he_normal_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
 
-    variance_scaling(
+    variance_scaling_impl(
       shape: opts[:shape],
       type: opts[:type],
       scale: opts[:scale],
@@ -454,8 +539,6 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape
-    * `:type` - output type. Defaults to `{:f, 32}`
     * `:scale` - scale of the output distribution. Defaults to `1.0e-2`
     * `:mode` - compute fan mode. One of `:fan_in`, `:fan_out`, or `:fan_avg`.
       Defaults to `:fan_in`
@@ -464,32 +547,45 @@ defmodule Axon.Initializers do
 
   ## Examples
 
-      iex> t = Axon.Initializers.variance_scaling(shape: {2, 2})
+      iex> init_fn = Axon.Initializers.variance_scaling()
+      iex> t = init_fn.({2, 2}, {:f, 32})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> t = Axon.Initializers.variance_scaling(shape: {2, 2}, type: {:bf, 16}, mode: :fan_out, distribution: :truncated_normal)
+      iex> init_fn = Axon.Initializers.variance_scaling(mode: :fan_out, distribution: :truncated_normal)
+      iex> t = init_fn.({2, 2}, {:bf, 16})
       iex> Nx.shape(t)
       {2, 2}
       iex> Nx.type(t)
       {:bf, 16}
 
-      iex> t = Axon.Initializers.variance_scaling(shape: {64, 3, 32, 32}, mode: :fan_out, distribution: :normal)
+      iex> init_fn = Axon.Initializers.variance_scaling(mode: :fan_out, distribution: :normal)
+      iex> t = init_fn.({64, 3, 32, 32}, {:f, 32})
       iex> Nx.shape(t)
       {64, 3, 32, 32}
       iex> Nx.type(t)
       {:f, 32}
 
-      iex> Axon.Initializers.variance_scaling(shape: {2, 2}, mode: :not_a_mode)
-      ** (ArgumentError) invalid mode :not_a_mode passed to variance_scaling/1
-
-      iex> Axon.Initializers.variance_scaling(shape: {2, 2}, distribution: :not_a_dist)
-      ** (ArgumentError) invalid distribution :not_a_dist passed to variance_scaling/1
-
   """
-  defn variance_scaling(opts \\ []) do
+  def variance_scaling(opts \\ []) do
+    fn shape, type ->
+      scale = opts[:scale] || 1.0
+      mode = opts[:mode] || :fan_in
+      distribution = opts[:distribution] || :normal
+
+      variance_scaling_impl(
+        shape: shape,
+        type: type,
+        scale: scale,
+        mode: mode,
+        distribution: distribution
+      )
+    end
+  end
+
+  defnp variance_scaling_impl(opts \\ []) do
     opts =
       keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0, mode: :fan_in, distribution: :normal])
 
@@ -545,25 +641,33 @@ defmodule Axon.Initializers do
 
   ## Options
 
-    * `:shape` - output shape. Must be at least rank `2`
-    * `:type` - random seed's type. Defaults to `{:f, 32}`
-    * `:distribution` - output distribution. One of [`:normal`, `:uniform`]. Defaults to `:normal`
+    * `:distribution` - output distribution. One of [`:normal`, `:uniform`].
+      Defaults to `:normal`
 
   ## Examples
 
-      iex> t = Axon.Initializers.orthogonal(shape: {3, 3})
+      iex> init_fn = Axon.Initializers.orthogonal()
+      iex> t = init_fn.({3, 3}, {:f, 32})
       iex> Nx.type(t)
       {:f, 32}
       iex> Nx.shape(t)
       {3, 3}
 
-      iex> t = Axon.Initializers.orthogonal(shape: {1, 2, 3, 4}, type: {:f, 64})
+      iex> init_fn = Axon.Initializers.orthogonal()
+      iex> t = init_fn.({1, 2, 3, 4}, {:f, 64})
       iex> Nx.type(t)
       {:f, 64}
       iex> Nx.shape(t)
       {1, 2, 3, 4}
   """
-  defn orthogonal(opts \\ []) do
+  def orthogonal(opts \\ []) do
+    fn shape, type ->
+      distribution = opts[:distribution] || :normal
+      orthogonal_impl(shape: shape, type: type, distribution: distribution)
+    end
+  end
+
+  defnp orthogonal_impl(opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, distribution: :normal])
 
     shape = opts[:shape]

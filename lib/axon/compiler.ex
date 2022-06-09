@@ -125,15 +125,24 @@ defmodule Axon.Compiler do
         {:tuple, params} ->
           params
           |> Enum.map(fn shape ->
-            apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+            apply_initializer(initializer, shape, dtype)
           end)
           |> List.to_tuple()
 
         shape ->
-          apply(Axon.Initializers, initializer, [[type: dtype, shape: shape]])
+          apply_initializer(initializer, shape, dtype)
       end
 
     Map.put(layer_params, name, fun)
+  end
+
+  defp apply_initializer(initializer, shape, type) when is_atom(initializer) do
+    fun = apply(Axon.Initializers, initializer, [])
+    fun.(shape, type)
+  end
+
+  defp apply_initializer(initializer, shape, type) when is_function(initializer, 2) do
+    initializer.(shape, type)
   end
 
   ## Model JIT Compilation

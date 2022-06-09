@@ -2,6 +2,7 @@ defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
 
+  import AxonTestUtil
   import Nx.Defn
 
   describe "input" do
@@ -683,7 +684,7 @@ defmodule AxonTest do
 
       assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
-      assert bias == Axon.Initializers.zeros(shape: {6})
+      assert bias == zeros({6})
 
       assert predict_fn.(params, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
     end
@@ -700,7 +701,7 @@ defmodule AxonTest do
       assert init() == %{
                "dense" => %{
                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                 "bias" => Axon.Initializers.zeros(shape: {6})
+                 "bias" => zeros({6})
                }
              }
     end
@@ -709,7 +710,7 @@ defmodule AxonTest do
       assert Axon.init(model()) == %{
                "dense" => %{
                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                 "bias" => Axon.Initializers.zeros(shape: {6})
+                 "bias" => zeros({6})
                }
              }
     end
