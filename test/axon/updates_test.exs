@@ -7,7 +7,7 @@ defmodule Axon.UpdatesTest do
 
   describe "add_decayed_weights" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = add_decayed_weights()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -15,7 +15,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateless transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = add_decayed_weights(decay: 0.95)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -23,7 +23,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                add_decayed_weights(decay: 0.95) |> add_decayed_weights(decay: 0.95)
@@ -34,7 +34,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> add_decayed_weights(decay: 0.95)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -120,7 +120,7 @@ defmodule Axon.UpdatesTest do
 
   describe "add_noise" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = add_noise()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -130,7 +130,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = add_noise(gamma: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -142,7 +142,7 @@ defmodule Axon.UpdatesTest do
 
   describe "clip" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = clip()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -150,7 +150,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateless transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = clip(delta: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -158,7 +158,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = clip(delta: 2.0) |> clip(delta: 2.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -166,7 +166,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> clip(delta: 2.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -252,7 +252,7 @@ defmodule Axon.UpdatesTest do
 
   describe "clip_by_global_norm" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = clip_by_global_norm()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -260,7 +260,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateless transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = clip_by_global_norm(max_norm: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -268,7 +268,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                clip_by_global_norm(max_norm: 1.0) |> clip_by_global_norm(max_norm: 1.0)
@@ -279,7 +279,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> clip_by_global_norm(max_norm: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -365,7 +365,7 @@ defmodule Axon.UpdatesTest do
 
   describe "centralize" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = centralize()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -373,7 +373,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = centralize() |> centralize()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -381,7 +381,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> centralize()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -467,7 +467,7 @@ defmodule Axon.UpdatesTest do
 
   describe "identity" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = identity()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -475,7 +475,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = identity() |> identity()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -483,7 +483,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> identity()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -569,7 +569,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -577,7 +577,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale(1.0e-2) |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -585,7 +585,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -671,7 +671,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_adam" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -683,7 +683,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam(b1: 0.5)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -695,7 +695,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> scale_by_adam()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -711,7 +711,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -830,7 +830,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_belief" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_belief()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -842,7 +842,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_belief(b1: 0.4)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -854,7 +854,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_belief() |> scale_by_belief()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -870,7 +870,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_belief() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -989,7 +989,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_radam" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_radam()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1001,7 +1001,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_radam(b1: 0.5)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1013,7 +1013,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_radam() |> scale_by_radam()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1029,7 +1029,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_radam() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1148,7 +1148,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_rms" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rms()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1158,7 +1158,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rms(initial_scale: 0.1)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1168,7 +1168,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rms() |> scale_by_rms()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1180,7 +1180,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rms() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1276,7 +1276,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_rss" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rss()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1286,7 +1286,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rss(initial_accumulator_value: 0.2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1296,7 +1296,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rss() |> scale_by_rss()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1308,7 +1308,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_rss() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1418,7 +1418,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_schedule" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_schedule(Axon.Schedules.polynomial_decay())
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1428,7 +1428,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                scale_by_schedule(Axon.Schedules.polynomial_decay())
@@ -1444,7 +1444,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                scale_by_schedule(Axon.Schedules.polynomial_decay()) |> scale(1.0e-2)
@@ -1537,7 +1537,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_stddev" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_stddev()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1548,7 +1548,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_stddev(initial_scale: 0.5)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1559,7 +1559,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                scale_by_stddev(initial_scale: 0.1) |> scale_by_stddev(initial_scale: 0.2)
@@ -1576,7 +1576,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_stddev(initial_scale: 0.1) |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1685,7 +1685,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_trust_ratio" do
     test "constructs a stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_trust_ratio()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1693,7 +1693,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateless transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_trust_ratio(min_norm: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1701,7 +1701,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
                scale_by_trust_ratio(min_norm: 1.0) |> scale_by_trust_ratio(min_norm: 1.0)
@@ -1712,7 +1712,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_adam() |> scale_by_trust_ratio(min_norm: 1.0)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1798,7 +1798,7 @@ defmodule Axon.UpdatesTest do
 
   describe "scale_by_yogi" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_yogi()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1810,7 +1810,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_yogi(initial_accumulator_value: 1.0e-4)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1822,7 +1822,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_yogi() |> scale_by_yogi()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1838,7 +1838,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = scale_by_yogi() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1957,7 +1957,7 @@ defmodule Axon.UpdatesTest do
 
   describe "trace" do
     test "constructs a stateful transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = trace()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1967,7 +1967,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "constructs a stateful transformation with options" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = trace(decay: 0.8)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1977,7 +1977,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with itself" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = trace() |> trace()
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1989,7 +1989,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "composes with stateless transformation" do
-      params = %{a: Nx.tensor([1, 2, 3])}
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
       assert {init_fn, update_fn} = trace() |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)

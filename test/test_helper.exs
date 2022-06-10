@@ -91,6 +91,11 @@ defmodule AxonTestUtil do
     |> Enum.zip_with(Map.values(rhs), &assert_not_equal/2)
   end
 
+  def zeros(shape) do
+    fun = Axon.Initializers.zeros()
+    fun.(shape, {:f, 32})
+  end
+
   defp check_optimizer_functions!(optimizer) do
     {init_fn, update_fn} = optimizer
     is_function(init_fn, 1) and is_function(update_fn, 3)

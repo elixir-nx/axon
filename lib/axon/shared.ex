@@ -132,7 +132,10 @@ defmodule Axon.Shared do
   defn zeros_like(params) do
     transform(
       params,
-      &deep_new(&1, fn x -> Axon.Initializers.zeros(shape: Nx.shape(x)) end)
+      &deep_new(&1, fn x ->
+        fun = Axon.Initializers.zeros()
+        fun.(Nx.shape(x), Nx.type(x))
+      end)
     )
   end
 
@@ -142,7 +145,10 @@ defmodule Axon.Shared do
   defn fulls_like(params, value) do
     transform(
       params,
-      &deep_new(&1, fn x -> Axon.Initializers.full(value, shape: Nx.shape(x)) end)
+      &deep_new(&1, fn x ->
+        fun = Axon.Initializers.full(value)
+        fun.(Nx.shape(x), Nx.type(x))
+      end)
     )
   end
 

@@ -207,7 +207,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {1, 1}))
+      assert_equal(kernel, zeros({1, 1}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
@@ -217,7 +217,7 @@ defmodule CompilerTest do
       assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
-      assert_equal(bias, Axon.Initializers.zeros(shape: {1}))
+      assert_equal(bias, zeros({1}))
     end
 
     test "computes forward pass" do
@@ -308,7 +308,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {1, 1, 2}))
+      assert_equal(kernel, zeros({1, 1, 2}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
@@ -318,7 +318,7 @@ defmodule CompilerTest do
       assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
-      assert_equal(bias, Axon.Initializers.zeros(shape: {1}))
+      assert_equal(bias, zeros({1}))
     end
 
     test "computes forward pass" do
@@ -451,7 +451,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"embedding" => %{"kernel" => kernel}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {1, 1}))
+      assert_equal(kernel, zeros({1, 1}))
     end
 
     test "computes forward pass" do
@@ -893,7 +893,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {32, 3, 1, 1}))
+      assert_equal(kernel, zeros({32, 3, 1, 1}))
       assert Nx.shape(bias) == {32}
       assert Nx.type(bias) == {:f, 32}
 
@@ -904,7 +904,7 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
-      assert_equal(bias, Axon.Initializers.zeros(shape: {32}))
+      assert_equal(bias, zeros({32}))
     end
 
     test "computes forward pass with default options" do
@@ -1047,7 +1047,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {9, 1, 1, 1}))
+      assert_equal(kernel, zeros({9, 1, 1, 1}))
       assert Nx.shape(bias) == {9}
       assert Nx.type(bias) == {:f, 32}
 
@@ -1059,7 +1059,7 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {9, 1, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
-      assert_equal(bias, Axon.Initializers.zeros(shape: {9}))
+      assert_equal(bias, zeros({9}))
     end
 
     test "computes forward pass with default options" do
@@ -1224,7 +1224,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
-      assert_equal(kernel, Axon.Initializers.zeros(shape: {32, 3, 1, 1}))
+      assert_equal(kernel, zeros({32, 3, 1, 1}))
       assert Nx.shape(bias) == {32}
       assert Nx.type(bias) == {:f, 32}
 
@@ -1236,7 +1236,7 @@ defmodule CompilerTest do
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.()
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
-      assert_equal(bias, Axon.Initializers.zeros(shape: {32}))
+      assert_equal(bias, zeros({32}))
     end
 
     test "computes forward pass with default options" do
@@ -1423,8 +1423,8 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(k1, Axon.Initializers.zeros(shape: {9, 1, 1, 1}))
-      assert_equal(k2, Axon.Initializers.zeros(shape: {9, 1, 1, 1}))
+      assert_equal(k1, zeros({9, 1, 1, 1}))
+      assert_equal(k2, zeros({9, 1, 1, 1}))
       assert Nx.shape(b1) == {9}
       assert Nx.type(b1) == {:f, 32}
       assert Nx.shape(b2) == {9}
@@ -1445,8 +1445,8 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(b1, Axon.Initializers.zeros(shape: {9}))
-      assert_equal(b2, Axon.Initializers.zeros(shape: {9}))
+      assert_equal(b1, zeros({9}))
+      assert_equal(b2, zeros({9}))
       assert Nx.shape(k1) == {9, 1, 1, 1}
       assert Nx.type(k1) == {:f, 32}
       assert Nx.shape(k2) == {9, 1, 1, 1}
@@ -1650,9 +1650,9 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(k1, Axon.Initializers.zeros(shape: {9, 1, 1, 1, 1}))
-      assert_equal(k2, Axon.Initializers.zeros(shape: {9, 1, 1, 1, 1}))
-      assert_equal(k3, Axon.Initializers.zeros(shape: {9, 1, 1, 1, 1}))
+      assert_equal(k1, zeros({9, 1, 1, 1, 1}))
+      assert_equal(k2, zeros({9, 1, 1, 1, 1}))
+      assert_equal(k3, zeros({9, 1, 1, 1, 1}))
       assert Nx.shape(b1) == {9}
       assert Nx.type(b1) == {:f, 32}
       assert Nx.shape(b2) == {9}
@@ -1679,9 +1679,9 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(b1, Axon.Initializers.zeros(shape: {9}))
-      assert_equal(b2, Axon.Initializers.zeros(shape: {9}))
-      assert_equal(b3, Axon.Initializers.zeros(shape: {9}))
+      assert_equal(b1, zeros({9}))
+      assert_equal(b2, zeros({9}))
+      assert_equal(b3, zeros({9}))
       assert Nx.shape(k1) == {9, 1, 1, 1, 1}
       assert Nx.type(k1) == {:f, 32}
       assert Nx.shape(k2) == {9, 1, 1, 1, 1}
@@ -1919,7 +1919,7 @@ defmodule CompilerTest do
           assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
                    init_fn.()
 
-          assert_equal(gamma, Axon.Initializers.zeros(shape: {2}))
+          assert_equal(gamma, zeros({2}))
           assert Nx.shape(beta) == {2}
           assert Nx.type(beta) == {:f, 32}
           assert Nx.shape(mean) == {2}
@@ -1941,7 +1941,7 @@ defmodule CompilerTest do
 
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
-        assert_equal(beta, Axon.Initializers.zeros(shape: {3}))
+        assert_equal(beta, zeros({3}))
         assert Nx.shape(mean) == {3}
         assert Nx.type(mean) == {:f, 32}
         assert Nx.shape(var) == {3}
@@ -2095,7 +2095,7 @@ defmodule CompilerTest do
 
           assert {init_fn, _predict_fn} = Axon.compile(model1)
           assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
-          assert_equal(gamma, Axon.Initializers.zeros(shape: {2}))
+          assert_equal(gamma, zeros({2}))
           assert Nx.shape(beta) == {2}
           assert Nx.type(beta) == {:f, 32}
         end
@@ -2110,7 +2110,7 @@ defmodule CompilerTest do
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
-        assert_equal(beta, Axon.Initializers.zeros(shape: {3}))
+        assert_equal(beta, zeros({3}))
       end
     end
 
@@ -2230,7 +2230,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model1)
       assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
-      assert_equal(gamma, Axon.Initializers.zeros(shape: {3}))
+      assert_equal(gamma, zeros({3}))
       assert Nx.shape(beta) == {3}
       assert Nx.type(beta) == {:f, 32}
 
@@ -2239,7 +2239,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.compile(model2)
       assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.()
-      assert_equal(beta, Axon.Initializers.zeros(shape: {3}))
+      assert_equal(beta, zeros({3}))
       assert Nx.shape(gamma) == {3}
       assert Nx.type(gamma) == {:f, 32}
     end
@@ -2520,16 +2520,16 @@ defmodule CompilerTest do
              } = init_fn.()
 
       # Input kernel
-      assert_equal(wii, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(wif, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(wig, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(wio, Axon.Initializers.zeros(shape: {10, 64}))
+      assert_equal(wii, zeros({10, 64}))
+      assert_equal(wif, zeros({10, 64}))
+      assert_equal(wig, zeros({10, 64}))
+      assert_equal(wio, zeros({10, 64}))
 
       # Hidden kernel
-      assert_equal(whi, Axon.Initializers.zeros(shape: {64, 64}))
-      assert_equal(whf, Axon.Initializers.zeros(shape: {64, 64}))
-      assert_equal(whg, Axon.Initializers.zeros(shape: {64, 64}))
-      assert_equal(who, Axon.Initializers.zeros(shape: {64, 64}))
+      assert_equal(whi, zeros({64, 64}))
+      assert_equal(whf, zeros({64, 64}))
+      assert_equal(whg, zeros({64, 64}))
+      assert_equal(who, zeros({64, 64}))
 
       # Bias
       assert Nx.shape(bi) == {64}
@@ -2577,10 +2577,10 @@ defmodule CompilerTest do
       assert Nx.type(who) == {:f, 32}
 
       # Bias
-      assert_equal(bi, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bf, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bg, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bo, Axon.Initializers.zeros(shape: {64}))
+      assert_equal(bi, zeros({64}))
+      assert_equal(bf, zeros({64}))
+      assert_equal(bg, zeros({64}))
+      assert_equal(bo, zeros({64}))
     end
 
     test "computes forward pass with default options" do
@@ -2591,8 +2591,7 @@ defmodule CompilerTest do
 
       input = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
-      init_carry =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+      init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2634,8 +2633,7 @@ defmodule CompilerTest do
 
       input1 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
-      init_carry1 =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+      init_carry1 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Recurrent.lstm_cell(
@@ -2675,8 +2673,7 @@ defmodule CompilerTest do
 
       input2 = Nx.random_uniform({1, 8, 2}, type: {:f, 32})
 
-      init_carry2 =
-        {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+      init_carry2 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       cell_fn2 = &Axon.Recurrent.lstm_cell/5
 
@@ -2712,8 +2709,7 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        init_carry =
-          {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+        init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
         {carr, _} =
           Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
@@ -2779,7 +2775,7 @@ defmodule CompilerTest do
              } = params = init_fn.()
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
-      c = {Axon.Initializers.zeros(shape: {1, 1, 2}), Axon.Initializers.zeros(shape: {1, 1, 2})}
+      c = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       assert_equal(
         predict_fn.(params, input),
@@ -2861,8 +2857,8 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(wi, Axon.Initializers.zeros(shape: {4 * out_channel_n, in_channel_n, 1, 1}))
-      assert_equal(wh, Axon.Initializers.zeros(shape: {4 * out_channel_n, out_channel_n, 1, 1}))
+      assert_equal(wi, zeros({4 * out_channel_n, in_channel_n, 1, 1}))
+      assert_equal(wh, zeros({4 * out_channel_n, out_channel_n, 1, 1}))
 
       # Bias
       assert Nx.shape(b) == {4 * out_channel_n}
@@ -2892,7 +2888,7 @@ defmodule CompilerTest do
       assert Nx.type(wh) == {:f, 32}
 
       # Bias
-      assert_equal(b, Axon.Initializers.zeros(shape: {4 * out_channel_n}))
+      assert_equal(b, zeros({4 * out_channel_n}))
     end
 
     test "computes forward pass with dynamic unroll and equal number of input and output channels" do
@@ -2918,9 +2914,7 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      init_carry =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
+      init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -2976,9 +2970,7 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      init_carry =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
+      init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -3037,9 +3029,7 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      init_carry1 =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
+      init_carry1 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Recurrent.conv_lstm_cell(
@@ -3084,9 +3074,7 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      init_carry2 =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
+      init_carry2 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
 
@@ -3143,9 +3131,7 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        init_carry =
-          {Axon.Initializers.zeros(shape: hidden_shape_real),
-           Axon.Initializers.zeros(shape: hidden_shape_real)}
+        init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
         {carr, _} =
           Axon.Recurrent.dynamic_unroll(
@@ -3221,9 +3207,7 @@ defmodule CompilerTest do
 
       b = {Nx.broadcast(0, 4 * out_channel_n)}
 
-      c =
-        {Axon.Initializers.zeros(shape: hidden_shape_real),
-         Axon.Initializers.zeros(shape: hidden_shape_real)}
+      c = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       assert_equal(
         predict_fn.(params, input),
@@ -3284,12 +3268,12 @@ defmodule CompilerTest do
                }
              } = init_fn.()
 
-      assert_equal(wir, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(wiz, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(win, Axon.Initializers.zeros(shape: {10, 64}))
-      assert_equal(whr, Axon.Initializers.zeros(shape: {64, 64}))
-      assert_equal(whz, Axon.Initializers.zeros(shape: {64, 64}))
-      assert_equal(whn, Axon.Initializers.zeros(shape: {64, 64}))
+      assert_equal(wir, zeros({10, 64}))
+      assert_equal(wiz, zeros({10, 64}))
+      assert_equal(win, zeros({10, 64}))
+      assert_equal(whr, zeros({64, 64}))
+      assert_equal(whz, zeros({64, 64}))
+      assert_equal(whn, zeros({64, 64}))
       assert Nx.shape(br) == {64}
       assert Nx.type(br) == {:f, 32}
       assert Nx.shape(bz) == {64}
@@ -3326,10 +3310,10 @@ defmodule CompilerTest do
       assert Nx.type(whz) == {:f, 32}
       assert Nx.shape(whn) == {64, 64}
       assert Nx.type(whn) == {:f, 32}
-      assert_equal(br, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bz, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bhn, Axon.Initializers.zeros(shape: {64}))
-      assert_equal(bin, Axon.Initializers.zeros(shape: {64}))
+      assert_equal(br, zeros({64}))
+      assert_equal(bz, zeros({64}))
+      assert_equal(bhn, zeros({64}))
+      assert_equal(bin, zeros({64}))
     end
 
     test "computes forward pass with default options" do
@@ -3339,7 +3323,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input = Nx.random_uniform({1, 8, 2})
-      carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+      carry = {zeros({1, 1, 2})}
 
       assert {init_fn, predict_fn} = Axon.compile(model)
 
@@ -3369,7 +3353,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input1 = Nx.random_uniform({1, 8, 2})
-      carry1 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+      carry1 = {zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Recurrent.gru_cell(
@@ -3408,7 +3392,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input2 = Nx.random_uniform({1, 8, 2})
-      carry2 = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+      carry2 = {zeros({1, 1, 2})}
 
       assert {init_fn, predict_fn} = Axon.compile(model2)
 
@@ -3435,7 +3419,7 @@ defmodule CompilerTest do
       {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.gru(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
-      carry = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+      carry = {zeros({1, 1, 2})}
 
       equiv_fn = fn inp, enc, dec ->
         {ei, eh, eb} = enc
@@ -3502,7 +3486,7 @@ defmodule CompilerTest do
              } = params = init_fn.()
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
-      c = {Axon.Initializers.zeros(shape: {1, 1, 2})}
+      c = {zeros({1, 1, 2})}
 
       assert_all_close(
         predict_fn.(params, input),
@@ -4041,6 +4025,25 @@ defmodule CompilerTest do
       assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
 
       assert_equal(Axon.predict(model2, params, input), Nx.multiply(input, kernel))
+    end
+  end
+
+  describe "initializers" do
+    test "work with functions" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(2,
+          kernel_initializer:
+            Axon.Initializers.variance_scaling(
+              scale: 1.0e-4,
+              distribution: :uniform,
+              mode: :fan_avg
+            )
+        )
+
+      assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = Axon.init(model)
+      assert Nx.shape(k) == {1, 2}
+      assert Nx.shape(b) == {2}
     end
   end
 end
