@@ -12,8 +12,8 @@ First, we'll need to install our dependencies using `Mix.install`. We'll need `A
 Mix.install([
   {:req, "~> 0.3.0-dev", github: "wojtekmach/req", branch: "main"},
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-  {:exla, "~> 0.3.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
-  {:nx, "~> 0.3.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:exla, "~> 0.2.1"},
+  {:nx, "~> 0.2.0", override: true}
 ])
 ```
 
