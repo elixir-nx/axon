@@ -10,10 +10,10 @@ First, we'll need to install our dependencies using `Mix.install`. We'll need `A
 
 ```elixir
 Mix.install([
-  {:req, "~> 0.1.0-dev", github: "wojtekmach/req", branch: "main"},
+  {:req, "~> 0.3.0-dev", github: "wojtekmach/req", branch: "main"},
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:exla, "~> 0.2.1"},
+  {:nx, "~> 0.2.0", override: true}
 ])
 ```
 
@@ -89,6 +89,7 @@ Axon boils the task of training down to defining a training step and passing the
 
 ```elixir
 model
-|> Axon.Training.step(:categorical_cross_entropy, Axon.Optimizers.adam(0.01))
-|> Axon.Training.train(images, targets, compiler: EXLA, epochs: 10, log_every: 100)
+|> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
+|> Axon.Loop.metric(:accuracy, "Accuracy")
+|> Axon.Loop.run(Stream.zip(images, targets), epochs: 10, compiler: EXLA)
 ```
