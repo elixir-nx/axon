@@ -4023,6 +4023,268 @@ defmodule CompilerTest do
     end
   end
 
+  describe "namespace" do
+    test "initializes correctly with single namespace" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
+
+      assert %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+
+      assert Nx.shape(k) == {1, 2}
+      assert Nx.type(k) == {:f, 32}
+      assert Nx.shape(b) == {2}
+      assert Nx.type(b) == {:f, 32}
+    end
+
+    test "initializes correctly with nested namespace" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(2)
+        |> Axon.namespace("model")
+        |> Axon.namespace("nested")
+
+      assert %{"nested" => %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}}} =
+               Axon.init(model)
+
+      assert Nx.shape(k) == {1, 2}
+      assert Nx.type(k) == {:f, 32}
+      assert Nx.shape(b) == {2}
+      assert Nx.type(b) == {:f, 32}
+    end
+
+    test "initializes correclty with single namespace no params" do
+      model = Axon.input({nil, 1}) |> Axon.namespace("model")
+
+      assert %{} == Axon.init(model)
+    end
+
+    test "initializes correctly with nested namespace no params" do
+      model = Axon.input({nil, 1}) |> Axon.namespace("model") |> Axon.namespace("nested")
+
+      assert %{} == Axon.init(model)
+    end
+
+    test "initializes correctly with multiple single namespaces" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
+
+      model = Axon.add(x, y)
+
+      # TODO: If we namespace like this, I wonder if we should count layer ops
+      # by namespace, e.g. both of them would have dense_0?
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "y" => %{"dense_1" => %{"kernel" => k2, "bias" => b2}}
+             } = Axon.init(model)
+
+      assert Nx.shape(k1) == {1, 2}
+      assert Nx.type(k1) == {:f, 32}
+      assert Nx.shape(b1) == {2}
+      assert Nx.type(b1) == {:f, 32}
+      assert Nx.shape(k2) == {1, 2}
+      assert Nx.type(k2) == {:f, 32}
+      assert Nx.shape(b2) == {2}
+      assert Nx.type(b2) == {:f, 32}
+    end
+
+    test "initializes correctly single and nested namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      z = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y") |> Axon.namespace("z")
+
+      model = Axon.add(x, z)
+
+      # TODO: If we namespace like this, I wonder if we should count layer ops
+      # by namespace, e.g. both of them would have dense_0?
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "z" => %{"y" => %{"dense_1" => %{"kernel" => k2, "bias" => b2}}}
+             } = Axon.init(model)
+
+      assert Nx.shape(k1) == {1, 2}
+      assert Nx.type(k1) == {:f, 32}
+      assert Nx.shape(b1) == {2}
+      assert Nx.type(b1) == {:f, 32}
+      assert Nx.shape(k2) == {1, 2}
+      assert Nx.type(k2) == {:f, 32}
+      assert Nx.shape(b2) == {2}
+      assert Nx.type(b2) == {:f, 32}
+    end
+
+    test "initializes correctly with single namespace and no namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2)
+
+      model = Axon.add(x, y)
+
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "dense_1" => %{"kernel" => k2, "bias" => b2}
+             } = Axon.init(model)
+
+      assert Nx.shape(k1) == {1, 2}
+      assert Nx.type(k1) == {:f, 32}
+      assert Nx.shape(b1) == {2}
+      assert Nx.type(b1) == {:f, 32}
+      assert Nx.shape(k2) == {1, 2}
+      assert Nx.type(k2) == {:f, 32}
+      assert Nx.shape(b2) == {2}
+      assert Nx.type(b2) == {:f, 32}
+    end
+
+    test "initializes correctly reusing namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+
+      model = Axon.add(x, x)
+
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+
+      assert Nx.shape(k) == {1, 2}
+      assert Nx.type(k) == {:f, 32}
+      assert Nx.shape(b) == {2}
+      assert Nx.type(b) == {:f, 32}
+    end
+
+    test "initializes correctly re-using part of inner namespace" do
+      # TODO: I actually don't know what the correct behavior is here?
+      inner = Axon.input({nil, 1}) |> Axon.dense(2)
+      x = Axon.namespace(inner, "x")
+
+      model = Axon.add(inner, x)
+
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+
+      assert Nx.shape(k) == {1, 2}
+      assert Nx.type(k) == {:f, 32}
+      assert Nx.shape(b) == {2}
+      assert Nx.type(b) == {:f, 32}
+    end
+
+    test "predicts correctly with single namespace" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
+      input = Nx.random_uniform({1, 1})
+
+      assert %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+               params = Axon.init(model)
+
+      assert_equal(Axon.predict(model, params, input), Axon.Layers.dense(input, k, b))
+    end
+
+    test "predicts correctly with single namespace no parameters" do
+      model = Axon.input({nil, 1}) |> Axon.namespace("model")
+      input = Nx.random_uniform({1, 1})
+
+      assert_equal(Axon.predict(model, %{}, input), input)
+    end
+
+    test "predicts correctly with nested namespace" do
+      model =
+        Axon.input({nil, 1})
+        |> Axon.dense(2)
+        |> Axon.namespace("model")
+        |> Axon.namespace("nested")
+
+      input = Nx.random_uniform({1, 1})
+
+      assert %{"nested" => %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}}} =
+               params = Axon.init(model)
+
+      assert_equal(Axon.predict(model, params, input), Axon.Layers.dense(input, k, b))
+    end
+
+    test "predicts correctly with nested namespace and no params" do
+      model = Axon.input({nil, 1}) |> Axon.namespace("model") |> Axon.namespace("nested")
+
+      input = Nx.random_uniform({1, 1})
+
+      assert_equal(Axon.predict(model, %{}, input), input)
+    end
+
+    test "predicts correctly with multiple single namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
+
+      model = Axon.add(x, y)
+
+      input_0 = Nx.random_uniform({1, 1})
+      input_1 = Nx.random_uniform({1, 1})
+      inputs = %{"input_0" => input_0, "input_1" => input_1}
+
+      # TODO: If we namespace like this, I wonder if we should count layer ops
+      # by namespace, e.g. both of them would have dense_0?
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "y" => %{"dense_1" => %{"kernel" => k2, "bias" => b2}}
+             } = params = Axon.init(model)
+
+      expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
+      assert_equal(Axon.predict(model, params, inputs), expected)
+    end
+
+    test "predicts correctly with single and nested namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      z = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y") |> Axon.namespace("z")
+
+      model = Axon.add(x, z)
+
+      input_0 = Nx.random_uniform({1, 1})
+      input_1 = Nx.random_uniform({1, 1})
+      inputs = %{"input_0" => input_0, "input_1" => input_1}
+
+      # TODO: If we namespace like this, I wonder if we should count layer ops
+      # by namespace, e.g. both of them would have dense_0?
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "z" => %{"y" => %{"dense_1" => %{"kernel" => k2, "bias" => b2}}}
+             } = params = Axon.init(model)
+
+      expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
+      assert_equal(Axon.predict(model, params, inputs), expected)
+    end
+
+    test "predicts correctly with single and no namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2)
+
+      model = Axon.add(x, y)
+      input_0 = Nx.random_uniform({1, 1})
+      input_1 = Nx.random_uniform({1, 1})
+      inputs = %{"input_0" => input_0, "input_1" => input_1}
+
+      assert %{
+               "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
+               "dense_1" => %{"kernel" => k2, "bias" => b2}
+             } = params = Axon.init(model)
+
+      expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
+      assert_equal(Axon.predict(model, params, inputs), expected)
+    end
+
+    test "predicts correctly re-using namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+
+      model = Axon.add(x, x)
+      input = Nx.random_uniform({1, 1})
+
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
+
+      expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
+      assert_equal(Axon.predict(model, params, input), expected)
+    end
+
+    test "predicts correctly re-using part of inner namespace" do
+      # TODO: I actually don't know what the correct behavior is here?
+      inner = Axon.input({nil, 1}) |> Axon.dense(2)
+      x = Axon.namespace(inner, "x")
+
+      model = Axon.add(inner, x)
+
+      input = Nx.random_uniform({1, 1})
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
+
+      expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
+      assert_equal(Axon.predict(model, params, input), expected)
+    end
+  end
+
   describe "initializers" do
     test "work with functions" do
       model =
@@ -4039,6 +4301,33 @@ defmodule CompilerTest do
       assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = Axon.init(model)
       assert Nx.shape(k) == {1, 2}
       assert Nx.shape(b) == {2}
+    end
+  end
+
+  describe "initialize from fixed model" do
+    test "initializes entire model from start point" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2)
+
+      params_1 = Axon.init(model)
+      params_2 = Axon.init(model, params_1)
+
+      assert_equal(params_1, params_2)
+    end
+
+    test "initializes partial model from start point" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
+      model = Axon.add(x, y)
+
+      x_params_1 = Axon.init(x)
+
+      assert %{"x" => x_params_2, "y" => y_params_1} = Axon.init(model, x_params_1)
+      assert_equal(x_params_1, x_params_2)
+
+      # This exercises that a namespace will always have the same
+      # parameter names regardless of where it appears in a model
+      assert %{"y" => y_params_2} = Axon.init(model, y_params_1)
+      assert_equal(y_params_1, y_params_2)
     end
   end
 end

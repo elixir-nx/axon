@@ -14,9 +14,14 @@ defmodule Axon.Compiler do
   end
 
   @doc false
-  def __jit_init__(graph, [] = args, opts) do
+  def __jit_init__(graph, [init_params] = args, opts) do
     fun = compile_init(graph)
-    Nx.Defn.jit_or_apply(fun, args, opts)
+    params = Nx.Defn.jit_or_apply(fun, args, opts)
+    # TODO: Maybe merge is not best here, do we want this
+    # operation to fail if structure of params do not match
+    # or should it just silently continue (even though the
+    # behavior is not correct)?
+    Map.merge(params, init_params)
   end
 
   defp compile_init(%Axon{} = graph) do
@@ -92,6 +97,18 @@ defmodule Axon.Compiler do
               call_init_cache(parent_id, cache, result_cache)
             end)
 
+          :namespace ->
+            namespace_params =
+              Enum.reduce(parent_ids, %{}, fn parent_id, result_cache ->
+                call_init_cache(parent_id, cache, result_cache)
+              end)
+
+            if namespace_params == %{} do
+              result_cache
+            else
+              Map.put(result_cache, name, namespace_params)
+            end
+
           _ ->
             Enum.reduce(parent_ids, result_cache, fn parent_id, result_cache ->
               call_init_cache(parent_id, cache, result_cache)
@@ -155,7 +172,7 @@ defmodule Axon.Compiler do
   end
 
   defp compile_predict(%Axon{} = graph, mode) do
-    {root_id, {cache, _op_counts}} = to_predict_fun(graph, {%{}, %{}}, mode)
+    {root_id, {cache, _op_counts, _namespace}} = to_predict_fun(graph, {%{}, %{}, []}, mode)
 
     predict_fn = fn params, inputs ->
       case mode do
@@ -180,13 +197,13 @@ defmodule Axon.Compiler do
             " output, use `Axon.container`"
   end
 
-  defp to_predict_fun(%{id: id} = graph, {cache, op_counts}, mode) do
+  defp to_predict_fun(%{id: id} = graph, {cache, op_counts, namespace}, mode) do
     case cache do
       %{^id => _} ->
-        {id, {cache, op_counts}}
+        {id, {cache, op_counts, namespace}}
 
       %{} ->
-        recur_predict_fun(graph, {cache, op_counts}, mode)
+        recur_predict_fun(graph, {cache, op_counts, namespace}, mode)
     end
   end
 
@@ -209,7 +226,7 @@ defmodule Axon.Compiler do
 
   defp recur_predict_fun(
          %Axon{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
-         {cache, op_counts},
+         {cache, op_counts, namespace},
          _
        ) do
     tensor = Nx.backend_transfer(tensor, Nx.BinaryBackend)
@@ -221,12 +238,12 @@ defmodule Axon.Compiler do
 
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
 
-    {id, {Map.put(cache, id, fun), op_counts}}
+    {id, {Map.put(cache, id, fun), op_counts, namespace}}
   end
 
   defp recur_predict_fun(
          %Axon{id: id, op: :input, output_shape: shape, hooks: hooks, name: name_fn},
-         {cache, op_counts},
+         {cache, op_counts, namespace},
          mode
        ) do
     name = name_fn.(:input, op_counts)
@@ -270,16 +287,16 @@ defmodule Axon.Compiler do
       {res, {state, result_cache}}
     end
 
-    {id, {Map.put(cache, id, fun), op_counts}}
+    {id, {Map.put(cache, id, fun), op_counts, namespace}}
   end
 
   defp recur_predict_fun(
          %Axon{id: id, op: :container, parent: [parents]},
-         cache_and_counts,
+         cache_counts_namespace,
          mode
        ) do
-    {parent_ids, {cache, op_counts}} =
-      deep_map_reduce(parents, cache_and_counts, &to_predict_fun(&1, &2, mode))
+    {parent_ids, {cache, op_counts, namespace}} =
+      deep_map_reduce(parents, cache_counts_namespace, &to_predict_fun(&1, &2, mode))
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
 
@@ -289,7 +306,42 @@ defmodule Axon.Compiler do
       end)
     end
 
-    {id, {Map.put(cache, id, fun), op_counts}}
+    {id, {Map.put(cache, id, fun), op_counts, namespace}}
+  end
+
+  defp recur_predict_fun(
+         %Axon{id: id, op: :namespace, name: name_fn, parent: parents},
+         {cache, op_counts, namespace},
+         mode
+       ) do
+    name = name_fn.(:namespace, op_counts)
+
+    # All of the children of this namespace belong to it, so
+    # we forward this name to the namespace, but everything after
+    # it belongs to whatever namespace we're currently in
+    {parent_ids, {cache, op_counts, _namespace}} =
+      Enum.map_reduce(
+        parents,
+        {cache, op_counts, [name | namespace]},
+        &to_predict_fun(&1, &2, mode)
+      )
+
+    # The function just returns the result of it's child,
+    # or parent depending on how you view the tree
+    fun = fn params, inputs, state, cache, result_cache ->
+      # TODO: How should hooks be handled here?
+      # TODO: I think we can actually handle parameter freezing and access
+      # better here by only forwarding params[namespace] to the child function
+      {[out], {state, result_cache}} =
+        Enum.map_reduce(parent_ids, {state, result_cache}, fn parent_id, {state, result_cache} ->
+          call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+        end)
+
+      {out, {state, result_cache}}
+    end
+
+    # Then we return the cache, op_counts, and original namespace
+    {id, {Map.put(cache, id, fun), op_counts, namespace}}
   end
 
   ## Every other case
@@ -307,7 +359,7 @@ defmodule Axon.Compiler do
            hooks: hooks,
            op_name: op_name
          },
-         cache_and_counts,
+         cache_counts_namespace,
          mode
        )
        when (is_function(op) or is_atom(op)) and is_list(inputs) do
@@ -315,10 +367,10 @@ defmodule Axon.Compiler do
     # application within the function. We work only with
     # functions and IDs to avoid leaking entire graphs into
     # the closure
-    {parent_ids, {cache, op_counts}} =
+    {parent_ids, {cache, op_counts, namespace}} =
       Enum.map_reduce(
         inputs,
-        cache_and_counts,
+        cache_counts_namespace,
         &to_predict_fun(&1, &2, mode)
       )
 
@@ -350,12 +402,21 @@ defmodule Axon.Compiler do
           {layer_input, {state, result_cache}}
         end)
 
+      # We're only concerned with this namespaces parameters, so we pair
+      # down parameters first given the namespaces we've accumulated at
+      # this level (if any)
+      # TODO: This should be a namespace concern, not layer concern
+      namespace_params =
+        namespace
+        |> Enum.reverse()
+        |> Enum.reduce(params, fn name, params -> params[name] end)
+
       # Parameters are just accessed in the layer sub-map of the nested
       # parameter map, so we just need to extract them and then apply
       # freezing and dtype policy
       parameter_inputs =
         Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          safe_as_type(maybe_freeze(params[name][v], frz), compute)
+          safe_as_type(maybe_freeze(namespace_params[name][v], frz), compute)
         end)
 
       # Reorder the inputs according to the original input ordering
@@ -414,7 +475,7 @@ defmodule Axon.Compiler do
       {out, {state, result_cache}}
     end
 
-    {id, {Map.put(cache, id, fun), op_counts}}
+    {id, {Map.put(cache, id, fun), op_counts, namespace}}
   end
 
   ## Helpers

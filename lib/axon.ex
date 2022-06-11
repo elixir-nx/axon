@@ -433,6 +433,13 @@ defmodule Axon do
   end
 
   @doc """
+  Wraps an Axon model into a namespace.
+  """
+  def namespace(%Axon{output_shape: shape} = axon, name) when is_binary(name) do
+    layer(:namespace, [axon], name: name, shape: shape)
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -3044,8 +3051,8 @@ defmodule Axon do
   with the given compiler options.
   """
   @doc type: :execution
-  defmacro init(model, opts \\ []) do
-    define_init(model, [], opts)
+  defmacro init(model, params \\ %{}, opts \\ []) do
+    define_init(model, [params], opts)
   end
 
   @doc """
@@ -3160,6 +3167,52 @@ defmodule Axon do
         "#{inspect(policy)}",
         0,
         "0 bytes"
+      ]
+
+      {row, name, cache, op_counts, model_info}
+    end
+
+    defp do_axon_to_rows(
+           %Axon{
+             op: :namespace,
+             parent: parents,
+             name: name_fn,
+             output_shape: shape,
+             policy: policy
+           },
+           cache,
+           op_counts,
+           model_info
+         ) do
+      init_model_info = %{num_params: 0, total_param_byte_size: 0, inputs: []}
+
+      {_input_names, {_cache, op_counts, namespace_model_info}} =
+        Enum.map_reduce(parents, {%{}, op_counts, init_model_info}, fn
+          graph, {cache, op_counts, model_info} ->
+            {_, name, cache, op_counts, model_info} =
+              axon_to_rows(graph, cache, op_counts, model_info)
+
+            {name, {cache, op_counts, model_info}}
+        end)
+
+      name = name_fn.(:namespace, op_counts)
+
+      num_params = namespace_model_info.num_params
+      param_byte_size = namespace_model_info.total_param_byte_size
+      inputs = namespace_model_info.inputs
+
+      model_info =
+        model_info
+        |> Map.update(:num_params, 0, fn x -> x + num_params end)
+        |> Map.update(:total_param_byte_size, 0, fn x -> x + param_byte_size end)
+        |> Map.update(:inputs, [], fn x -> x ++ inputs end)
+
+      row = [
+        "#{name} ( #{inputs |> Map.new() |> Map.keys()} )",
+        "#{inspect(shape)}",
+        "#{inspect(policy)}",
+        "#{num_params}",
+        "#{param_byte_size} bytes"
       ]
 
       {row, name, cache, op_counts, model_info}
