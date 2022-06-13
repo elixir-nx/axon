@@ -417,25 +417,25 @@ defmodule Axon.LoopTest do
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
-      deserialized = Axon.Loop.deserialize_state(serialized)
+      %State{step_state: deserialized_step_state} = Axon.Loop.deserialize_state(serialized)
 
-      assert state == deserialized
+      assert_equal(step_state, deserialized_step_state)
     end
 
     test "serialize_state/deserialize_state preserve loop state with step state serialization" do
       serialize_fn = fn step_state, opts -> :erlang.term_to_binary(step_state, opts) end
       deserialize_fn = fn binary, opts -> :erlang.binary_to_term(binary, opts) end
 
-      init_fn = fn _state -> %{foo: 1} end
+      init_fn = fn _state -> %{foo: Nx.tensor(1)} end
       step_state = init_fn.(%{})
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state, serialize_step_state: serialize_fn)
 
-      deserialized =
+      %State{step_state: deserialized_step_state} =
         Axon.Loop.deserialize_state(serialized, deserialize_step_state: deserialize_fn)
 
-      assert state == deserialized
+      assert_equal(step_state, deserialized_step_state)
     end
   end
 
