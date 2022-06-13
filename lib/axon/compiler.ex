@@ -14,24 +14,24 @@ defmodule Axon.Compiler do
   end
 
   @doc false
-  def __jit_init__(graph, [init_params] = args, opts) do
+  def __jit_init__(graph, args, opts) do
     fun = compile_init(graph)
-    params = Nx.Defn.jit_or_apply(fun, args, opts)
-    # TODO: Maybe merge is not best here, do we want this
-    # operation to fail if structure of params do not match
-    # or should it just silently continue (even though the
-    # behavior is not correct)?
-    Map.merge(params, init_params)
+    Nx.Defn.jit_or_apply(fun, args, opts)
   end
 
   defp compile_init(%Axon{} = graph) do
     {root_id, {cache, _op_counts}} = to_init_fun(graph, {%{}, %{}})
 
-    init_fn = fn ->
-      cache[root_id].(cache, %{})
+    init_fn = fn init_params ->
+      params = cache[root_id].(cache, %{})
+      # TODO: Maybe merge is not best here, do we want this
+      # operation to fail if structure of params do not match
+      # or should it just silently continue (even though the
+      # behavior is not correct)?
+      Map.merge(params, init_params)
     end
 
-    fn -> Nx.Defn.jit_or_apply(init_fn, []) end
+    &Nx.Defn.jit_or_apply(init_fn, [&1])
   end
 
   defp compile_init(graph) do
@@ -75,12 +75,22 @@ defmodule Axon.Compiler do
            hooks: hooks,
            op_name: op_name
          },
-         cache_and_counts
+         {cache, op_counts} = cache_and_counts
        ) do
     {parent_ids, {cache, op_counts}} =
       case {op, parents} do
         {:container, [parent]} ->
           deep_map_reduce(parent, cache_and_counts, &to_init_fun/2)
+
+        {:namespace, parents} ->
+          input_count = op_counts[:input] || 0
+          op_counts = %{input: input_count}
+
+          {parent_ids, {cache, namespace_op_counts}} =
+            Enum.map_reduce(parents, {cache, op_counts}, &to_init_fun/2)
+
+          input_count = namespace_op_counts[:input] || 0
+          {parent_ids, {cache, Map.put(op_counts, :input, input_count)}}
 
         {_, parents} when is_list(parents) ->
           Enum.map_reduce(parents, cache_and_counts, &to_init_fun/2)
@@ -315,16 +325,26 @@ defmodule Axon.Compiler do
          mode
        ) do
     name = name_fn.(:namespace, op_counts)
+    # To ensure that a namespace always has the same layer names,
+    # we reset op_counts, input layers always belong to the global
+    # namespace, so we include those regardless
+    input_count = op_counts[:input] || 0
+    namespace_op_counts = %{input: input_count}
 
     # All of the children of this namespace belong to it, so
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
-    {parent_ids, {cache, op_counts, _namespace}} =
+    {parent_ids, {cache, namespace_op_counts, _namespace}} =
       Enum.map_reduce(
         parents,
-        {cache, op_counts, [name | namespace]},
+        {cache, namespace_op_counts, [name | namespace]},
         &to_predict_fun(&1, &2, mode)
       )
+
+    # Update the global op_count of input layers, since they
+    # are a global operation regardless of where they are
+    input_count = namespace_op_counts[:input] || 0
+    op_counts = Map.put(op_counts, :input, input_count)
 
     # The function just returns the result of it's child,
     # or parent depending on how you view the tree

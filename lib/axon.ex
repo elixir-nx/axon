@@ -3052,6 +3052,13 @@ defmodule Axon do
   """
   @doc type: :execution
   defmacro init(model, params \\ %{}, opts \\ []) do
+    params =
+      if params == %{} do
+        Macro.escape(params)
+      else
+        params
+      end
+
     define_init(model, [params], opts)
   end
 

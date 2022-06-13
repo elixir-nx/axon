@@ -682,7 +682,7 @@ defmodule AxonTest do
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
         |> Axon.compile()
 
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
 
