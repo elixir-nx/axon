@@ -127,9 +127,9 @@ defmodule Axon do
   specifies inference options. All options passed to layer are forwarded
   to inference function except:
 
-    * `:shape` - Specify layer output shape to bypass shape inference.
-    * `:name` - Layer name.
-    * `:op_name` - Layer operation for inspection and building parameter
+    * `:shape` - specify layer output shape to bypass shape inference.
+    * `:name` - layer name.
+    * `:op_name` - layer operation for inspection and building parameter
       map.
 
   Note this means your layer should not use these as input options,
@@ -290,11 +290,12 @@ defmodule Axon do
 
   ## Options
 
-    * `initializer` - parameter initializer. Defaults to `:glorot_uniform`.
+    * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
 
   """
   def param(name, shape, opts \\ []) do
-    initializer = opts[:initializer] || :glorot_uniform
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform)
+    initializer = opts[:initializer]
     validate_initializer!(initializer)
 
     id = System.unique_integer([:positive, :monotonic])
@@ -315,11 +316,12 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
+    * `:name` - layer name.
 
   """
   @doc type: :special
   def input(input_shape, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
     output_shape = Axon.Shape.input(input_shape)
     layer(:input, [], name: opts[:name], shape: output_shape, op_name: :input)
   end
@@ -342,12 +344,15 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
+    * `:name` - layer name.
+
   """
   def constant(tensor, opts \\ [])
 
   @doc type: :special
   def constant(%Nx.Tensor{shape: output_shape} = tensor, opts) do
+    opts = Keyword.validate!(opts, [:name])
+
     layer(:constant, [], name: opts[:name], value: tensor, shape: output_shape, op_name: :constant)
   end
 
@@ -370,7 +375,7 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
+    * `:name` - layer name.
 
   ## Examples
 
@@ -398,6 +403,8 @@ defmodule Axon do
   """
   @doc type: :special
   def container(container, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
+
     output_shape =
       deep_new(container, fn %Axon{output_shape: shape} ->
         shape
@@ -440,41 +447,49 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`.
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`.
 
   """
   @doc type: :linear
   def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true
+      ])
 
     kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
     bias_shape = Axon.Shape.dense_bias(parent_shape, units)
     output_shape = Axon.Shape.dense(parent_shape, units)
 
-    kernel_initializer = opts[:kernel_initializer]
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
-
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
-        bias = param("bias", bias_shape, initializer: bias_initializer)
-
-        [x, kernel, bias]
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        {[x, kernel, bias], :dense}
       else
-        [x, kernel]
+        {[x, kernel], &Axon.Layers.dense(&1, &2, 0, &3)}
       end
 
-    op = if use_bias, do: :dense, else: &Axon.Layers.dense(&1, &2, 0, &3)
     node = layer(op, inputs, name: opts[:name], shape: output_shape, op_name: :dense)
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -500,11 +515,18 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`.
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`.
 
   """
   @doc type: :linear
@@ -515,32 +537,32 @@ defmodule Axon do
         opts \\ []
       )
       when is_integer(units) and units > 0 do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true
+      ])
 
     kernel_shape = Axon.Shape.bilinear_kernel(parent1_shape, parent2_shape, units)
     bias_shape = Axon.Shape.bilinear_bias(parent1_shape, parent2_shape, units)
     output_shape = Axon.Shape.bilinear(parent1_shape, parent2_shape, units)
 
-    kernel_initializer = opts[:kernel_initializer]
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
-
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
-        bias = param("bias", bias_shape, initializer: bias_initializer)
-
-        [input1, input2, kernel, bias]
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        {[input1, input2, kernel, bias], :bilinear}
       else
-        [input1, input2, kernel]
+        {[input1, input2, kernel], &Axon.Layers.bilinear(&1, &2, &3, 0, &4)}
       end
 
-    op = if use_bias, do: :bilinear, else: &Axon.Layers.bilinear(&1, &2, &3, 0, &4)
     node = layer(op, inputs, name: opts[:name], shape: output_shape, op_name: :bilinear)
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -558,30 +580,59 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
-    * `kernel_size` - Size of the kernel spatial dimensions.
-    * `strides` - Stride during convolution.
-    * `padding` - Padding to the spatial dimensions of the input.
-    * `input_dilation` - Dilation to apply to input.
-    * `kernel_dilation` - Dilation to apply to kernel.
-    * `channels` - channels location. One of `:first` or `:last`.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`
+
+    * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+      to `1`.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:padding` - padding to the spatial dimensions of the input.
+      Defaults to `:valid`.
+
+    * `:input_dilation` - dilation to apply to input. Defaults to `1`.
+
+    * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
+      Defaults to `:first`.
 
   """
   @doc type: :convolution
   def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
-    channels = opts[:channels] || :first
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true,
+        kernel_size: 1,
+        strides: 1,
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        channels: :first
+      ])
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    padding = opts[:padding] || :valid
-    input_dilation = opts[:input_dilation] || 1
-    kernel_dilation = opts[:kernel_dilation] || 1
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    padding = opts[:padding]
+    input_dilation = opts[:input_dilation]
+    kernel_dilation = opts[:kernel_dilation]
+    channels = opts[:channels]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -603,22 +654,15 @@ defmodule Axon do
         channels
       )
 
-    kernel_initializer = opts[:kernel_initializer]
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
-
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
-        bias = param("bias", bias_shape, initializer: bias_initializer)
-
-        [x, kernel, bias]
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        {[x, kernel, bias], :conv}
       else
-        [x, kernel]
+        {[x, kernel], &Axon.Layers.conv(&1, &2, 0, &3)}
       end
-
-    op = if use_bias, do: :conv, else: &Axon.Layers.conv(&1, &2, 0, &3)
 
     node =
       layer(op, inputs,
@@ -632,7 +676,7 @@ defmodule Axon do
         op_name: :conv
       )
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -642,34 +686,61 @@ defmodule Axon do
   @doc """
   Adds a transposed convolution layer to the network.
 
-  The tranposed convolution layer is sometimes referred to as a
+  The transposed convolution layer is sometimes referred to as a
   fractionally strided convolution or (incorrectly) as a deconvolution.
 
   Compiles to `Axon.Layers.conv_transpose/4`.
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
-    * `kernel_size` - Size of the kernel spatial dimensions.
-    * `strides` - Stride during convolution.
-    * `padding` - Padding to the spatial dimensions of the input.
-    * `kernel_dilation` - Dilation to apply to kernel.
-    * `channels` - channels configuration. One of `:first` or `:last`.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`
+
+    * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+      to `1`.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:padding` - padding to the spatial dimensions of the input.
+      Defaults to `:valid`.
+
+    * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:first`.
+
   """
   @doc type: :convolution
   def conv_transpose(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
-    channels = opts[:channels] || :first
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true,
+        kernel_size: 1,
+        strides: 1,
+        padding: :valid,
+        kernel_dilation: 1,
+        channels: :first
+      ])
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    padding = opts[:padding] || :valid
-    kernel_dilation = opts[:kernel_dilation] || 1
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    padding = opts[:padding]
+    kernel_dilation = opts[:kernel_dilation]
+    channels = opts[:channels]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -679,22 +750,15 @@ defmodule Axon do
     kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels)
     bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels)
 
-    kernel_initializer = opts[:kernel_initializer]
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
-
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
-        bias = param("bias", bias_shape, initializer: bias_initializer)
-
-        [x, kernel, bias]
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        {[x, kernel, bias], :conv_transpose}
       else
-        [x, kernel]
+        {[x, kernel], &Axon.Layers.conv_transpose(&1, &2, 0, &3)}
       end
-
-    op = if use_bias, do: :conv_transpose, else: &Axon.Layers.conv_transpose(&1, &2, 0, &3)
 
     output_shape =
       Axon.Shape.conv_transpose(
@@ -717,7 +781,7 @@ defmodule Axon do
         op_name: :conv_transpose
       )
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -740,30 +804,59 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
-    * `kernel_size` - Size of the kernel spatial dimensions.
-    * `strides` - Stride during convolution.
-    * `padding` - Padding to the spatial dimensions of the input.
-    * `input_dilation` - Dilation to apply to input.
-    * `kernel_dilation` - Dilation to apply to kernel.
-    * `channels` - channel configuration. One of `:first` or `:last`.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`
+
+    * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+      to `1`.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:padding` - padding to the spatial dimensions of the input.
+      Defaults to `:valid`.
+
+    * `:input_dilation` - dilation to apply to input. Defaults to `1`.
+
+    * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:first`.
+
   """
   @doc type: :convolution
   def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
-    channels = opts[:channels] || :first
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true,
+        kernel_size: 1,
+        strides: 1,
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        channels: :first
+      ])
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    padding = opts[:padding] || :valid
-    input_dilation = opts[:input_dilation] || 1
-    kernel_dilation = opts[:kernel_dilation] || 1
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    padding = opts[:padding]
+    input_dilation = opts[:input_dilation]
+    kernel_dilation = opts[:kernel_dilation]
+    channels = opts[:channels]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -788,22 +881,16 @@ defmodule Axon do
         channels
       )
 
-    kernel_initializer = opts[:kernel_initializer]
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
-        bias = param("bias", bias_shape, initializer: bias_initializer)
-
-        [x, kernel, bias]
+        {[x, kernel, bias], :depthwise_conv}
       else
-        [x, kernel]
+        {[x, kernel], &Axon.Layers.depthwise_conv(&1, &2, 0, &3)}
       end
-
-    op = if use_bias, do: :depthwise_conv, else: &Axon.Layers.depthwise_conv(&1, &2, 0, &3)
 
     node =
       layer(op, inputs,
@@ -817,7 +904,7 @@ defmodule Axon do
         op_name: :depthwise_conv
       )
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -836,31 +923,59 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
-    * `kernel_size` - Size of the kernel spatial dimensions.
-    * `strides` - Stride during convolution.
-    * `padding` - Padding to the spatial dimensions of the input.
-    * `input_dilation` - Dilation to apply to input.
-    * `kernel_dilation` - Dilation to apply to kernel.
-    * `channels` - channel configuration. One of `:first` or `:last`.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`
+
+    * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+      to `1`.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:padding` - padding to the spatial dimensions of the input.
+      Defaults to `:valid`.
+
+    * `:input_dilation` - dilation to apply to input. Defaults to `1`.
+
+    * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:first`.
 
   """
   @doc type: :convolution
   def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    activation = opts[:activation]
-    use_bias = Keyword.get(opts, :use_bias, true)
-    channels = opts[:channels] || :first
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true,
+        kernel_size: 1,
+        strides: 1,
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        channels: :first
+      ])
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    padding = opts[:padding] || :valid
-    input_dilation = opts[:input_dilation] || 1
-    kernel_dilation = opts[:kernel_dilation] || 1
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    padding = opts[:padding]
+    input_dilation = opts[:input_dilation]
+    kernel_dilation = opts[:kernel_dilation]
+    channels = opts[:channels]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -904,25 +1019,22 @@ defmodule Axon do
       )
 
     kernel_initializer = opts[:kernel_initializer]
-
     k1 = param("kernel_1", k1_shape, initializer: kernel_initializer)
     k2 = param("kernel_2", k2_shape, initializer: kernel_initializer)
 
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias_initializer = opts[:bias_initializer]
         b1 = param("bias_1", b1_shape, initializer: bias_initializer)
         b2 = param("bias_2", b2_shape, initializer: bias_initializer)
-
-        [x, k1, b1, k2, b2]
+        {[x, k1, b1, k2, b2], :separable_conv2d}
       else
-        [x, k1, k2]
+        {[x, k1, k2], &Axon.Layers.separable_conv2d(&1, &2, 0, &3, 0, &4)}
       end
 
     node =
       layer(
-        :separable_conv2d,
+        op,
         inputs,
         name: opts[:name],
         strides: strides,
@@ -934,7 +1046,7 @@ defmodule Axon do
         op_name: :separable_conv2d
       )
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -953,31 +1065,59 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
-    * `kernel_initializer` - Initializer for `kernel` weights.
-    * `bias_initializer` - Initializer for `bias` weights.
-    * `activation` - Element-wise activation function.
-    * `kernel_size` - Size of the kernel spatial dimensions.
-    * `strides` - Stride during convolution.
-    * `padding` - Padding to the spatial dimensions of the input.
-    * `input_dilation` - Dilation to apply to input.
-    * `kernel_dilation` - Dilation to apply to kernel.
-    * `channels` - channels configuration. One of `:first` or `:last`.
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights.
+      Defaults to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`
+
+    * `:activation` - element-wise activation function.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`
+
+    * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+      to `1`.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:padding` - padding to the spatial dimensions of the input.
+      Defaults to `:valid`.
+
+    * `:input_dilation` - dilation to apply to input. Defaults to `1`.
+
+    * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:first`.
 
   """
   @doc type: :convolution
   def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
-    activation = opts[:activation]
-    channels = opts[:channels] || :first
-    use_bias = Keyword.get(opts, :use_bias, true)
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :activation,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true,
+        kernel_size: 1,
+        strides: 1,
+        padding: :valid,
+        input_dilation: 1,
+        kernel_dilation: 1,
+        channels: :first
+      ])
 
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    padding = opts[:padding] || :valid
-    input_dilation = opts[:input_dilation] || 1
-    kernel_dilation = opts[:kernel_dilation] || 1
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    padding = opts[:padding]
+    input_dilation = opts[:input_dilation]
+    kernel_dilation = opts[:kernel_dilation]
+    channels = opts[:channels]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -1033,27 +1173,24 @@ defmodule Axon do
       )
 
     kernel_initializer = opts[:kernel_initializer]
-
     k1 = param("kernel_1", k1_shape, initializer: kernel_initializer)
     k2 = param("kernel_2", k2_shape, initializer: kernel_initializer)
     k3 = param("kernel_3", k3_shape, initializer: kernel_initializer)
 
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
-
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias_initializer = opts[:bias_initializer]
         b1 = param("bias_1", b1_shape, initializer: bias_initializer)
         b2 = param("bias_2", b2_shape, initializer: bias_initializer)
         b3 = param("bias_3", b3_shape, initializer: bias_initializer)
-
-        [x, k1, b1, k2, b2, k3, b3]
+        {[x, k1, b1, k2, b2, k3, b3], :separable_conv3d}
       else
-        [x, k1, k2, k3]
+        {[x, k1, k2, k3], &Axon.Layers.separable_conv3d(&1, &2, 0, &3, 0, &4, 0, &5)}
       end
 
     node =
       layer(
-        :separable_conv3d,
+        op,
         inputs,
         name: opts[:name],
         strides: strides,
@@ -1065,7 +1202,7 @@ defmodule Axon do
         op_name: :separable_conv3d
       )
 
-    if activation do
+    if activation = opts[:activation] do
       activation(node, activation)
     else
       node
@@ -1104,7 +1241,7 @@ defmodule Axon do
 
   ## Options
 
-    - `name` - Layer name.
+    * `:name` - layer name.
 
   """
   @doc type: :activation
@@ -1130,7 +1267,7 @@ defmodule Axon do
 
     ## Options
 
-      - `name` - Layer name.
+      * `:name` - layer name.
 
     """
     @doc type: :activation
@@ -1156,8 +1293,9 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:rate` - Dropout rate.
+      * `:name` - layer name.
+
+      * `:rate` - dropout rate. Defaults to `0.5`.
 
     """
     @doc type: :dropout
@@ -1167,8 +1305,14 @@ defmodule Axon do
   end
 
   defp dropout(%Axon{output_shape: parent_shape} = x, dropout, opts) do
-    rate = opts[:rate] || 0.5
-    layer(dropout, [x], name: opts[:name], rate: rate, shape: parent_shape, op_name: dropout)
+    opts = Keyword.validate!(opts, [:name, rate: 0.5])
+
+    layer(dropout, [x],
+      name: opts[:name],
+      rate: opts[:rate],
+      shape: parent_shape,
+      op_name: dropout
+    )
   end
 
   ## Pooling
@@ -1187,12 +1331,19 @@ defmodule Axon do
 
     ## Options
 
-      * `name` - Layer name.
-      * `kernel_size` - Pooling kernel size. Defaults to `1`.
-      * `padding` - Padding to apply to input of pooling operation.
-      * `strides` - Pooling strides. Defaults to size of kernel.
-      * `dilations` - Window dilations. Defaults to `1`.
-      * `channels` - channel configuration. One of `:first` or `:last`.
+      * `:name` - layer name.
+
+      * `:kernel_size` - size of the kernel spatial dimensions. Defaults
+        to `1`.
+
+      * `:strides` - stride during convolution. Defaults to size of kernel.
+
+      * `:padding` - padding to the spatial dimensions of the input.
+        Defaults to `:valid`.
+
+      * `:dilations` - window dilations. Defaults to `1`.
+
+      * `:channels` - channels location. One of `:first` or `:last`.
         Defaults to `:first`.
 
     """
@@ -1203,11 +1354,22 @@ defmodule Axon do
   end
 
   defp pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
-    kernel_size = opts[:kernel_size] || 1
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :strides,
+        kernel_size: 1,
+        padding: :valid,
+        channels: :first,
+        dilations: 1,
+        norm: 2
+      ])
+
+    kernel_size = opts[:kernel_size]
     strides = opts[:strides]
-    padding = opts[:padding] || :valid
-    channels = opts[:channels] || :first
-    dilations = opts[:dilations] || 1
+    padding = opts[:padding]
+    channels = opts[:channels]
+    dilations = opts[:dilations]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -1222,7 +1384,7 @@ defmodule Axon do
 
     opts =
       if pool == :lp_pool do
-        norm = opts[:norm] || 2
+        norm = opts[:norm]
 
         [
           name: name,
@@ -1267,8 +1429,10 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:output_size` - Layer output size.
+      * `:name` - layer name.
+
+      * `:output_size` - layer output size.
+
       * `:channels` - channel configuration. One of `:first` or `:last`.
         Defaults to `:first`.
 
@@ -1280,7 +1444,9 @@ defmodule Axon do
   end
 
   defp adaptative_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
-    channels = opts[:channels] || :first
+    opts = Keyword.validate!(opts, [:name, :output_size, channels: :first, norm: 2])
+
+    channels = opts[:channels]
 
     idx =
       if channels == :first do
@@ -1307,7 +1473,7 @@ defmodule Axon do
 
     opts =
       if pool == :adaptive_lp_pool do
-        norm = opts[:norm] || 2
+        norm = opts[:norm]
 
         [
           name: name,
@@ -1350,11 +1516,14 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:keep_axes` - Option to keep reduced axes. If `true`, keeps reduced axes
+      * `:name` - layer name.
+
+      * `:keep_axes` - option to keep reduced axes. If `true`, keeps reduced axes
         with a dimension size of 1.
+
       * `:channels` - channel configuration. One of `:first` or `:last`.
         Defaults to `:first`.
+
     """
     @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
@@ -1363,15 +1532,17 @@ defmodule Axon do
   end
 
   defp global_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
+    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :first, norm: 2])
+
     keep_axes = opts[:keep_axes]
     name = opts[:name]
-    channels = opts[:channels] || :first
+    channels = opts[:channels]
 
     output_shape = Axon.Shape.global_pool(parent_shape, keep_axes, channels)
 
     opts =
       if pool == :global_lp_pool do
-        norm = opts[:norm] || 2
+        norm = opts[:norm]
 
         [
           name: name,
@@ -1403,12 +1574,18 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:gamma_initializer` - Gamma parameter initializer.
-      * `:beta_initializer` - Beta parameter initializer.
-      * `:channel_index` - Input feature index used for calculating
-        mean and variance.
-      * `:epsilon` - Numerical stability term.
+      * `:name` - layer name.
+
+      * `:gamma_initializer` - gamma parameter initializer. Defaults
+        to `:glorot_uniform`.
+
+      * `:beta_initializer` - beta parameter initializer. Defaults to
+        `:zeros`.
+
+      * `:channel_index` - input feature index used for calculating
+        mean and variance. Defaults to `1`.
+
+      * `:epsilon` - numerical stability term.
 
     """
     @doc type: :normalization
@@ -1418,22 +1595,25 @@ defmodule Axon do
   end
 
   defp norm_with_stats(%Axon{output_shape: shape} = x, norm, opts) do
-    channel_index = opts[:channel_index] || 1
-    epsilon = opts[:epsilon] || 1.0e-5
-    momentum = opts[:momentum] || 0.1
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        gamma_initializer: :glorot_uniform,
+        beta_initializer: :zeros,
+        channel_index: 1,
+        epsilon: 1.0e-5,
+        momentum: 0.1
+      ])
+
+    channel_index = opts[:channel_index]
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
     mean_shape = Axon.Shape.norm_param(shape, channel_index)
     var_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma_initializer = opts[:gamma_initializer]
-
-    gamma = param("gamma", gamma_shape, initializer: gamma_initializer)
-
-    beta_initializer = opts[:beta_initializer] || :zeros
-
-    beta = param("beta", beta_shape, initializer: beta_initializer)
+    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
+    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
 
     mean = param("mean", mean_shape, initializer: :zeros)
     var = param("var", var_shape, initializer: :ones)
@@ -1442,9 +1622,9 @@ defmodule Axon do
       norm,
       [x, gamma, beta, mean, var],
       name: opts[:name],
-      epsilon: epsilon,
+      epsilon: opts[:epsilon],
       channel_index: channel_index,
-      momentum: momentum,
+      momentum: opts[:momentum],
       shape: shape,
       op_name: norm
     )
@@ -1462,12 +1642,18 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
-      * `:gamma_initializer` - Gamma parameter initializer.
-      * `:beta_initializer` - Beta parameter initializer.
-      * `:channel_index` - Input feature index used for calculating
-        mean and variance.
-      * `:epsilon` - Numerical stability term.
+      * `:name` - layer name.
+
+      * `:gamma_initializer` - gamma parameter initializer. Defaults
+        to `:glorot_uniform`.
+
+      * `:beta_initializer` - beta parameter initializer. Defaults to
+        `:zeros`.
+
+      * `:channel_index` - input feature index used for calculating
+        mean and variance. Defaults to `1`.
+
+      * `:epsilon` - numerical stability term.
 
     """
     @doc type: :normalization
@@ -1477,22 +1663,26 @@ defmodule Axon do
   end
 
   defp norm(%Axon{output_shape: shape} = x, norm, opts) do
-    channel_index = opts[:channel_index] || 1
-    epsilon = opts[:epsilon] || 1.0e-5
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        gamma_initializer: :glorot_uniform,
+        beta_initializer: :zeros,
+        channel_index: 1,
+        epsilon: 1.0e-5
+      ])
+
+    channel_index = opts[:channel_index]
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma_initializer = opts[:gamma_initializer]
-
-    gamma = param("gamma", gamma_shape, initializer: gamma_initializer)
-
-    beta_initializer = opts[:beta_initializer] || :zeros
-    beta = param("beta", beta_shape, initializer: beta_initializer)
+    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
+    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
 
     layer(norm, [x, gamma, beta],
       name: opts[:name],
-      epsilon: epsilon,
+      epsilon: opts[:epsilon],
       channel_index: channel_index,
       shape: shape,
       op_name: norm
@@ -1506,34 +1696,43 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
-    * `:gamma_initializer` - Gamma parameter initializer.
-    * `:beta_initializer` - Beta parameter initializer.
-    * `:channel_index` - Input feature index used for calculating
-      mean and variance.
-    * `:epsilon` - Numerical stability term.
+    * `:name` - layer name.
+
+    * `:gamma_initializer` - gamma parameter initializer. Defaults
+      to `:glorot_uniform`.
+
+    * `:beta_initializer` - beta parameter initializer. Defaults to
+      `:zeros`.
+
+    * `:channel_index` - input feature index used for calculating
+      mean and variance. Defaults to `1`.
+
+    * `:epsilon` - numerical stability term.
 
   """
   @doc type: :normalization
   def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
       when is_integer(group_size) and group_size >= 1 do
-    channel_index = opts[:channel_index] || 1
-    epsilon = opts[:epsilon] || 1.0e-5
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        gamma_initializer: :glorot_uniform,
+        beta_initializer: :zeros,
+        channel_index: 1,
+        epsilon: 1.0e-5
+      ])
+
+    channel_index = opts[:channel_index]
 
     gamma_shape = Axon.Shape.norm_param(shape, channel_index)
     beta_shape = Axon.Shape.norm_param(shape, channel_index)
 
-    gamma_initializer = opts[:gamma_initializer]
-
-    gamma = param("gamma", gamma_shape, initializer: gamma_initializer)
-
-    beta_initializer = opts[:beta_initializer] || :zeros
-
-    beta = param("beta", beta_shape, initializer: beta_initializer)
+    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
+    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
 
     layer(:group_norm, [x, gamma, beta],
       name: opts[:name],
-      epsilon: epsilon,
+      epsilon: opts[:epsilon],
       channel_index: channel_index,
       group_size: group_size,
       shape: shape,
@@ -1546,13 +1745,14 @@ defmodule Axon do
 
   ## Options
 
-    * `name` - Layer name.
+    * `:name` - layer name.
 
   """
   def nx(input, fun, opts \\ [])
 
   @doc type: :special
   def nx(%Axon{output_shape: input_shape} = x, fun, opts) when is_function(fun, 1) do
+    opts = Keyword.validate!(opts, [:name])
     {name, opts} = Keyword.pop(opts, :name)
     fun_with_params = fn x, _opts -> fun.(x) end
     output_shape = infer_shape([input_shape], fun_with_params, opts)
@@ -1568,12 +1768,16 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
+    * `:name` - layer name.
+
+    * `:ignore_batch?` - whether to ignore batch dimension in
+      transpose operation. Defaults to `true`.
 
   """
   @doc type: :shape
   def flatten(%Axon{op: op, output_shape: shape} = x, opts \\ []) do
-    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
+    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
+    ignore_batch? = opts[:ignore_batch?]
     output_shape = Axon.Shape.flatten(shape, ignore_batch?)
 
     layer(:flatten, [x],
@@ -1597,11 +1801,16 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
+    * `:name` - layer name.
+
+    * `:ignore_batch?` - whether to ignore batch dimension in transpose
+      operation. Defaults to `true`.
+
   """
   @doc type: :shape
   def reshape(%Axon{op: op, output_shape: shape} = x, new_shape, opts \\ []) do
-    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
+    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
+    ignore_batch? = opts[:ignore_batch?]
     output_shape = Axon.Shape.reshape(shape, new_shape, ignore_batch?)
 
     layer(:reshape, [x],
@@ -1618,13 +1827,16 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
-    * `:ignore_batch?` - Whether to ignore batch dimension in
-      transpose operation. Defaults to true.
+    * `:name` - layer name.
+
+    * `:ignore_batch?` - whether to ignore batch dimension in transpose
+      operation. Defaults to true.
+
   """
   @doc type: :shape
   def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
-    ignore_batch? = Keyword.get(opts, :ignore_batch?, op != :constant)
+    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
+    ignore_batch? = opts[:ignore_batch?]
     output_shape = Axon.Shape.transpose(shape, permutation, ignore_batch?)
 
     layer(:transpose, [x],
@@ -1645,14 +1857,17 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
-    * `:channels` - Channel configuration. One of `:first` or
+    * `:name` - layer name.
+
+    * `:channels` - channel configuration. One of `:first` or
       `:last`. Defaults to `:first`.
+
   """
   @doc type: :shape
   def pad(%Axon{output_shape: shape} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
-    channels = opts[:channels] || :first
+    opts = Keyword.validate!(opts, [:name, channels: :first])
+    channels = opts[:channels]
     output_shape = Axon.Shape.pad(shape, config)
 
     layer(:pad, [x],
@@ -1679,19 +1894,23 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
-    * `:method` - Resize method. Defaults to `:nearest`.
-    * `:channels` - Channels configuration. Defaults to `:first`.
+    * `:name` - layer name.
+
+    * `:method` - resize method. Defaults to `:nearest`.
+
+    * `:channels` - channel configuration. One of `:first` or
+      `:last`. Defaults to `:first`.
+
   """
   @doc type: :shape
   def resize(%Axon{output_shape: shape} = x, resize_shape, opts \\ []) do
-    method = opts[:method] || :nearest
-    channels = opts[:channels] || :first
+    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :first])
+    channels = opts[:channels]
     output_shape = Axon.Shape.resize(shape, resize_shape, channels)
 
     layer(:resize, [x],
       name: opts[:name],
-      method: method,
+      method: opts[:method],
       channels: channels,
       shape: output_shape,
       to: resize_shape,
@@ -1707,14 +1926,16 @@ defmodule Axon do
 
   ## Options
 
-    * `:name` - Layer name.
-    * `:axis` - Concatenate axis.
+    * `:name` - layer name.
+
+    * `:axis` - concatenate axis. Defaults to `-1`.
 
   """
   @doc type: :composition
   def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts)
       when is_list(opts) do
-    axis = opts[:axis] || Nx.rank(x_shape) - 1
+    opts = Keyword.validate!(opts, [:name, axis: -1])
+    axis = opts[:axis]
     output_shape = Axon.Shape.concatenate([x_shape, y_shape], axis)
 
     layer(:concatenate, [container({x, y})],
@@ -1726,9 +1947,10 @@ defmodule Axon do
   end
 
   @doc type: :composition
-  def concatenate([%Axon{output_shape: shape} | _] = inputs, opts)
+  def concatenate([%Axon{} | _] = inputs, opts)
       when is_list(inputs) and is_list(opts) do
-    axis = opts[:axis] || Nx.rank(shape) - 1
+    opts = Keyword.validate!(opts, [:name, axis: -1])
+    axis = opts[:axis]
     input_shapes = inputs |> Enum.map(fn %Axon{output_shape: shape} -> shape end)
     output_shape = Axon.Shape.concatenate(input_shapes, axis)
 
@@ -1761,11 +1983,12 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
+      * `:name` - layer name.
 
     """
     @doc type: :composition
     def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
+      opts = Keyword.validate!(opts, [:name])
       output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
 
       layer(unquote(op), [container({x, y})],
@@ -1784,11 +2007,13 @@ defmodule Axon do
 
     ## Options
 
-      * `:name` - Layer name.
+      * `:name` - layer name.
 
     """
     @doc type: :composition
     def unquote(op)(inputs, opts) when is_list(inputs) and is_list(opts) do
+      opts = Keyword.validate!(opts, [:name])
+
       shapes =
         Enum.map(inputs, fn
           %Axon{output_shape: shape} -> shape
@@ -1831,6 +2056,8 @@ defmodule Axon do
         opts \\ []
       )
       when is_function(cond_fn, 1) do
+    opts = Keyword.validate!(opts, [:name])
+
     layer(:cond, [parent, true_graph, false_graph],
       name: opts[:name],
       cond: cond_fn,
@@ -1842,11 +2069,19 @@ defmodule Axon do
   @doc """
   Splits input graph into a container of `n` input graphs
   along the given axis.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:axis` - concatenate axis. Defaults to `-1`.
+
   """
   def split(parent, splits, opts \\ [])
 
   def split(%Axon{} = parent, splits, opts) when is_list(splits) do
-    axis = opts[:axis] || -1
+    opts = Keyword.validate!(opts, [:name, axis: -1])
+    axis = opts[:axis]
 
     {_, split_layers} =
       for {split, i} <- Enum.with_index(splits), reduce: {0, []} do
@@ -1875,7 +2110,9 @@ defmodule Axon do
   end
 
   def split(%Axon{output_shape: shape} = parent, n, opts) when is_integer(n) do
-    axis = opts[:axis] || -1
+    opts = Keyword.validate!(opts, [:name, axis: -1])
+    axis = opts[:axis]
+
     {slice_size, split_shape} = Axon.Shape.split(shape, n, axis)
 
     splits =
@@ -1913,27 +2150,20 @@ defmodule Axon do
   Adds a long short-term memory (LSTM) layer to the network
   with a random initial hidden state.
 
-  LSTMs apply `Axon.Recurrent.lstm_cell/7` over an entire input
-  sequence and return:
+  See `lstm/4` for more details.
 
-      {{new_cell, new_hidden}, output_sequence}
+  ## Additional options
 
-  You can use the output state as the hidden state of another
-  LSTM layer.
+    * `:recurrent_initializer` - initializer for hidden state.
+      Defaults to `:glorot_uniform`.
 
-  ## Options
-
-    * `:activation` - recurrent activation. Defaults to `:tanh`.
-    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
-      unrolling of RNN.
-    * `:recurrent_initializer` - Initializer for hidden state.
   """
   @doc type: :recurrent
   def lstm(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
-    c = rnn_state(x, shape, units, :lstm, opts[:name], "c", opts[:recurrent_initializer])
-    h = rnn_state(x, shape, units, :lstm, opts[:name], "h", opts[:recurrent_initializer])
+    {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
+    c = rnn_state(x, shape, units, :lstm, opts[:name], "c", recurrent_initializer)
+    h = rnn_state(x, shape, units, :lstm, opts[:name], "h", recurrent_initializer)
     lstm(x, {c, h}, units, opts)
   end
 
@@ -1956,10 +2186,23 @@ defmodule Axon do
 
   ## Options
 
+    * `:name` - layer name.
+
     * `:activation` - recurrent activation. Defaults to `:tanh`.
+
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
+
+    * `:kernel_initializer` - initializer for kernel weights. Defaults
+      to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for bias weights. Defaults to
+      `:zeros`.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`.
 
   """
   @doc type: :recurrent
@@ -1970,18 +2213,27 @@ defmodule Axon do
         opts \\ []
       )
       when is_integer(units) and units > 0 and is_list(opts) do
-    activation = opts[:activation] || :tanh
-    gate = opts[:gate] || :sigmoid
-    unroll = opts[:unroll] || :dynamic
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        activation: :tanh,
+        gate: :sigmoid,
+        unroll: :dynamic,
+        use_bias: true,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros
+      ])
 
-    use_bias = Keyword.get(opts, :use_bias, true)
+    activation = opts[:activation]
+    gate = opts[:gate]
+    unroll = opts[:unroll]
 
     output_shape = Axon.Shape.rnn(shape, units, :lstm)
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :lstm)
     hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :lstm)
     bias_shape = Axon.Shape.rnn_bias(shape, units, :lstm)
 
-    kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
+    kernel_initializer = opts[:kernel_initializer]
 
     # Parameters
     input_kernel =
@@ -2007,32 +2259,21 @@ defmodule Axon do
 
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
 
-    inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias_initializer = opts[:bias_initializer]
 
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
 
-        [
-          x,
-          hidden_state,
-          input_kernel,
-          hidden_kernel,
-          bias
-        ]
+        {[x, hidden_state, input_kernel, hidden_kernel, bias], :lstm}
       else
-        [
-          x,
-          hidden_state,
-          input_kernel,
-          hidden_kernel
-        ]
+        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm(&1, &2, &3, &4, 0, &5)}
       end
 
     output =
       layer(
-        :lstm,
+        op,
         inputs,
         name: opts[:name],
         activation: activation,
@@ -2111,28 +2352,20 @@ defmodule Axon do
   Adds a gated recurrent unit (GRU) layer to the network with
   a random initial hidden state.
 
-  GRUs apply `Axon.Recurrent.gru_cell/7` over an entire input
-  sequence and return:
+  See `gru/4` for more details.
 
-      {{new_hidden}, output_sequence}
+  ## Additional options
 
-  You can use the output state as the hidden state of another
-  GRU layer.
-
-  ## Options
-
-    * `:activation` - recurrent activation. Defaults to `:tanh`.
-    * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
-    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
-      unrolling of RNN.
-    * `:recurrent_initializer` - Initializer for hidden state.
+    * `:recurrent_initializer` - initializer for hidden state.
+      Defaults to `:glorot_uniform`.
 
   """
   @doc type: :recurrent
   def gru(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0
       when is_list(opts) do
-    h = rnn_state(x, shape, units, :gru, opts[:name], "h", opts[:recurrent_initializer])
+    {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
+    h = rnn_state(x, shape, units, :gru, opts[:name], "h", recurrent_initializer)
     gru(x, {h}, units, opts)
   end
 
@@ -2154,10 +2387,23 @@ defmodule Axon do
 
   ## Options
 
+    * `:name` - layer name.
+
     * `:activation` - recurrent activation. Defaults to `:tanh`.
+
     * `:gate` - recurrent gate function. Defaults to `:sigmoid`.
+
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
+
+    * `:kernel_initializer` - initializer for kernel weights. Defaults
+      to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for bias weights. Defaults to
+      `:zeros`.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`.
 
   """
   @doc type: :recurrent
@@ -2168,17 +2414,27 @@ defmodule Axon do
         opts
       )
       when is_integer(units) and units > 0 and is_list(opts) do
-    use_bias = Keyword.get(opts, :use_bias, true)
-    activation = opts[:activation] || :tanh
-    gate = opts[:gate] || :sigmoid
-    unroll = opts[:unroll] || :dynamic
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        activation: :tanh,
+        gate: :sigmoid,
+        unroll: :dynamic,
+        use_bias: true,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros
+      ])
+
+    activation = opts[:activation]
+    gate = opts[:gate]
+    unroll = opts[:unroll]
 
     output_shape = Axon.Shape.rnn(shape, units, :gru)
     input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :gru)
     hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :gru)
     bias_shape = Axon.Shape.rnn_bias(shape, units, :gru)
 
-    kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
+    kernel_initializer = opts[:kernel_initializer]
 
     input_kernel =
       param("input_kernel", {:tuple, List.duplicate(input_kernel_shape, 3)},
@@ -2204,8 +2460,8 @@ defmodule Axon do
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
 
     inputs =
-      if use_bias do
-        bias_initializer = opts[:bias_initializer] || :zeros
+      if opts[:use_bias] do
+        bias_initializer = opts[:bias_initializer]
 
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
@@ -2278,29 +2534,20 @@ defmodule Axon do
   Adds a convolutional long short-term memory (LSTM) layer to the network
   with a random initial hidden state.
 
-  ConvLSTMs apply `Axon.Recurrent.conv_lstm_cell/5` over an entire input
-  sequence and return:
+  See `conv_lstm/4` for more details.
 
-      {{new_cell, new_hidden}, output_sequence}
+  ## Additional options
 
-  You can use the output state as the hidden state of another
-  LSTM layer with the `:hidden_state` option.
-
-  ## Options
-
-    * `:padding` - convolutional padding. Defaults to `:same`.
-    * `:kernel_size` - convolutional kernel size. Defaults to `1`.
-    * `:strides` - convolutional strides. Defaults to `1`.
-    * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
-      unrolling of RNN.
-    * `:recurrent_initializer` - Initializer for hidden state.
+    * `:recurrent_initializer` - initializer for hidden state. Defaults
+      to `:glorot_uniform`.
 
   """
   @doc type: :recurrent
   def conv_lstm(%Axon{output_shape: shape} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
-    c = rnn_state(x, shape, units, :conv_lstm, opts[:name], "c", opts[:recurrent_initializer])
-    h = rnn_state(x, shape, units, :conv_lstm, opts[:name], "h", opts[:recurrent_initializer])
+    {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
+    c = rnn_state(x, shape, units, :conv_lstm, opts[:name], "c", recurrent_initializer)
+    h = rnn_state(x, shape, units, :conv_lstm, opts[:name], "h", recurrent_initializer)
     conv_lstm(x, {c, h}, units, opts)
   end
 
@@ -2323,11 +2570,25 @@ defmodule Axon do
 
   ## Options
 
+    * `:name` - layer name.
+
     * `:padding` - convolutional padding. Defaults to `:same`.
+
     * `:kernel_size` - convolutional kernel size. Defaults to `1`.
+
     * `:strides` - convolutional strides. Defaults to `1`.
+
     * `:unroll` - `:dynamic` (loop preserving) or `:static` (compiled)
       unrolling of RNN.
+
+    * `:kernel_initializer` - initializer for kernel weights. Defaults
+      to `:glorot_uniform`.
+
+    * `:bias_initializer` - initializer for bias weights. Defaults to
+      `:zeros`.
+
+    * `:use_bias` - whether the layer should add bias to the output.
+      Defaults to `true`.
 
   """
   @doc type: :recurrent
@@ -2338,10 +2599,22 @@ defmodule Axon do
         opts
       )
       when is_integer(units) and units > 0 and is_list(opts) do
-    padding = opts[:padding] || :same
-    kernel_size = opts[:kernel_size] || 1
-    strides = opts[:strides] || 1
-    unroll = opts[:unroll] || :dynamic
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        padding: :same,
+        kernel_size: 1,
+        strides: 1,
+        unroll: :dynamic,
+        kernel_initializer: :glorot_uniform,
+        bias_initializer: :zeros,
+        use_bias: true
+      ])
+
+    padding = opts[:padding]
+    kernel_size = opts[:kernel_size]
+    strides = opts[:strides]
+    unroll = opts[:unroll]
     inner_rank = Nx.rank(shape) - 3
     sequence_length = elem(shape, 1)
 
@@ -2374,12 +2647,10 @@ defmodule Axon do
       )
       |> Tuple.insert_at(1, sequence_length)
 
-    kernel_initializer = opts[:kernel_initializer] || :glorot_uniform
-    bias_initializer = opts[:bias_initializer] || :zeros
+    kernel_initializer = opts[:kernel_initializer]
 
     wi = param("input_kernel", {:tuple, [input_kernel_shape]}, initializer: kernel_initializer)
     wh = param("hidden_kernel", {:tuple, [hidden_kernel_shape]}, initializer: kernel_initializer)
-    b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
 
     hidden_state_name =
       case opts[:name] do
@@ -2394,11 +2665,18 @@ defmodule Axon do
 
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
 
-    inputs = [x, hidden_state, wi, wh, b]
+    {inputs, op} =
+      if opts[:use_bias] do
+        bias_initializer = opts[:bias_initializer]
+        b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
+        {[x, hidden_state, wi, wh, b], :conv_lstm}
+      else
+        {[x, hidden_state, wi, wh], &Axon.Layers.conv_lstm(&1, &2, &3, &4, {0}, &5)}
+      end
 
     output =
       layer(
-        :conv_lstm,
+        op,
         inputs,
         name: opts[:name],
         conv_opts: [
@@ -2506,14 +2784,23 @@ defmodule Axon do
   which acts as a lookup table for sequences of discrete tokens (e.g. sentences).
   Embeddings are typically used to obtain a dense representation of a sparse input
   space.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:kernel_initializer` - initializer for `kernel` weights. Defaults
+      to `:uniform`.
+
   """
   @doc type: :linear
   def embedding(%Axon{output_shape: shape} = x, vocab_size, embedding_size, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, kernel_initializer: :uniform])
+
     kernel_shape = Axon.Shape.embedding_kernel(shape, vocab_size, embedding_size)
     output_shape = Axon.Shape.embedding(shape, vocab_size, embedding_size)
 
-    kernel_initializer = opts[:kernel_initializer] || :uniform
-    kernel = param("kernel", kernel_shape, initializer: kernel_initializer)
+    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     layer(:embedding, [x, kernel], name: opts[:name], shape: output_shape, op_name: :embedding)
   end
@@ -2522,13 +2809,22 @@ defmodule Axon do
   Adds a bias layer to the network.
 
   A bias layer simply adds a trainable bias to an input.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:bias_initializer` - initializer for `bias` weights. Defaults
+      to `:zeros`.
+
   """
   @doc type: :linear
   def bias(%Axon{output_shape: shape} = x, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, bias_initializer: :zeros])
+
     units = elem(shape, tuple_size(shape) - 1)
     bias_shape = Axon.Shape.dense_bias(shape, units)
-    bias_initializer = opts[:bias_initializer] || :zeros
-    bias = param("bias", bias_shape, initializer: bias_initializer)
+    bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
     layer(:bias, [x, bias], name: opts[:name], shape: shape, op_name: :bias)
   end
@@ -2638,8 +2934,9 @@ defmodule Axon do
       |> Axon.attach_hook(&IO.inspect/1)
   """
   def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
-    on_event = opts[:on] || :forward
-    mode = opts[:mode] || :both
+    opts = Keyword.validate!(opts, on: :forward, mode: :both)
+    on_event = opts[:on]
+    mode = opts[:mode]
 
     %{axon | hooks: [{on_event, mode, fun} | hooks]}
   end
