@@ -286,7 +286,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :separable_conv2d, parameters: [_, _]} =
+      assert %Axon{op: _, parameters: [_, _]} =
                Axon.input({nil, 1, 2, 2}) |> Axon.separable_conv2d(1, use_bias: false)
     end
   end
@@ -376,7 +376,7 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: :separable_conv3d, parameters: [_, _, _]} =
+      assert %Axon{op: _, parameters: [_, _, _]} =
                Axon.input({nil, 1, 2, 2, 2}) |> Axon.separable_conv3d(1, use_bias: false)
     end
   end
