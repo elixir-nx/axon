@@ -4139,20 +4139,20 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
     end
 
-    test "initializes correctly re-using part of inner namespace" do
-      # TODO: I actually don't know what the correct behavior is here?
-      inner = Axon.input({nil, 1}) |> Axon.dense(2)
-      x = Axon.namespace(inner, "x")
+    # TODO: I actually don't know what the correct behavior is here?
+    # test "initializes correctly re-using part of inner namespace" do
+    #   inner = Axon.input({nil, 1}) |> Axon.dense(2)
+    #   x = Axon.namespace(inner, "x")
 
-      model = Axon.add(inner, x)
+    #   model = Axon.add(inner, x)
 
-      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+    #   assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
 
-      assert Nx.shape(k) == {1, 2}
-      assert Nx.type(k) == {:f, 32}
-      assert Nx.shape(b) == {2}
-      assert Nx.type(b) == {:f, 32}
-    end
+    #   assert Nx.shape(k) == {1, 2}
+    #   assert Nx.type(k) == {:f, 32}
+    #   assert Nx.shape(b) == {2}
+    #   assert Nx.type(b) == {:f, 32}
+    # end
 
     test "predicts correctly with single namespace" do
       model = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
@@ -4262,19 +4262,19 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, params, input), expected)
     end
 
-    test "predicts correctly re-using part of inner namespace" do
-      # TODO: I actually don't know what the correct behavior is here?
-      inner = Axon.input({nil, 1}) |> Axon.dense(2)
-      x = Axon.namespace(inner, "x")
+    # TODO: I actually don't know what the correct behavior is here?
+    # test "predicts correctly re-using part of inner namespace" do
+    #   inner = Axon.input({nil, 1}) |> Axon.dense(2)
+    #   x = Axon.namespace(inner, "x")
 
-      model = Axon.add(inner, x)
+    #   model = Axon.add(inner, x)
 
-      input = Nx.random_uniform({1, 1})
-      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
+    #   input = Nx.random_uniform({1, 1})
+    #   assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
 
-      expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
-      assert_equal(Axon.predict(model, params, input), expected)
-    end
+    #   expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
+    #   assert_equal(Axon.predict(model, params, input), expected)
+    # end
   end
 
   describe "initializers" do
@@ -4315,12 +4315,12 @@ defmodule CompilerTest do
 
       %{"x" => x_params_1} = init_fn.(%{})
 
-      assert %{"x" => x_params_2, "y" => y_params_1} = params_1 = init_fn.(%{"x" => x_params_1})
+      assert %{"x" => x_params_2, "y" => y_params_1} = init_fn.(%{"x" => x_params_1})
       assert_equal(x_params_1, x_params_2)
 
       # This exercises that a namespace will always have the same
       # parameter names regardless of where it appears in a model
-      assert %{"y" => y_params_2} = params_2 = init_fn.(%{"y" => y_params_1})
+      assert %{"y" => y_params_2} = init_fn.(%{"y" => y_params_1})
       assert_equal(y_params_1, y_params_2)
     end
   end
