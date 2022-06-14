@@ -1,20 +1,27 @@
 defmodule Axon.LoopTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
+  import AxonTestUtil
 
   alias Axon.Loop
   alias Axon.Loop.State
+  require Axon
+
+  setup do
+    Nx.Defn.default_options(compiler: test_compiler())
+    :ok
+  end
 
   describe "factories" do
     test "loop/3 creates a basic loop with defaults" do
-      step_fn = fn _, _ -> 1 end
+      step_fn = fn _, _ -> Nx.tensor(1) end
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.loop(step_fn)
 
-      assert init_fn.() == %{}
-      assert update_fn.({}, %{}) == 1
-      assert transform.(%{}) == %{}
+      assert_equal(init_fn.(%{}), %{})
+      assert_equal(update_fn.({}, %{}), Nx.tensor(1))
+      assert_equal(transform.(%{}), %{})
     end
 
     test "trainer/3 returns a supervised training loop with basic case" do
@@ -43,17 +50,17 @@ defmodule Axon.LoopTest do
           assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                    Loop.trainer(model, loss, optimizer)
 
-          assert %{model_state: %{}} = pstate = init_fn.()
+          assert %{model_state: %{}} = pstate = init_fn.(%{})
 
           state = %State{step_state: pstate}
 
           assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                    Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
-          assert tar == Nx.tensor([[1]])
-          assert pred == Nx.tensor([[1]])
+          assert_equal(tar, Nx.tensor([[1]]))
+          assert_equal(pred, Nx.tensor([[1]]))
 
-          assert transform.(state) == %{}
+          assert_equal(transform.(state), %{})
         end
       end
     end
@@ -65,18 +72,18 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, custom_loss_fn, :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.()
+      assert %{model_state: %{}} = pstate = init_fn.(%{})
 
       state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
                Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
-      assert tar == Nx.tensor([[1]])
-      assert pred == Nx.tensor([[1]])
-      assert loss == Nx.tensor(5.0)
+      assert_equal(tar, Nx.tensor([[1]]))
+      assert_equal(pred, Nx.tensor([[1]]))
+      assert_equal(loss, Nx.tensor(5.0))
 
-      assert transform.(state) == %{}
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
@@ -86,17 +93,17 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, optimizer)
 
-      assert %{model_state: %{}} = pstate = init_fn.()
+      assert %{model_state: %{}} = pstate = init_fn.(%{})
 
       state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
-      assert tar == Nx.tensor([[1]])
-      assert pred == Nx.tensor([[1]])
+      assert_equal(tar, Nx.tensor([[1]]))
+      assert_equal(pred, Nx.tensor([[1]]))
 
-      assert transform.(state) == %{}
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
@@ -105,17 +112,17 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.()
+      assert %{model_state: %{}} = pstate = init_fn.(%{})
 
       state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
-      assert tar == Nx.tensor([[1]])
-      assert pred == Nx.tensor([[1]])
+      assert_equal(tar, Nx.tensor([[1]]))
+      assert_equal(pred, Nx.tensor([[1]]))
 
-      assert transform.(state) == %{}
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
@@ -124,7 +131,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.()
+      assert %{model_state: %{}} = pstate = init_fn.(%{})
 
       state = %State{step_state: pstate}
 
@@ -135,11 +142,11 @@ defmodule Axon.LoopTest do
                  pstate
                ])
 
-      assert tar == {Nx.tensor([[2]]), Nx.tensor([[2]])}
-      assert pred == {Nx.tensor([[1]]), Nx.tensor([[1]])}
-      assert loss == Nx.tensor(1.0)
+      assert_equal(tar, {Nx.tensor([[2]]), Nx.tensor([[2]])})
+      assert_equal(pred, {Nx.tensor([[1]]), Nx.tensor([[1]])})
+      assert_equal(loss, Nx.tensor(1.0))
 
-      assert transform.(state) == %{}
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 raises on bad inputs" do
@@ -156,24 +163,64 @@ defmodule Axon.LoopTest do
       end
     end
 
-    test "evaluator/3 returns a supervised evaluator loop" do
-      model = Axon.input({nil, 1})
-      model_state = %{}
+    test "evaluator/1 returns a supervised evaluator loop" do
+      model = Axon.input({nil, 1}) |> Axon.dense(1)
+      model_state = Axon.init(model)
+
+      expected_pred = Axon.predict(model, model_state, Nx.tensor([[1]]))
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
-               Loop.evaluator(model, model_state)
+               Loop.evaluator(model)
 
-      assert %{y_true: _, y_pred: _} = pstate = init_fn.()
+      assert %{model_state: _, y_true: _, y_pred: _} = pstate = init_fn.(model_state)
 
       state = %State{step_state: pstate, metrics: %{"my_metric" => {}}}
 
       assert %{y_true: tar, y_pred: pred} =
                Nx.Defn.jit(update_fn, [{Nx.tensor([[1]]), Nx.tensor([[2]])}, pstate])
 
-      assert tar == Nx.tensor([[2]])
-      assert pred == Nx.tensor([[1]])
+      assert_equal(tar, Nx.tensor([[2]]))
+      assert_equal(pred, expected_pred)
 
-      assert transform.(state) == %{"my_metric" => {}}
+      assert_equal(transform.(state), %{"my_metric" => {}})
+    end
+
+    test "evaluator/1 runs a supervised evaluator loop" do
+      model = Axon.input({nil, 1}) |> Axon.dense(1)
+      model_state = Axon.init(model)
+      data = [{Nx.tensor([[1]]), Nx.tensor([[2]])}]
+
+      assert %Loop{} = loop = Loop.evaluator(model)
+      assert %Loop{} = loop = Loop.metric(loop, :mean_absolute_error)
+
+      assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
+    end
+
+    test "eval_step/1 evalutes model on a single batch" do
+      inp = Nx.tensor([0, 1, 0, 1, 0, 1]) |> Nx.new_axis(-1)
+      tar = Nx.tensor([1, 0, 1, 0, 1, 0]) |> Nx.new_axis(-1)
+
+      model = Axon.input({nil, 1}) |> Axon.dense(1)
+      model_state = Axon.init(model)
+
+      {init_fn, step_fn} = Axon.Loop.eval_step(model)
+      pstate = Nx.Defn.jit(init_fn, [model_state])
+
+      # Older versions of the loop API had backend mismatches,
+      # so just verify there was a successful result here
+      assert %{y_true: _, y_pred: _} = Nx.Defn.jit(step_fn, [{inp, tar}, pstate])
+    end
+
+    test "train_step/3 can initialize from partial model state" do
+      x = Axon.input({nil, 1}) |> Axon.dense(1) |> Axon.namespace("x")
+      model = Axon.dense(x, 2)
+
+      %{"x" => x_params_1} = init_params = Axon.init(x)
+
+      {init_fn, _step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
+
+      %{model_state: %{"x" => x_params_2}} = init_fn.(init_params)
+      assert_equal(x_params_1, x_params_2)
     end
 
     test "train_step/3 updates stateful layers after single step" do
@@ -182,27 +229,21 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.()
+      state = init_fn.(%{})
       state = step_fn.({val, val}, state)
 
-      assert Nx.all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
-               Nx.tensor(1, type: {:u, 8})
-
-      assert Nx.all_close(state.model_state["batch_norm"]["var"], Nx.broadcast(0.1, {8})) ==
-               Nx.tensor(1, type: {:u, 8})
+      assert_all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8}))
+      assert_all_close(state.model_state["batch_norm"]["var"], Nx.broadcast(0.1, {8}))
 
       val = Nx.broadcast(1, {1, 1, 8})
       model = Axon.constant(val) |> Axon.instance_norm(name: "instance_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.()
+      state = init_fn.(%{})
       state = step_fn.({val, val}, state)
 
-      assert Nx.all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8})) ==
-               Nx.tensor(1, type: {:u, 8})
-
-      assert Nx.all_close(state.model_state["instance_norm"]["var"], Nx.broadcast(0.1, {8})) ==
-               Nx.tensor(1, type: {:u, 8})
+      assert_all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
+      assert_all_close(state.model_state["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
     end
   end
 
@@ -255,7 +296,7 @@ defmodule Axon.LoopTest do
       cur_avg_acc = 0.5
       i = 1
 
-      assert avg_acc_fun.(cur_avg_acc, List.wrap(output), i) == Nx.tensor(0.75)
+      assert_equal(avg_acc_fun.(cur_avg_acc, List.wrap(output), i), Nx.tensor(0.75))
     end
 
     test "computes a running sum with custom output transform" do
@@ -272,7 +313,7 @@ defmodule Axon.LoopTest do
       cur_sum = 25
       i = 10
 
-      assert sum_tp_fun.(cur_sum, List.wrap(output), i) == Nx.tensor(26)
+      assert_equal(sum_tp_fun.(cur_sum, List.wrap(output), i), Nx.tensor(26))
     end
   end
 
@@ -283,7 +324,7 @@ defmodule Axon.LoopTest do
       state =
         step_fn
         |> Loop.loop()
-        |> Loop.run([], epochs: 0)
+        |> Loop.run([], %{}, epochs: 0)
 
       assert %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate} = state
 
@@ -320,6 +361,7 @@ defmodule Axon.LoopTest do
       )
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
+        %{},
         epochs: 5
       )
     end
@@ -358,6 +400,7 @@ defmodule Axon.LoopTest do
       )
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
+        %{},
         epochs: 5
       )
     end
@@ -370,29 +413,29 @@ defmodule Axon.LoopTest do
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
-      step_state = init_fn.()
+      step_state = init_fn.(%{})
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
-      deserialized = Axon.Loop.deserialize_state(serialized)
+      %State{step_state: deserialized_step_state} = Axon.Loop.deserialize_state(serialized)
 
-      assert state == deserialized
+      assert_equal(step_state, deserialized_step_state)
     end
 
     test "serialize_state/deserialize_state preserve loop state with step state serialization" do
       serialize_fn = fn step_state, opts -> :erlang.term_to_binary(step_state, opts) end
       deserialize_fn = fn binary, opts -> :erlang.binary_to_term(binary, opts) end
 
-      init_fn = fn -> %{foo: 1} end
-      step_state = init_fn.()
+      init_fn = fn _state -> %{foo: Nx.tensor(1)} end
+      step_state = init_fn.(%{})
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state, serialize_step_state: serialize_fn)
 
-      deserialized =
+      %State{step_state: deserialized_step_state} =
         Axon.Loop.deserialize_state(serialized, deserialize_step_state: deserialize_fn)
 
-      assert state == deserialized
+      assert_equal(step_state, deserialized_step_state)
     end
   end
 
@@ -411,7 +454,7 @@ defmodule Axon.LoopTest do
     test "saves a ceckpoint on each epoch", %{loop: loop} do
       loop
       |> Loop.checkpoint()
-      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], epochs: 3)
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
 
       assert ["checkpoint_0.ckpt", "checkpoint_1.ckpt", "checkpoint_2.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()
@@ -420,7 +463,7 @@ defmodule Axon.LoopTest do
     test "uses the custom file_pattern function", %{loop: loop} do
       loop
       |> Loop.checkpoint(file_pattern: &"ckp_#{&1.epoch}.ckpt")
-      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], epochs: 3)
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
 
       assert ["ckp_0.ckpt", "ckp_1.ckpt", "ckp_2.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()

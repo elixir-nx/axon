@@ -682,7 +682,7 @@ defmodule AxonTest do
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
         |> Axon.compile()
 
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.()
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
 
@@ -821,6 +821,87 @@ defmodule AxonTest do
              Total Parameters: 19200
              Total Parameters Memory: 76800 bytes
              Inputs: %{"input_0" => {nil, 32, 10}}
+             """
+    end
+
+    test "works with single namespace" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+
+      assert inspect(model) == """
+             -------------------------------------------------------------------------------
+                                                  Model
+             ===============================================================================
+              Layer           Shape      Policy              Parameters   Parameters Memory
+             ===============================================================================
+              x ( input_0 )   {nil, 2}   p=f32 c=f32 o=f32   4            16 bytes
+             -------------------------------------------------------------------------------
+             Total Parameters: 4
+             Total Parameters Memory: 16 bytes
+             Inputs: %{"input_0" => {nil, 1}}
+             """
+    end
+
+    test "works with nested namespace" do
+      model = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x") |> Axon.namespace("y")
+
+      assert inspect(model) == """
+             -------------------------------------------------------------------------------
+                                                  Model
+             ===============================================================================
+              Layer           Shape      Policy              Parameters   Parameters Memory
+             ===============================================================================
+              y ( input_0 )   {nil, 2}   p=f32 c=f32 o=f32   4            16 bytes
+             -------------------------------------------------------------------------------
+             Total Parameters: 4
+             Total Parameters Memory: 16 bytes
+             Inputs: %{"input_0" => {nil, 1}}
+             """
+    end
+
+    test "works with multiple namespaces" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
+
+      model = Axon.add(x, y)
+
+      assert inspect(model) == """
+             ------------------------------------------------------------------------------------------------------------------
+                                                                   Model
+             ==================================================================================================================
+              Layer                                  Shape                  Policy              Parameters   Parameters Memory
+             ==================================================================================================================
+              x ( input_0 )                          {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
+              y ( input_1 )                          {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
+              container_0 ( container {"x", "y"} )   {{nil, 2}, {nil, 2}}   p=f32 c=f32 o=f32   0            0 bytes
+              add_0 ( add["container_0"] )           {nil, 2}               p=f32 c=f32 o=f32   0            0 bytes
+             ------------------------------------------------------------------------------------------------------------------
+             Total Parameters: 8
+             Total Parameters Memory: 32 bytes
+             Inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+             """
+    end
+
+    test "works with single namespace and no namespace" do
+      x = Axon.input({nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input({nil, 1}) |> Axon.dense(2)
+
+      model = Axon.add(x, y)
+
+      assert inspect(model) == """
+             ------------------------------------------------------------------------------------------------------------------------
+                                                                      Model
+             ========================================================================================================================
+              Layer                                        Shape                  Policy              Parameters   Parameters Memory
+             ========================================================================================================================
+              x ( input_0 )                                {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
+              input_1 ( input )                            {nil, 1}               p=f32 c=f32 o=f32   0            0 bytes
+              dense_1 ( dense["input_1"] )                 {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
+              container_0 ( container {"x", "dense_1"} )   {{nil, 2}, {nil, 2}}   p=f32 c=f32 o=f32   0            0 bytes
+              add_0 ( add["container_0"] )                 {nil, 2}               p=f32 c=f32 o=f32   0            0 bytes
+             ------------------------------------------------------------------------------------------------------------------------
+             Total Parameters: 8
+             Total Parameters Memory: 32 bytes
+             Inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
              """
     end
   end

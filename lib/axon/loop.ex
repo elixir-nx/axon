@@ -288,7 +288,7 @@ defmodule Axon.Loop do
 
   `model` must be an Axon struct, a valid defn container
   of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
-  an arity-0 function which initializes the model state and `apply_fn` is
+  an arity-1 function which initializes the model state and `apply_fn` is
   an arity-2 function which applies the forward pass of the model. The forward
   pass of the model must return a map with keys `:prediction` and `:state`
   representing the model's prediction and updated state for layers which
@@ -311,8 +311,8 @@ defmodule Axon.Loop do
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
 
-    init_fn = fn ->
-      model_state = init_model_fn.()
+    init_fn = fn init_model_state ->
+      model_state = init_model_fn.(init_model_state)
       optimizer_state = init_optimizer_fn.(model_state)
 
       %{
@@ -366,7 +366,7 @@ defmodule Axon.Loop do
     end
 
     {
-      fn -> Nx.Defn.jit_or_apply(init_fn, []) end,
+      fn state -> Nx.Defn.jit_or_apply(init_fn, [state]) end,
       fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
     }
   end
@@ -379,24 +379,29 @@ defmodule Axon.Loop do
   `init_fn` returns an initial step state and `step_fn` performs a
   single evaluation step.
   """
-  def eval_step(model, model_state) do
+  def eval_step(model) do
     {_, forward_model_fn} = build_model_fns(model, :inference)
 
-    init_fn = fn ->
+    init_fn = fn state ->
       %{
+        model_state: state,
         y_true: Nx.tensor(0.0),
         y_pred: Nx.tensor(0.0)
       }
     end
 
-    step_fn = fn {inp, tar}, _ ->
+    step_fn = fn {inp, tar}, %{model_state: model_state} ->
       %{
+        model_state: model_state,
         y_true: tar,
         y_pred: forward_model_fn.(model_state, inp)
       }
     end
 
-    {init_fn, step_fn}
+    {
+      fn state -> Nx.Defn.jit_or_apply(init_fn, [state]) end,
+      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+    }
   end
 
   ## Loop Factories
@@ -412,15 +417,19 @@ defmodule Axon.Loop do
         step_state + 1
       end
 
-  `init_fn` by default is a function which returns an empty map. You should
-  define your own if subsequent step state updates rely on an initial
-  step state:
+  `init_fn` by default is an identity function which forwards its
+  initial arguments as the model state. You should define a custom
+  initialization function if you require a different behavior:
 
-      defn init_step_state() do
-        0
+      defn init_step_state(state) do
+        Map.merge(%{foo: 1}, state)
       end
 
-  `step_batch/2` and `init_step_state/0` are typically called from
+  You may use `state` in conjunction with initialization functions in
+  `init_fn`. For example, `train_step/3` uses initial state as initial
+  model parameters to allow initializing models from partial parameterizations.
+
+  `step_batch/2` and `init_step_state/1` are typically called from
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
@@ -429,8 +438,8 @@ defmodule Axon.Loop do
   This is useful for extracting specific fields from a loop and piping them into
   additional functions.
   """
-  def loop(step_fn, init_fn \\ fn -> %{} end, output_transform \\ & &1)
-      when is_function(step_fn, 2) and is_function(init_fn, 0) and
+  def loop(step_fn, init_fn \\ & &1, output_transform \\ & &1)
+      when is_function(step_fn, 2) and is_function(init_fn, 1) and
              is_function(output_transform, 1) do
     %Loop{
       init: init_fn,
@@ -457,7 +466,7 @@ defmodule Axon.Loop do
 
   `model` must be an Axon struct, a valid defn container
   of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
-  an arity-0 function which initializes the model state and `apply_fn` is
+  an arity-1 function which initializes the model state and `apply_fn` is
   an arity-2 function which applies the forward pass of the model.
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
@@ -595,8 +604,8 @@ defmodule Axon.Loop do
   Applies an output transform which returns the map of metrics accumulated over
   the given loop.
   """
-  def evaluator(model, model_state) do
-    {init_fn, step_fn} = eval_step(model, model_state)
+  def evaluator(model) do
+    {init_fn, step_fn} = eval_step(model)
     output_transform = fn state -> state.metrics end
 
     loop(step_fn, init_fn, output_transform)
@@ -833,14 +842,14 @@ defmodule Axon.Loop do
 
       metrics =
         model
-        |> evaluator(model_state)
+        |> evaluator()
         |> then(
           &Enum.reduce(metric_fns, &1, fn {k, {_, v}}, loop ->
             metric(loop, v, k)
           end)
         )
         |> log(:completed, fn _ -> "\n" end)
-        |> run(validation_data)
+        |> run(validation_data, model_state)
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)
@@ -1156,7 +1165,7 @@ defmodule Axon.Loop do
     options are set, the default options set with `Nx.Defn.default_options` are
     used.
   """
-  def run(loop, data, opts \\ []) do
+  def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, jit_opts} = Keyword.pop(opts, :jit_compile?, true)
@@ -1173,6 +1182,7 @@ defmodule Axon.Loop do
     loop_state =
       init_loop_state(
         init_fn,
+        init_state,
         attached_state,
         metric_fns,
         max_epochs,
@@ -1265,6 +1275,7 @@ defmodule Axon.Loop do
 
   defp init_loop_state(
          init_fn,
+         init_state,
          attached_state,
          metric_fns,
          max_epochs,
@@ -1278,7 +1289,7 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
-        step_state = maybe_jit(init_fn, [], jit_compile?, jit_opts)
+        step_state = maybe_jit(init_fn, [init_state], jit_compile?, jit_opts)
 
         %State{
           epoch: 0,
@@ -1480,25 +1491,19 @@ defmodule Axon.Loop do
   # a tuple of Axon structs, or a tuple of init / forward
   # functions. Model functions are essentially just model
   # init / apply functions.
-  # TODO(seanmor5): Update this to support any valid defn container
   defp build_model_fns(%Axon{} = model, mode) do
     Axon.compile(model, mode: mode)
   end
 
   defp build_model_fns({init_fn, forward_fn}, _)
-       when is_function(init_fn, 0) and is_function(forward_fn, 2) do
+       when is_function(init_fn, 1) and is_function(forward_fn, 2) do
     {init_fn, forward_fn}
-  end
-
-  defp build_model_fns(model, mode) when is_tuple(model) do
-    Axon.compile(model, mode: mode)
   end
 
   defp build_model_fns(invalid, _) do
     raise ArgumentError,
           "Invalid model #{inspect(invalid)}, a valid model" <>
-            " is an Axon struct, a container of Axon structs " <>
-            " or a tuple of {init_fn, forward_fn} with signatures" <>
+            " is an Axon struct or a tuple of {init_fn, forward_fn} with signatures" <>
             " init_fn() :: model_state, forward_fn(model_state, inp) :: prediction"
   end
 

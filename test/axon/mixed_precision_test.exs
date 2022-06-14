@@ -55,7 +55,10 @@ defmodule MixedPrecisionTest do
         Axon.Loop.trainer(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
 
       pstate =
-        Nx.Defn.jit(step_fn, [{Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})}, init_fn.()])
+        Nx.Defn.jit(step_fn, [
+          {Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})},
+          init_fn.(%{})
+        ])
 
       params = pstate[:model_state]
 
