@@ -434,6 +434,32 @@ defmodule Axon do
 
   @doc """
   Wraps an Axon model into a namespace.
+
+  A namespace is a part of an Axon model which is meant to
+  be a self-contained collection of Axon layers. Namespaces
+  are guaranteed to always generate with the same internal
+  layer names and can be re-used universally across models.
+
+  Namespaces are most useful for containing large collections
+  of layers and offering a straightforward means for accessing
+  the parameters of individual model components. A common application
+  of namespaces is to use them in with a pre-trained model for
+  fine-tuning:
+
+      {base, resnet_params} = resnet()
+      base = base |> Axon.namespace("resnet")
+
+      model = base |> Axon.dense(1)
+      Axon.init(model, %{"resnset" => resnet_params})
+
+  Notice you can use `Axon.init` in conjunction with namespaces
+  to specify which portion of a model you'd like to initialize
+  from a fixed starting point.
+
+  Namespaces have fixed names, which means it's easy to run into namespace
+  collisions. Re-using namespaces, re-using inner parts of a namespace,
+  and attempting to share layers between namespaces are still sharp
+  edges in namespace usage.
   """
   def namespace(%Axon{output_shape: shape} = axon, name) when is_binary(name) do
     layer(:namespace, [axon], name: name, shape: shape)
