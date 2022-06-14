@@ -220,7 +220,7 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.bilinear({nil, 16, 32}, {nil, 16}, 32)
       ** (ArgumentError) input ranks must match, got 3 and 2
-      
+
       iex> Axon.Shape.bilinear({nil, 16, 32}, {}, 32)
       ** (ArgumentError) input shapes must both have at least rank 2, got ranks 3 and 0
 
@@ -1372,7 +1372,8 @@ defmodule Axon.Shape do
       ** (ArgumentError) non-concat dims must be equal got 5 and 10 while concatenating on axis 1
   """
   def concatenate([s1 | _] = input_shapes, axis) do
-    nil_names = for _ <- 1..length(input_shapes), do: List.duplicate(nil, Nx.rank(s1))
+    nil_names = for shape <- input_shapes, do: List.duplicate(nil, Nx.rank(shape))
+    axis = Nx.Shape.normalize_axis(s1, axis, hd(nil_names))
     {shape, _} = Nx.Shape.concatenate(input_shapes, nil_names, axis)
     shape
   end
