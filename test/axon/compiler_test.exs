@@ -1,7 +1,6 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
   import AxonTestUtil
-  require Axon
   alias Axon.MixedPrecision, as: AMP
   import Nx.Defn
 

@@ -5,7 +5,6 @@ defmodule Axon.LoopTest do
 
   alias Axon.Loop
   alias Axon.Loop.State
-  require Axon
 
   setup do
     Nx.Defn.default_options(compiler: test_compiler())

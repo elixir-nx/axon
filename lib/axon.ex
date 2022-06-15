@@ -85,25 +85,6 @@ defmodule Axon do
 
   @type t :: %__MODULE__{}
 
-  @doc false
-  # Note: when adding new fields, consider how they fit serialize/deserialize
-  @derive {
-    Nx.Container,
-    containers: [],
-    keep: [
-      :id,
-      :name,
-      :output_shape,
-      :parent,
-      :parameters,
-      :args,
-      :op,
-      :policy,
-      :hooks,
-      :opts,
-      :op_name
-    ]
-  }
   defstruct [
     :id,
     :name,
@@ -3072,10 +3053,12 @@ defmodule Axon do
 
   @doc """
   Compiles the given model to `{init_fn, predict_fn}`.
+
+  Once compiled, a model can be passed as argument to `Nx.Defn`.
   """
   @doc type: :compilation
-  def compile(model, opts \\ []) do
-    Axon.Compiler.__compile__(model, opts)
+  def compile(model, opts \\ []) when is_list(opts) do
+    {Axon.Compiler.compile_init(model, opts), Axon.Compiler.compile_predict(model, opts)}
   end
 
   @doc """
@@ -3083,15 +3066,8 @@ defmodule Axon do
   with the given compiler options.
   """
   @doc type: :execution
-  defmacro init(model, params \\ %{}, opts \\ []) do
-    params =
-      if params == %{} do
-        Macro.escape(params)
-      else
-        params
-      end
-
-    define_init(model, [params], opts)
+  def init(model, params \\ %{}, opts \\ []) when is_list(opts) do
+    Axon.Compiler.compile_init(model, opts).(params)
   end
 
   @doc """
@@ -3099,32 +3075,8 @@ defmodule Axon do
   `input` with the given compiler options.
   """
   @doc type: :execution
-  defmacro predict(model, params, input, opts \\ []) do
-    define_predict(model, [params, input], opts)
-  end
-
-  ## Implementation
-
-  defp define_init(model, args, opts \\ []) do
-    quote do
-      Nx.Defn.Kernel.transform(unquote(args), fn args ->
-        model = unquote(model)
-        opts = unquote(opts)
-
-        Axon.Compiler.__jit_init__(model, args, opts)
-      end)
-    end
-  end
-
-  defp define_predict(model, args, opts \\ []) do
-    quote do
-      Nx.Defn.Kernel.transform(unquote(args), fn args ->
-        model = unquote(model)
-        opts = unquote(opts)
-
-        Axon.Compiler.__jit_predict__(model, args, opts)
-      end)
-    end
+  def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
+    Axon.Compiler.compile_predict(model, opts).(params, input)
   end
 
   ## Inspection

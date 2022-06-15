@@ -1,9 +1,7 @@
 defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
-
   import AxonTestUtil
-  import Nx.Defn
 
   describe "input" do
     test "works with defaults" do
@@ -711,19 +709,6 @@ defmodule AxonTest do
       Axon.input({nil, 6}, "input") |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
     end
 
-    defn init do
-      Axon.init(model())
-    end
-
-    test "init works inside defn" do
-      assert init() == %{
-               "dense" => %{
-                 "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                 "bias" => zeros({6})
-               }
-             }
-    end
-
     test "init works outside defn" do
       assert Axon.init(model()) == %{
                "dense" => %{
@@ -733,16 +718,9 @@ defmodule AxonTest do
              }
     end
 
-    defn predict(params, input) do
-      Axon.predict(model(), params, input)
-    end
-
-    test "predict works inside defn" do
-      assert predict(init(), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
-    end
-
     test "predict works outside defn" do
-      assert Axon.predict(model(), init(), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+      model = model()
+      assert Axon.predict(model, Axon.init(model), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
     end
   end
 
@@ -929,13 +907,9 @@ defmodule AxonTest do
   end
 
   describe "container" do
-    defn container(model) do
-      Axon.predict(model, %{}, Nx.tensor([[1.0]]))
-    end
-
     test "correctly derives container" do
       model = Axon.input({nil, 1}, "input")
-      assert container(model) == Nx.tensor([[1.0]])
+      assert Axon.predict(model, %{}, Nx.tensor([[1.0]])) == Nx.tensor([[1.0]])
     end
 
     test "shape inference works" do
