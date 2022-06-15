@@ -720,7 +720,9 @@ defmodule AxonTest do
 
     test "predict works outside defn" do
       model = model()
-      assert Axon.predict(model, Axon.init(model), Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+
+      assert Axon.predict(model, Axon.init(model), Nx.iota({1, 6})) ==
+               Nx.iota({1, 6}, type: {:f, 32})
     end
   end
 
