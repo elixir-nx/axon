@@ -89,20 +89,20 @@ defmodule Axon do
   which is extended to Axon. Axon allows you to wrap any valid Nx container
   in a layer. Containers are most commonly used to structure outputs:
 
-      inp1 = Axon.input({nil, 1})
-      inp2 = Axon.input({nil, 1})
+      inp1 = Axon.input({nil, 1}, "input_0")
+      inp2 = Axon.input({nil, 1}, "input_1")
       model = Axon.container(%{foo: inp1, bar: inp2})
 
   Containers can be arbitrarily nested:
 
-      inp1 = Axon.input({nil, 1})
-      inp2 = Axon.input({nil, 1})
+      inp1 = Axon.input({nil, 1}, "input_0")
+      inp2 = Axon.input({nil, 1}, "input_1")
       model = Axon.container({%{foo: {inp1, %{bar: inp2}}}})
 
   You can even use custom structs which implement the container protocol:
 
-      inp1 = Axon.input({nil, 1})
-      inp2 = Axon.input({nil, 1})
+      inp1 = Axon.input({nil, 1}, "input_0")
+      inp2 = Axon.input({nil, 1}, "input_1")
       model = Axon.container(%MyStruct{foo: inp1, bar: inp2})
 
   ### Custom Layers
@@ -167,7 +167,7 @@ defmodule Axon do
   APIs, you can create and train neural networks with ease:
 
       model =
-        Axon.input({nil, 784})
+        Axon.input({nil, 784}, "input_0")
         |> Axon.dense(128, activation: :relu)
         |> Axon.layer_norm()
         |> Axon.dropout()
@@ -427,7 +427,7 @@ defmodule Axon do
 
   """
   @doc type: :special
-  def input(input_shape, name) when is_tuple(shape) and is_binary(name) do
+  def input(input_shape, name) when is_tuple(input_shape) and is_binary(name) do
     output_shape = Axon.Shape.input(input_shape)
     layer(:input, [], name: name, shape: output_shape, op_name: :input)
   end
@@ -439,7 +439,7 @@ defmodule Axon do
   of use with other Axon layers. They can be used interchangeably
   with other Axon layers:
 
-      inp = Axon.input({nil, 32})
+      inp = Axon.input({nil, 32}, "input")
       my_constant = Axon.constant(Nx.iota({1, 32}))
       model = Axon.add(inp, my_constant)
 
@@ -3060,7 +3060,7 @@ defmodule Axon do
 
   To invoke a hook on every single event, you may pass `:all` to `on:`.
 
-      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :all)
+      Axon.input({nil, 1}, "input") |> Axon.attach_hook(&IO.inspect/1, on: :all)
 
   The default event is `:forward`, assuming you want a hook invoked
   on the layers forward pass.
@@ -3069,13 +3069,13 @@ defmodule Axon do
   mode using the `:mode` option. The default mode is `:both` to be invoked
   during both train and inference mode.
 
-      Axon.input({nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
+      Axon.input({nil, 1}, "input") |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
 
   You can also attach multiple hooks to a single layer. Hooks are invoked in
   the order in which they are declared. If order is important, you should attach
   hooks in the order you want them to be executed:
 
-      Axon.input({nil, 1})
+      Axon.input({nil, 1}, "input")
       # I will be executed first
       |> Axon.attach_hook(&IO.inspect/1)
       # I will be executed second
@@ -3084,7 +3084,7 @@ defmodule Axon do
   Hooks are executed at their point of attachment. You must insert hooks at each point
   you want a hook to execute during model execution.
 
-      Axon.input({nil, 1})
+      Axon.input({nil, 1}, "input")
       |> Axon.attach_hook(&IO.inspect/1)
       |> Axon.relu()
       |> Axon.attach_hook(&IO.inspect/1)
