@@ -82,7 +82,7 @@ defmodule Axon.MixProject do
         "Functions: Dropout": &(&1[:type] == :dropout),
         "Functions: Linear": &(&1[:type] == :linear),
         "Functions: Normalization": &(&1[:type] == :normalization),
-        "Functions: Pooling": &(&1[:type] == :pooling)
+        "Functions: Pooling": &(&1[:type] == :pooling),
         "Functions: Shape": &(&1[:type] == :shape),
       ],
       groups_for_modules: [
@@ -107,7 +107,7 @@ defmodule Axon.MixProject do
           Axon.Loop,
           Axon.Loop.State
         ]
-      ]
+      ],
       before_closing_body_tag: &before_closing_body_tag/1
     ]
   end
