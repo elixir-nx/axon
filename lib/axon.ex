@@ -206,10 +206,11 @@ defmodule Axon do
   end
 
   defp infer_shape(input_shapes, fun, opts) do
-    {inputs, indices} = Enum.reduce(input_shapes, {[], []}, fn shape, {input_shapes, indices} ->
-      {template, template_indices} = template_shape(shape)
-      {[template | input_shapes], [template_indices | indices]}
-    end)
+    {inputs, indices} =
+      Enum.reduce(input_shapes, {[], []}, fn shape, {input_shapes, indices} ->
+        {template, template_indices} = template_shape(shape)
+        {[template | input_shapes], [template_indices | indices]}
+      end)
 
     inputs = Enum.reverse(inputs)
 
@@ -316,16 +317,14 @@ defmodule Axon do
   Input layers specify a model's inputs. Input layers are
   always the root layers of the neural network.
 
-  ## Options
-
-    * `:name` - layer name.
+  You must specify the input layers name, which will be used
+  to uniquely identify it in the case of multiple inputs.
 
   """
   @doc type: :special
-  def input(input_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
+  def input(input_shape, name) when is_binary(name) do
     output_shape = Axon.Shape.input(input_shape)
-    layer(:input, [], name: opts[:name], shape: output_shape, op_name: :input)
+    layer(:input, [], name: name, shape: output_shape, op_name: :input)
   end
 
   @doc """
@@ -381,8 +380,8 @@ defmodule Axon do
 
   ## Examples
 
-      iex> inp1 = Axon.input({nil, 1})
-      iex> inp2 = Axon.input({nil, 2})
+      iex> inp1 = Axon.input({nil, 1}, "input_0")
+      iex> inp2 = Axon.input({nil, 2}, "input_1")
       iex> model = Axon.container(%{a: inp1, b: inp2})
       iex> %{a: a, b: b} = Axon.predict(model, %{}, %{
       ...>    "input_0" => Nx.tensor([[1.0]]),
@@ -3035,15 +3034,15 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 32}) |> Axon.dense(10)
+      iex> model = Axon.input({nil, 32}, "input") |> Axon.dense(10)
       iex> {inp, out} = Axon.get_model_signature(model)
       iex> inp
       {nil, 32}
       iex> out
       {nil, 10}
 
-      iex> inp1 = Axon.input({nil, 32})
-      iex> inp2 = Axon.input({nil, 32})
+      iex> inp1 = Axon.input({nil, 32}, "input_0")
+      iex> inp2 = Axon.input({nil, 32}, "input_1")
       iex> model = Axon.concatenate(inp1, inp2)
       iex> {{inp1_shape, inp2_shape}, out} = Axon.get_model_signature(model)
       iex> inp1_shape
@@ -3341,7 +3340,7 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
       iex> params = Axon.init(model)
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
@@ -3379,7 +3378,7 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
       iex> params = Axon.init(model)
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
