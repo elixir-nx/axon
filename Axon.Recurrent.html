@@ -10,7 +10,7 @@
     <title>Axon.Recurrent — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
 
-    <script src="dist/sidebar_items-a63f594464.js"></script>
+    <script src="dist/sidebar_items-ba2656a0a4.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -61,6 +61,10 @@
 
   <div class="sidebar-header">
 
+      <a href="Axon.html">
+        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
+      </a>
+
     <div class="sidebar-projectDetails">
       <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
@@ -109,7 +113,7 @@ Axon
 routines.</p><p>Recurrent Neural Networks are commonly used for working with
 sequences of data where there is some level of dependence between
 outputs at different timesteps.</p><p>This module contains 3 RNN Cell functions and methods to &quot;unroll&quot;
-cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5953026563-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="5953026563-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
+cells over an entire sequence. Each cell function returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5646916400-1">{</span><span class="n">new_carry</span><span class="p">,</span><span class="w"> </span><span class="n">output</span><span class="p" data-group-id="5646916400-1">}</span></code></pre><p>Where <code class="inline">new_carry</code> is an updated carry state and <code class="inline">output</code> is the output
 for a singular timestep. In order to apply an RNN across multiple timesteps,
 you need to use either <code class="inline">static_unroll</code> or <code class="inline">dynamic_unroll</code> (coming soon).</p><p>Unrolling an RNN is equivalent to a <code class="inline">map_reduce</code> or <code class="inline">scan</code> starting
 from an initial carry state and ending with a final carry state and
@@ -208,7 +212,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L114" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L141" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -218,7 +222,20 @@ Functions
 
   <section class="docstring">
 
-<p>ConvLSTM Cell.</p>
+<p>ConvLSTM Cell.</p><p>When combined with <code class="inline">Axon.Recurrent.*_unroll</code>, implements a
+ConvLSTM-based RNN. More memory efficient than traditional LSTM.</p><h2 id="conv_lstm_cell/6-options" class="section-heading">
+  <a href="#conv_lstm_cell/6-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:strides</code> - convolution strides. Defaults to <code class="inline">1</code>.</p></li><li><p><code class="inline">:padding</code> - convolution padding. Defaults to <code class="inline">:same</code>.</p></li></ul><h2 id="conv_lstm_cell/6-references" class="section-heading">
+  <a href="#conv_lstm_cell/6-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">references</p>
+  </a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/abs/1506.04214">Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting</a></li></ul>
   </section>
 </section>
 <section class="detail" id="dynamic_unroll/6">
@@ -230,7 +247,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L157" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L192" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -240,7 +257,11 @@ Functions
 
   <section class="docstring">
 
-<p>Dynamically unrolls an RNN.</p>
+<p>Dynamically unrolls an RNN.</p><p>Unrolls implement a <code class="inline">scan</code> operation which applies a
+transformation on the leading axis of <code class="inline">input_sequence</code> carrying
+some state. In this instance <code class="inline">cell_fn</code> is an RNN cell function
+such as <code class="inline">lstm_cell</code> or <code class="inline">gru_cell</code>.</p><p>This function will make use of an <code class="inline">defn</code> while-loop such and thus
+may be more efficient for long sequences.</p>
   </section>
 </section>
 <section class="detail" id="gru_cell/7">
@@ -256,7 +277,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">gru_cell(input, carry, input_kernel, hidden_kernel, bias, gate_fn \\ &amp;sigmoid/1, activation_fn \\ &amp;tanh/1)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L33" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L40" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -266,7 +287,14 @@ Functions
 
   <section class="docstring">
 
-<p>GRU Cell.</p>
+<p>GRU Cell.</p><p>When combined with <code class="inline">Axon.Recurrent.*_unroll</code>, implements a
+GRU-based RNN. More memory efficient than traditional LSTM.</p><h2 id="gru_cell/7-references" class="section-heading">
+  <a href="#gru_cell/7-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">references</p>
+  </a>
+  References
+</h2>
+<ul><li><a href="https://arxiv.org/pdf/1412.3555v1.pdf">Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling</a></li></ul>
   </section>
 </section>
 <section class="detail" id="lstm_cell/7">
@@ -282,7 +310,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">lstm_cell(input, carry, input_kernel, hidden_kernel, bias, gate_fn \\ &amp;sigmoid/1, activation_fn \\ &amp;tanh/1)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L59" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L73" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -292,7 +320,14 @@ Functions
 
   <section class="docstring">
 
-<p>LSTM Cell.</p>
+<p>LSTM Cell.</p><p>When combined with <code class="inline">Axon.Recurrent.*_unroll</code>, implements a
+LSTM-based RNN. More memory efficient than traditional LSTM.</p><h2 id="lstm_cell/7-references" class="section-heading">
+  <a href="#lstm_cell/7-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">references</p>
+  </a>
+  References
+</h2>
+<ul><li><a href="http://www.bioinf.jku.at/publications/older/2604.pdf">Long Short-Term Memory</a></li></ul>
   </section>
 </section>
 <section class="detail" id="static_unroll/6">
@@ -304,7 +339,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L186" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/recurrent.ex#L230" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -314,7 +349,12 @@ Functions
 
   <section class="docstring">
 
-<p>Statically unrolls an RNN.</p>
+<p>Statically unrolls an RNN.</p><p>Unrolls implement a <code class="inline">scan</code> operation which applies a
+transformation on the leading axis of <code class="inline">input_sequence</code> carrying
+some state. In this instance <code class="inline">cell_fn</code> is an RNN cell function
+such as <code class="inline">lstm_cell</code> or <code class="inline">gru_cell</code>.</p><p>This function inlines the unrolling of the sequence such that
+the entire operation appears as a part of the compilation graph.
+This makes it suitable for shorter sequences.</p>
   </section>
 </section>
 

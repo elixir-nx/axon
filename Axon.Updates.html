@@ -10,7 +10,7 @@
     <title>Axon.Updates — Axon v0.1.0-dev</title>
     <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
 
-    <script src="dist/sidebar_items-a63f594464.js"></script>
+    <script src="dist/sidebar_items-ba2656a0a4.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -61,6 +61,10 @@
 
   <div class="sidebar-header">
 
+      <a href="Axon.html">
+        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
+      </a>
+
     <div class="sidebar-projectDetails">
       <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
@@ -109,18 +113,19 @@ Axon
 usually by scaling or shifting the input with respect
 to some input state. Update methods are composed
 to create more advanced optimization methods such as AdaGrad
-or Adam. Each update returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5801619357-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="5801619357-1">}</span></code></pre><p>Which represent a state initialization and state update
+or Adam. Each update returns a tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="0815692991-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="0815692991-1">}</span></code></pre><p>Which represent a state initialization and state update
 function respectively. While each method in the Updates
 API is a regular Elixir function, the two methods they
 return are implemented as <code class="inline">defn</code>, so they can be accelerated
 using any Nx backend or compiler.</p><p>Update methods are just combinators that can be arbitrarily
 composed to create complex optimizers. For example, the Adam
-optimizer in Axon.Optimizers is implemented as:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">adam</span><span class="p" data-group-id="3053591781-1">(</span><span class="n">learning_rate</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="3053591781-2">[</span><span class="p" data-group-id="3053591781-2">]</span><span class="p" data-group-id="3053591781-1">)</span><span class="w"> </span><span class="k" data-group-id="3053591781-3">do</span><span class="w">
-  </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale_by_adam</span><span class="p" data-group-id="3053591781-4">(</span><span class="n">opts</span><span class="p" data-group-id="3053591781-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale</span><span class="p" data-group-id="3053591781-5">(</span><span class="o">-</span><span class="n">learning_rate</span><span class="p" data-group-id="3053591781-5">)</span><span class="w">
-</span><span class="k" data-group-id="3053591781-3">end</span></code></pre><p>Updates are maps of updates, often associated with parameters of
-the same names. Using <a href="#apply_updates/2"><code class="inline">Axon.Updates.apply_updates/2</code></a> will merge updates
-and parameters by adding associated parameters and updates.</p><h2 id="module-custom-combinators" class="section-heading">
+optimizer in Axon.Optimizers is implemented as:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">adam</span><span class="p" data-group-id="2927207358-1">(</span><span class="n">learning_rate</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="2927207358-2">[</span><span class="p" data-group-id="2927207358-2">]</span><span class="p" data-group-id="2927207358-1">)</span><span class="w"> </span><span class="k" data-group-id="2927207358-3">do</span><span class="w">
+  </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale_by_adam</span><span class="p" data-group-id="2927207358-4">(</span><span class="n">opts</span><span class="p" data-group-id="2927207358-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Updates</span><span class="o">.</span><span class="n">scale</span><span class="p" data-group-id="2927207358-5">(</span><span class="o">-</span><span class="n">learning_rate</span><span class="p" data-group-id="2927207358-5">)</span><span class="w">
+</span><span class="k" data-group-id="2927207358-3">end</span></code></pre><p>Updates are maps of updates, often associated with parameters of
+the same names. Using <a href="#apply_updates/3"><code class="inline">Axon.Updates.apply_updates/3</code></a> will merge updates
+and parameters by adding associated parameters and updates, and
+ensuring any given model state is preserved.</p><h2 id="module-custom-combinators" class="section-heading">
   <a href="#module-custom-combinators" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">custom-combinators</p>
   </a>
@@ -128,41 +133,41 @@ and parameters by adding associated parameters and updates.</p><h2 id="module-cu
 </h2>
 <p>You can create your own combinators using the <a href="#stateless/2"><code class="inline">stateless/2</code></a> and
 <a href="#stateful/3"><code class="inline">stateful/3</code></a> primitives. Every update method in this module is
-implemented in terms of one of these two primitives.</p><p><a href="#stateless/2"><code class="inline">stateless/2</code></a> represents a stateless update:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">scale</span><span class="p" data-group-id="7613085142-1">(</span><span class="n">combinator</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">identity</span><span class="p" data-group-id="7613085142-2">(</span><span class="p" data-group-id="7613085142-2">)</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="7613085142-1">)</span><span class="w"> </span><span class="k" data-group-id="7613085142-3">do</span><span class="w">
-  </span><span class="n">stateless</span><span class="p" data-group-id="7613085142-4">(</span><span class="n">combinator</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_scale</span><span class="p" data-group-id="7613085142-5">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="7613085142-5">)</span><span class="p" data-group-id="7613085142-4">)</span><span class="w">
-</span><span class="k" data-group-id="7613085142-3">end</span><span class="w">
+implemented in terms of one of these two primitives.</p><p><a href="#stateless/2"><code class="inline">stateless/2</code></a> represents a stateless update:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">scale</span><span class="p" data-group-id="1898645694-1">(</span><span class="n">combinator</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">identity</span><span class="p" data-group-id="1898645694-2">(</span><span class="p" data-group-id="1898645694-2">)</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="1898645694-1">)</span><span class="w"> </span><span class="k" data-group-id="1898645694-3">do</span><span class="w">
+  </span><span class="n">stateless</span><span class="p" data-group-id="1898645694-4">(</span><span class="n">combinator</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_scale</span><span class="p" data-group-id="1898645694-5">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="n">step_size</span><span class="p" data-group-id="1898645694-5">)</span><span class="p" data-group-id="1898645694-4">)</span><span class="w">
+</span><span class="k" data-group-id="1898645694-3">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_scale</span><span class="p" data-group-id="7613085142-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7613085142-6">)</span><span class="w"> </span><span class="k" data-group-id="7613085142-7">do</span><span class="w">
-  </span><span class="n">transform</span><span class="p" data-group-id="7613085142-8">(</span><span class="w">
-    </span><span class="p" data-group-id="7613085142-9">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7613085142-9">}</span><span class="p">,</span><span class="w">
-    </span><span class="k" data-group-id="7613085142-10">fn</span><span class="w"> </span><span class="p" data-group-id="7613085142-11">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7613085142-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-      </span><span class="n">deep_new</span><span class="p" data-group-id="7613085142-12">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="7613085142-13">fn</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="7613085142-14">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="7613085142-14">)</span><span class="w"> </span><span class="k" data-group-id="7613085142-13">end</span><span class="p" data-group-id="7613085142-12">)</span><span class="w">
-    </span><span class="k" data-group-id="7613085142-10">end</span><span class="w">
-  </span><span class="p" data-group-id="7613085142-8">)</span><span class="w">
-</span><span class="k" data-group-id="7613085142-7">end</span></code></pre><p>Notice how the function given to <a href="#stateless/2"><code class="inline">stateless/2</code></a> is defined within <code class="inline">defn</code>.
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_scale</span><span class="p" data-group-id="1898645694-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="c">_params</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1898645694-6">)</span><span class="w"> </span><span class="k" data-group-id="1898645694-7">do</span><span class="w">
+  </span><span class="n">transform</span><span class="p" data-group-id="1898645694-8">(</span><span class="w">
+    </span><span class="p" data-group-id="1898645694-9">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1898645694-9">}</span><span class="p">,</span><span class="w">
+    </span><span class="k" data-group-id="1898645694-10">fn</span><span class="w"> </span><span class="p" data-group-id="1898645694-11">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1898645694-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+      </span><span class="n">deep_new</span><span class="p" data-group-id="1898645694-12">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="1898645694-13">fn</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="1898645694-14">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p" data-group-id="1898645694-14">)</span><span class="w"> </span><span class="k" data-group-id="1898645694-13">end</span><span class="p" data-group-id="1898645694-12">)</span><span class="w">
+    </span><span class="k" data-group-id="1898645694-10">end</span><span class="w">
+  </span><span class="p" data-group-id="1898645694-8">)</span><span class="w">
+</span><span class="k" data-group-id="1898645694-7">end</span></code></pre><p>Notice how the function given to <a href="#stateless/2"><code class="inline">stateless/2</code></a> is defined within <code class="inline">defn</code>.
 This is what allows the anonymous functions returned by <a href="Axon.Updates.html#content"><code class="inline">Axon.Updates</code></a>
-to be used inside <code class="inline">defn</code>.</p><p><a href="#stateful/3"><code class="inline">stateful/3</code></a> represents a stateful update and follows the same pattern:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">my_stateful_update</span><span class="p" data-group-id="9177453761-1">(</span><span class="n">updates</span><span class="p" data-group-id="9177453761-1">)</span><span class="w"> </span><span class="k" data-group-id="9177453761-2">do</span><span class="w">
-  </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">stateful</span><span class="p" data-group-id="9177453761-3">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">init_my_update</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_my_update</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="9177453761-3">)</span><span class="w">
-</span><span class="k" data-group-id="9177453761-2">end</span><span class="w">
+to be used inside <code class="inline">defn</code>.</p><p><a href="#stateful/3"><code class="inline">stateful/3</code></a> represents a stateful update and follows the same pattern:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">my_stateful_update</span><span class="p" data-group-id="4138092710-1">(</span><span class="n">updates</span><span class="p" data-group-id="4138092710-1">)</span><span class="w"> </span><span class="k" data-group-id="4138092710-2">do</span><span class="w">
+  </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">stateful</span><span class="p" data-group-id="4138092710-3">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">init_my_update</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">apply_my_update</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="4138092710-3">)</span><span class="w">
+</span><span class="k" data-group-id="4138092710-2">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">init_my_update</span><span class="p" data-group-id="9177453761-4">(</span><span class="n">params</span><span class="p" data-group-id="9177453761-4">)</span><span class="w"> </span><span class="k" data-group-id="9177453761-5">do</span><span class="w">
-  </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zeros_like</span><span class="p" data-group-id="9177453761-6">(</span><span class="n">params</span><span class="p" data-group-id="9177453761-6">)</span><span class="w">
-  </span><span class="p" data-group-id="9177453761-7">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="9177453761-7">}</span><span class="w">
-</span><span class="k" data-group-id="9177453761-5">end</span><span class="w">
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">init_my_update</span><span class="p" data-group-id="4138092710-4">(</span><span class="n">params</span><span class="p" data-group-id="4138092710-4">)</span><span class="w"> </span><span class="k" data-group-id="4138092710-5">do</span><span class="w">
+  </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">zeros_like</span><span class="p" data-group-id="4138092710-6">(</span><span class="n">params</span><span class="p" data-group-id="4138092710-6">)</span><span class="w">
+  </span><span class="p" data-group-id="4138092710-7">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="4138092710-7">}</span><span class="w">
+</span><span class="k" data-group-id="4138092710-5">end</span><span class="w">
 
-</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_my_update</span><span class="p" data-group-id="9177453761-8">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="9177453761-8">)</span><span class="w"> </span><span class="k" data-group-id="9177453761-9">do</span><span class="w">
-  </span><span class="n">new_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deep_new</span><span class="p" data-group-id="9177453761-10">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="9177453761-11">fn</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="9177453761-12">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p" data-group-id="9177453761-12">)</span><span class="w"> </span><span class="k" data-group-id="9177453761-11">end</span><span class="p" data-group-id="9177453761-10">)</span><span class="w">
-  </span><span class="n">updates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transform</span><span class="p" data-group-id="9177453761-13">(</span><span class="p" data-group-id="9177453761-14">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="9177453761-14">}</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="9177453761-15">fn</span><span class="w"> </span><span class="p" data-group-id="9177453761-16">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="9177453761-16">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-    </span><span class="n">deep_merge</span><span class="p" data-group-id="9177453761-17">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="9177453761-18">fn</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="9177453761-19">(</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p" data-group-id="9177453761-19">)</span><span class="w"> </span><span class="k" data-group-id="9177453761-18">end</span><span class="p" data-group-id="9177453761-17">)</span><span class="w">
-  </span><span class="k" data-group-id="9177453761-15">end</span><span class="p" data-group-id="9177453761-13">)</span><span class="w">
-  </span><span class="p" data-group-id="9177453761-20">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9177453761-21">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="9177453761-21">}</span><span class="p" data-group-id="9177453761-20">}</span><span class="w">
-</span><span class="k" data-group-id="9177453761-9">end</span></code></pre><p>State associated with individual parameters should have keys that match the
+</span><span class="kd">defnp</span><span class="w"> </span><span class="nf">apply_my_update</span><span class="p" data-group-id="4138092710-8">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="4138092710-8">)</span><span class="w"> </span><span class="k" data-group-id="4138092710-9">do</span><span class="w">
+  </span><span class="n">new_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">deep_new</span><span class="p" data-group-id="4138092710-10">(</span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="4138092710-11">fn</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="4138092710-12">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01</span><span class="p" data-group-id="4138092710-12">)</span><span class="w"> </span><span class="k" data-group-id="4138092710-11">end</span><span class="p" data-group-id="4138092710-10">)</span><span class="w">
+  </span><span class="n">updates</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">transform</span><span class="p" data-group-id="4138092710-13">(</span><span class="p" data-group-id="4138092710-14">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="4138092710-14">}</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="4138092710-15">fn</span><span class="w"> </span><span class="p" data-group-id="4138092710-16">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="4138092710-16">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="n">deep_merge</span><span class="p" data-group-id="4138092710-17">(</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="4138092710-18">fn</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">multiply</span><span class="p" data-group-id="4138092710-19">(</span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p" data-group-id="4138092710-19">)</span><span class="w"> </span><span class="k" data-group-id="4138092710-18">end</span><span class="p" data-group-id="4138092710-17">)</span><span class="w">
+  </span><span class="k" data-group-id="4138092710-15">end</span><span class="p" data-group-id="4138092710-13">)</span><span class="w">
+  </span><span class="p" data-group-id="4138092710-20">{</span><span class="n">updates</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="4138092710-21">%{</span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="n">new_state</span><span class="p" data-group-id="4138092710-21">}</span><span class="p" data-group-id="4138092710-20">}</span><span class="w">
+</span><span class="k" data-group-id="4138092710-9">end</span></code></pre><p>State associated with individual parameters should have keys that match the
 keys of the parameter. For example, if you have parameters <code class="inline">%{kernel: kernel}</code>
 with associated states <code class="inline">mu</code> and <code class="inline">nu</code> representing the first and second moments,
-your state should look something like:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="6822701335-1">%{</span><span class="w">
-  </span><span class="ss">mu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6822701335-2">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_mu</span><span class="p" data-group-id="6822701335-2">}</span><span class="w">
-  </span><span class="ss">nu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6822701335-3">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_nu</span><span class="p" data-group-id="6822701335-3">}</span><span class="w">
-</span><span class="p" data-group-id="6822701335-1">}</span></code></pre>
+your state should look something like:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5371377328-1">%{</span><span class="w">
+  </span><span class="ss">mu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5371377328-2">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_mu</span><span class="p" data-group-id="5371377328-2">}</span><span class="w">
+  </span><span class="ss">nu</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5371377328-3">%{</span><span class="ss">kernel</span><span class="p">:</span><span class="w"> </span><span class="n">kernel_nu</span><span class="p" data-group-id="5371377328-3">}</span><span class="w">
+</span><span class="p" data-group-id="5371377328-1">}</span></code></pre>
   </section>
 
 
@@ -186,7 +191,7 @@ your state should look something like:</p><pre><code class="makeup elixir" trans
 
         </div>
 
-          <div class="summary-synopsis"><p>Weight decay.</p></div>
+          <div class="summary-synopsis"><p>Adds decayed weights to updates.</p></div>
 
       </div>
 
@@ -204,7 +209,7 @@ your state should look something like:</p><pre><code class="makeup elixir" trans
 
         </div>
 
-          <div class="summary-synopsis"><p>Add noise.</p></div>
+          <div class="summary-synopsis"><p>Adds random Gaussian noise to the input.</p></div>
 
       </div>
 
@@ -463,7 +468,7 @@ gradient centralization</p></div>
 
         </div>
 
-          <div class="summary-synopsis"><p>Scale by yogi.</p></div>
+          <div class="summary-synopsis"><p>Scale input according to the Yogi algorithm.</p></div>
 
       </div>
 
@@ -538,7 +543,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">add_decayed_weights(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L696" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L720" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -548,7 +553,13 @@ Functions
 
   <section class="docstring">
 
-<p>Weight decay.</p>
+<p>Adds decayed weights to updates.</p><p>Commonly used as a regularization strategy.</p><h2 id="add_decayed_weights/1-options" class="section-heading">
+  <a href="#add_decayed_weights/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Rate</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="o">.</span></code></pre>
   </section>
 </section>
 <section class="detail" id="add_decayed_weights/2">
@@ -560,7 +571,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">add_decayed_weights(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L707" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L731" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -584,7 +595,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">add_noise(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L764" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L806" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -594,7 +605,17 @@ Functions
 
   <section class="docstring">
 
-<p>Add noise.</p>
+<p>Adds random Gaussian noise to the input.</p><h2 id="add_noise/1-options" class="section-heading">
+  <a href="#add_noise/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eta</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Controls</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">noise</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">add</span><span class="o">.</span><span class="w">
+  </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.01</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:gamma</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Controls</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">noise</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">add</span><span class="o">.</span><span class="w">
+  </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.55</span><span class="err">`</span><span class="o">.</span></code></pre>
   </section>
 </section>
 <section class="detail" id="add_noise/2">
@@ -606,7 +627,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">add_noise(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L775" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L817" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -630,7 +651,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">apply_updates(params, updates, state \\ nil)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L941" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L1007" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -655,7 +676,7 @@ given state map.</p>
     </a>
     <h1 class="signature" translate="no">centralize(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L664" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L682" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -677,7 +698,7 @@ given state map.</p>
     </a>
     <h1 class="signature" translate="no">centralize(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L675" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L693" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -701,7 +722,7 @@ given state map.</p>
     </a>
     <h1 class="signature" translate="no">clip(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L588" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L606" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -730,7 +751,7 @@ to <code class="inline">2.0</code></li></ul>
     </a>
     <h1 class="signature" translate="no">clip(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L599" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L617" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -754,7 +775,7 @@ to <code class="inline">2.0</code></li></ul>
     </a>
     <h1 class="signature" translate="no">clip_by_global_norm(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L621" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L639" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -783,7 +804,7 @@ to <code class="inline">2.0</code></li></ul>
     </a>
     <h1 class="signature" translate="no">clip_by_global_norm(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L632" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L650" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -805,7 +826,7 @@ to <code class="inline">2.0</code></li></ul>
     </a>
     <h1 class="signature" translate="no">compose(arg1, arg2)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L900" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L961" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -819,8 +840,8 @@ to <code class="inline">2.0</code></li></ul>
 without having to reimplement them. For example, you can implement
 gradient centralization:</p><pre><code class="makeup elixir" translate="no"><span class="kn">import</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="w">
 
-</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">compose</span><span class="p" data-group-id="8155533302-1">(</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="8155533302-2">(</span><span class="p" data-group-id="8155533302-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">rmsprop</span><span class="p" data-group-id="8155533302-3">(</span><span class="p" data-group-id="8155533302-3">)</span><span class="p" data-group-id="8155533302-1">)</span></code></pre><p>This is equivalent to:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="6158299617-1">(</span><span class="p" data-group-id="6158299617-1">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">scale_by_rms</span><span class="p" data-group-id="6158299617-2">(</span><span class="p" data-group-id="6158299617-2">)</span></code></pre>
+</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">compose</span><span class="p" data-group-id="6077532386-1">(</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="6077532386-2">(</span><span class="p" data-group-id="6077532386-2">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">rmsprop</span><span class="p" data-group-id="6077532386-3">(</span><span class="p" data-group-id="6077532386-3">)</span><span class="p" data-group-id="6077532386-1">)</span></code></pre><p>This is equivalent to:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">centralize</span><span class="p" data-group-id="7539364182-1">(</span><span class="p" data-group-id="7539364182-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">scale_by_rms</span><span class="p" data-group-id="7539364182-2">(</span><span class="p" data-group-id="7539364182-2">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="identity/0">
@@ -832,7 +853,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">identity()</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L878" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L939" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -854,7 +875,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">identity(combinator)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L882" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L943" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -878,7 +899,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale(combinator \\ identity(), step_size)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L94" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L95" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -902,7 +923,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_adam(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L122" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L126" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -919,8 +940,11 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
   Options
 </h2>
 <pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-15</span><span class="err">`</span></code></pre><h2 id="scale_by_adam/1-references" class="section-heading">
   <a href="#scale_by_adam/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">references</p>
@@ -939,7 +963,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_adam(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L133" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L137" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -963,7 +987,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_belief(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L304" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L312" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -979,10 +1003,13 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
   </a>
   Options
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
-</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
-</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="w">
-</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-16</span><span class="err">`</span></code></pre><h2 id="scale_by_belief/1-references" class="section-heading">
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-16</span><span class="err">`</span><span class="o">.</span></code></pre><h2 id="scale_by_belief/1-references" class="section-heading">
   <a href="#scale_by_belief/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">references</p>
   </a>
@@ -1000,7 +1027,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_belief(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L315" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L323" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1024,7 +1051,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_radam(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L456" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L474" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1041,9 +1068,13 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
   Options
 </h2>
 <pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="w">
+
 </span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:threshold</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">threshold</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">variance</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">5.0</span><span class="err">`</span></code></pre><h2 id="scale_by_radam/1-references" class="section-heading">
   <a href="#scale_by_radam/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">references</p>
@@ -1062,7 +1093,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_radam(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L467" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L485" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1086,7 +1117,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_rms(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L247" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L252" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1102,8 +1133,9 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
   </a>
   Options
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
-</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span></code></pre><h2 id="scale_by_rms/1-references" class="section-heading">
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="o">.</span></code></pre><h2 id="scale_by_rms/1-references" class="section-heading">
   <a href="#scale_by_rms/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">references</p>
   </a>
@@ -1121,7 +1153,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_rms(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L258" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L263" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1145,7 +1177,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_rss(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L178" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L182" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1173,7 +1205,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_rss(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L189" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L193" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1197,7 +1229,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_schedule(combinator \\ identity(), schedule_fn)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L417" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L431" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1207,7 +1239,10 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
 
   <section class="docstring">
 
-<p>Scales input using the given schedule function.</p>
+<p>Scales input using the given schedule function.</p><p>This can be useful for implementing learning rate schedules.
+The number of update iterations is tracked by an internal
+counter. You might need to update the schedule to operate
+on per-batch schedule rather than per-epoch.</p>
   </section>
 </section>
 <section class="detail" id="scale_by_stddev/1">
@@ -1221,7 +1256,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_stddev(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L365" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L374" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1237,8 +1272,9 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
   </a>
   Options
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
-</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span></code></pre><h2 id="scale_by_stddev/1-references" class="section-heading">
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:decay</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">EMA</span><span class="w"> </span><span class="n">decay</span><span class="w"> </span><span class="n">rate</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="o">.</span></code></pre><h2 id="scale_by_stddev/1-references" class="section-heading">
   <a href="#scale_by_stddev/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">references</p>
   </a>
@@ -1256,7 +1292,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_stddev(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L376" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L385" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1280,7 +1316,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_trust_ratio(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L724" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L758" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1290,7 +1326,19 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
 
   <section class="docstring">
 
-<p>Scale by trust ratio.</p>
+<p>Scale by trust ratio.</p><h2 id="scale_by_trust_ratio/1-options" class="section-heading">
+  <a href="#scale_by_trust_ratio/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:min_norm</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Min</span><span class="w"> </span><span class="n">norm</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">clip</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w">
+  </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:trust_coefficient</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Trust</span><span class="w"> </span><span class="n">coefficient</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w">
+  </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0</span><span class="err">`</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span><span class="o">.</span></code></pre>
   </section>
 </section>
 <section class="detail" id="scale_by_trust_ratio/2">
@@ -1302,7 +1350,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_trust_ratio(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L735" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L769" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1326,7 +1374,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_yogi(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L804" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L862" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1336,7 +1384,27 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
 
   <section class="docstring">
 
-<p>Scale by yogi.</p>
+<p>Scale input according to the Yogi algorithm.</p><h2 id="scale_by_yogi/1-options" class="section-heading">
+  <a href="#scale_by_yogi/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:initial_accumulator_value</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Initial</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="n">accumulator</span><span class="w"> </span><span class="n">value</span><span class="o">.</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b1</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.9</span><span class="err">`</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:b2</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">moment</span><span class="w"> </span><span class="n">decay</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.999</span><span class="err">`</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">1.0e-8</span><span class="err">`</span><span class="w">
+
+</span><span class="o">*</span><span class="w"> </span><span class="err">`</span><span class="ss">:eps_root</span><span class="err">`</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">numerical</span><span class="w"> </span><span class="n">stability</span><span class="w"> </span><span class="n">term</span><span class="o">.</span><span class="w"> </span><span class="nc">Defaults</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="mf">0.0</span><span class="err">`</span></code></pre><h2 id="scale_by_yogi/1-references" class="section-heading">
+  <a href="#scale_by_yogi/1-references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">references</p>
+  </a>
+  References
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="3274054803-1">[</span><span class="nc">Adaptive</span><span class="w"> </span><span class="nc">Methods</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nc">Nonconvex</span><span class="w"> </span><span class="nc">Optimization</span><span class="p" data-group-id="3274054803-1">]</span><span class="p" data-group-id="3274054803-2">(</span><span class="n">https</span><span class="ss">://</span><span class="n">proceedings</span><span class="o">.</span><span class="n">neurips</span><span class="o">.</span><span class="n">cc</span><span class="o">/</span><span class="n">paper</span><span class="o">/</span><span class="mi">2018</span><span class="o">/</span><span class="n">file</span><span class="o">/</span><span class="mi">90365351</span><span class="n">ccc7437a1309dc64e4db32a3</span><span class="o">-</span><span class="nc">Paper</span><span class="o">.</span><span class="n">pdf</span><span class="p" data-group-id="3274054803-2">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="scale_by_yogi/2">
@@ -1348,7 +1416,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">scale_by_yogi(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L815" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L873" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1372,7 +1440,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">stateful(arg \\ identity(), init_fn, apply_fn)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L920" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L986" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1382,7 +1450,10 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
 
   <section class="docstring">
 
-<p>Represents a stateful update.</p>
+<p>Represents a stateful update.</p><p>Stateful updates require some update state, such as
+momentum or RMS of previous updates. Therefore you must
+implement some initialization function as well as an update
+function.</p>
   </section>
 </section>
 <section class="detail" id="stateless/2">
@@ -1396,7 +1467,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">stateless(arg \\ identity(), apply_fn)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L864" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L925" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1406,7 +1477,8 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
 
   <section class="docstring">
 
-<p>Represents a stateless update.</p>
+<p>Represents a stateless update.</p><p>Stateless updates do not depend on an update state and thus
+only require an implementation of an update function.</p>
   </section>
 </section>
 <section class="detail" id="trace/1">
@@ -1420,7 +1492,7 @@ gradient centralization:</p><pre><code class="makeup elixir" translate="no"><spa
     </a>
     <h1 class="signature" translate="no">trace(combinator_or_opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L534" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L552" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -1450,7 +1522,7 @@ to <code class="inline">false</code></li></ul>
     </a>
     <h1 class="signature" translate="no">trace(combinator, opts)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L545" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/updates.ex#L563" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>

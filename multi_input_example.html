@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.28.3">
+    <meta name="project" content="Axon v0.1.0-dev">
+
+    <title>Multi Input example — Axon v0.1.0-dev</title>
+    <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
+
+    <script src="dist/sidebar_items-ba2656a0a4.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-a088a6cc33ae3464193e.js"></script>
+
+
+  </head>
+  <body data-type="extras">
+    <script>
+
+      try {
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+
+<section class="sidebar">
+  <button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+    <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+  </button>
+
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
+    </button>
+    <label class="search-label">
+      <p class="sr-only">Search</p>
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+
+      <a href="Axon.html">
+        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
+      </a>
+
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName" translate="no">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion" translate="no">
+        v0.1.0-dev
+      </strong>
+    </div>
+    <ul class="sidebar-listNav">
+      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+    </ul>
+  </div>
+
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+<h1>
+<button class="settings display-settings">
+  <i class="ri-settings-3-line"></i>
+  <span class="sr-only">Settings</span>
+</button>
+
+
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/notebooks/multi_input_example.livemd#L1" title="View Source" class="view-source" rel="help">
+      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+      <span class="sr-only">View Source</span>
+    </a>
+
+  <span>Multi Input example</span>
+</h1>
+
+  <div class="livebook-badge-container">
+    <a href="#" class="livebook-badge">
+      <img src="https://livebook.dev/badge/v1/blue.svg" alt="Run in Livebook" width="150" />
+    </a>
+  </div>
+
+<h2 id="imports" class="section-heading">
+  <a href="#imports" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">imports</p>
+  </a>
+  Imports
+</h2>
+<p>At the very beginning, we have to import essential packages. <a href="Axon.html"><code class="inline">Axon</code></a> will be the primary tool to build a deep learning model. Apart from that, we need to import <a href="https://hexdocs.pm/exla/EXLA.html"><code class="inline">EXLA</code></a> to accelerate calculations and <a href="https://hexdocs.pm/nx/0.2.1/Nx.html"><code class="inline">Nx</code></a> since it gives us useful functions like <code class="inline">Nx.to_heatmap</code> and tensor operations.</p><pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="6518539315-1">(</span><span class="p" data-group-id="6518539315-2">[</span><span class="w">
+  </span><span class="p" data-group-id="6518539315-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.1.0-dev&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/axon&quot;</span><span class="p" data-group-id="6518539315-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6518539315-4">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.2.2&quot;</span><span class="p" data-group-id="6518539315-4">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6518539315-5">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.2.1&quot;</span><span class="p" data-group-id="6518539315-5">}</span><span class="w">
+</span><span class="p" data-group-id="6518539315-2">]</span><span class="p" data-group-id="6518539315-1">)</span></code></pre><h2 id="xor-model" class="section-heading">
+  <a href="#xor-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">xor-model</p>
+  </a>
+  XOR model
+</h2>
+<p>###</p><p>A &quot;single-layer&quot; perceptron can't implement XOR. The reason is because the classes in XOR are not linearly separable. You cannot draw a straight line to separate the points (0,0),(1,1) from the points (0,1),(1,0). The issue was overcame with deep learning methods. They can separate data with much more complicated patterns within the data.</p><h3 id="the-xor-module-task-is-to-imitate-a-logical-xor-operation" class="section-heading">
+  <a href="#the-xor-module-task-is-to-imitate-a-logical-xor-operation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">the-xor-module-task-is-to-imitate-a-logical-xor-operation</p>
+  </a>
+  The XOR module task is to imitate a logical xor operation.
+</h3>
+<p>First, we need to build a model.  It contains an input layer with two inputs created by <code class="inline">Axon.input</code> and concatenated with <code class="inline">Axon.concatenate</code>. Then we have one hidden layer and one output layer both generated using <code class="inline">Axon.dense</code>. The model is a sequential neural net. In Axon, it's very convenient to create such a model. Just pipe a previous layer to the next layer using <code class="inline">|&gt;</code>, and that's it.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defp</span><span class="w"> </span><span class="nf">build_model</span><span class="p" data-group-id="1453127096-1">(</span><span class="n">input_shape1</span><span class="p">,</span><span class="w"> </span><span class="n">input_shape2</span><span class="p" data-group-id="1453127096-1">)</span><span class="w"> </span><span class="k" data-group-id="1453127096-2">do</span><span class="w">
+  </span><span class="n">inp1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1453127096-3">(</span><span class="n">input_shape1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x1&quot;</span><span class="p" data-group-id="1453127096-3">)</span><span class="w">
+  </span><span class="n">inp2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1453127096-4">(</span><span class="n">input_shape2</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x2&quot;</span><span class="p" data-group-id="1453127096-4">)</span><span class="w">
+
+  </span><span class="n">inp1</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">concatenate</span><span class="p" data-group-id="1453127096-5">(</span><span class="n">inp2</span><span class="p" data-group-id="1453127096-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1453127096-6">(</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:tanh</span><span class="p" data-group-id="1453127096-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1453127096-7">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:sigmoid</span><span class="p" data-group-id="1453127096-7">)</span><span class="w">
+</span><span class="k" data-group-id="1453127096-2">end</span></code></pre><h2 id="data" class="section-heading">
+  <a href="#data" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">data</p>
+  </a>
+  Data
+</h2>
+<p>The next step is to batch the training data. However, our batch function does a little more than just splitting or preprocessing input data - it generates data and labels. Since we want to compute the logical XOR of 2 inputs, we generate 2 batches of random binary inputs, and then compute a target using <code class="inline">Nx.logical_xor</code>.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defp</span><span class="w"> </span><span class="nf">batch</span><span class="w"> </span><span class="k" data-group-id="7230660498-1">do</span><span class="w">
+  </span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7230660498-2">(</span><span class="k">for</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7230660498-3">[</span><span class="nc">Enum</span><span class="o">.</span><span class="n">random</span><span class="p" data-group-id="7230660498-4">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p" data-group-id="7230660498-4">)</span><span class="p" data-group-id="7230660498-3">]</span><span class="p" data-group-id="7230660498-2">)</span><span class="w">
+  </span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7230660498-5">(</span><span class="k">for</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7230660498-6">[</span><span class="nc">Enum</span><span class="o">.</span><span class="n">random</span><span class="p" data-group-id="7230660498-7">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p" data-group-id="7230660498-7">)</span><span class="p" data-group-id="7230660498-6">]</span><span class="p" data-group-id="7230660498-5">)</span><span class="w">
+  </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">logical_xor</span><span class="p" data-group-id="7230660498-8">(</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="7230660498-8">)</span><span class="w">
+  </span><span class="p" data-group-id="7230660498-9">{</span><span class="p" data-group-id="7230660498-10">{</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="7230660498-10">}</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p" data-group-id="7230660498-9">}</span><span class="w">
+</span><span class="k" data-group-id="7230660498-1">end</span></code></pre><h2 id="training" class="section-heading">
+  <a href="#training" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">training</p>
+  </a>
+  Training
+</h2>
+<p>Then we define a training procedure. To implement the procedure pass the parameters of the training into <code class="inline">Axon.Loop.trainer</code>. In our case we use <em>binary cross entropy</em> for loss and <em>stochastic gradient descent</em> as the optimizer. We use binary cross entropy because we can consider the task of computing XOR the same as a binary classification problem. We want our output to have a binary label <code class="inline">0</code> or <code class="inline">1</code>, and binary cross entropy is typically used in these cases. Then run the training process with <code class="inline">Axon.Loop.run</code>.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defp</span><span class="w"> </span><span class="nf">train_model</span><span class="p" data-group-id="1997407890-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">epochs</span><span class="p" data-group-id="1997407890-1">)</span><span class="w"> </span><span class="k" data-group-id="1997407890-2">do</span><span class="w">
+  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="1997407890-3">(</span><span class="ss">:binary_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="ss">:sgd</span><span class="p" data-group-id="1997407890-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="1997407890-4">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1997407890-5">%{</span><span class="p" data-group-id="1997407890-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="n">epochs</span><span class="p">,</span><span class="w"> </span><span class="ss">iterations</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p" data-group-id="1997407890-4">)</span><span class="w">
+</span><span class="k" data-group-id="1997407890-2">end</span></code></pre><h2 id="evaluation-of-the-model" class="section-heading">
+  <a href="#evaluation-of-the-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">evaluation-of-the-model</p>
+  </a>
+  Evaluation of the model
+</h2>
+<p>Finally, we can test our model for sample data.</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">run</span><span class="w"> </span><span class="k" data-group-id="7993832366-1">do</span><span class="w">
+  </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">build_model</span><span class="p" data-group-id="7993832366-2">(</span><span class="p" data-group-id="7993832366-3">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7993832366-3">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7993832366-4">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7993832366-4">}</span><span class="p" data-group-id="7993832366-2">)</span><span class="w">
+  </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">repeatedly</span><span class="p" data-group-id="7993832366-5">(</span><span class="o">&amp;</span><span class="n">batch</span><span class="o">/</span><span class="mi">0</span><span class="p" data-group-id="7993832366-5">)</span><span class="w">
+
+  </span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_model</span><span class="p" data-group-id="7993832366-6">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="7993832366-6">)</span><span class="w">
+
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="7993832366-7">(</span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="7993832366-8">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">model_state</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7993832366-9">{</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7993832366-10">(</span><span class="p" data-group-id="7993832366-11">[</span><span class="p" data-group-id="7993832366-12">[</span><span class="mi">0</span><span class="p" data-group-id="7993832366-12">]</span><span class="p" data-group-id="7993832366-11">]</span><span class="p" data-group-id="7993832366-10">)</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7993832366-13">(</span><span class="p" data-group-id="7993832366-14">[</span><span class="p" data-group-id="7993832366-15">[</span><span class="mi">1</span><span class="p" data-group-id="7993832366-15">]</span><span class="p" data-group-id="7993832366-14">]</span><span class="p" data-group-id="7993832366-13">)</span><span class="p" data-group-id="7993832366-9">}</span><span class="p" data-group-id="7993832366-8">)</span><span class="p" data-group-id="7993832366-7">)</span><span class="w">
+</span><span class="k" data-group-id="7993832366-1">end</span></code></pre><h2 id="everything-together" class="section-heading">
+  <a href="#everything-together" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">everything-together</p>
+  </a>
+  Everything together
+</h2>
+<p>Now let's put everything in a module and try it out.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">XOR</span><span class="w"> </span><span class="k" data-group-id="2742986077-1">do</span><span class="w">
+  </span><span class="kn">require</span><span class="w"> </span><span class="nc">Axon</span><span class="w">
+
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">build_model</span><span class="p" data-group-id="2742986077-2">(</span><span class="n">input_shape1</span><span class="p">,</span><span class="w"> </span><span class="n">input_shape2</span><span class="p" data-group-id="2742986077-2">)</span><span class="w"> </span><span class="k" data-group-id="2742986077-3">do</span><span class="w">
+    </span><span class="n">inp1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2742986077-4">(</span><span class="n">input_shape1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x1&quot;</span><span class="p" data-group-id="2742986077-4">)</span><span class="w">
+    </span><span class="n">inp2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2742986077-5">(</span><span class="n">input_shape2</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x2&quot;</span><span class="p" data-group-id="2742986077-5">)</span><span class="w">
+
+    </span><span class="n">inp1</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">concatenate</span><span class="p" data-group-id="2742986077-6">(</span><span class="n">inp2</span><span class="p" data-group-id="2742986077-6">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2742986077-7">(</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:tanh</span><span class="p" data-group-id="2742986077-7">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2742986077-8">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:sigmoid</span><span class="p" data-group-id="2742986077-8">)</span><span class="w">
+  </span><span class="k" data-group-id="2742986077-3">end</span><span class="w">
+
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">batch</span><span class="w"> </span><span class="k" data-group-id="2742986077-9">do</span><span class="w">
+    </span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2742986077-10">(</span><span class="k">for</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2742986077-11">[</span><span class="nc">Enum</span><span class="o">.</span><span class="n">random</span><span class="p" data-group-id="2742986077-12">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p" data-group-id="2742986077-12">)</span><span class="p" data-group-id="2742986077-11">]</span><span class="p" data-group-id="2742986077-10">)</span><span class="w">
+    </span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2742986077-13">(</span><span class="k">for</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span><span class="o">..</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2742986077-14">[</span><span class="nc">Enum</span><span class="o">.</span><span class="n">random</span><span class="p" data-group-id="2742986077-15">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">1</span><span class="p" data-group-id="2742986077-15">)</span><span class="p" data-group-id="2742986077-14">]</span><span class="p" data-group-id="2742986077-13">)</span><span class="w">
+    </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">logical_xor</span><span class="p" data-group-id="2742986077-16">(</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="2742986077-16">)</span><span class="w">
+    </span><span class="p" data-group-id="2742986077-17">{</span><span class="p" data-group-id="2742986077-18">%{</span><span class="s">&quot;x1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="2742986077-18">}</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p" data-group-id="2742986077-17">}</span><span class="w">
+  </span><span class="k" data-group-id="2742986077-9">end</span><span class="w">
+
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">train_model</span><span class="p" data-group-id="2742986077-19">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">epochs</span><span class="p" data-group-id="2742986077-19">)</span><span class="w"> </span><span class="k" data-group-id="2742986077-20">do</span><span class="w">
+    </span><span class="n">model</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="2742986077-21">(</span><span class="ss">:binary_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="ss">:sgd</span><span class="p" data-group-id="2742986077-21">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="2742986077-22">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2742986077-23">%{</span><span class="p" data-group-id="2742986077-23">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="n">epochs</span><span class="p">,</span><span class="w"> </span><span class="ss">iterations</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p" data-group-id="2742986077-22">)</span><span class="w">
+  </span><span class="k" data-group-id="2742986077-20">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">run</span><span class="w"> </span><span class="k" data-group-id="2742986077-24">do</span><span class="w">
+    </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">build_model</span><span class="p" data-group-id="2742986077-25">(</span><span class="p" data-group-id="2742986077-26">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="2742986077-26">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2742986077-27">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="2742986077-27">}</span><span class="p" data-group-id="2742986077-25">)</span><span class="w">
+    </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">repeatedly</span><span class="p" data-group-id="2742986077-28">(</span><span class="o">&amp;</span><span class="n">batch</span><span class="o">/</span><span class="mi">0</span><span class="p" data-group-id="2742986077-28">)</span><span class="w">
+
+    </span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_model</span><span class="p" data-group-id="2742986077-29">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="2742986077-29">)</span><span class="w">
+
+    </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="2742986077-30">(</span><span class="w">
+        </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="2742986077-31">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">model_state</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2742986077-32">%{</span><span class="s">&quot;x1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2742986077-33">(</span><span class="p" data-group-id="2742986077-34">[</span><span class="p" data-group-id="2742986077-35">[</span><span class="mi">0</span><span class="p" data-group-id="2742986077-35">]</span><span class="p" data-group-id="2742986077-34">]</span><span class="p" data-group-id="2742986077-33">)</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;x2&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2742986077-36">(</span><span class="p" data-group-id="2742986077-37">[</span><span class="p" data-group-id="2742986077-38">[</span><span class="mi">1</span><span class="p" data-group-id="2742986077-38">]</span><span class="p" data-group-id="2742986077-37">]</span><span class="p" data-group-id="2742986077-36">)</span><span class="p" data-group-id="2742986077-32">}</span><span class="p" data-group-id="2742986077-31">)</span><span class="w">
+    </span><span class="p" data-group-id="2742986077-30">)</span><span class="w">
+  </span><span class="k" data-group-id="2742986077-24">end</span><span class="w">
+</span><span class="k" data-group-id="2742986077-1">end</span></code></pre><h2 id="results" class="section-heading">
+  <a href="#results" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">results</p>
+  </a>
+  Results
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="nc">XOR</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="4915074132-1">(</span><span class="p" data-group-id="4915074132-1">)</span></code></pre><p>To improve the model performance, you can increase the number of training epochs.</p><p><a href="https://github.com/elixir-nx/axon/blob/main/examples/basics/multi_input_example.exs" title="XOR module">Link to the whole XOR module</a></p>
+<div class="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="fashionmnist_autoencoder.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+Fashion mnist autoencoder
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+  </div>
+</div>
+
+      <footer class="footer">
+
+        <p>
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.3) for the
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"
+    onload="renderMathInElement(document.body);"></script>
+
+  </body>
+</html>

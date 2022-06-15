@@ -1,3 +1,6 @@
+/home/runner/work/axon/axon/doc/fashionmnist_autoencoder.livemd
+/home/runner/work/axon/axon/doc/mnist.livemd
+/home/runner/work/axon/axon/doc/multi_input_example.livemd
 404.html
 Axon.Activations.html
 Axon.Initializers.html
@@ -14,6 +17,7 @@ Axon.StatefulOutput.html
 Axon.Updates.html
 Axon.html
 api-reference.html
+assets/logo.png
 dist/app-a088a6cc33ae3464193e.js
 dist/elixir-d5ff82e6b0f5651c0ac0.css
 dist/html/fonts/remixicon.eot
@@ -21,7 +25,10 @@ dist/html/fonts/remixicon.svg
 dist/html/fonts/remixicon.ttf
 dist/html/fonts/remixicon.woff
 dist/html/fonts/remixicon.woff2
-dist/search_items-5d49b33c9a.js
-dist/sidebar_items-a63f594464.js
+dist/search_items-d4d11ccf51.js
+dist/sidebar_items-ba2656a0a4.js
+fashionmnist_autoencoder.html
 index.html
+mnist.html
+multi_input_example.html
 search.html
