@@ -1,9 +1,8 @@
 Mix.install([
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"}
 ])
 
 defmodule ResNet50 do
-
   defp conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
     shortcut =
       x
@@ -41,7 +40,7 @@ defmodule ResNet50 do
   end
 
   def build_model(input_shape) do
-    x = Axon.input(input_shape)
+    x = Axon.input(input_shape, "input")
 
     stage1 =
       x
@@ -85,4 +84,4 @@ defmodule ResNet50 do
   end
 end
 
-IO.inspect ResNet50.build_model({nil, 3, 224, 224})
+IO.inspect(ResNet50.build_model({nil, 3, 224, 224}))
