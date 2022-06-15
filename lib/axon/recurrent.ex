@@ -29,6 +29,13 @@ defmodule Axon.Recurrent do
 
   @doc """
   GRU Cell.
+
+  When combined with `Axon.Recurrent.*_unroll`, implements a
+  GRU-based RNN. More memory efficient than traditional LSTM.
+
+  ## References
+
+  * [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](https://arxiv.org/pdf/1412.3555v1.pdf)
   """
   defn gru_cell(
          input,
@@ -55,6 +62,13 @@ defmodule Axon.Recurrent do
 
   @doc """
   LSTM Cell.
+
+  When combined with `Axon.Recurrent.*_unroll`, implements a
+  LSTM-based RNN. More memory efficient than traditional LSTM.
+
+  ## References
+
+  * [Long Short-Term Memory](http://www.bioinf.jku.at/publications/older/2604.pdf)
   """
   defn lstm_cell(
          input,
@@ -110,6 +124,19 @@ defmodule Axon.Recurrent do
 
   @doc """
   ConvLSTM Cell.
+
+  When combined with `Axon.Recurrent.*_unroll`, implements a
+  ConvLSTM-based RNN. More memory efficient than traditional LSTM.
+
+  ## Options
+
+    * `:strides` - convolution strides. Defaults to `1`.
+
+    * `:padding` - convolution padding. Defaults to `:same`.
+
+  ## References
+
+    * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
   defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
@@ -153,6 +180,14 @@ defmodule Axon.Recurrent do
 
   @doc """
   Dynamically unrolls an RNN.
+
+  Unrolls implement a `scan` operation which applies a
+  transformation on the leading axis of `input_sequence` carrying
+  some state. In this instance `cell_fn` is an RNN cell function
+  such as `lstm_cell` or `gru_cell`.
+
+  This function will make use of an `defn` while-loop such and thus
+  may be more efficient for long sequences.
   """
   defn dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     time_steps = transform(Nx.shape(input_sequence), &elem(&1, 1))
@@ -182,6 +217,15 @@ defmodule Axon.Recurrent do
 
   @doc """
   Statically unrolls an RNN.
+
+  Unrolls implement a `scan` operation which applies a
+  transformation on the leading axis of `input_sequence` carrying
+  some state. In this instance `cell_fn` is an RNN cell function
+  such as `lstm_cell` or `gru_cell`.
+
+  This function inlines the unrolling of the sequence such that
+  the entire operation appears as a part of the compilation graph.
+  This makes it suitable for shorter sequences.
   """
   defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     transform(

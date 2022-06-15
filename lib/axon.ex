@@ -13,7 +13,7 @@ defmodule Axon do
   All Axon models start with an input layer, specifying the
   expected input shape of the training data:
 
-      input = Axon.input({nil, 784})
+      input = Axon.input({nil, 784}, "input")
 
   Notice you can specify some dimensions as `nil`, indicating
   that the dimension size will be filled in at model runtime.
@@ -38,8 +38,8 @@ defmodule Axon do
       =========================================================================================================
        Layer                                   Shape        Policy              Parameters   Parameters Memory
       =========================================================================================================
-       input_0 ( input )                       {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
-       dense_0 ( dense["input_0"] )            {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+       input ( input )                         {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+       dense_0 ( dense["input"] )              {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
        relu_0 ( relu["dense_0"] )              {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
        batch_norm_0 ( batch_norm["relu_0"] )   {nil, 128}   p=f32 c=f32 o=f32   512          2048 bytes
        dropout_0 ( dropout["batch_norm_0"] )   {nil, 128}   p=f32 c=f32 o=f32   0            0 bytes
@@ -48,6 +48,9 @@ defmodule Axon do
        dense_2 ( dense["tanh_0"] )             {nil, 10}    p=f32 c=f32 o=f32   650          2600 bytes
        softmax_0 ( softmax["dense_2"] )        {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
       ---------------------------------------------------------------------------------------------------------
+      Total Parameters: 109898
+      Total Parameters Memory: 439592 bytes
+      Inputs: %{"input" => {nil, 784}}
 
   ### Multiple Inputs
 
@@ -56,8 +59,8 @@ defmodule Axon do
   the final Axon graph will be required to be passed as input at the
   time of model execution.
 
-      inp1 = Axon.input({nil, 1})
-      inp2 = Axon.input({nil, 1})
+      inp1 = Axon.input({nil, 1}, "input_0")
+      inp2 = Axon.input({nil, 1}, "input_1")
 
       # Both inputs will be used
       model1 = Axon.add(inp1, inp2)
@@ -67,24 +70,18 @@ defmodule Axon do
 
   Axon graphs are immutable, which means composing and manipulating
   an Axon graph creates an entirely new graph. Additionally, layer
-  names are lazily generated at model execution time. This especially
-  has implications when working with multiple inputs, because inputs
-  are referenced by name at execution time:
+  names are lazily generated at model execution time. To avoid
+  non-deterministic input orderings and names, Axon requires each
+  input to have a unique binary identifier. You can then reference
+  inputs by name when passing to models at execution time:
 
-      inp1 = Axon.input({nil, 1})
-      inp2 = Axon.input({nil, 1})
+      inp1 = Axon.input({nil, 1}, "input_0")
+      inp2 = Axon.input({nil, 1}, "input_1")
 
       model1 = Axon.add(inp1, inp2)
       params1 = Axon.init(model1)
-      # Inputs are referenced by name, by op, numbered in order of
-      # graph appearance
+      # Inputs are referenced by name
       Axon.predict(model1, params1, %{"input_0" => x, "input_1" => y})
-
-      model2 = Axon.add(inp2, inp2)
-      params2 = Axon.init(model2)
-      # Input 2 is no longer the 2nd input! The name has changed on
-      # us
-      Axon.predict(model2, params2, %{"input_0" => x})
 
   ### Multiple Outputs
 
@@ -145,7 +142,7 @@ defmodule Axon do
   ## Model Execution
 
   Under the hood, Axon models are represented as Elixir structs. You
-  can initialize and apply models using the macros `Axon.init/2` and
+  can initialize and apply models using the macros `Axon.init/3` and
   `Axon.predict/4`:
 
       params = Axon.init(model, compiler: EXLA)
@@ -155,17 +152,14 @@ defmodule Axon do
   It is suggested that you set compiler options globally rather than pass
   them as options to execution macros:
       
-      Nx.Defn.default_options(compiler: EXLA)
+      EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
-      params = Axon.init(model, compiler: EXLA)
+      params = Axon.init(model)
       Axon.predict(model, params, inputs, mode: :train)
 
   `Axon.predict/4` by default runs in inference mode, which performs certain
   optimizations and removes layers such as dropout layers. If constructing
   a training step using `Axon.predict/4`, be sure to specify `mode: :train`.
-
-  Both `Axon.init/2` and `Axon.predict/4` can be used from within
-  Nx defn or outside.
 
   ## Model Training
 
@@ -278,7 +272,6 @@ defmodule Axon do
       if shape do
         shape
       else
-        # TODO: This does not properly handle containers
         infer_shape(input_shapes, op, opts)
       end
 
@@ -408,7 +401,7 @@ defmodule Axon do
     * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
 
   """
-  def param(name, shape, opts \\ []) do
+  def param(name, shape, opts \\ []) when is_binary(name) and is_tuple(shape) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
     initializer = opts[:initializer]
     validate_initializer!(initializer)
@@ -434,7 +427,7 @@ defmodule Axon do
 
   """
   @doc type: :special
-  def input(input_shape, name) when is_binary(name) do
+  def input(input_shape, name) when is_tuple(shape) and is_binary(name) do
     output_shape = Axon.Shape.input(input_shape)
     layer(:input, [], name: name, shape: output_shape, op_name: :input)
   end
@@ -589,7 +582,7 @@ defmodule Axon do
   `kernel` and `bias` are layer parameters. `units` specifies the
   number of output units.
 
-  Compiles to `Axon.Layers.dense/3`.
+  Compiles to `Axon.Layers.dense/4`.
 
   ## Options
 
@@ -657,7 +650,7 @@ defmodule Axon do
   batch sizes of both inputs must also match or at least one must be `nil`.
   Inferred output batch size coerces to the strictest input batch size.
 
-  Compiles to `Axon.Layers.bilinear/4`.
+  Compiles to `Axon.Layers.bilinear/5`.
 
   ## Options
 
@@ -750,6 +743,9 @@ defmodule Axon do
     * `:input_dilation` - dilation to apply to input. Defaults to `1`.
 
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
+    
+    * `:feature_group_size` - feature group size for convolution. Defaults
+      to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:first`.
@@ -1893,6 +1889,13 @@ defmodule Axon do
   @doc """
   Applies the given `Nx` expression to the input.
 
+  Nx layers are meant for quick applications of functions without
+  trainable parameters. For example, they are useful for applying
+  functions which apply accessors to containers:
+
+      model = Axon.container({foo, bar})
+      Axon.nx(model, &elem(&1, 0))
+
   ## Options
 
     * `:name` - layer name.
@@ -2081,7 +2084,7 @@ defmodule Axon do
     * `:axis` - concatenate axis. Defaults to `-1`.
 
   """
-  @doc type: :composition
+  @doc type: :combinator
   def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts)
       when is_list(opts) do
     opts = Keyword.validate!(opts, [:name, axis: -1])
@@ -2096,7 +2099,7 @@ defmodule Axon do
     )
   end
 
-  @doc type: :composition
+  @doc type: :combinator
   def concatenate([%Axon{} | _] = inputs, opts)
       when is_list(inputs) and is_list(opts) do
     opts = Keyword.validate!(opts, [:name, axis: -1])
@@ -2136,7 +2139,7 @@ defmodule Axon do
       * `:name` - layer name.
 
     """
-    @doc type: :composition
+    @doc type: :combinator
     def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
       opts = Keyword.validate!(opts, [:name])
       output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
@@ -2160,7 +2163,7 @@ defmodule Axon do
       * `:name` - layer name.
 
     """
-    @doc type: :composition
+    @doc type: :combinator
     def unquote(op)(inputs, opts) when is_list(inputs) and is_list(opts) do
       opts = Keyword.validate!(opts, [:name])
 
@@ -2198,6 +2201,7 @@ defmodule Axon do
 
   The shapes of `true_graph` and `false_graph` must be equal.
   """
+  @doc type: :combinator
   def cond(
         %Axon{} = parent,
         cond_fn,
@@ -2227,6 +2231,7 @@ defmodule Axon do
     * `:axis` - concatenate axis. Defaults to `-1`.
 
   """
+  @doc type: :combinator
   def split(parent, splits, opts \\ [])
 
   def split(%Axon{} = parent, splits, opts) when is_list(splits) do
@@ -3185,7 +3190,7 @@ defmodule Axon do
   @doc """
   Compiles the given model to `{init_fn, predict_fn}`.
   """
-  @doc type: :compilation
+  @doc type: :execution
   def compile(model, opts \\ []) do
     Axon.Compiler.__compile__(model, opts)
   end
@@ -3193,6 +3198,16 @@ defmodule Axon do
   @doc """
   Compiles and runs the given models initialization function
   with the given compiler options.
+
+  You may optionally specify initial parameters for some layers or
+  namespaces by passing a partial parameter map:
+
+
+      Axon.init(model, %{"dense_0" => dense_params})
+
+
+  The parameter map will be merged with the initialized model
+  parameters.
   """
   @doc type: :execution
   defmacro init(model, params \\ %{}, opts \\ []) do

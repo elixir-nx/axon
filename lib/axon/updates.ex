@@ -111,8 +111,11 @@ defmodule Axon.Updates do
   ## Options
 
       * `:b1` - first moment decay. Defaults to `0.9`
+
       * `:b2` - second moment decay. Defaults to `0.999`
+
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
+
       * `:eps_root` - numerical stability term. Defaults to `1.0e-15`
 
   ## References
@@ -237,8 +240,9 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:decay` - EMA decay rate. Defaults to `0.9`
-      * `:eps` - numerical stability term. Defaults to `1.0e-8`
+      * `:decay` - EMA decay rate. Defaults to `0.9`.
+
+      * `:eps` - numerical stability term. Defaults to `1.0e-8`.
 
   ## References
 
@@ -292,10 +296,13 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:b1` - first moment decay. Defaults to `0.9`
-      * `:b2` - second moment decay. Defaults to `0.999`
-      * `:eps` - numerical stability term. Defaults to `0.0`
-      * `:eps_root` - numerical stability term. Defaults to `1.0e-16`
+      * `:b1` - first moment decay. Defaults to `0.9`.
+
+      * `:b2` - second moment decay. Defaults to `0.999`.
+
+      * `:eps` - numerical stability term. Defaults to `0.0`.
+
+      * `:eps_root` - numerical stability term. Defaults to `1.0e-16`.
 
   ## References
 
@@ -355,8 +362,9 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:decay` - EMA decay rate. Defaults to `0.9`
-      * `:eps` - numerical stability term. Defaults to `1.0e-8`
+      * `:decay` - EMA decay rate. Defaults to `0.9`.
+
+      * `:eps` - numerical stability term. Defaults to `1.0e-8`.
 
   ## References
 
@@ -414,8 +422,13 @@ defmodule Axon.Updates do
 
   @doc """
   Scales input using the given schedule function.
+
+  This can be useful for implementing learning rate schedules.
+  The number of update iterations is tracked by an internal
+  counter. You might need to update the schedule to operate
+  on per-batch schedule rather than per-epoch.
   """
-  def scale_by_schedule(combinator \\ identity(), schedule_fn) when is_function(schedule_fn) do
+  def scale_by_schedule(combinator \\ identity(), schedule_fn) when is_function(schedule_fn, 1) do
     stateful(
       combinator,
       &init_scale_by_schedule/1,
@@ -444,9 +457,13 @@ defmodule Axon.Updates do
   ## Options
 
       * `:b1` - first moment decay. Defaults to `0.9`
+
       * `:b2` - second moment decay. Defaults to `0.999`
+
       * `:eps` - numerical stability term. Defaults to `1.0e-8`
+
       * `:eps_root` - numerical stability term. Defaults to `0.0`
+
       * `:threshold` - threshold for variance. Defaults to `5.0`
 
   ## References
@@ -692,7 +709,13 @@ defmodule Axon.Updates do
   end
 
   @doc """
-  Weight decay.
+  Adds decayed weights to updates.
+
+  Commonly used as a regularization strategy.
+
+  ## Options
+
+      * `:decay` - Rate of decay. Defaults to `0.0`.
   """
   def add_decayed_weights(combinator_or_opts \\ [])
 
@@ -721,6 +744,16 @@ defmodule Axon.Updates do
 
   @doc """
   Scale by trust ratio.
+
+  ## Options
+
+      * `:min_norm` - Min norm to clip. Defaults to
+        `0.0`.
+
+      * `:trust_coefficient` - Trust coefficient. Defaults
+        to `1.0`.
+
+      * `:eps` - Numerical stability term. Defaults to `0.0`.
   """
   def scale_by_trust_ratio(combinator_or_opts \\ [])
 
@@ -760,7 +793,15 @@ defmodule Axon.Updates do
   end
 
   @doc """
-  Add noise.
+  Adds random Gaussian noise to the input.
+
+  ## Options
+
+      * `:eta` - Controls amount of noise to add.
+        Defaults to `0.01`.
+
+      * `:gamma` - Controls amount of noise to add.
+        Defaults to `0.55`.
   """
   def add_noise(combinator_or_opts \\ [])
 
@@ -800,7 +841,23 @@ defmodule Axon.Updates do
   end
 
   @doc """
-  Scale by yogi.
+  Scale input according to the Yogi algorithm.
+
+  ## Options
+
+      * `:initial_accumulator_value` - Initial state accumulator value.
+
+      * `:b1` - first moment decay. Defaults to `0.9`
+
+      * `:b2` - second moment decay. Defaults to `0.999`
+
+      * `:eps` - numerical stability term. Defaults to `1.0e-8`
+
+      * `:eps_root` - numerical stability term. Defaults to `0.0`
+
+  ## References
+
+      * [Adaptive Methods for Nonconvex Optimization](https://proceedings.neurips.cc/paper/2018/file/90365351ccc7437a1309dc64e4db32a3-Paper.pdf)
   """
   def scale_by_yogi(combinator_or_opts \\ [])
 
@@ -861,6 +918,9 @@ defmodule Axon.Updates do
 
   @doc """
   Represents a stateless update.
+
+  Stateless updates do not depend on an update state and thus
+  only require an implementation of an update function.
   """
   def stateless({parent_init_fn, parent_apply_fn} \\ identity(), apply_fn) do
     apply_fn = fn updates, state, params ->
@@ -917,6 +977,11 @@ defmodule Axon.Updates do
 
   @doc """
   Represents a stateful update.
+
+  Stateful updates require some update state, such as
+  momentum or RMS of previous updates. Therefore you must
+  implement some initialization function as well as an update
+  function.
   """
   def stateful({parent_init_fn, parent_apply_fn} \\ identity(), init_fn, apply_fn) do
     init_fn = fn params ->

@@ -10,7 +10,7 @@ defmodule Axon.MixProject do
       version: @version,
       name: "Axon",
       elixir: "~> 1.13",
-      start_permanent: Mix.env() == :prod,
+      description: "Create and train neural networks in Elixir",
       deps: deps(),
       docs: docs()
     ]
@@ -55,7 +55,13 @@ defmodule Axon.MixProject do
     [
       main: "Axon",
       source_ref: "v#{@version}",
+      logo: "axon.png",
       source_url: @source_url,
+      extras: [
+        "notebooks/mnist.livemd",
+        "notebooks/fashionmnist_autoencoder.livemd",
+        "notebooks/multi_input_example.livemd"
+      ]
       groups_for_functions: [
         # Axon
         "Layers: Special": &(&1[:type] == :special),
@@ -66,9 +72,8 @@ defmodule Axon.MixProject do
         "Layers: Pooling": &(&1[:type] == :pooling),
         "Layers: Normalization": &(&1[:type] == :normalization),
         "Layers: Recurrent": &(&1[:type] == :recurrent),
-        "Layers: Composition": &(&1[:type] == :composition),
+        "Layers: Combinators": &(&1[:type] == :combinators),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model: Compilation": &(&1[:type] == :compilation),
         "Model: Execution": &(&1[:type] == :execution),
 
         # Axon.Layers
@@ -78,7 +83,31 @@ defmodule Axon.MixProject do
         "Functions: Linear": &(&1[:type] == :linear),
         "Functions: Normalization": &(&1[:type] == :normalization),
         "Functions: Pooling": &(&1[:type] == :pooling)
+        "Functions: Shape": &(&1[:type] == :shape),
       ],
+      groups_for_modules: [
+        # Axon
+        # Axon.MixedPrecision
+
+        Functional: [
+          Axon.Activations,
+          Axon.Initalizers,
+          Axon.Layers,
+          Axon.Losses,
+          Axon.Metrics,
+          Axon.Recurrent
+        ],
+
+        Optimization: [
+          Axon.Optimizers,
+          Axon.Updates
+        ],
+
+        Loop: [
+          Axon.Loop,
+          Axon.Loop.State
+        ]
+      ]
       before_closing_body_tag: &before_closing_body_tag/1
     ]
   end
