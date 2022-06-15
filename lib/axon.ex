@@ -657,7 +657,8 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :first,
+        feature_group_size: 1
       ])
 
     kernel_size = opts[:kernel_size]
@@ -666,6 +667,7 @@ defmodule Axon do
     input_dilation = opts[:input_dilation]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
+    feature_group_size = opts[:feature_group_size]
     inner_rank = Nx.rank(parent_shape) - 2
 
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
@@ -684,7 +686,8 @@ defmodule Axon do
         padding,
         input_dilation,
         kernel_dilation,
-        channels
+        channels,
+        feature_group_size
       )
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
@@ -704,6 +707,7 @@ defmodule Axon do
         padding: padding,
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
+        feature_group_size: feature_group_size,
         channels: channels,
         shape: output_shape,
         op_name: :conv
@@ -2676,7 +2680,8 @@ defmodule Axon do
         padding,
         input_dilation,
         kernel_dilation,
-        :first
+        :first,
+        1
       )
       |> Tuple.insert_at(1, sequence_length)
 
