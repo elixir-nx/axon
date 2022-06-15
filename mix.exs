@@ -61,7 +61,7 @@ defmodule Axon.MixProject do
         "notebooks/mnist.livemd",
         "notebooks/fashionmnist_autoencoder.livemd",
         "notebooks/multi_input_example.livemd"
-      ]
+      ],
       groups_for_functions: [
         # Axon
         "Layers: Special": &(&1[:type] == :special),
