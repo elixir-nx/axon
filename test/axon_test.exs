@@ -915,6 +915,17 @@ defmodule AxonTest do
       model = Axon.input({nil, 1})
       assert container(model) == Nx.tensor([[1.0]])
     end
+
+    test "shape inference works" do
+      last_hidden_state = Axon.input({5, 128, 768})
+      pooled = Axon.input({5, 768})
+
+      assert %Axon{output_shape: {5, 128, 768}} =
+               Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 0))
+
+      assert %Axon{output_shape: {5, 768}} =
+               Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
+    end
   end
 
   describe "serialization" do

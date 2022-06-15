@@ -4324,4 +4324,35 @@ defmodule CompilerTest do
       assert_equal(y_params_1, y_params_2)
     end
   end
+
+  describe "containers" do
+    test "allows accessors with custom layers" do
+      input1 = Nx.random_uniform({1, 1})
+      input2 = Nx.random_uniform({1, 2})
+      inputs = %{"input_0" => input1, "input_1" => input2}
+
+      inp1 = Axon.input({nil, 1}, name: "input_0")
+      inp2 = Axon.input({nil, 2}, name: "input_1")
+      tuple_model = Axon.container({inp1, inp2})
+      first_elem = Axon.nx(tuple_model, &elem(&1, 0))
+      second_elem = Axon.nx(tuple_model, &elem(&1, 1))
+
+      assert_equal(Axon.predict(first_elem, %{}, inputs), input1)
+      assert_equal(Axon.predict(second_elem, %{}, inputs), input2)
+
+      map_model = Axon.container(%{foo: inp1, bar: inp2})
+      foo_elem = Axon.nx(map_model, & &1.foo)
+      bar_elem = Axon.nx(map_model, & &1.bar)
+
+      assert_equal(Axon.predict(foo_elem, %{}, inputs), input1)
+      assert_equal(Axon.predict(bar_elem, %{}, inputs), input2)
+
+      nested_model = Axon.container({{inp1}, %{foo: {inp2}}})
+      first_elem = Axon.nx(nested_model, &elem(elem(&1, 0), 0))
+      second_elem = Axon.nx(nested_model, &elem(elem(&1, 1).foo, 0))
+
+      assert_equal(Axon.predict(first_elem, %{}, inputs), input1)
+      assert_equal(Axon.predict(second_elem, %{}, inputs), input2)
+    end
+  end
 end

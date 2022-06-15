@@ -194,9 +194,6 @@ defmodule Axon do
 
   defp split_inputs(_op, inputs) do
     Enum.reduce(inputs, {[], [], [], []}, fn
-      %Axon{op: :container, parent: [parent]} = layer, {layers, params, args, shapes} ->
-        {[layer | layers], params, [:layer | args], [break_shapes(parent) | shapes]}
-
       %Axon{output_shape: shape} = layer, {layers, params, args, shapes} ->
         {[layer | layers], params, [:layer | args], [shape | shapes]}
 
@@ -208,40 +205,13 @@ defmodule Axon do
     end)
   end
 
-  defp break_shapes(parent) do
-    recur_break_shapes(parent, {})
-  end
-
-  defp recur_break_shapes(%Axon{op: :container, parent: [parent]}, acc) do
-    shape = break_shapes(parent)
-    Tuple.append(acc, shape)
-  end
-
-  defp recur_break_shapes(%Axon{output_shape: shape}, acc) do
-    Tuple.append(acc, shape)
-  end
-
-  defp recur_break_shapes(tuple, acc) when is_tuple(tuple) do
-    shape =
-      tuple
-      |> Tuple.to_list()
-      |> Enum.reduce(acc, &recur_break_shapes/2)
-
-    {:container, shape}
-  end
-
-  defp recur_break_shapes(map, acc) when is_map(map) do
-    shape = Enum.reduce(map, acc, fn {_, v}, acc -> recur_break_shapes(v, acc) end)
-    {:container, shape}
-  end
-
   defp infer_shape(input_shapes, fun, opts) do
-    {input_shapes, indices} =
-      input_shapes
-      |> Enum.map(&Axon.Shape.replace_nil/1)
-      |> Enum.unzip()
+    {inputs, indices} = Enum.reduce(input_shapes, {[], []}, fn shape, {input_shapes, indices} ->
+      {template, template_indices} = template_shape(shape)
+      {[template | input_shapes], [template_indices | indices]}
+    end)
 
-    inputs = Enum.map(input_shapes, fn shape -> Nx.template(shape, {:f, 32}) end)
+    inputs = Enum.reverse(inputs)
 
     opts = Keyword.put(opts, :mode, :inference)
 
@@ -277,6 +247,38 @@ defmodule Axon do
     Enum.reduce(indices_to_make_nil, expr.shape, fn i, shape ->
       put_elem(shape, i, nil)
     end)
+  end
+
+  defp template_shape(shape) when is_map(shape) do
+    Nx.Container.traverse(shape, [], &recur_template_shape/2)
+  end
+
+  defp template_shape(shape) do
+    if tuple_size(shape) == 0 do
+      {Nx.template({}, {:f, 32}), []}
+    else
+      first_elem = elem(shape, 0)
+
+      if is_integer(first_elem) or is_nil(first_elem) do
+        {shape, template_indices} = Axon.Shape.replace_nil(shape)
+        template = Nx.template(shape, {:f, 32})
+        {template, List.wrap(template_indices)}
+      else
+        Nx.Container.traverse(shape, [], &recur_template_shape/2)
+      end
+    end
+  end
+
+  defp recur_template_shape(shape, indices) do
+    case shape do
+      shape when is_map(shape) ->
+        {template, template_indices} = template_shape(shape)
+        {template, indices ++ template_indices}
+
+      shape when is_tuple(shape) ->
+        {template, template_indices} = template_shape(shape)
+        {template, indices ++ template_indices}
+    end
   end
 
   @doc """
