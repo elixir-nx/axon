@@ -497,7 +497,7 @@ defmodule Axon.Loop do
 
       data = Stream.zip(input, target)
 
-      model = Axon.input({nil, 32}) |> Axon.dense(1, activation: :sigmoid)
+      model = Axon.input({nil, 32}, "input") |> Axon.dense(1, activation: :sigmoid)
 
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
@@ -519,7 +519,7 @@ defmodule Axon.Loop do
 
   ### Multiple objectives with multi-output model
 
-      model = {Axon.input({nil, 1}), Axon.input({nil, 2})}
+      model = {Axon.input({nil, 1}, "input_0"), Axon.input({nil, 2}, "input_1")}
       loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
 
       model

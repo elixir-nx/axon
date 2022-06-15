@@ -29,9 +29,13 @@ defmodule Axon.Initializers do
   this module have a default scale known to work well with
   the initialization strategy.
 
-  All of the functions in this module are implemented as
-  numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` compiler.
+  The functions in this module return initialization functions which
+  take shapes and types and return tensors:
+
+      init_fn = Axon.Initializers.zeros()
+      init_fn.({1, 2}, {:f, 32})
+
+  You may use these functions from within `defn` or outside.
   """
 
   # TODO: Add random keys
