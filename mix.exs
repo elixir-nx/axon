@@ -83,7 +83,7 @@ defmodule Axon.MixProject do
         "Functions: Linear": &(&1[:type] == :linear),
         "Functions: Normalization": &(&1[:type] == :normalization),
         "Functions: Pooling": &(&1[:type] == :pooling),
-        "Functions: Shape": &(&1[:type] == :shape),
+        "Functions: Shape": &(&1[:type] == :shape)
       ],
       groups_for_modules: [
         # Axon
@@ -97,12 +97,10 @@ defmodule Axon.MixProject do
           Axon.Metrics,
           Axon.Recurrent
         ],
-
         Optimization: [
           Axon.Optimizers,
           Axon.Updates
         ],
-
         Loop: [
           Axon.Loop,
           Axon.Loop.State
