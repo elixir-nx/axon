@@ -1685,6 +1685,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :pooling
   defn global_avg_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_avg_pool", "input", input, 3)
 
@@ -1748,6 +1749,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :pooling
   defn global_max_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_max_pool", "input", input, 3)
 
@@ -1816,6 +1818,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :pooling
   defn global_lp_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_lp_pool", "input", input, 3)
 
@@ -1888,6 +1891,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :linear
   defn embedding(input, kernel, _opts \\ []) do
     assert_rank!("Axon.Layers.embedding", "kernel", kernel, 2)
     Nx.take(kernel, Nx.as_type(input, {:s, 64}), axis: 0)
@@ -1909,6 +1913,7 @@ defmodule Axon.Layers do
         ]
       >
   """
+  @doc type: :shape
   defn flatten(x, opts \\ []) do
     opts = keyword!(opts, ignore_batch?: true, mode: :inference)
 
@@ -2077,6 +2082,7 @@ defmodule Axon.Layers do
       iex> Axon.Layers.resize(img, to: {4, 4}, method: :foo)
       ** (ArgumentError) invalid resize method :foo, resize method must be one of :nearest
   """
+  @doc type: :shape
   defn resize(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.resize", "input", input, 3)
 
