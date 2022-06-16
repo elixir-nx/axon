@@ -1100,12 +1100,12 @@ defmodule Axon.Loop do
   By default, the step state is serialized using `Nx.serialize/2`;
   however, this behavior can be changed if step state is an application
   specific container. For example, if you introduce your own data
-  structure into step_state, `Nx.serialize/3` will not be sufficient
+  structure into step_state, `Nx.serialize/2` will not be sufficient
   for serialization - you must pass custom serialization as an option
   with `:serialize_step_state`.
 
   Additional `opts` controls serialization options such as compression.
-  It is forwarded to `:erlang.term_to_binary/3`.
+  It is forwarded to `:erlang.term_to_binary/2`.
   """
   def serialize_state(%State{} = state, opts \\ []) do
     {serialize_step_state_fn, opts} = Keyword.pop(opts, :serialize_step_state, &Nx.serialize/2)
@@ -1119,7 +1119,7 @@ defmodule Axon.Loop do
   @doc """
   Deserializes loop state from a binary.
 
-  It is the opposite of `Axon.Loop.serialize_state/3`.
+  It is the opposite of `Axon.Loop.serialize_state/2`.
 
   By default, the step state is deserialized using `Nx.deserialize.2`;
   however, this behavior can be changed if step state is an application

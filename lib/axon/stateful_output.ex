@@ -2,7 +2,7 @@ defmodule Axon.StatefulOutput do
   @moduledoc """
   Container for returning stateful outputs from Axon layers.
 
-  Some layers, such as `Axon.batch_norm/3`, keep a running internal
+  Some layers, such as `Axon.batch_norm/2`, keep a running internal
   state which is updated continuously at train time and used statically
   at inference time. In order for the Axon compiler to differentiate
   ordinary layer outputs from internal state, you must mark output

@@ -1697,7 +1697,7 @@ defmodule Axon do
     @doc """
     Adds #{a_or_an} #{name} layer to the network.
 
-    See `Axon.Layers.#{Atom.to_string(norm)}/4` for more details.
+    See `Axon.Layers.#{Atom.to_string(norm)}/6` for more details.
 
     ## Options
 
