@@ -39,7 +39,7 @@ defmodule Axon.MixProject do
       # under JIT
       {:exla, "~> 0.2.2", [only: :test] ++ exla_opts()},
       {:nx, "~> 0.2.1", nx_opts()},
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
     ]
   end
