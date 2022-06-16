@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.3">
-    <meta name="project" content="Axon v0.1.0-dev">
+    <meta name="generator" content="ExDoc v0.28.4">
+    <meta name="project" content="Axon v0.1.0">
 
-    <title>Axon.Optimizers — Axon v0.1.0-dev</title>
-    <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
+    <title>Axon.Optimizers — Axon v0.1.0</title>
+    <link rel="stylesheet" href="dist/elixir-b6f1ed5df9b1d42a7309.css" />
 
-    <script src="dist/sidebar_items-630192a1be.js"></script>
+    <script src="dist/sidebar_items-8f1b6ec1f8.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-a088a6cc33ae3464193e.js"></script>
+    <script async src="dist/app-bd1cb213813bf4825aa2.js"></script>
 
 
   </head>
@@ -70,7 +70,7 @@
 Axon
       </a>
       <strong class="sidebar-projectVersion" translate="no">
-        v0.1.0-dev
+        v0.1.0
       </strong>
     </div>
     <ul class="sidebar-listNav">
@@ -87,6 +87,7 @@ Axon
 </section>
 
 <section class="content">
+  <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
 
@@ -97,13 +98,13 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L1" title="View Source" class="view-source" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
   <span translate="no">Axon.Optimizers</span> 
-  <small class="app-vsn" translate="no">(Axon v0.1.0-dev)</small>
+  <small class="app-vsn" translate="no">(Axon v0.1.0)</small>
 
 </h1>
 
@@ -111,7 +112,7 @@ Axon
   <section id="moduledoc">
 <p>Implementations of common gradient-based optimization algorithms.</p><p>All of the methods in this module are written in terms of
 the update methods defined in <a href="Axon.Updates.html"><code class="inline">Axon.Updates</code></a>. Axon treats
-optimizers as the tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="6861401982-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="6861401982-1">}</span></code></pre><p>where <code class="inline">init_fn</code> returns an initial optimizer state and <code class="inline">update_fn</code>
+optimizers as the tuple:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="0186132259-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="0186132259-1">}</span></code></pre><p>where <code class="inline">init_fn</code> returns an initial optimizer state and <code class="inline">update_fn</code>
 scales input gradients. <code class="inline">init_fn</code> accepts a model's parameters
 and attaches state to each parameter. <code class="inline">update_fn</code> accepts
 gradients, optimizer state, and current model parameters and
@@ -123,31 +124,31 @@ returns updated optimizer state and gradients.</p><p>Custom optimizers are often
 </h2>
 <p>Consider the following usage of the Adam optimizer in a basic
 update function (assuming <code class="inline">objective</code> and the <code class="inline">dataset</code> are
-defined elsewhere):</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">Learning</span><span class="w"> </span><span class="k" data-group-id="9615215532-1">do</span><span class="w">
+defined elsewhere):</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">Learning</span><span class="w"> </span><span class="k" data-group-id="3317596438-1">do</span><span class="w">
 
   </span><span class="kn">import</span><span class="w"> </span><span class="nc">Nx.Defn</span><span class="w">
 
-  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">init</span><span class="p" data-group-id="9615215532-2">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_fn</span><span class="p" data-group-id="9615215532-2">)</span><span class="w"> </span><span class="k" data-group-id="9615215532-3">do</span><span class="w">
-    </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="9615215532-4">(</span><span class="n">params</span><span class="p" data-group-id="9615215532-4">)</span><span class="w">
-  </span><span class="k" data-group-id="9615215532-3">end</span><span class="w">
+  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">init</span><span class="p" data-group-id="3317596438-2">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_fn</span><span class="p" data-group-id="3317596438-2">)</span><span class="w"> </span><span class="k" data-group-id="3317596438-3">do</span><span class="w">
+    </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="3317596438-4">(</span><span class="n">params</span><span class="p" data-group-id="3317596438-4">)</span><span class="w">
+  </span><span class="k" data-group-id="3317596438-3">end</span><span class="w">
 
-  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">update</span><span class="p" data-group-id="9615215532-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="9615215532-5">)</span><span class="w"> </span><span class="k" data-group-id="9615215532-6">do</span><span class="w">
-    </span><span class="p" data-group-id="9615215532-7">{</span><span class="n">loss</span><span class="p">,</span><span class="w"> </span><span class="n">gradient</span><span class="p" data-group-id="9615215532-7">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value_and_grad</span><span class="p" data-group-id="9615215532-8">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">objective</span><span class="p" data-group-id="9615215532-9">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="9615215532-9">)</span><span class="p" data-group-id="9615215532-8">)</span><span class="w">
-    </span><span class="p" data-group-id="9615215532-10">{</span><span class="n">scaled_updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p" data-group-id="9615215532-10">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">update_fn</span><span class="o">.</span><span class="p" data-group-id="9615215532-11">(</span><span class="n">gradient</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="9615215532-11">)</span><span class="w">
-    </span><span class="p" data-group-id="9615215532-12">{</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">apply_updates</span><span class="p" data-group-id="9615215532-13">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">scaled_updates</span><span class="p" data-group-id="9615215532-13">)</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">loss</span><span class="p" data-group-id="9615215532-12">}</span><span class="w">
-  </span><span class="k" data-group-id="9615215532-6">end</span><span class="w">
-</span><span class="k" data-group-id="9615215532-1">end</span><span class="w">
+  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">update</span><span class="p" data-group-id="3317596438-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="3317596438-5">)</span><span class="w"> </span><span class="k" data-group-id="3317596438-6">do</span><span class="w">
+    </span><span class="p" data-group-id="3317596438-7">{</span><span class="n">loss</span><span class="p">,</span><span class="w"> </span><span class="n">gradient</span><span class="p" data-group-id="3317596438-7">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value_and_grad</span><span class="p" data-group-id="3317596438-8">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">objective</span><span class="p" data-group-id="3317596438-9">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="3317596438-9">)</span><span class="p" data-group-id="3317596438-8">)</span><span class="w">
+    </span><span class="p" data-group-id="3317596438-10">{</span><span class="n">scaled_updates</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p" data-group-id="3317596438-10">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">update_fn</span><span class="o">.</span><span class="p" data-group-id="3317596438-11">(</span><span class="n">gradient</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p" data-group-id="3317596438-11">)</span><span class="w">
+    </span><span class="p" data-group-id="3317596438-12">{</span><span class="nc">Axon.Updates</span><span class="o">.</span><span class="n">apply_updates</span><span class="p" data-group-id="3317596438-13">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">scaled_updates</span><span class="p" data-group-id="3317596438-13">)</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">loss</span><span class="p" data-group-id="3317596438-12">}</span><span class="w">
+  </span><span class="k" data-group-id="3317596438-6">end</span><span class="w">
+</span><span class="k" data-group-id="3317596438-1">end</span><span class="w">
 
-</span><span class="n">model_params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">random_uniform</span><span class="p" data-group-id="9615215532-14">(</span><span class="p" data-group-id="9615215532-15">{</span><span class="mi">784</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="9615215532-15">}</span><span class="p" data-group-id="9615215532-14">)</span><span class="w">
-</span><span class="p" data-group-id="9615215532-16">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="9615215532-16">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="9615215532-17">(</span><span class="mf">0.005</span><span class="p" data-group-id="9615215532-17">)</span><span class="w">
+</span><span class="n">model_params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">random_uniform</span><span class="p" data-group-id="3317596438-14">(</span><span class="p" data-group-id="3317596438-15">{</span><span class="mi">784</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p" data-group-id="3317596438-15">}</span><span class="p" data-group-id="3317596438-14">)</span><span class="w">
+</span><span class="p" data-group-id="3317596438-16">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="3317596438-16">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="3317596438-17">(</span><span class="mf">0.005</span><span class="p" data-group-id="3317596438-17">)</span><span class="w">
 
 </span><span class="n">optimizer_state</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Learning</span><span class="o">.</span><span class="n">init</span><span class="p" data-group-id="9615215532-18">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_fn</span><span class="p" data-group-id="9615215532-18">)</span><span class="w">
+  </span><span class="nc">Learning</span><span class="o">.</span><span class="n">init</span><span class="p" data-group-id="3317596438-18">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_fn</span><span class="p" data-group-id="3317596438-18">)</span><span class="w">
 
-</span><span class="p" data-group-id="9615215532-19">{</span><span class="n">new_params</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">loss</span><span class="p" data-group-id="9615215532-19">}</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Learning</span><span class="o">.</span><span class="n">update</span><span class="p" data-group-id="9615215532-20">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="9615215532-20">)</span></code></pre><p>For a simpler approach, you can also use optimizers with the training API:</p><pre><code class="makeup elixir" translate="no"><span class="w">  </span><span class="n">model</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="9999395419-1">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="9999395419-2">(</span><span class="mf">0.005</span><span class="p" data-group-id="9999395419-2">)</span><span class="p" data-group-id="9999395419-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="9999395419-3">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="9999395419-3">)</span></code></pre>
+</span><span class="p" data-group-id="3317596438-19">{</span><span class="n">new_params</span><span class="p">,</span><span class="w"> </span><span class="n">new_optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">loss</span><span class="p" data-group-id="3317596438-19">}</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Learning</span><span class="o">.</span><span class="n">update</span><span class="p" data-group-id="3317596438-20">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer_state</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p">,</span><span class="w"> </span><span class="n">update_fn</span><span class="p" data-group-id="3317596438-20">)</span></code></pre><p>For a simpler approach, you can also use optimizers with the training API:</p><pre><code class="makeup elixir" translate="no"><span class="w">  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="9438733018-1">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="9438733018-2">(</span><span class="mf">0.005</span><span class="p" data-group-id="9438733018-2">)</span><span class="p" data-group-id="9438733018-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="9438733018-3">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="9438733018-3">)</span></code></pre>
   </section>
 
 
@@ -300,7 +301,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">adabelief(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L72" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L72" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -336,7 +337,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">adagrad(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L88" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L88" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -372,7 +373,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">adam(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L107" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L107" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -408,7 +409,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">adamw(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L123" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L123" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -438,7 +439,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">fromage(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L142" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L142" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -474,7 +475,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">lamb(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L172" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L172" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -510,7 +511,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">noisy_sgd(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L190" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L190" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -540,7 +541,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">radam(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L210" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L210" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -576,7 +577,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">rmsprop(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L228" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L228" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -607,7 +608,7 @@ to value of this term.</li><li><code class="inline">:nesterov</code> - whether o
     </a>
     <h1 class="signature" translate="no">sgd(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L255" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L255" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -638,7 +639,7 @@ to value of this term.</li><li><code class="inline">:nesterov</code> - whether o
     </a>
     <h1 class="signature" translate="no">yogi(learning_rate, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/optimizers.ex#L282" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/optimizers.ex#L282" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -669,10 +670,28 @@ to value of this term.</li><li><code class="inline">:nesterov</code> - whether o
 
       <footer class="footer">
 
+          <p>
+            On Hex.pm:
+
+            <span class="line">
+              <a href="https://hex.pm/packages/axon/0.1.0" class="line footer-hex-package">Package</a>
+              <a href="https://preview.hex.pm/preview/axon/0.1.0" class="line">Preview</a>
+
+                <a href="https://preview.hex.pm/preview/axon/0.1.0/show/lib/axon/optimizers.ex">(current file)</a>
+
+            </span>
+
+            <button class="line footer-button display-quick-switch">
+              Search
+            </button>
+          </p>
+
         <p>
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.3) for the
-          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
         </p>
       </footer>
     </div>

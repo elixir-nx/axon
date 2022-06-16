@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.3">
-    <meta name="project" content="Axon v0.1.0-dev">
+    <meta name="generator" content="ExDoc v0.28.4">
+    <meta name="project" content="Axon v0.1.0">
 
-    <title>Axon.Loop.State — Axon v0.1.0-dev</title>
-    <link rel="stylesheet" href="dist/elixir-d5ff82e6b0f5651c0ac0.css" />
+    <title>Axon.Loop.State — Axon v0.1.0</title>
+    <link rel="stylesheet" href="dist/elixir-b6f1ed5df9b1d42a7309.css" />
 
-    <script src="dist/sidebar_items-630192a1be.js"></script>
+    <script src="dist/sidebar_items-8f1b6ec1f8.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-a088a6cc33ae3464193e.js"></script>
+    <script async src="dist/app-bd1cb213813bf4825aa2.js"></script>
 
 
   </head>
@@ -70,7 +70,7 @@
 Axon
       </a>
       <strong class="sidebar-projectVersion" translate="no">
-        v0.1.0-dev
+        v0.1.0
       </strong>
     </div>
     <ul class="sidebar-listNav">
@@ -87,6 +87,7 @@ Axon
 </section>
 
 <section class="content">
+  <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
 
@@ -97,28 +98,28 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0-dev/lib/axon/loop/state.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.1.0/lib/axon/loop/state.ex#L1" title="View Source" class="view-source" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
   <span translate="no">Axon.Loop.State</span> 
-  <small class="app-vsn" translate="no">(Axon v0.1.0-dev)</small>
+  <small class="app-vsn" translate="no">(Axon v0.1.0)</small>
 
 </h1>
 
 
   <section id="moduledoc">
-<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="4123188114-1">%</span><span class="nc" data-group-id="4123188114-1">State</span><span class="p" data-group-id="4123188114-1">{</span><span class="w">
-  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="4123188114-2">(</span><span class="p" data-group-id="4123188114-2">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="4123188114-3">(</span><span class="p" data-group-id="4123188114-3">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="4123188114-4">(</span><span class="p" data-group-id="4123188114-4">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="4123188114-5">(</span><span class="p" data-group-id="4123188114-5">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="4123188114-6">(</span><span class="n">string</span><span class="p" data-group-id="4123188114-7">(</span><span class="p" data-group-id="4123188114-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="4123188114-8">(</span><span class="p" data-group-id="4123188114-8">)</span><span class="p" data-group-id="4123188114-6">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="4123188114-9">(</span><span class="n">integer</span><span class="p" data-group-id="4123188114-10">(</span><span class="p" data-group-id="4123188114-10">)</span><span class="p">,</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="4123188114-11">(</span><span class="p" data-group-id="4123188114-11">)</span><span class="p" data-group-id="4123188114-9">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="4123188114-12">(</span><span class="p" data-group-id="4123188114-12">)</span><span class="p">,</span><span class="w">
-  </span><span class="ss">handler_metadata</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="4123188114-13">(</span><span class="p" data-group-id="4123188114-13">)</span><span class="w">
-</span><span class="p" data-group-id="4123188114-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
+<p>Accumulated state in an Axon.Loop.</p><p>Loop state is a struct:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="6180683672-1">%</span><span class="nc" data-group-id="6180683672-1">State</span><span class="p" data-group-id="6180683672-1">{</span><span class="w">
+  </span><span class="ss">epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="6180683672-2">(</span><span class="p" data-group-id="6180683672-2">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_epoch</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="6180683672-3">(</span><span class="p" data-group-id="6180683672-3">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="6180683672-4">(</span><span class="p" data-group-id="6180683672-4">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">max_iteration</span><span class="p">:</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="6180683672-5">(</span><span class="p" data-group-id="6180683672-5">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="6180683672-6">(</span><span class="n">string</span><span class="p" data-group-id="6180683672-7">(</span><span class="p" data-group-id="6180683672-7">)</span><span class="p">,</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="6180683672-8">(</span><span class="p" data-group-id="6180683672-8">)</span><span class="p" data-group-id="6180683672-6">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">times</span><span class="p">:</span><span class="w"> </span><span class="n">map</span><span class="p" data-group-id="6180683672-9">(</span><span class="n">integer</span><span class="p" data-group-id="6180683672-10">(</span><span class="p" data-group-id="6180683672-10">)</span><span class="p">,</span><span class="w"> </span><span class="n">integer</span><span class="p" data-group-id="6180683672-11">(</span><span class="p" data-group-id="6180683672-11">)</span><span class="p" data-group-id="6180683672-9">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">step_state</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="6180683672-12">(</span><span class="p" data-group-id="6180683672-12">)</span><span class="p">,</span><span class="w">
+  </span><span class="ss">handler_metadata</span><span class="p">:</span><span class="w"> </span><span class="n">container</span><span class="p" data-group-id="6180683672-13">(</span><span class="p" data-group-id="6180683672-13">)</span><span class="w">
+</span><span class="p" data-group-id="6180683672-1">}</span></code></pre><p><code class="inline">epoch</code> is the current epoch, starting at 0, of the nested loop.
 Defaults to 0.</p><p><code class="inline">max_epoch</code> is the maximum number of epochs the loop should run
 for. Defaults to 1.</p><p><code class="inline">iteration</code> is the current iteration of the inner loop. In supervised
 settings, this will be the current batch. Defaults to 0.</p><p><code class="inline">max_iteration</code> is the maximum number of iterations the loop should
@@ -134,10 +135,28 @@ previous best metrics in the handler meta for use between iterations.</p>
 
       <footer class="footer">
 
+          <p>
+            On Hex.pm:
+
+            <span class="line">
+              <a href="https://hex.pm/packages/axon/0.1.0" class="line footer-hex-package">Package</a>
+              <a href="https://preview.hex.pm/preview/axon/0.1.0" class="line">Preview</a>
+
+                <a href="https://preview.hex.pm/preview/axon/0.1.0/show/lib/axon/loop/state.ex">(current file)</a>
+
+            </span>
+
+            <button class="line footer-button display-quick-switch">
+              Search
+            </button>
+          </p>
+
         <p>
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.3) for the
-          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.4) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
         </p>
       </footer>
     </div>
