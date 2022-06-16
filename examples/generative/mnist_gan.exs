@@ -23,13 +23,13 @@ defmodule MNISTGAN do
   defp build_generator(z_dim) do
     Axon.input({nil, z_dim}, "input")
     |> Axon.dense(256)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(512)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(1024)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(784)
     |> Axon.tanh()
@@ -40,9 +40,9 @@ defmodule MNISTGAN do
     Axon.input(input_shape, "input")
     |> Axon.flatten()
     |> Axon.dense(512)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.dense(256)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.dense(2, activation: :softmax)
   end
 
@@ -53,9 +53,9 @@ defmodule MNISTGAN do
     |> Nx.divide(Nx.add(i, 1))
   end
 
-  defn init(d_model, g_model, init_optim_d, init_optim_g) do
-    d_params = Axon.init(d_model)
-    g_params = Axon.init(g_model)
+  defn init(init_d, init_g, init_optim_d, init_optim_g) do
+    d_params = init_d.(%{})
+    g_params = init_g.(%{})
 
     %{
       iteration: Nx.tensor(0),
@@ -84,10 +84,11 @@ defmodule MNISTGAN do
 
     {d_loss, d_grads} =
       value_and_grad(d_params, fn params ->
-        %{prediction: fake_images} = Axon.predict(g_model, g_params, noise, mode: :train)
+        %{prediction: fake_images} = g_model.(g_params, noise)
 
-        %{prediction: d_fake_preds} = Axon.predict(d_model, params, fake_images, mode: :train)
-        %{prediction: d_real_preds} = Axon.predict(d_model, params, real_images, mode: :train)
+        %{prediction: d_fake_preds} = d_model.(params, fake_images)
+        # Merge new state with params
+        %{prediction: d_real_preds} = d_model.(d_params, real_images)
 
         joint_preds = Nx.concatenate([d_fake_preds, d_real_preds], axis: 0)
         joint_labels = Nx.concatenate([fake_labels, real_labels], axis: 0)
@@ -103,9 +104,9 @@ defmodule MNISTGAN do
     # Update G
     {g_loss, g_grads} =
       value_and_grad(g_params, fn params ->
-        %{prediction: fake_images} = Axon.predict(g_model, params, noise, mode: :train)
+        %{prediction: fake_images} = g_model.(params, noise)
 
-        d_preds = Axon.predict(d_model, d_params, fake_images)
+        %{prediction: d_preds} = d_model.(d_params, fake_images)
 
         Axon.Losses.categorical_cross_entropy(real_labels, d_preds, reduction: :mean)
       end)
@@ -134,8 +135,11 @@ defmodule MNISTGAN do
     {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
     {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
 
+    {d_init, d_model} = Axon.compile(d_model, mode: :train)
+    {g_init, g_model} = Axon.compile(g_model, mode: :train)
+
     step = &batch_step(d_model, g_model, optim_d, optim_g, &1, &2)
-    init = fn -> init(d_model, g_model, init_optim_d, init_optim_g) end
+    init = fn %{} -> init(d_init, g_init, init_optim_d, init_optim_g) end
 
     Axon.Loop.loop(step, init)
   end
@@ -152,7 +156,7 @@ defmodule MNISTGAN do
   defp view_generated_images(model, batch_size, state) do
     %State{step_state: pstate} = state
     noise = Nx.random_normal({batch_size, 100})
-    preds = Axon.predict(model, pstate[:generator][:model_state], noise, compiler: EXLA)
+    preds = Axon.predict(model, pstate[:generator][:model_state], noise)
 
     preds
     |> Nx.reshape({batch_size, 28, 28})
@@ -176,5 +180,7 @@ defmodule MNISTGAN do
     |> Axon.Loop.run(train_images, %{}, epochs: 10, compiler: EXLA)
   end
 end
+
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 MNISTGAN.run()
