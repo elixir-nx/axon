@@ -204,7 +204,6 @@ defmodule Axon.Loop do
       |> Axon.Loop.from_state(state)
       |> Axon.Loop.run(data)
   """
-  require Axon
   require Axon.Updates
   require Logger
 

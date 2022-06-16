@@ -8,18 +8,7 @@ defmodule Axon.Compiler do
   ## Init JIT Compilation
 
   @doc false
-  def __compile__(graph, opts) do
-    mode = opts[:mode] || :inference
-    {compile_init(graph), compile_predict(graph, mode)}
-  end
-
-  @doc false
-  def __jit_init__(graph, args, opts) do
-    fun = compile_init(graph)
-    Nx.Defn.jit_or_apply(fun, args, opts)
-  end
-
-  defp compile_init(%Axon{} = graph) do
+  def compile_init(%Axon{} = graph, opts) do
     {root_id, {cache, _op_counts}} = to_init_fun(graph, {%{}, %{}})
 
     init_fn = fn init_params ->
@@ -31,10 +20,10 @@ defmodule Axon.Compiler do
       Map.merge(params, init_params)
     end
 
-    &Nx.Defn.jit_or_apply(init_fn, [&1])
+    &Nx.Defn.jit_or_apply(init_fn, [&1], opts)
   end
 
-  defp compile_init(graph) do
+  def compile_init(graph, _opts) do
     raise ArgumentError,
           "attempting to compile initialization function from" <>
             " an unrecognized graph #{inspect(graph)}, if you" <>
@@ -175,13 +164,8 @@ defmodule Axon.Compiler do
   ## Model JIT Compilation
 
   @doc false
-  def __jit_predict__(graph, args, opts) do
+  def compile_predict(%Axon{} = graph, opts) do
     {mode, opts} = Keyword.pop(opts, :mode, :inference)
-    fun = compile_predict(graph, mode)
-    Nx.Defn.jit_or_apply(fun, args, opts)
-  end
-
-  defp compile_predict(%Axon{} = graph, mode) do
     {root_id, {cache, _op_counts, _namespace}} = to_predict_fun(graph, {%{}, %{}, []}, mode)
 
     predict_fn = fn params, inputs ->
@@ -196,10 +180,10 @@ defmodule Axon.Compiler do
       end
     end
 
-    &Nx.Defn.jit_or_apply(predict_fn, [&1, &2])
+    &Nx.Defn.jit_or_apply(predict_fn, [&1, &2], opts)
   end
 
-  defp compile_predict(graph, _mode) do
+  def compile_predict(graph, _opts) do
     raise ArgumentError,
           "attempting to compile predict function from" <>
             " an unrecognized graph #{inspect(graph)}, if you" <>
