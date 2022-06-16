@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.1.0-dev"
+  @version "0.1.0"
 
   def project do
     [
@@ -10,9 +10,15 @@ defmodule Axon.MixProject do
       version: @version,
       name: "Axon",
       elixir: "~> 1.13",
-      description: "Create and train neural networks in Elixir",
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
-      docs: docs()
+      docs: docs(),
+      description: "Create and train neural networks in Elixir",
+      package: package(),
+      preferred_cli_env: [
+        docs: :docs,
+        "hex.publish": :docs
+      ]
     ]
   end
 
@@ -23,6 +29,9 @@ defmodule Axon.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ~w(lib test/support)
+  defp elixirc_paths(_), do: ~w(lib)
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
@@ -32,6 +41,14 @@ defmodule Axon.MixProject do
       {:nx, "~> 0.2.1", nx_opts()},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:table_rex, "~> 3.1.1"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Sean Moriarity"],
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 
