@@ -75,11 +75,12 @@ defmodule Axon.MixProject do
       logo: "axon.png",
       source_url: @source_url,
       extras: [
-        "Axon Examples": [
-          "notebooks/mnist.livemd",
-          "notebooks/fashionmnist_autoencoder.livemd",
-          "notebooks/multi_input_example.livemd"
-        ]
+        "notebooks/mnist.livemd",
+        "notebooks/fashionmnist_autoencoder.livemd",
+        "notebooks/multi_input_example.livemd"
+      ],
+      groups_for_extras: [
+        "Axon Examples": Path.wildcard("notebooks/*.livemd")
       ],
       groups_for_functions: [
         # Axon
