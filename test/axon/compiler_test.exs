@@ -83,6 +83,49 @@ defmodule CompilerTest do
       )
     end
 
+    test "allows nil default inputs" do
+      model =
+        Axon.input({nil, 1}, "input_0", default: nil)
+        |> Axon.nx(fn
+          nil -> Nx.tensor([[1.0]])
+          x -> x
+        end)
+
+      assert_equal(
+        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
+        Nx.tensor([[2.0]])
+      )
+
+      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
+    end
+
+    test "allows tensor default inputs" do
+      model = Axon.input({nil, 1}, "input_0", default: Nx.tensor([[1.0]]))
+
+      assert_equal(
+        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
+        Nx.tensor([[2.0]])
+      )
+
+      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
+    end
+
+    test "allows function default inputs" do
+      inp1 = Axon.input({nil, 2}, "input_0")
+      inp2 = Axon.input({nil, 2}, "input_1", default: fn inputs -> Nx.iota(inputs["input_0"]) end)
+      model = Axon.add(inp1, inp2)
+
+      inp1 = Nx.tensor([[1.0, 2.0]])
+      inp2 = Nx.tensor([[3.0, 4.0]])
+
+      assert_equal(
+        Axon.predict(model, %{}, %{"input_0" => inp1, "input_1" => inp2}),
+        Nx.tensor([[4.0, 6.0]])
+      )
+
+      assert_equal(Axon.predict(model, %{}, %{"input_0" => inp1}), Nx.tensor([[1.0, 3.0]]))
+    end
+
     test "raises on bad input shape" do
       model = Axon.input({nil, 32}, "input_0")
       input = Nx.random_uniform({1, 16})
@@ -94,7 +137,7 @@ defmodule CompilerTest do
                "invalid input shape given to model"
     end
 
-    test "raises if input not found" do
+    test "raises if input not found, no default value" do
       model = Axon.input({nil, 32}, "input_0")
       input = Nx.random_uniform({1, 16})
       assert {_, predict_fn} = Axon.compile(model)

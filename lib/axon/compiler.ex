@@ -236,12 +236,34 @@ defmodule Axon.Compiler do
   end
 
   defp recur_predict_fun(
-         %Axon{id: id, op: :input, output_shape: shape, hooks: hooks, name: name_fn},
+         %Axon{
+           id: id,
+           op: :input,
+           output_shape: shape,
+           hooks: hooks,
+           name: name_fn,
+           opts: [default: default]
+         },
          {cache, op_counts, namespace},
          mode
        ) do
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
+
+    default =
+      case default do
+        nil ->
+          nil
+
+        :no_default_value ->
+          :no_default_value
+
+        fun when is_function(fun, 1) ->
+          fun
+
+        %Nx.Tensor{} = tensor ->
+          Nx.backend_transfer(tensor, Nx.BinaryBackend)
+      end
 
     fun = fn _params, inputs, state, _cache, result_cache ->
       res =
@@ -259,22 +281,36 @@ defmodule Axon.Compiler do
                     " corresponding to correct input names"
         end
 
-      unless res do
-        raise ArgumentError,
-              "unable to find input #{name} for model given to predict," <>
-                " you must provide an input tensor for every input" <>
-                " specified in the graph"
-      end
+      value =
+        case {res, default} do
+          {nil, :no_default_value} ->
+            raise ArgumentError,
+                  "unable to find input #{name} for model given to predict," <>
+                    " you must provide an input tensor for every input" <>
+                    " specified in the graph"
 
-      unless Axon.Shape.compatible?(Nx.shape(res), shape) do
+          {nil, nil} ->
+            nil
+
+          {nil, %Nx.Tensor{} = default} ->
+            default
+
+          {nil, fun} when is_function(fun, 1) ->
+            fun.(inputs)
+
+          {value, _default} ->
+            value
+        end
+
+      unless value == nil or Axon.Shape.compatible?(Nx.shape(value), shape) do
         raise ArgumentError,
               "invalid input shape given to model, expected input" <>
                 " with shape #{inspect(shape)}, but got input with" <>
-                " shape #{inspect(Nx.shape(res))}"
+                " shape #{inspect(Nx.shape(value))}"
       end
 
       res =
-        res
+        value
         |> apply_hooks(:forward, mode, hooks)
         |> apply_hooks(:backward, mode, hooks)
 
@@ -511,6 +547,9 @@ defmodule Axon.Compiler do
 
   defp safe_as_type(container_or_tensor, type) do
     case container_or_tensor do
+      nil ->
+        nil
+
       %Nx.Tensor{} = tensor ->
         Nx.as_type(tensor, type)
 
