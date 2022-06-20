@@ -406,11 +406,21 @@ defmodule Axon do
   You must specify the input layers name, which will be used
   to uniquely identify it in the case of multiple inputs.
 
+  You may optionally specify an input with a default value
+  using the `:default` option. Default values can be `nil`,
+  tensors, or an arity-1 function. If the default value is
+  `nil` and you do not handle the possibility of missing
+  values in subsequent layers, you will likely experience
+  cryptic errors. Default value shape must match the expected
+  `input_shape` given to model.
   """
   @doc type: :special
-  def input(input_shape, name) when is_tuple(input_shape) and is_binary(name) do
+  def input(input_shape, name, opts \\ []) when is_tuple(input_shape) and is_binary(name) do
+    opts = Keyword.validate!(opts, default: :no_default_value)
+    default = validate_default_input!(opts[:default])
+
     output_shape = Axon.Shape.input(input_shape)
-    layer(:input, [], name: name, shape: output_shape, op_name: :input)
+    layer(:input, [], name: name, shape: output_shape, op_name: :input, default: default)
   end
 
   @doc """
@@ -3508,6 +3518,27 @@ defmodule Axon do
           "initializer must be one of #{inspect(@valid_initializers)}," <>
             " or an arity-2 function accepting initializer shape and type" <>
             " got #{inspect(initializer)}"
+  end
+
+  defp validate_default_input!(default) do
+    case default do
+      nil ->
+        default
+
+      :no_default_value ->
+        :no_default_value
+
+      default when is_function(default, 1) ->
+        default
+
+      %Nx.Tensor{} = default ->
+        default
+
+      invalid ->
+        raise ArgumentError,
+              "default input value must be nil, tensor, or arity-1 function" <>
+                " of the inputs, got #{inspect(invalid)}"
+    end
   end
 
   defp tuple_or_duplicate(key, tuple_or_integer, rank) do
