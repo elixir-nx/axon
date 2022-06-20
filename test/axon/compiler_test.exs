@@ -83,6 +83,7 @@ defmodule CompilerTest do
       )
     end
 
+    @tag :capture_log
     test "allows nil default inputs" do
       model =
         Axon.input({nil, 1}, "input_0", default: nil)

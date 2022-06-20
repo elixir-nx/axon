@@ -290,6 +290,7 @@ defmodule Axon.Compiler do
                     " specified in the graph"
 
           {nil, nil} ->
+            Logger.debug("Input #{name} not provided, and default value is nil")
             nil
 
           {nil, %Nx.Tensor{} = default} ->
