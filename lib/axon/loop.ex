@@ -556,12 +556,17 @@ defmodule Axon.Loop do
     {type, _} = val.type
 
     case type do
-      t when t in [:s, :u] -> "#{name}: #{:io_lib.format('~.B', [Nx.to_number(val)])}"
-      :f -> "#{name}: #{:io_lib.format('~.7f', [Nx.to_number(val)])}"
-      :bf -> "#{name}: #{:io_lib.format('~.3f', [Nx.to_number(val)])}"
-      _ -> "Unsupported type of metric"
+      t when t in [:s, :u] -> "#{name}: #{Nx.to_number(val)}"
+      :f -> "#{name}: #{float_format('~.7f', Nx.to_number(val))}"
+      :bf -> "#{name}: #{float_format('~.3f', Nx.to_number(val))}"
+      _ -> "#{name}: unsupported type of metric #{inspect(type)}"
     end
   end
+
+  defp float_format(_format, :nan), do: "NaN"
+  defp float_format(_format, :infinity), do: "Inf"
+  defp float_format(_format, :neg_infinity), do: "-Inf"
+  defp float_format(format, val) when is_float(val), do: :io_lib.format(format, [val])
 
   defp supervised_log_message_fn(state, log_epochs \\ true) do
     %State{metrics: metrics, epoch: epoch, iteration: iter} = state
