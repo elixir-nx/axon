@@ -563,9 +563,9 @@ defmodule Axon.Loop do
     end
   end
 
-  defp float_format(_format, :nan) when is_atom(val), do: "NaN"
-  defp float_format(_format, :infinity) when is_atom(val), do: "Inf"
-  defp float_format(_format, :neg_infinity) when is_atom(val), do: "-Inf"
+  defp float_format(_format, :nan), do: "NaN"
+  defp float_format(_format, :infinity), do: "Inf"
+  defp float_format(_format, :neg_infinity), do: "-Inf"
   defp float_format(format, val) when is_atom(val), do: :io_lib.format(format, [val])
 
   defp supervised_log_message_fn(state, log_epochs \\ true) do
