@@ -272,7 +272,19 @@ defmodule Axon.Compiler do
             inputs
 
           %{} = inputs ->
-            inputs[name]
+            cond do
+              Map.has_key?(inputs, name) ->
+                inputs[name]
+
+              is_container_shape(shape) ->
+                inputs
+
+              true ->
+                nil
+            end
+
+          inputs when is_tuple(inputs) ->
+            inputs
 
           _ ->
             raise ArgumentError,
@@ -303,12 +315,7 @@ defmodule Axon.Compiler do
             value
         end
 
-      unless value == nil or Axon.Shape.compatible?(Nx.shape(value), shape) do
-        raise ArgumentError,
-              "invalid input shape given to model, expected input" <>
-                " with shape #{inspect(shape)}, but got input with" <>
-                " shape #{inspect(Nx.shape(value))}"
-      end
+      validate_input_shape!(value, shape)
 
       res =
         value
@@ -558,4 +565,70 @@ defmodule Axon.Compiler do
         deep_new(container, &Nx.as_type(&1, type))
     end
   end
+
+  defp validate_input_shape!(nil, _), do: :ok
+
+  defp validate_input_shape!(value, shape) do
+    unless value == nil or compatible?(value, shape) do
+      raise ArgumentError,
+            "invalid input shape given to model, expected input" <>
+              " with shape #{inspect(shape)}, but got input with" <>
+              " shape #{inspect(deep_new(value, &Nx.shape/1))}"
+    end
+  end
+
+  defp compatible?(%Nx.Tensor{} = value, shape),
+    do: Axon.Shape.compatible?(Nx.shape(value), shape)
+
+  defp compatible?(value, shape) do
+    template_shapes = recur_shape_to_template(shape)
+
+    merged_check =
+      deep_merge(value, template_shapes, fn lhs, rhs ->
+        if Axon.Shape.compatible?(Nx.shape(lhs), Nx.shape(rhs)) do
+          Nx.tensor(1, type: {:u, 8})
+        else
+          Nx.tensor(0, type: {:u, 8})
+        end
+      end)
+
+    merged_bool =
+      deep_reduce(merged_check, [], fn x, acc ->
+        [x == Nx.tensor(1, type: {:u, 8}) | acc]
+      end)
+
+    Enum.all?(merged_bool)
+  end
+
+  defp recur_shape_to_template(shape) do
+    cond do
+      is_tuple(shape) and tuple_size(shape) == 0 ->
+        Nx.template(shape, {:f, 32})
+
+      is_tuple(shape) and is_dim(elem(shape, 0)) ->
+        Nx.template(shape, {:f, 32})
+
+      true ->
+        {templates, :ok} =
+          Nx.Container.traverse(shape, :ok, fn shape, :ok ->
+            template = recur_shape_to_template(shape)
+            {template, :ok}
+          end)
+
+        templates
+    end
+  end
+
+  defp is_container_shape(shape) when is_map(shape), do: true
+
+  defp is_container_shape(shape) when is_tuple(shape) do
+    if tuple_size(shape) == 0 do
+      true
+    else
+      not is_dim(elem(shape, 0))
+    end
+  end
+
+  defp is_dim(dim) when is_integer(dim) or is_nil(dim), do: true
+  defp is_dim(_), do: false
 end

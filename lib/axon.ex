@@ -415,7 +415,7 @@ defmodule Axon do
   `input_shape` given to model.
   """
   @doc type: :special
-  def input(input_shape, name, opts \\ []) when is_tuple(input_shape) and is_binary(name) do
+  def input(input_shape, name, opts \\ []) when is_binary(name) do
     opts = Keyword.validate!(opts, default: :no_default_value)
     default = validate_default_input!(opts[:default])
 
