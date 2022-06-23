@@ -136,12 +136,12 @@ In order to use `Axon`, you will need Elixir installed. Then create an Elixir pr
 $ mix new my_app
 ```
 
-Then you can add `Axon` as dependency in your `mix.exs`. At the moment you will have to use a Git dependency while we work on our first release:
+Then add Axon to your dependencies:
 
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"}
+    {:axon, "~> 0.1.0"}
   ]
 end
 ```
@@ -151,9 +151,9 @@ You'll also likely want to include an `Nx` compiler such as `EXLA` for any pract
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon", branch: "main"},
-    {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla", override: true},
-    {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+    {:axon, "~> 0.1.0"},
+    {:exla, "~> 0.2.2"},
+    {:nx, "~> 0.2.1"}
   ]
 end
 ```

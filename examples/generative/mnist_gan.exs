@@ -1,11 +1,11 @@
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:exla, github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:scidata, "~> 0.1.3"}
+  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"},
+  {:scidata, "~> 0.1.6"}
 ])
 
-EXLA.set_preferred_defn_options([:tpu, :cuda, :rocm, :host])
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule MNISTGAN do
   require Axon
@@ -21,15 +21,15 @@ defmodule MNISTGAN do
   end
 
   defp build_generator(z_dim) do
-    Axon.input({nil, z_dim})
+    Axon.input({nil, z_dim}, "input")
     |> Axon.dense(256)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(512)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(1024)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
     |> Axon.dense(784)
     |> Axon.tanh()
@@ -37,12 +37,12 @@ defmodule MNISTGAN do
   end
 
   defp build_discriminator(input_shape) do
-    Axon.input(input_shape)
+    Axon.input(input_shape, "input")
     |> Axon.flatten()
     |> Axon.dense(512)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.dense(256)
-    |> Axon.relu()
+    |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.dense(2, activation: :softmax)
   end
 
@@ -53,9 +53,9 @@ defmodule MNISTGAN do
     |> Nx.divide(Nx.add(i, 1))
   end
 
-  defn init(d_model, g_model, init_optim_d, init_optim_g) do
-    d_params = Axon.init(d_model)
-    g_params = Axon.init(g_model)
+  defn init(init_d, init_g, init_optim_d, init_optim_g) do
+    d_params = init_d.(%{})
+    g_params = init_g.(%{})
 
     %{
       iteration: Nx.tensor(0),
@@ -73,7 +73,6 @@ defmodule MNISTGAN do
   end
 
   defn batch_step(d_model, g_model, optim_d, optim_g, real_images, state) do
-
     iter = state[:iteration]
     d_params = state[:discriminator][:model_state]
     g_params = state[:generator][:model_state]
@@ -83,17 +82,19 @@ defmodule MNISTGAN do
     real_labels = Nx.reverse(fake_labels)
     noise = Nx.random_normal({32, 100})
 
-    {d_loss, d_grads} = value_and_grad(d_params, fn params ->
-      fake_images = Axon.predict(g_model, g_params, noise, mode: :train)
+    {d_loss, d_grads} =
+      value_and_grad(d_params, fn params ->
+        %{prediction: fake_images} = g_model.(g_params, noise)
 
-      d_fake_preds = Axon.predict(d_model, params, fake_images, mode: :train)
-      d_real_preds = Axon.predict(d_model, params, real_images, mode: :train)
+        %{prediction: d_fake_preds} = d_model.(params, fake_images)
+        # Merge new state with params
+        %{prediction: d_real_preds} = d_model.(d_params, real_images)
 
-      joint_preds = Nx.concatenate([d_fake_preds, d_real_preds], axis: 0)
-      joint_labels = Nx.concatenate([fake_labels, real_labels], axis: 0)
+        joint_preds = Nx.concatenate([d_fake_preds, d_real_preds], axis: 0)
+        joint_labels = Nx.concatenate([fake_labels, real_labels], axis: 0)
 
-      Axon.Losses.categorical_cross_entropy(joint_labels, joint_preds, reduction: :mean)
-    end)
+        Axon.Losses.categorical_cross_entropy(joint_labels, joint_preds, reduction: :mean)
+      end)
 
     d_optimizer_state = state[:discriminator][:optimizer_state]
 
@@ -101,13 +102,14 @@ defmodule MNISTGAN do
     d_params = Axon.Updates.apply_updates(d_params, d_updates)
 
     # Update G
-    {g_loss, g_grads} = value_and_grad(g_params, fn params ->
-      fake_images = Axon.predict(g_model, params, noise, mode: :train)
+    {g_loss, g_grads} =
+      value_and_grad(g_params, fn params ->
+        %{prediction: fake_images} = g_model.(params, noise)
 
-      d_preds = Axon.predict(d_model, d_params, fake_images)
+        %{prediction: d_preds} = d_model.(d_params, fake_images)
 
-      Axon.Losses.categorical_cross_entropy(real_labels, d_preds, reduction: :mean)
-    end)
+        Axon.Losses.categorical_cross_entropy(real_labels, d_preds, reduction: :mean)
+      end)
 
     g_optimizer_state = state[:generator][:optimizer_state]
 
@@ -133,8 +135,11 @@ defmodule MNISTGAN do
     {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
     {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
 
+    {d_init, d_model} = Axon.compile(d_model, mode: :train)
+    {g_init, g_model} = Axon.compile(g_model, mode: :train)
+
     step = &batch_step(d_model, g_model, optim_d, optim_g, &1, &2)
-    init = fn -> init(d_model, g_model, init_optim_d, init_optim_g) end
+    init = fn %{} -> init(d_init, g_init, init_optim_d, init_optim_g) end
 
     Axon.Loop.loop(step, init)
   end
@@ -151,7 +156,7 @@ defmodule MNISTGAN do
   defp view_generated_images(model, batch_size, state) do
     %State{step_state: pstate} = state
     noise = Nx.random_normal({batch_size, 100})
-    preds = Axon.predict(model, pstate[:generator][:model_state], noise, compiler: EXLA)
+    preds = Axon.predict(model, pstate[:generator][:model_state], noise)
 
     preds
     |> Nx.reshape({batch_size, 28, 28})
@@ -172,8 +177,10 @@ defmodule MNISTGAN do
     |> train_loop(generator)
     |> Axon.Loop.log(:iteration_completed, &log_iteration/1, :stdio, every: 50)
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
-    |> Axon.Loop.run(train_images, epochs: 10, compiler: EXLA)
+    |> Axon.Loop.run(train_images, %{}, epochs: 10, compiler: EXLA)
   end
 end
+
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 MNISTGAN.run()

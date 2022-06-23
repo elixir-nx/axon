@@ -16,6 +16,9 @@ defmodule Axon.Metrics do
   monitor the performance of a neural network during training.
   Metrics such as accuracy provide useful feedback during
   training, whereas loss can sometimes be difficult to interpret.
+    
+  You can attach any of these functions as metrics within the
+  `Axon.Loop` API using `Axon.Loop.metric/3`.
 
   All of the functions in this module are implemented as
   numerical functions and can be JIT or AOT compiled with
@@ -40,27 +43,37 @@ defmodule Axon.Metrics do
 
   ## Examples
 
+      iex> Axon.Metrics.accuracy(Nx.tensor([[1], [0], [0]]), Nx.tensor([[1], [1], [1]]))
+      #Nx.Tensor<
+        f32
+        0.3333333432674408
+      >
+
       iex> Axon.Metrics.accuracy(Nx.tensor([[0, 1], [1, 0], [1, 0]]), Nx.tensor([[0, 1], [1, 0], [0, 1]]))
       #Nx.Tensor<
         f32
         0.6666666865348816
       >
 
+      iex> Axon.Metrics.accuracy(Nx.tensor([[0, 1, 0], [1, 0, 0]]), Nx.tensor([[0, 1, 0], [0, 1, 0]]))
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
   """
   defn accuracy(y_true, y_pred) do
-    transform({y_true, y_pred}, fn {y_true, y_pred} ->
-      if elem(Nx.shape(y_pred), Nx.rank(y_pred) - 1) == 1 do
-        y_pred
-        |> Nx.greater(0.5)
-        |> Nx.equal(y_true)
-        |> Nx.mean()
-      else
-        y_true
-        |> Nx.argmax(axis: -1)
-        |> Nx.equal(Nx.argmax(y_pred, axis: -1))
-        |> Nx.mean()
-      end
-    end)
+    if elem(Nx.shape(y_pred), Nx.rank(y_pred) - 1) == 1 do
+      y_pred
+      |> Nx.greater(0.5)
+      |> Nx.equal(y_true)
+      |> Nx.mean()
+    else
+      y_true
+      |> Nx.argmax(axis: -1)
+      |> Nx.equal(Nx.argmax(y_pred, axis: -1))
+      |> Nx.mean()
+    end
   end
 
   @doc ~S"""

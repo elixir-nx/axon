@@ -1,11 +1,11 @@
 Mix.install([
   {:stb_image, "~> 0.1.0"},
   {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
-  {:exla, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "exla"},
-  {:nx, "~> 0.1.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"}
 ])
 
-EXLA.set_preferred_defn_options(
+EXLA.set_as_nx_default(
   [:tpu, :cuda, :rocm, :host],
   run_options: [keep_on_device: true]
 )
@@ -59,7 +59,7 @@ defmodule HorsesOrHumans do
   end
 
   defp build_model(input_shape, transpose_shape) do
-    Axon.input(input_shape)
+    Axon.input(input_shape, "input")
     |> Axon.transpose(transpose_shape)
     |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2})
@@ -83,11 +83,11 @@ defmodule HorsesOrHumans do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
     |> Axon.Loop.metric(:accuracy)
-    |> Axon.Loop.run(data, epochs: epochs, iterations: 100)
+    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100)
   end
 
   def run() do
-    model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect
+    model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
     optimizer = Axon.Optimizers.adam(1.0e-4)
     centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
 

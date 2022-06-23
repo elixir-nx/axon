@@ -16,7 +16,7 @@ defmodule MixedPrecisionTest do
 
     test "apply_policy" do
       model =
-        Axon.input({nil, 784})
+        Axon.input({nil, 784}, "input")
         |> Axon.dense(128)
         |> Axon.batch_norm()
         |> Axon.dense(10)
@@ -42,7 +42,7 @@ defmodule MixedPrecisionTest do
     # belongs in a train test or elsewhere
     test "correctly maintains parameter type after train step" do
       model =
-        Axon.input({nil, 32})
+        Axon.input({nil, 32}, "input")
         |> Axon.dense(2, name: "dense1")
         |> Axon.batch_norm(name: "batch_norm")
         |> Axon.dense(1, activation: :sigmoid, name: "dense2")
@@ -55,7 +55,10 @@ defmodule MixedPrecisionTest do
         Axon.Loop.trainer(mp_model, :binary_cross_entropy, Axon.Optimizers.sgd(0.01))
 
       pstate =
-        Nx.Defn.jit(step_fn, [{Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})}, init_fn.()])
+        Nx.Defn.jit(step_fn, [
+          {Nx.random_uniform({1, 32}), Nx.random_uniform({1, 1})},
+          init_fn.(%{})
+        ])
 
       params = pstate[:model_state]
 

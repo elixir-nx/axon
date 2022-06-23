@@ -220,7 +220,7 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.bilinear({nil, 16, 32}, {nil, 16}, 32)
       ** (ArgumentError) input ranks must match, got 3 and 2
-      
+
       iex> Axon.Shape.bilinear({nil, 16, 32}, {}, 32)
       ** (ArgumentError) input shapes must both have at least rank 2, got ranks 3 and 0
 
@@ -392,16 +392,16 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1], :first)
+      iex> Axon.Shape.conv({nil, 3, 224, 224}, {64, 3, 7, 7}, [3, 3], :same, [1, 1], [1, 1], :first, 1)
       {nil, 64, 75, 75}
 
-      iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1], :first)
+      iex> Axon.Shape.conv({32, 3, 32, 32}, {64, 3, 2, 2}, [1, 1], :valid, [1, 2], [1, 1], :first, 1)
       {32, 64, 31, 62}
 
-      iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2], :first)
+      iex> Axon.Shape.conv({nil, 3, 32}, {32, 3, 2}, [1], :valid, [1], [2], :first, 1)
       {nil, 32, 30}
 
-      iex> Axon.Shape.conv({nil, 28, 28, 3}, {64, 3, 4, 4}, [1, 1], :valid, [1, 1], [2, 2], :last)
+      iex> Axon.Shape.conv({nil, 28, 28, 3}, {64, 3, 4, 4}, [1, 1], :valid, [1, 1], [2, 2], :last, 1)
       {nil, 22, 22, 64}
   """
   def conv(
@@ -411,7 +411,8 @@ defmodule Axon.Shape do
         padding,
         input_dilation,
         kernel_dilation,
-        channels
+        channels,
+        feature_group_size
       ) do
     unless Nx.rank(parent_shape) >= 3 do
       raise ArgumentError,
@@ -448,7 +449,7 @@ defmodule Axon.Shape do
         names,
         strides,
         padding,
-        1,
+        feature_group_size,
         1,
         input_dilation,
         kernel_dilation,
@@ -1372,7 +1373,8 @@ defmodule Axon.Shape do
       ** (ArgumentError) non-concat dims must be equal got 5 and 10 while concatenating on axis 1
   """
   def concatenate([s1 | _] = input_shapes, axis) do
-    nil_names = for _ <- 1..length(input_shapes), do: List.duplicate(nil, Nx.rank(s1))
+    nil_names = for shape <- input_shapes, do: List.duplicate(nil, Nx.rank(shape))
+    axis = Nx.Shape.normalize_axis(s1, axis, hd(nil_names))
     {shape, _} = Nx.Shape.concatenate(input_shapes, nil_names, axis)
     shape
   end

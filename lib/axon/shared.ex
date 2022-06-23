@@ -132,7 +132,10 @@ defmodule Axon.Shared do
   defn zeros_like(params) do
     transform(
       params,
-      &deep_new(&1, fn x -> Axon.Initializers.zeros(shape: Nx.shape(x)) end)
+      &deep_new(&1, fn x ->
+        fun = Axon.Initializers.zeros()
+        fun.(Nx.shape(x), Nx.type(x))
+      end)
     )
   end
 
@@ -142,7 +145,10 @@ defmodule Axon.Shared do
   defn fulls_like(params, value) do
     transform(
       params,
-      &deep_new(&1, fn x -> Axon.Initializers.full(value, shape: Nx.shape(x)) end)
+      &deep_new(&1, fn x ->
+        fun = Axon.Initializers.full(value)
+        fun.(Nx.shape(x), Nx.type(x))
+      end)
     )
   end
 
@@ -203,6 +209,10 @@ defmodule Axon.Shared do
   @doc """
   Deep reduces a map with an accumulator.
   """
+  def deep_reduce(item, acc, fun) when is_integer(item) do
+    fun.(item, acc)
+  end
+
   def deep_reduce(map, acc, fun) do
     Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
   end

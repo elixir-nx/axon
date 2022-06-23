@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.1.0-dev"
+  @version "0.1.0"
 
   def project do
     [
@@ -10,9 +10,15 @@ defmodule Axon.MixProject do
       version: @version,
       name: "Axon",
       elixir: "~> 1.13",
-      start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
-      docs: docs()
+      docs: docs(),
+      description: "Create and train neural networks in Elixir",
+      package: package(),
+      preferred_cli_env: [
+        docs: :docs,
+        "hex.publish": :docs
+      ]
     ]
   end
 
@@ -23,15 +29,26 @@ defmodule Axon.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ~w(lib test/support)
+  defp elixirc_paths(_), do: ~w(lib)
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.2.0", exla_opts()},
-      {:nx, "~> 0.2.0", nx_opts()},
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
+      {:exla, "~> 0.2.2", [only: :test] ++ exla_opts()},
+      {:nx, "~> 0.2.1", nx_opts()},
+      {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Sean Moriarity"],
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 
@@ -45,7 +62,7 @@ defmodule Axon.MixProject do
 
   defp exla_opts do
     if path = System.get_env("AXON_EXLA_PATH") do
-      [path: path, only: :test]
+      [path: path]
     else
       []
     end
@@ -55,7 +72,16 @@ defmodule Axon.MixProject do
     [
       main: "Axon",
       source_ref: "v#{@version}",
+      logo: "axon.png",
       source_url: @source_url,
+      extras: [
+        "notebooks/mnist.livemd",
+        "notebooks/fashionmnist_autoencoder.livemd",
+        "notebooks/multi_input_example.livemd"
+      ],
+      groups_for_extras: [
+        "Axon Examples": Path.wildcard("notebooks/*.livemd")
+      ],
       groups_for_functions: [
         # Axon
         "Layers: Special": &(&1[:type] == :special),
@@ -66,9 +92,8 @@ defmodule Axon.MixProject do
         "Layers: Pooling": &(&1[:type] == :pooling),
         "Layers: Normalization": &(&1[:type] == :normalization),
         "Layers: Recurrent": &(&1[:type] == :recurrent),
-        "Layers: Composition": &(&1[:type] == :composition),
+        "Layers: Combinators": &(&1[:type] == :combinators),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model: Compilation": &(&1[:type] == :compilation),
         "Model: Execution": &(&1[:type] == :execution),
 
         # Axon.Layers
@@ -77,7 +102,29 @@ defmodule Axon.MixProject do
         "Functions: Dropout": &(&1[:type] == :dropout),
         "Functions: Linear": &(&1[:type] == :linear),
         "Functions: Normalization": &(&1[:type] == :normalization),
-        "Functions: Pooling": &(&1[:type] == :pooling)
+        "Functions: Pooling": &(&1[:type] == :pooling),
+        "Functions: Shape": &(&1[:type] == :shape)
+      ],
+      groups_for_modules: [
+        # Axon
+        # Axon.MixedPrecision
+
+        Functional: [
+          Axon.Activations,
+          Axon.Initalizers,
+          Axon.Layers,
+          Axon.Losses,
+          Axon.Metrics,
+          Axon.Recurrent
+        ],
+        Optimization: [
+          Axon.Optimizers,
+          Axon.Updates
+        ],
+        Loop: [
+          Axon.Loop,
+          Axon.Loop.State
+        ]
       ],
       before_closing_body_tag: &before_closing_body_tag/1
     ]
