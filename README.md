@@ -1,5 +1,7 @@
 <h1><img src="https://github.com/elixir-nx/axon/raw/main/axon.png" alt="Axon" width="350"></h1>
 
+[![Package](https://img.shields.io/badge/-Package-important)](https://hex.pm/packages/axon) [![Documentation](https://img.shields.io/badge/-Documentation-blueviolet)](https://hexdocs.pm/axon)
+
 Nx-powered Neural Networks for Elixir.
 
 Axon consists of the following components:
@@ -14,8 +16,6 @@ Axon provides abstractions that enable easy integration while maintaining a leve
 ## Overview
 
 For an in-depth overview, see: [Axon: Deep Learning in Elixir](https://seanmoriarity.com/2021/04/08/axon-deep-learning-in-elixir/)
-
-API documentation is available at [https://elixir-nx.github.io/axon](https://elixir-nx.github.io/axon)
 
 ### Functional API
 
@@ -37,7 +37,7 @@ An example model looks something like:
 
 ```elixir
 model =
-  Axon.input({nil, 784})
+  Axon.input({nil, 784}, "input")
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 ```
@@ -45,23 +45,26 @@ model =
 The model is just an Elixir struct, so serializing it to multiple formats in the future is straightforward. An added benefit is easy customization of model inspection using the Inspect protocol. The above model is printed as:
 
 ```
------------------------------------------------
-                     Model
-===============================================
- Layer                 Shape        Parameters
-===============================================
- input_1 (input)       {nil, 784}   0
- dense_2 (dense)       {nil, 128}   100480
- dense_3 (dense)       {nil, 10}    1290
- softmax_4 (softmax)   {nil, 10}    0
------------------------------------------------
+----------------------------------------------------------------------------------------------------
+                                               Model
+====================================================================================================
+ Layer                              Shape        Policy              Parameters   Parameters Memory
+====================================================================================================
+ input ( input )                    {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
+ dense_0 ( dense["input"] )         {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
+ dense_1 ( dense["dense_0"] )       {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
+ softmax_0 ( softmax["dense_1"] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
+----------------------------------------------------------------------------------------------------
+Total Parameters: 101770
+Total Parameters Memory: 407080 bytes
+Inputs: %{"input" => {nil, 784}}
 ```
 
 Axon provides a few conveniences for working with models. First, we chose to take the philosophy that a model’s only concerns are initialization and application. That means the model shouldn’t be concerned at all with details like training. Axon provides the macros `Axon.init/2` and `Axon.predict/4` for initializing and applying models:
 
 ```elixir
 model =
-  Axon.input({nil, 784})
+  Axon.input({nil, 784}, "input")
   |> Axon.dense(128, activation: :relu)
   |> Axon.dropout(rate: 0.5)
   |> Axon.dense(10, activation: :softmax)
@@ -98,7 +101,7 @@ The general pattern for training a model is:
 
 ```elixir
 model =
-  Axon.input({nil, 784})
+  Axon.input({nil, 784}, "input")
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 
