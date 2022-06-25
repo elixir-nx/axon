@@ -1518,9 +1518,7 @@ defmodule Axon.Loop do
   # Axon.Optimizers.
   defp build_optimizer_fns(optimizer)
        when is_atom(optimizer) and optimizer in @valid_axon_optimizers do
-    # TODO(seanmor5): Fall back to optimizer defaults rather
-    # than this global default.
-    apply(Axon.Optimizers, optimizer, [1.0e-2])
+    apply(Axon.Optimizers, optimizer, [])
   end
 
   defp build_optimizer_fns({init_optimizer_fn, update_optimizer_fn})
