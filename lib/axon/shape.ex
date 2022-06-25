@@ -31,13 +31,35 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.input(5)
-      ** (ArgumentError) invalid input shape 5, input shape must be a tuple
+      ** (ArgumentError) invalid input shape 5, input shape must be a tuple of dimension sizes or a container of valid shapes
   """
-  def input(input_shape) when is_tuple(input_shape), do: input_shape
+  def input(input_shape) when is_tuple(input_shape) or is_map(input_shape) do
+    cond do
+      is_tuple(input_shape) and tuple_size(input_shape) == 0 ->
+        input_shape
+
+      is_tuple(input_shape) and is_dim(elem(input_shape, 0)) ->
+        input_shape
+
+      true ->
+        {shapes, :ok} =
+          Nx.Container.traverse(input_shape, :ok, fn shape, :ok ->
+            shape = input(shape)
+            {shape, :ok}
+          end)
+
+        shapes
+    end
+  end
 
   def input(shape) do
-    raise ArgumentError, "invalid input shape #{inspect(shape)}, input shape must be a tuple"
+    raise ArgumentError,
+          "invalid input shape #{inspect(shape)}, input shape must be" <>
+            " a tuple of dimension sizes or a container of valid shapes"
   end
+
+  defp is_dim(dim) when is_integer(dim) or is_nil(dim), do: true
+  defp is_dim(_), do: false
 
   @doc """
   Determines if two shapes are compatible. Shapes are compatible

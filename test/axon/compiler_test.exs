@@ -127,12 +127,29 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, %{}, %{"input_0" => inp1}), Nx.tensor([[1.0, 3.0]]))
     end
 
+    test "allows container inputs" do
+      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
+
+      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2]]), Nx.tensor([[1, 2, 3]])}}
+
+      assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
+    end
+
     test "raises on bad input shape" do
       model = Axon.input({nil, 32}, "input_0")
       input = Nx.random_uniform({1, 16})
       assert {_, predict_fn} = Axon.compile(model)
 
       exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
+
+      assert Exception.message(exception) =~
+               "invalid input shape given to model"
+
+      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
+      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2, 3]]), Nx.tensor([[1, 2, 3]])}}
+      assert {_, predict_fn} = Axon.compile(model)
+
+      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{"input_0" => input}) end
 
       assert Exception.message(exception) =~
                "invalid input shape given to model"
