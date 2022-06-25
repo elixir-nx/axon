@@ -189,6 +189,8 @@ defmodule Axon do
   # Axon serialization version
   @file_version 1
 
+  @empty_tensor Nx.tensor(-1)
+
   @type t :: %__MODULE__{}
 
   defstruct [
@@ -312,27 +314,41 @@ defmodule Axon do
     indices = Enum.map(indices, &MapSet.new/1)
 
     indices_that_are_1 =
-      expr.shape
-      |> Tuple.to_list()
-      |> Enum.with_index()
-      |> Enum.filter(fn {x, _} -> x == 1 end)
-      |> Enum.map(fn {_, i} -> i end)
-      |> MapSet.new()
+      deep_new(expr, fn input ->
+        indices =
+          input
+          |> Nx.shape()
+          |> Tuple.to_list()
+          |> Enum.with_index()
+          |> Enum.filter(fn {x, _} -> x == 1 end)
+          |> Enum.map(&elem(&1, 1))
 
-    indices_to_make_nil =
-      case indices do
-        [] ->
+        # This is a hack because containers don't like
+        # lists as leaf values, but they do like tensors
+        if indices == [] do
+          @empty_tensor
+        else
+          Nx.tensor(indices)
+        end
+      end)
+
+    deduped_nil_indices = Enum.reduce(indices, MapSet.new(), &MapSet.union/2)
+
+    deep_merge(expr, indices_that_are_1, fn input, indices_tensor ->
+      shape = Nx.shape(input)
+
+      indices =
+        if indices_tensor == @empty_tensor do
           []
+        else
+          Nx.to_flat_list(indices_tensor)
+        end
 
-        indices ->
-          indices
-          |> Enum.reduce(MapSet.new(), &MapSet.union/2)
-          |> MapSet.intersection(indices_that_are_1)
-          |> Enum.to_list()
-      end
+      indices_to_make_nil = MapSet.intersection(deduped_nil_indices, MapSet.new(indices))
 
-    Enum.reduce(indices_to_make_nil, expr.shape, fn i, shape ->
-      put_elem(shape, i, nil)
+      Enum.reduce(indices_to_make_nil, shape, fn i, shape ->
+        put_elem(shape, i, nil)
+      end)
     end)
   end
 
@@ -365,6 +381,39 @@ defmodule Axon do
       shape when is_tuple(shape) ->
         {template, template_indices} = template_shape(shape)
         {template, indices ++ template_indices}
+    end
+  end
+
+  # TODO: This should not be duplicated
+  def deep_merge(%Nx.Tensor{} = left, %Nx.Tensor{} = right, fun) do
+    fun.(left, right)
+  end
+
+  def deep_merge(left, right, fun) do
+    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
+      {merged, []} ->
+        merged
+
+      {_merged, _leftover} ->
+        raise ArgumentError,
+              "unable to merge arguments with incompatible" <>
+                " structure"
+    end
+  end
+
+  defp leaves(container) do
+    container
+    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
+    |> Enum.reverse()
+  end
+
+  defp recur_merge(left, [right | right_leaves], fun) do
+    case {left, right} do
+      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {left, right} ->
+        {deep_merge(left, right, fun), right_leaves}
     end
   end
 
@@ -511,6 +560,8 @@ defmodule Axon do
   end
 
   # TODO: This should not be duplicated
+  defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
+
   defp deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont

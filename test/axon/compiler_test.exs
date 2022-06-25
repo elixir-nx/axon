@@ -149,7 +149,7 @@ defmodule CompilerTest do
       input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2, 3]]), Nx.tensor([[1, 2, 3]])}}
       assert {_, predict_fn} = Axon.compile(model)
 
-      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
+      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{"input_0" => input}) end
 
       assert Exception.message(exception) =~
                "invalid input shape given to model"

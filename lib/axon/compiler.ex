@@ -272,16 +272,7 @@ defmodule Axon.Compiler do
             inputs
 
           %{} = inputs ->
-            cond do
-              Map.has_key?(inputs, name) ->
-                inputs[name]
-
-              is_container_shape(shape) ->
-                inputs
-
-              true ->
-                nil
-            end
+            inputs[name]
 
           inputs when is_tuple(inputs) ->
             inputs
@@ -616,16 +607,6 @@ defmodule Axon.Compiler do
           end)
 
         templates
-    end
-  end
-
-  defp is_container_shape(shape) when is_map(shape), do: true
-
-  defp is_container_shape(shape) when is_tuple(shape) do
-    if tuple_size(shape) == 0 do
-      true
-    else
-      not is_dim(elem(shape, 0))
     end
   end
 
