@@ -1441,7 +1441,7 @@ defmodule Axon do
   end
 
   def activation(%Axon{output_shape: shape} = x, activation, opts)
-      when is_function(activation, 1) do
+      when is_function(activation) do
     layer(activation, [x], [shape: shape] ++ opts)
   end
 
