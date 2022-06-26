@@ -1,8 +1,10 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
+
+  import Nx.Defn
   import AxonTestUtil
   alias Axon.MixedPrecision, as: AMP
-  import Nx.Defn
 
   setup config do
     Nx.Defn.default_options(compiler: test_compiler())
@@ -4524,6 +4526,45 @@ defmodule CompilerTest do
       assert_raise ArgumentError, ~r/parameter "kernel" for layer:/, fn ->
         Axon.predict(model, %{}, input)
       end
+    end
+  end
+
+  describe "instrumentation" do
+    @describetag :capture_log
+
+    test "predict logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+
+      assert capture_log(fn ->
+        Axon.init(model, %{}, debug: true)
+      end) =~ "Axon finished init"
+    end
+
+    test "init logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+      params = Axon.init(model)
+
+      assert capture_log(fn ->
+        Axon.predict(model, params, input, debug: true)
+      end) =~ "Axon finished predict"
+    end
+
+    test "compile logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+
+      {init_fn, predict_fn} = Axon.compile(model, debug: true)
+
+      assert capture_log(fn ->
+        init_fn.(%{})
+      end) =~ "Axon finished init"
+
+      params = init_fn.(%{})
+
+      assert capture_log(fn ->
+        predict_fn.(params, input)
+      end) =~ "Axon finished predict"
     end
   end
 end
