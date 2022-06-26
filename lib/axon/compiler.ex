@@ -455,7 +455,19 @@ defmodule Axon.Compiler do
       # freezing and dtype policy
       parameter_inputs =
         Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          safe_as_type(maybe_freeze(namespace_params[name][v], frz), compute)
+          with %{} = namespace_params <- namespace_params,
+               %{} = inner_layer_params <- namespace_params[name],
+               inner_param when not is_nil(inner_param) <- inner_layer_params[v] do
+            safe_as_type(maybe_freeze(inner_param, frz), compute)
+          else
+            nil ->
+              raise ArgumentError,
+                    "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
+                      " namespace: #{inspect(namespace)} was not present in" <>
+                      " the given parameter map, this can happen if you are" <>
+                      " using parameters intended for another model or did not" <>
+                      " initialize portions of your model with Axon.init/3"
+          end
         end)
 
       # Reorder the inputs according to the original input ordering
