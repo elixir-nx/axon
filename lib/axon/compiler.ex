@@ -9,15 +9,41 @@ defmodule Axon.Compiler do
 
   @doc false
   def compile_init(%Axon{} = graph, opts) do
-    {root_id, {cache, _op_counts}} = to_init_fun(graph, {%{}, %{}})
+    debug? = Keyword.get(opts, :debug, false)
+
+    {time, {root_id, {cache, _op_counts}}} =
+      :timer.tc(fn ->
+        to_init_fun(graph, {%{}, %{}})
+      end)
+
+    if debug? do
+      Logger.debug("Axon finished init graph traversal in #{us_to_ms(time)}ms")
+    end
 
     init_fn = fn init_params ->
-      params = cache[root_id].(cache, %{})
+      {time, params} =
+        :timer.tc(fn ->
+          cache[root_id].(cache, %{})
+        end)
+
+      if debug? do
+        Logger.debug("Axon finished predict expression generation in #{us_to_ms(time)}ms")
+      end
+
       # TODO: Maybe merge is not best here, do we want this
       # operation to fail if structure of params do not match
       # or should it just silently continue (even though the
       # behavior is not correct)?
-      Map.merge(params, init_params)
+      {time, result} =
+        :timer.tc(fn ->
+          Map.merge(params, init_params)
+        end)
+
+      if debug? do
+        Logger.debug("Axon finished init param merge in #{us_to_ms(time)}ms")
+      end
+
+      result
     end
 
     &Nx.Defn.jit_or_apply(init_fn, [&1], opts)
@@ -166,18 +192,38 @@ defmodule Axon.Compiler do
   @doc false
   def compile_predict(%Axon{} = graph, opts) do
     {mode, opts} = Keyword.pop(opts, :mode, :inference)
-    {root_id, {cache, _op_counts, _namespace}} = to_predict_fun(graph, {%{}, %{}, []}, mode)
+    # We do not pop because EXLA also has a debug mode, and we
+    # assume you want instrumentation for everything at once
+    debug? = Keyword.get(opts, :debug, false)
+
+    {time, {root_id, {cache, _op_counts, _namespace}}} =
+      :timer.tc(fn ->
+        to_predict_fun(graph, {%{}, %{}, []}, mode)
+      end)
+
+    if debug? do
+      Logger.debug("Axon finished predict graph traversal in #{us_to_ms(time)}ms")
+    end
 
     predict_fn = fn params, inputs ->
-      case mode do
-        :train ->
-          {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
-          %{prediction: pred_expr, state: state_expr}
+      {time, result} =
+        :timer.tc(fn ->
+          case mode do
+            :train ->
+              {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
+              %{prediction: pred_expr, state: state_expr}
 
-        :inference ->
-          {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
-          pred_expr
+            :inference ->
+              {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
+              pred_expr
+          end
+        end)
+
+      if debug? do
+        Logger.debug("Axon finished predict expression generation in #{us_to_ms(time)}ms")
       end
+
+      result
     end
 
     &Nx.Defn.jit_or_apply(predict_fn, [&1, &2], opts)
@@ -624,4 +670,6 @@ defmodule Axon.Compiler do
 
   defp is_dim(dim) when is_integer(dim) or is_nil(dim), do: true
   defp is_dim(_), do: false
+
+  defp us_to_ms(time), do: Float.round(time / 1000, 1)
 end
