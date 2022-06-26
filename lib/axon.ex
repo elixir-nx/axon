@@ -3233,6 +3233,19 @@ defmodule Axon do
   Compiles the given model to `{init_fn, predict_fn}`.
 
   Once compiled, a model can be passed as argument to `Nx.Defn`.
+
+  ## Options
+
+    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+    All other options are forwarded to the default JIT compiler
+    or backend.
   """
   @doc type: :compilation
   def compile(model, opts \\ []) when is_list(opts) do
@@ -3250,6 +3263,15 @@ defmodule Axon do
 
   The parameter map will be merged with the initialized model
   parameters.
+
+  ## Options
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+    All other options are forwarded to the default JIT compiler
+    or backend.
   """
   @doc type: :execution
   def init(model, params \\ %{}, opts \\ []) when is_list(opts) do
@@ -3259,6 +3281,19 @@ defmodule Axon do
   @doc """
   Compiles and runs the given Axon model with `params` on
   `input` with the given compiler options.
+
+  ## Options
+
+    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+    All other options are forwarded to the default JIT compiler
+    or backend.
   """
   @doc type: :execution
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
