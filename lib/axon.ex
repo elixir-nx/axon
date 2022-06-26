@@ -3244,8 +3244,8 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
-    All other options are forwarded to the default JIT compiler
-    or backend.
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :compilation
   def compile(model, opts \\ []) when is_list(opts) do
@@ -3270,8 +3270,8 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
-    All other options are forwarded to the default JIT compiler
-    or backend.
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :execution
   def init(model, params \\ %{}, opts \\ []) when is_list(opts) do
@@ -3292,8 +3292,8 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
-    All other options are forwarded to the default JIT compiler
-    or backend.
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :execution
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
