@@ -4515,4 +4515,15 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(second_elem, %{}, inputs), input2)
     end
   end
+
+  describe "edge cases" do
+    test "raises clean error on missing parameter" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+
+      assert_raise ArgumentError, ~r/parameter "kernel" for layer:/, fn ->
+        Axon.predict(model, %{}, input)
+      end
+    end
+  end
 end
