@@ -67,8 +67,8 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp call_init_cache(parent_id, cache, result_cache) do
-    key = {:cache, parent_id}
+  defp call_init_cache(parent_id, name, cache, result_cache) do
+    key = name
 
     case result_cache do
       %{^key => _} ->
@@ -119,13 +119,13 @@ defmodule Axon.Compiler do
         case op do
           :container ->
             deep_reduce(parent_ids, result_cache, fn parent_id, result_cache ->
-              call_init_cache(parent_id, cache, result_cache)
+              call_init_cache(parent_id, name, cache, result_cache)
             end)
 
           :namespace ->
             namespace_params =
               Enum.reduce(parent_ids, %{}, fn parent_id, result_cache ->
-                call_init_cache(parent_id, cache, result_cache)
+                call_init_cache(parent_id, name, cache, result_cache)
               end)
 
             if namespace_params == %{} do
@@ -136,7 +136,7 @@ defmodule Axon.Compiler do
 
           _ ->
             Enum.reduce(parent_ids, result_cache, fn parent_id, result_cache ->
-              call_init_cache(parent_id, cache, result_cache)
+              call_init_cache(parent_id, name, cache, result_cache)
             end)
         end
 
