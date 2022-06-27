@@ -21,26 +21,19 @@ defmodule Axon.Compiler do
     end
 
     init_fn = fn init_params ->
-      {time, params} =
-        :timer.tc(fn ->
-          cache[root_id].(cache, %{})
-        end)
-
-      if debug? do
-        Logger.debug("Axon finished predict expression generation in #{us_to_ms(time)}ms")
-      end
-
-      # TODO: Maybe merge is not best here, do we want this
-      # operation to fail if structure of params do not match
-      # or should it just silently continue (even though the
-      # behavior is not correct)?
       {time, result} =
         :timer.tc(fn ->
+          params = cache[root_id].(cache, %{})
+
+          # TODO: Maybe merge is not best here, do we want this
+          # operation to fail if structure of params do not match
+          # or should it just silently continue (even though the
+          # behavior is not correct)?
           Map.merge(params, init_params)
         end)
 
       if debug? do
-        Logger.debug("Axon finished init param merge in #{us_to_ms(time)}ms")
+        Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
       end
 
       result
