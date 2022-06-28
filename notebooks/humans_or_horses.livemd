@@ -1,0 +1,161 @@
+# Humans or horses
+
+## General overview
+
+In this notebook, we want to predict whether an image presents a human or a horse. To do this efficiently, we will build a convolutional neural net and compare the learning process with and without gradient centralization.
+
+## Imports
+
+```elixir
+Mix.install([
+  {:stb_image, "~> 0.1.0"},
+  {:axon, "~> 0.1.0"},
+  {:exla, "~> 0.2.2"},
+  {:nx, "~> 0.2.1"}
+])
+
+EXLA.set_as_nx_default(
+  [:tpu, :cuda, :rocm, :host],
+  run_options: [keep_on_device: true]
+)
+```
+
+## Data processing
+
+First, we need to preprocess the data for our CNN. At the beginning of the process, we chunk images into batches. We use the ```parse_png``` function to load images and label them accurately. Finally, we "augment" the input, which means that we normalize data and flip the images along one of the axes. The last procedure helps neural network to make predictions regardless of the orientation of the image.
+
+```elixir
+@directories "examples/vision/{horses,humans}/*"
+def data() do
+  Path.wildcard(@directories)
+  |> Stream.chunk_every(32, 32, :discard)
+  |> Task.async_stream(fn batch ->
+    {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
+    {Nx.stack(inp), Nx.stack(labels)}
+  end)
+  |> Stream.map(fn {:ok, {inp, labels}} -> {augment(inp), labels} end)
+  |> Stream.cycle()
+end
+
+defnp augment(inp) do
+  # Normalize
+  inp = inp / 255.0
+
+  # For now just a random flip
+  if Nx.random_uniform({}) > 0.5 do
+    Nx.reverse(inp, axes: [0])
+  else
+    Nx.reverse(inp, axes: [1])
+  end
+end
+
+defp parse_png(filename) do
+  class =
+    if String.contains?(filename, "horses"),
+      do: Nx.tensor([1, 0], type: {:u, 8}),
+      else: Nx.tensor([0, 1], type: {:u, 8})
+
+  {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
+
+  tensor =
+    binary
+    |> Nx.from_binary({:u, 8})
+    |> Nx.reshape(shape)
+
+  {tensor, class}
+end
+```
+
+## Building Model
+
+The next step is creating a model architecture. In the notebook, we choose classic Convolutional Neural Net architecture. Let's dive in to the core components of a CNN.
+
+<!-- livebook:{"break_markdown":true} -->
+
+```Axon.conv``` creates a convolutional layer. The convolutional layer is a core of CNNs. For a given *kernel_size*, it applies a filter function through the image to separate features which differ images from each other.
+
+<!-- livebook:{"break_markdown":true} -->
+
+| ![](https://miroslawmamczur.pl/wp-content/uploads/2021/03/06.gif)         |
+| :-----------------------------------------------------------------------: |
+| Figure 1: An example of convolutional layer works for *kernel_size*={3,3} |
+
+<!-- livebook:{"break_markdown":true} -->
+
+```Axon.max_pool``` is a mathematical operation which gives the maximum value from a subtensor of a size equal to *kernel_size*.
+
+<!-- livebook:{"break_markdown":true} -->
+
+| ![](https://production-media.paperswithcode.com/methods/MaxpoolSample2.png) |
+| :-------------------------------------------------------------------------: |
+| Figure 2: Max pooling operation for *kernel_size*={2,2}                     |
+
+<!-- livebook:{"break_markdown":true} -->
+
+Axon.dropout and Axon.spatial_dropout create dropout layers which prevent the neural network from overfitting. Standard dropout drops a given rate of randomly chosen neurons during the training process. On the other hand, spatial dropout gets rid of whole feature maps. The graphical difference between dropout and spatial dropout is presented in a picture below.
+
+<!-- livebook:{"break_markdown":true} -->
+
+| ![](https://miro.medium.com/max/1400/1*KkqxjvXTIV_b365B41ltfg.png)    |
+| :-------------------------------------------------------------------: |
+| Figure 3: The difference between standard dropout and spatial dropout |
+
+<!-- livebook:{"break_markdown":true} -->
+
+And eventually, we get the model build. At the end of the CNN, we use one dense layer with 512 neurons and an output layer with two neurons and a softmax function.
+
+```elixir
+defp build_model(input_shape, transpose_shape) do
+  Axon.input(input_shape, "input")
+  |> Axon.transpose(transpose_shape)
+  |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
+  |> Axon.max_pool(kernel_size: {2, 2})
+  |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
+  |> Axon.spatial_dropout(rate: 0.5)
+  |> Axon.max_pool(kernel_size: {2, 2})
+  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+  |> Axon.spatial_dropout(rate: 0.5)
+  |> Axon.max_pool(kernel_size: {2, 2})
+  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+  |> Axon.max_pool(kernel_size: {2, 2})
+  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+  |> Axon.max_pool(kernel_size: {2, 2})
+  |> Axon.flatten()
+  |> Axon.dropout(rate: 0.5)
+  |> Axon.dense(512, activation: :relu)
+  |> Axon.dense(2, activation: :softmax)
+end
+```
+
+## Training
+
+Creating a training loop starts with setting a loss function to binary cross-entropy and optimizer of your choice. We also set the log option to 1 to keep track of loss and metrics during training. Next, we choose accuracy as a metric. Finally, we pass the number of epochs and set the number of iterations per epoch to 100.
+
+```elixir
+defp train_model(model, data, optimizer, epochs) do
+  model
+  |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
+  |> Axon.Loop.metric(:accuracy)
+  |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100)
+end
+```
+
+## Model evaluation
+
+Now we can build and train our model. We start with passing input shape and indices to data transposition. Next, we set the optimizer to adam with a learning rate of 1.0e-4. In the next step, we define an optimizer but with gradient centralization. It is a technique with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents us from exploding gradients.
+
+```elixir
+def run() do
+  model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
+  optimizer = Axon.Optimizers.adam(1.0e-4)
+  centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
+
+  data = data()
+
+  IO.write("\n\nTraining model without gradient centralization\n\n")
+  train_model(model, data, optimizer, 10)
+
+  IO.write("\n\nTraining model with gradient centralization\n\n")
+  train_model(model, data, centralized_optimizer, 10)
+end
+```
