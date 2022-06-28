@@ -3148,6 +3148,7 @@ defmodule Axon do
   models, or to manipulate nodes other graph manipulation
   APIs.
   """
+  @doc type: :graph
   def get_parent(%Axon{parent: [parent]}), do: parent
 
   def get_parent(%Axon{op: :container, parent: parent}), do: parent
@@ -3161,6 +3162,7 @@ defmodule Axon do
   parents of the given node. Note that replacing a node's
   parent replaces it's entire lineage.
   """
+  @doc type: :graph
   def set_parent(%Axon{parent: [parent]} = axon, %Axon{output_shape: shape} = new_parent) do
     %Axon{output_shape: parent_shape} = parent
     # TODO: compatible? does not handle container shapes
@@ -3181,6 +3183,7 @@ defmodule Axon do
   parent layers---only the parameters which belong to
   the immediate layer.
   """
+  @doc type: :graph
   def get_parameters(%Axon{parameters: params}), do: params
 
   @doc """
@@ -3194,6 +3197,7 @@ defmodule Axon do
   The new parameters must be compatible with the layer's
   old parameters.
   """
+  @doc type: :graph
   def set_parameters(%Axon{parameters: _old_params} = axon, new_params) do
     # TODO: Check compatibility
     %{axon | parameters: new_params}
@@ -3206,6 +3210,7 @@ defmodule Axon do
   parent layers---only the optionf which belong to
   the immediate layer.
   """
+  @doc type: :graph
   def get_options(%Axon{opts: opts}), do: opts
 
   @doc """
@@ -3220,6 +3225,7 @@ defmodule Axon do
   op. Adding unsupported options to an Axon layer will
   result in an error at graph execution time.
   """
+  @doc type: :graph
   def set_options(%Axon{opts: _old_opts} = axon, new_opts) do
     %{axon | opts: new_opts}
   end
@@ -3248,6 +3254,7 @@ defmodule Axon do
       iex> out
       %{out1: {nil, 32}, out2: {nil, 64}}
   """
+  @doc type: :graph
   def get_model_signature(%Axon{output_shape: output_shape} = axon) do
     inputs =
       reduce_nodes(axon, %{}, fn
@@ -3275,6 +3282,7 @@ defmodule Axon do
       iex> Axon.get_op_counts(model)
       %{input: 1, tanh: 2}
   """
+  @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
     reduce_nodes(axon, %{}, fn %Axon{op: op}, op_counts ->
       Map.update(op_counts, op, 1, fn x -> x + 1 end)
@@ -3325,6 +3333,7 @@ defmodule Axon do
           graph
       end)
   """
+  @doc type: :graph
   def map_nodes(%Axon{} = axon, fun) when is_function(fun, 1) do
     {new_axon, _cache} = do_map_nodes(axon, %{}, fun)
     new_axon
@@ -3358,7 +3367,7 @@ defmodule Axon do
         # graph traversals this is important
         result = %{new_node | id: id, parent: List.wrap(parents)}
 
-        {result, Map.put(result, id, cache)}
+        {result, Map.put(cache, id, result)}
     end
   end
 
@@ -3400,6 +3409,7 @@ defmodule Axon do
           Axon.set_parent(axon, acc)
       end)
   """
+  @doc type: :graph
   def reduce_nodes(%Axon{} = axon, acc, fun) when is_function(fun, 2) do
     {acc, _visited} = do_reduce_nodes(axon, {acc, MapSet.new()}, fun)
     acc
