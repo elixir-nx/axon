@@ -365,6 +365,44 @@ defmodule Axon.Metrics do
     |> Nx.mean()
   end
 
+  @doc ~S"""
+  Computes the top-k categorical accuracy.
+
+  ## Options
+
+    * `k` - The k in "top-k". Defaults to 5.
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+
+  ## Examples
+
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([0, 1, 0, 0, 0]), Nx.tensor([0.1, 0.4, 0.7, 0.7, 0.1]), k: 2)
+      #Nx.Tensor<
+        f32
+        0.0
+      >
+
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([[0, 1, 0], [1, 0, 0]]), Nx.tensor([[0.1, 0.4, 0.7], [0.1, 0.4, 0.7]]), k: 2)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
+  """
+  defn top_k_categorical_accuracy(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, k: 5)
+
+    y_pred
+    |> Nx.argsort(direction: :desc, axis: -1)
+    |> Nx.take_along_axis(Nx.argmax(y_true, axis: -1, keep_axis: true), axis: -1)
+    |> Nx.flatten()
+    |> Nx.less(opts[:k])
+    |> Nx.mean()
+  end
+
   # Combinators
 
   @doc """
