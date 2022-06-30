@@ -826,8 +826,11 @@ defmodule Axon do
     input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels)
+    kernel_shape =
+      Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, feature_group_size)
+
+    bias_shape =
+      Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, feature_group_size)
 
     output_shape =
       Axon.Shape.conv(
@@ -935,8 +938,8 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels)
+    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, 1)
+    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, 1)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -2824,13 +2827,13 @@ defmodule Axon do
     conv_hidden_state_shape = Tuple.delete_at(h_shape, 1)
 
     hidden_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first)
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first, 1)
 
-    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size, :first)
-    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size, :first)
+    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size, :first, 1)
+    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size, :first, 1)
 
     output_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size, :first)
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size, :first, 1)
 
     output_shape =
       conv_hidden_state_shape
