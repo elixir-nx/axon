@@ -431,7 +431,8 @@ defmodule Axon do
     * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
 
   """
-  def param(name, shape, opts \\ []) when is_binary(name) and is_tuple(shape) do
+  def param(name, shape, opts \\ [])
+      when (is_binary(name) and is_tuple(shape)) or is_function(shape) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
     initializer = opts[:initializer]
     validate_initializer!(initializer)
@@ -654,8 +655,8 @@ defmodule Axon do
         use_bias: true
       ])
 
-    kernel_shape = Axon.Shape.dense_kernel(parent_shape, units)
-    bias_shape = Axon.Shape.dense_bias(parent_shape, units)
+    kernel_shape = &Axon.Shape.dense_kernel(&1, units)
+    bias_shape = &Axon.Shape.dense_bias(&1, units)
     output_shape = Axon.Shape.dense(parent_shape, units)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
@@ -727,8 +728,8 @@ defmodule Axon do
         use_bias: true
       ])
 
-    kernel_shape = Axon.Shape.bilinear_kernel(parent1_shape, parent2_shape, units)
-    bias_shape = Axon.Shape.bilinear_bias(parent1_shape, parent2_shape, units)
+    kernel_shape = &Axon.Shape.bilinear_kernel(&1, &2, units)
+    bias_shape = &Axon.Shape.bilinear_bias(&1, &2, units)
     output_shape = Axon.Shape.bilinear(parent1_shape, parent2_shape, units)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
@@ -826,11 +827,9 @@ defmodule Axon do
     input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape =
-      Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, feature_group_size)
+    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
 
-    bias_shape =
-      Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, feature_group_size)
+    bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, feature_group_size)
 
     output_shape =
       Axon.Shape.conv(
@@ -938,8 +937,8 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, 1)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, 1)
+    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
+    bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, 1)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -1175,8 +1174,8 @@ defmodule Axon do
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
-      Axon.Shape.separable_conv2d_kernel(
-        parent_shape,
+      &Axon.Shape.separable_conv2d_kernel(
+        &1,
         channel_multiplier,
         kernel_size,
         1,
@@ -1184,19 +1183,17 @@ defmodule Axon do
       )
 
     k2_shape =
-      Axon.Shape.separable_conv2d_kernel(
-        parent_shape,
+      &Axon.Shape.separable_conv2d_kernel(
+        &1,
         channel_multiplier,
         kernel_size,
         2,
         channels
       )
 
-    b1_shape =
-      Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size, channels)
+    b1_shape = &Axon.Shape.separable_conv2d_bias(&1, channel_multiplier, kernel_size, channels)
 
-    b2_shape =
-      Axon.Shape.separable_conv2d_bias(parent_shape, channel_multiplier, kernel_size, channels)
+    b2_shape = &Axon.Shape.separable_conv2d_bias(&1, channel_multiplier, kernel_size, channels)
 
     output_shape =
       Axon.Shape.depthwise_conv(
@@ -1317,8 +1314,8 @@ defmodule Axon do
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
-      Axon.Shape.separable_conv3d_kernel(
-        parent_shape,
+      &Axon.Shape.separable_conv3d_kernel(
+        &1,
         channel_multiplier,
         kernel_size,
         1,
@@ -1326,8 +1323,8 @@ defmodule Axon do
       )
 
     k2_shape =
-      Axon.Shape.separable_conv3d_kernel(
-        parent_shape,
+      &Axon.Shape.separable_conv3d_kernel(
+        &1,
         channel_multiplier,
         kernel_size,
         2,
@@ -1335,22 +1332,19 @@ defmodule Axon do
       )
 
     k3_shape =
-      Axon.Shape.separable_conv3d_kernel(
-        parent_shape,
+      &Axon.Shape.separable_conv3d_kernel(
+        &1,
         channel_multiplier,
         kernel_size,
         3,
         channels
       )
 
-    b1_shape =
-      Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size, channels)
+    b1_shape = &Axon.Shape.separable_conv3d_bias(&1, channel_multiplier, kernel_size, channels)
 
-    b2_shape =
-      Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size, channels)
+    b2_shape = &Axon.Shape.separable_conv3d_bias(&1, channel_multiplier, kernel_size, channels)
 
-    b3_shape =
-      Axon.Shape.separable_conv3d_bias(parent_shape, channel_multiplier, kernel_size, channels)
+    b3_shape = &Axon.Shape.separable_conv3d_bias(&1, channel_multiplier, kernel_size, channels)
 
     output_shape =
       Axon.Shape.depthwise_conv(
@@ -1798,10 +1792,10 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
-    beta_shape = Axon.Shape.norm_param(shape, channel_index)
-    mean_shape = Axon.Shape.norm_param(shape, channel_index)
-    var_shape = Axon.Shape.norm_param(shape, channel_index)
+    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
+    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
+    mean_shape = &Axon.Shape.norm_param(&1, channel_index)
+    var_shape = &Axon.Shape.norm_param(&1, channel_index)
 
     gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
     beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
@@ -1865,8 +1859,8 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
-    beta_shape = Axon.Shape.norm_param(shape, channel_index)
+    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
+    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
 
     gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
     beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
@@ -1915,8 +1909,8 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = Axon.Shape.norm_param(shape, channel_index)
-    beta_shape = Axon.Shape.norm_param(shape, channel_index)
+    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
+    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
 
     gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
     beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
@@ -2429,9 +2423,9 @@ defmodule Axon do
     unroll = opts[:unroll]
 
     output_shape = Axon.Shape.rnn(shape, units, :lstm)
-    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :lstm)
-    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :lstm)
-    bias_shape = Axon.Shape.rnn_bias(shape, units, :lstm)
+    input_kernel_shape = &Axon.Shape.rnn_input_kernel(&1, units, :lstm)
+    hidden_kernel_shape = &Axon.Shape.rnn_hidden_kernel(&1, units, :lstm)
+    bias_shape = &Axon.Shape.rnn_bias(&1, units, :lstm)
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2630,9 +2624,9 @@ defmodule Axon do
     unroll = opts[:unroll]
 
     output_shape = Axon.Shape.rnn(shape, units, :gru)
-    input_kernel_shape = Axon.Shape.rnn_input_kernel(shape, units, :gru)
-    hidden_kernel_shape = Axon.Shape.rnn_hidden_kernel(shape, units, :gru)
-    bias_shape = Axon.Shape.rnn_bias(shape, units, :gru)
+    input_kernel_shape = &Axon.Shape.rnn_input_kernel(&1, units, :gru)
+    hidden_kernel_shape = &Axon.Shape.rnn_hidden_kernel(&1, units, :gru)
+    bias_shape = &Axon.Shape.rnn_bias(&1, units, :gru)
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2826,14 +2820,12 @@ defmodule Axon do
     conv_shape = Tuple.delete_at(shape, 1)
     conv_hidden_state_shape = Tuple.delete_at(h_shape, 1)
 
-    hidden_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first, 1)
+    hidden_kernel_shape = &Axon.Shape.conv_kernel(&1, 4 * units, kernel_size, :first, 1)
 
-    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size, :first, 1)
-    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size, :first, 1)
+    input_kernel_shape = &Axon.Shape.conv_kernel(&1, 4 * units, kernel_size, :first, 1)
+    bias_shape = &Axon.Shape.conv_bias(&1, 4 * units, kernel_size, :first, 1)
 
-    output_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size, :first, 1)
+    output_kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, :first, 1)
 
     output_shape =
       conv_hidden_state_shape
@@ -2998,7 +2990,7 @@ defmodule Axon do
   def embedding(%Axon{output_shape: shape} = x, vocab_size, embedding_size, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, kernel_initializer: :uniform])
 
-    kernel_shape = Axon.Shape.embedding_kernel(shape, vocab_size, embedding_size)
+    kernel_shape = &Axon.Shape.embedding_kernel(&1, vocab_size, embedding_size)
     output_shape = Axon.Shape.embedding(shape, vocab_size, embedding_size)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
@@ -3024,7 +3016,7 @@ defmodule Axon do
     opts = Keyword.validate!(opts, [:name, bias_initializer: :zeros])
 
     units = elem(shape, tuple_size(shape) - 1)
-    bias_shape = Axon.Shape.dense_bias(shape, units)
+    bias_shape = &Axon.Shape.dense_bias(&1, units)
     bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
     layer(:bias, [x, bias], name: opts[:name], shape: shape, op_name: :bias)
@@ -3477,9 +3469,9 @@ defmodule Axon do
   end
 
   @doc """
-  Compiles the given model to `{init_fn, predict_fn}`.
+  Builds the given model to `{init_fn, predict_fn}`.
 
-  Once compiled, a model can be passed as argument to `Nx.Defn`.
+  Once built, a model can be passed as argument to `Nx.Defn`.
 
   ## Options
 
@@ -3495,8 +3487,36 @@ defmodule Axon do
   or backend.
   """
   @doc type: :compilation
-  def compile(model, opts \\ []) when is_list(opts) do
-    {Axon.Compiler.compile_init(model, opts), Axon.Compiler.compile_predict(model, opts)}
+  def build(model, opts \\ []) when is_list(opts) do
+    {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
+    opts = [on_conflict: :reuse] ++ opts
+    # TODO: Wrap in jit_apply
+    {&Nx.Defn.jit(init_fn, [&1, &2], opts), &Nx.Defn.jit(predict_fn, [&1, &2], opts)}
+  end
+
+  @doc """
+  Compiles the given model to `{init_fn, predict_fn}`.
+
+  This function will compile a model specialized to the given
+  input shapes and types. This is useful for avoiding the overhead
+  of long compilations at program runtime. You must provide template
+  inputs which match the expected shapes and types of inputs at
+  execution time.
+
+  This function makes use of the built-in `Nx.Defn.compile/3`. Note
+  that passing inputs which differ in shape or type from the templates
+  provided to this function will result in potentially expensive
+  recompilation.
+  """
+  @doc type: :compilation
+  def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
+    {init_fn, predict_fn} = build(model, opts)
+    init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params])
+
+    predict_compiled_fn =
+      Nx.Defn.compile(predict_fn, [init_compiled_fn.(template, init_params), template])
+
+    {init_compiled_fn, predict_compiled_fn}
   end
 
   @doc """
@@ -3635,8 +3655,9 @@ defmodule Axon do
   or backend.
   """
   @doc type: :execution
-  def init(model, params \\ %{}, opts \\ []) when is_list(opts) do
-    Axon.Compiler.compile_init(model, opts).(params)
+  def init(model, template, params \\ %{}, opts \\ []) when is_list(opts) do
+    {init_fn, _predict_fn} = build(model, opts)
+    init_fn.(template, params)
   end
 
   @doc """
@@ -3658,7 +3679,8 @@ defmodule Axon do
   """
   @doc type: :execution
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
-    Axon.Compiler.compile_predict(model, opts).(params, input)
+    {_init_fn, predict_fn} = build(model, opts)
+    predict_fn.(params, input)
   end
 
   ## Inspection
