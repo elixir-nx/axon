@@ -1,6 +1,6 @@
 Mix.install([
   {:stb_image, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:axon, "~> 0.1.0"},
   {:exla, "~> 0.2.2"},
   {:nx, "~> 0.2.1"}
 ])

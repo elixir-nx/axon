@@ -9,15 +9,34 @@ defmodule Axon.Compiler do
 
   @doc false
   def compile_init(%Axon{} = graph, opts) do
-    {root_id, {cache, _op_counts}} = to_init_fun(graph, {%{}, %{}})
+    debug? = Keyword.get(opts, :debug, false)
+
+    {time, {root_id, {cache, _op_counts}}} =
+      :timer.tc(fn ->
+        to_init_fun(graph, {%{}, %{}})
+      end)
+
+    if debug? do
+      Logger.debug("Axon finished init graph traversal in #{us_to_ms(time)}ms")
+    end
 
     init_fn = fn init_params ->
-      params = cache[root_id].(cache, %{})
-      # TODO: Maybe merge is not best here, do we want this
-      # operation to fail if structure of params do not match
-      # or should it just silently continue (even though the
-      # behavior is not correct)?
-      Map.merge(params, init_params)
+      {time, result} =
+        :timer.tc(fn ->
+          params = cache[root_id].(cache, %{})
+
+          # TODO: Maybe merge is not best here, do we want this
+          # operation to fail if structure of params do not match
+          # or should it just silently continue (even though the
+          # behavior is not correct)?
+          Map.merge(params, init_params)
+        end)
+
+      if debug? do
+        Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
+      end
+
+      result
     end
 
     &Nx.Defn.jit_or_apply(init_fn, [&1], opts)
@@ -41,8 +60,8 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp call_init_cache(parent_id, cache, result_cache) do
-    key = {:cache, parent_id}
+  defp call_init_cache(parent_id, name, cache, result_cache) do
+    key = name
 
     case result_cache do
       %{^key => _} ->
@@ -93,13 +112,13 @@ defmodule Axon.Compiler do
         case op do
           :container ->
             deep_reduce(parent_ids, result_cache, fn parent_id, result_cache ->
-              call_init_cache(parent_id, cache, result_cache)
+              call_init_cache(parent_id, name, cache, result_cache)
             end)
 
           :namespace ->
             namespace_params =
               Enum.reduce(parent_ids, %{}, fn parent_id, result_cache ->
-                call_init_cache(parent_id, cache, result_cache)
+                call_init_cache(parent_id, name, cache, result_cache)
               end)
 
             if namespace_params == %{} do
@@ -110,7 +129,7 @@ defmodule Axon.Compiler do
 
           _ ->
             Enum.reduce(parent_ids, result_cache, fn parent_id, result_cache ->
-              call_init_cache(parent_id, cache, result_cache)
+              call_init_cache(parent_id, name, cache, result_cache)
             end)
         end
 
@@ -166,18 +185,38 @@ defmodule Axon.Compiler do
   @doc false
   def compile_predict(%Axon{} = graph, opts) do
     {mode, opts} = Keyword.pop(opts, :mode, :inference)
-    {root_id, {cache, _op_counts, _namespace}} = to_predict_fun(graph, {%{}, %{}, []}, mode)
+    # We do not pop because EXLA also has a debug mode, and we
+    # assume you want instrumentation for everything at once
+    debug? = Keyword.get(opts, :debug, false)
+
+    {time, {root_id, {cache, _op_counts, _namespace}}} =
+      :timer.tc(fn ->
+        to_predict_fun(graph, {%{}, %{}, []}, mode)
+      end)
+
+    if debug? do
+      Logger.debug("Axon finished predict graph traversal in #{us_to_ms(time)}ms")
+    end
 
     predict_fn = fn params, inputs ->
-      case mode do
-        :train ->
-          {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
-          %{prediction: pred_expr, state: state_expr}
+      {time, result} =
+        :timer.tc(fn ->
+          case mode do
+            :train ->
+              {pred_expr, {state_expr, _}} = cache[root_id].(params, inputs, %{}, cache, %{})
+              %{prediction: pred_expr, state: state_expr}
 
-        :inference ->
-          {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
-          pred_expr
+            :inference ->
+              {pred_expr, _} = cache[root_id].(params, inputs, %{}, cache, %{})
+              pred_expr
+          end
+        end)
+
+      if debug? do
+        Logger.debug("Axon finished predict expression generation in #{us_to_ms(time)}ms")
       end
+
+      result
     end
 
     &Nx.Defn.jit_or_apply(predict_fn, [&1, &2], opts)
@@ -223,7 +262,7 @@ defmodule Axon.Compiler do
          {cache, op_counts, namespace},
          _
        ) do
-    tensor = Nx.backend_transfer(tensor, Nx.BinaryBackend)
+    tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
 
     fun = fn _params, _inputs, state, _cache, result_cache ->
       out = safe_as_type(tensor, output)
@@ -274,6 +313,9 @@ defmodule Axon.Compiler do
           %{} = inputs ->
             inputs[name]
 
+          inputs when is_tuple(inputs) ->
+            inputs
+
           _ ->
             raise ArgumentError,
                   "invalid input given to model, expected input" <>
@@ -303,12 +345,7 @@ defmodule Axon.Compiler do
             value
         end
 
-      unless value == nil or Axon.Shape.compatible?(Nx.shape(value), shape) do
-        raise ArgumentError,
-              "invalid input shape given to model, expected input" <>
-                " with shape #{inspect(shape)}, but got input with" <>
-                " shape #{inspect(Nx.shape(value))}"
-      end
+      validate_input_shape!(value, shape)
 
       res =
         value
@@ -457,7 +494,18 @@ defmodule Axon.Compiler do
       # freezing and dtype policy
       parameter_inputs =
         Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          safe_as_type(maybe_freeze(namespace_params[name][v], frz), compute)
+          param = namespace_params[name][v]
+
+          if param != nil do
+            safe_as_type(maybe_freeze(param, frz), compute)
+          else
+            raise ArgumentError,
+                  "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
+                    " namespace: #{inspect(namespace)} was not present in" <>
+                    " the given parameter map, this can happen if you are" <>
+                    " using parameters intended for another model or did not" <>
+                    " initialize portions of your model with Axon.init/3"
+          end
         end)
 
       # Reorder the inputs according to the original input ordering
@@ -558,4 +606,62 @@ defmodule Axon.Compiler do
         deep_new(container, &Nx.as_type(&1, type))
     end
   end
+
+  defp validate_input_shape!(nil, _), do: :ok
+
+  defp validate_input_shape!(value, shape) do
+    unless value == nil or compatible?(value, shape) do
+      raise ArgumentError,
+            "invalid input shape given to model, expected input" <>
+              " with shape #{inspect(shape)}, but got input with" <>
+              " shape #{inspect(deep_new(value, &Nx.shape/1))}"
+    end
+  end
+
+  defp compatible?(%Nx.Tensor{} = value, shape),
+    do: Axon.Shape.compatible?(Nx.shape(value), shape)
+
+  defp compatible?(value, shape) do
+    template_shapes = recur_shape_to_template(shape)
+
+    merged_check =
+      deep_merge(value, template_shapes, fn lhs, rhs ->
+        if Axon.Shape.compatible?(Nx.shape(lhs), Nx.shape(rhs)) do
+          Nx.tensor(1, type: {:u, 8})
+        else
+          Nx.tensor(0, type: {:u, 8})
+        end
+      end)
+
+    merged_bool =
+      deep_reduce(merged_check, [], fn x, acc ->
+        [x == Nx.tensor(1, type: {:u, 8}) | acc]
+      end)
+
+    Enum.all?(merged_bool)
+  end
+
+  defp recur_shape_to_template(shape) do
+    cond do
+      is_tuple(shape) and tuple_size(shape) == 0 ->
+        Nx.template(shape, {:f, 32})
+
+      is_tuple(shape) and is_dim(elem(shape, 0)) ->
+        Nx.template(shape, {:f, 32})
+
+      true ->
+        {templates, :ok} =
+          Nx.Container.traverse(shape, :ok, fn shape, :ok ->
+            template = recur_shape_to_template(shape)
+            {template, :ok}
+          end)
+
+        templates
+    end
+  end
+
+  defp is_dim(dim) when is_integer(dim) or is_nil(dim), do: true
+  defp is_dim(_), do: false
+
+  defp us_to_ms(time), do: Float.round(time / 1000, 1)
 end

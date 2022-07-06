@@ -191,6 +191,10 @@ defmodule Axon.Shared do
     fun.(item)
   end
 
+  def deep_new(%Nx.Tensor{} = item, fun) do
+    fun.(item)
+  end
+
   def deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont

@@ -90,7 +90,7 @@ defmodule Axon.MixedPrecision do
       end)
   """
   def apply_policy(%Axon{} = axon, %Policy{} = policy, filter) when is_function(filter) do
-    Axon.tree_map(axon, fn layer ->
+    Axon.map_nodes(axon, fn layer ->
       if filter.(layer) do
         %{layer | policy: policy}
       else
