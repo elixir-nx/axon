@@ -2,7 +2,8 @@
 
 ## General overview
 
-In this notebook, we want to predict wheater an image present a human or a horse. To do this efficiently, we will build a convolutional neural net and compare the learning process with and without gradient centralization.
+
+In this notebook, we want to predict whether an image presents a human or a horse. To do this efficiently, we will build a convolutional neural net and compare the learning process with and without gradient centralization.
 
 ## Imports
 
@@ -22,7 +23,8 @@ EXLA.set_as_nx_default(
 
 ## Data processing
 
-Firstly, we need to preprocess the data to our CNN. At the beginning of the process, chunk images into batches. We use the ```parse_png``` function to load images and label them accurately. In the end, we "augment" the input, which means that we normalize data and flip the images along one of the axes. The last procedure helps NN to make predictions regardless of the orientation of the image.
+
+First, we need to preprocess the data for our CNN. At the beginning of the process, we chunk images into batches. We use the ```parse_png``` function to load images and label them accurately. Finally, we "augment" the input, which means that we normalize data and flip the images along one of the axes. The last procedure helps neural network to make predictions regardless of the orientation of the image.
 
 ```elixir
 @directories "examples/vision/{horses,humans}/*"
@@ -63,7 +65,8 @@ end
 
 ## Building Model
 
-The next step is creating a model architecture. In the notebook, we choose classic Convolutional Neural Net architecture. There are a few Axon functions that I will try to explain briefly.
+
+The next step is creating a model architecture. In the notebook, we choose classic Convolutional Neural Net architecture. Let's dive in to the core components of a CNN.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -77,7 +80,7 @@ The next step is creating a model architecture. In the notebook, we choose class
 
 <!-- livebook:{"break_markdown":true} -->
 
-```Axon.max_pool``` is a mathematical operation which gives maximum value from a subtensor of a size equal to *kernel_size*.
+```Axon.max_pool``` is a mathematical operation which gives the maximum value from a subtensor of a size equal to *kernel_size*.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -87,7 +90,8 @@ The next step is creating a model architecture. In the notebook, we choose class
 
 <!-- livebook:{"break_markdown":true} -->
 
-Axon.dropout and Axon.spatial_dropout creates dropout layers which prevent NN from overfitting. Standard dropout drops a given rate of randomly chosen neurons during the training process. On the other hand, spatial dropout gets rid of whole feature maps. The graphical difference between dropout and spatial dropout is presented in a picture below.
+Axon.dropout and Axon.spatial_dropout create dropout layers which prevent the neural network from overfitting. Standard dropout drops a given rate of randomly chosen neurons during the training process. On the other hand, spatial dropout gets rid of whole feature maps. The graphical difference between dropout and spatial dropout is presented in a picture below.
+
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -137,7 +141,8 @@ end
 
 ## Model evaluation
 
-Now we can build and train our model. We start with passing input shape and indices to data transposition. Next, we set the optimizer to adam with a learning rate of 1.0e-4. In the next step, we define an optimizer but with gradient centralization. It is technic with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents us from exploding gradients.
+Now we can build and train our model. We start with passing input shape and indices to data transposition. Next, we set the optimizer to adam with a learning rate of 1.0e-4. In the next step, we define an optimizer but with gradient centralization. It is a technique with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents us from exploding gradients.
+
 
 ```elixir
 def run() do

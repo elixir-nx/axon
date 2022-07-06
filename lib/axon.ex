@@ -151,7 +151,7 @@ defmodule Axon do
 
   It is suggested that you set compiler options globally rather than pass
   them as options to execution macros:
-      
+
       EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
       params = Axon.init(model)
@@ -188,6 +188,8 @@ defmodule Axon do
 
   # Axon serialization version
   @file_version 1
+
+  @empty_tensor Nx.tensor(-1, backend: Nx.BinaryBackend)
 
   @type t :: %__MODULE__{}
 
@@ -312,27 +314,41 @@ defmodule Axon do
     indices = Enum.map(indices, &MapSet.new/1)
 
     indices_that_are_1 =
-      expr.shape
-      |> Tuple.to_list()
-      |> Enum.with_index()
-      |> Enum.filter(fn {x, _} -> x == 1 end)
-      |> Enum.map(fn {_, i} -> i end)
-      |> MapSet.new()
+      deep_new(expr, fn input ->
+        indices =
+          input
+          |> Nx.shape()
+          |> Tuple.to_list()
+          |> Enum.with_index()
+          |> Enum.filter(fn {x, _} -> x == 1 end)
+          |> Enum.map(&elem(&1, 1))
 
-    indices_to_make_nil =
-      case indices do
-        [] ->
+        # This is a hack because containers don't like
+        # lists as leaf values, but they do like tensors
+        if indices == [] do
+          @empty_tensor
+        else
+          Nx.tensor(indices)
+        end
+      end)
+
+    deduped_nil_indices = Enum.reduce(indices, MapSet.new(), &MapSet.union/2)
+
+    deep_merge(expr, indices_that_are_1, fn input, indices_tensor ->
+      shape = Nx.shape(input)
+
+      indices =
+        if indices_tensor == @empty_tensor do
           []
+        else
+          Nx.to_flat_list(indices_tensor)
+        end
 
-        indices ->
-          indices
-          |> Enum.reduce(MapSet.new(), &MapSet.union/2)
-          |> MapSet.intersection(indices_that_are_1)
-          |> Enum.to_list()
-      end
+      indices_to_make_nil = MapSet.intersection(deduped_nil_indices, MapSet.new(indices))
 
-    Enum.reduce(indices_to_make_nil, expr.shape, fn i, shape ->
-      put_elem(shape, i, nil)
+      Enum.reduce(indices_to_make_nil, shape, fn i, shape ->
+        put_elem(shape, i, nil)
+      end)
     end)
   end
 
@@ -365,6 +381,39 @@ defmodule Axon do
       shape when is_tuple(shape) ->
         {template, template_indices} = template_shape(shape)
         {template, indices ++ template_indices}
+    end
+  end
+
+  # TODO: This should not be duplicated
+  def deep_merge(%Nx.Tensor{} = left, %Nx.Tensor{} = right, fun) do
+    fun.(left, right)
+  end
+
+  def deep_merge(left, right, fun) do
+    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
+      {merged, []} ->
+        merged
+
+      {_merged, _leftover} ->
+        raise ArgumentError,
+              "unable to merge arguments with incompatible" <>
+                " structure"
+    end
+  end
+
+  defp leaves(container) do
+    container
+    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
+    |> Enum.reverse()
+  end
+
+  defp recur_merge(left, [right | right_leaves], fun) do
+    case {left, right} do
+      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {left, right} ->
+        {deep_merge(left, right, fun), right_leaves}
     end
   end
 
@@ -415,7 +464,7 @@ defmodule Axon do
   `input_shape` given to model.
   """
   @doc type: :special
-  def input(input_shape, name, opts \\ []) when is_tuple(input_shape) and is_binary(name) do
+  def input(input_shape, name, opts \\ []) when is_binary(name) do
     opts = Keyword.validate!(opts, default: :no_default_value)
     default = validate_default_input!(opts[:default])
 
@@ -511,6 +560,8 @@ defmodule Axon do
   end
 
   # TODO: This should not be duplicated
+  defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
+
   defp deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont
@@ -775,8 +826,11 @@ defmodule Axon do
     input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels)
+    kernel_shape =
+      Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, feature_group_size)
+
+    bias_shape =
+      Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, feature_group_size)
 
     output_shape =
       Axon.Shape.conv(
@@ -884,8 +938,8 @@ defmodule Axon do
     strides = list_or_duplicate(:strides, strides, inner_rank)
     kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
-    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels)
-    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels)
+    kernel_shape = Axon.Shape.conv_kernel(parent_shape, units, kernel_size, channels, 1)
+    bias_shape = Axon.Shape.conv_bias(parent_shape, units, kernel_size, channels, 1)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -1390,7 +1444,7 @@ defmodule Axon do
   end
 
   def activation(%Axon{output_shape: shape} = x, activation, opts)
-      when is_function(activation, 1) do
+      when is_function(activation) do
     layer(activation, [x], [shape: shape] ++ opts)
   end
 
@@ -2773,13 +2827,13 @@ defmodule Axon do
     conv_hidden_state_shape = Tuple.delete_at(h_shape, 1)
 
     hidden_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first)
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, 4 * units, kernel_size, :first, 1)
 
-    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size, :first)
-    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size, :first)
+    input_kernel_shape = Axon.Shape.conv_kernel(conv_shape, 4 * units, kernel_size, :first, 1)
+    bias_shape = Axon.Shape.conv_bias(conv_shape, 4 * units, kernel_size, :first, 1)
 
     output_kernel_shape =
-      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size, :first)
+      Axon.Shape.conv_kernel(conv_hidden_state_shape, units, kernel_size, :first, 1)
 
     output_shape =
       conv_hidden_state_shape
@@ -3012,25 +3066,25 @@ defmodule Axon do
   """
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
     parameters =
-      tree_reduce(model, MapSet.new(), fn %Axon{parameters: params}, acc ->
-        Enum.reduce(params, acc, fn param, acc ->
+      reduce_nodes(model, MapSet.new(), fn %Axon{} = axon, acc ->
+        Enum.reduce(get_parameters(axon), acc, fn param, acc ->
           MapSet.put(acc, param)
         end)
       end)
 
     parameters_to_freeze = fun.(Enum.to_list(parameters))
 
-    tree_map(model, fn %Axon{parameters: params} = axon ->
+    map_nodes(model, fn %Axon{} = axon ->
       frozen_params =
-        Enum.map(params, fn %{name: param_name} = v ->
-          if Enum.any?(parameters_to_freeze, fn %{name: name} -> name == param_name end) do
+        Enum.map(get_parameters(axon), fn %{id: param_id} = v ->
+          if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
             %{v | frozen: true}
           else
             v
           end
         end)
 
-      %{axon | parameters: frozen_params}
+      set_parameters(axon, frozen_params)
     end)
   end
 
@@ -3088,34 +3142,305 @@ defmodule Axon do
     %{axon | hooks: [{on_event, mode, fun} | hooks]}
   end
 
-  ## Traversal
+  ## Graph Manipulation and Utilities
 
   @doc """
-  Traverses a model tree applying `fun` to each layer.
-  """
-  def tree_map(%Axon{op: :container, parent: [container]} = axon, fun) do
-    x = deep_new(container, fun)
-    %{fun.(axon) | parent: [x]}
-  end
+  Returns a node's immediate parent(s).
 
-  def tree_map(%Axon{parent: x} = axon, fun) when is_list(x) do
-    x = Enum.map(x, &tree_map(&1, fun))
-    %{fun.(axon) | parent: x}
+  You can use this to slice off the heads of pre-trained
+  models, or to manipulate nodes other graph manipulation
+  APIs.
+  """
+  @doc type: :graph
+  def get_parent(%Axon{parent: [parent]}), do: parent
+
+  def get_parent(%Axon{op: :container, parent: parent}), do: parent
+
+  def get_parent(%Axon{parent: parents}), do: parents
+
+  @doc """
+  Sets a node's parent to the given Axon graph(s).
+
+  The new parents must be compatible with the original
+  parents of the given node. Note that replacing a node's
+  parent replaces it's entire lineage.
+  """
+  @doc type: :graph
+  def set_parent(%Axon{parent: [parent]} = axon, %Axon{output_shape: shape} = new_parent) do
+    %Axon{output_shape: parent_shape} = parent
+    # TODO: compatible? does not handle container shapes
+    unless Axon.Shape.compatible?(parent_shape, shape) do
+      raise ArgumentError,
+            "new parent graph must be compatible with old parent" <>
+              " graph, but got incompatible shapes #{inspect(parent_shape)}" <>
+              " and #{inspect(shape)}"
+    end
+
+    %{axon | parent: new_parent}
   end
 
   @doc """
-  Traverses a model applying `fun` with an accumulator.
+  Returns a node's immediate parameters.
+
+  Note this does not take into account parameters of
+  parent layers---only the parameters which belong to
+  the immediate layer.
   """
-  def tree_reduce(%Axon{op: :container, parent: [container]} = axon, acc, fun) do
-    deep_reduce(container, fun.(axon, acc), fun)
+  @doc type: :graph
+  def get_parameters(%Axon{parameters: params}), do: params
+
+  @doc """
+  Sets a node's immediate parameters to the given
+  parameters.
+
+  Note this does not take into account parameters of
+  parent layers---only the parameters which belong to
+  the immediate layer.
+
+  The new parameters must be compatible with the layer's
+  old parameters.
+  """
+  @doc type: :graph
+  def set_parameters(%Axon{parameters: _old_params} = axon, new_params) do
+    # TODO: Check compatibility
+    %{axon | parameters: new_params}
   end
 
-  def tree_reduce(%Axon{parent: x} = axon, acc, fun) when is_list(x) do
-    Enum.reduce(x, fun.(axon, acc), &tree_reduce(&1, &2, fun))
+  @doc """
+  Returns a node's immediate input options.
+
+  Note this does not take into account options of
+  parent layers---only the optionf which belong to
+  the immediate layer.
+  """
+  @doc type: :graph
+  def get_options(%Axon{opts: opts}), do: opts
+
+  @doc """
+  Sets a node's immediate options to the given input
+  options.
+
+  Note this does not take into account options of
+  parent layers---only the optionf which belong to
+  the immediate layer.
+
+  New options must be compatible with the given layer
+  op. Adding unsupported options to an Axon layer will
+  result in an error at graph execution time.
+  """
+  @doc type: :graph
+  def set_options(%Axon{opts: _old_opts} = axon, new_opts) do
+    %{axon | opts: new_opts}
   end
 
-  # TODO: Should not be duplicated
-  def deep_reduce(map, acc, fun) do
+  @doc """
+  Returns the model's signature as a tuple of `{inputs, outputs}`.
+
+  `inputs` will be a map of input names to input shapes, while outputs
+  will be an output shape or a container of output shapes.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 32}, "input") |> Axon.dense(10)
+      iex> {inp, out} = Axon.get_model_signature(model)
+      iex> inp
+      %{"input" => {nil, 32}}
+      iex> out
+      {nil, 10}
+
+      iex> inp1 = Axon.input({nil, 32}, "input_0")
+      iex> inp2 = Axon.input({nil, 64}, "input_1")
+      iex> model = Axon.container(%{out1: inp1, out2: inp2})
+      iex> {inp, out} = Axon.get_model_signature(model)
+      iex> inp
+      %{"input_0" => {nil, 32}, "input_1" => {nil, 64}}
+      iex> out
+      %{out1: {nil, 32}, out2: {nil, 64}}
+  """
+  @doc type: :graph
+  def get_model_signature(%Axon{output_shape: output_shape} = axon) do
+    inputs =
+      reduce_nodes(axon, %{}, fn
+        %Axon{op: :input, output_shape: shape, name: name}, inputs ->
+          Map.put(inputs, name.(:input, %{}), shape)
+
+        _, inputs ->
+          inputs
+      end)
+
+    {inputs, output_shape}
+  end
+
+  @doc """
+  Returns a map of model op counts for each unique operation
+  in a model by their given `:op_name`.
+
+  ## Examples
+
+      iex> model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      iex> Axon.get_op_counts(model)
+      %{input: 1, dense: 1}
+
+      iex> model = Axon.input({nil, 1}, "input") |> Axon.tanh() |> Axon.tanh()
+      iex> Axon.get_op_counts(model)
+      %{input: 1, tanh: 2}
+  """
+  @doc type: :graph
+  def get_op_counts(%Axon{} = axon) do
+    reduce_nodes(axon, %{}, fn %Axon{op: op}, op_counts ->
+      Map.update(op_counts, op, 1, fn x -> x + 1 end)
+    end)
+  end
+
+  @doc """
+  Traverses graph nodes in order, applying `fun` to each
+  node exactly once to return a transformed node in its
+  place(s) in the graph.
+
+  This function maintains an internal cache which ensures
+  each node is only visited and transformed exactly once.
+
+  `fun` must accept an Axon node and return an Axon node.
+
+  Please note that modifying node lineage (e.g. altering
+  a node's parent) will result in disconnected graphs.
+
+  ## Examples
+
+  One common use of this function is to implement common
+  instrumentation between layers without needing to build
+  a new explicitly instrumented version of a model. For example,
+  you can use this function to visualize intermediate activations
+  of all convolutional layers in a model:
+
+      instrumented_model = Axon.map_nodes(model, fn
+        %Axon{op: :conv} = graph ->
+          Axon.attach_hook(graph, &visualize_activations/1)
+
+        graph ->
+          graph
+      end)
+
+  Another use case is to replace entire classes of layers
+  with another. For example, you may want to replace all
+  relu layers with tanh layers:
+
+      new_model = Axon.map_nodes(model, fn
+        %Axon{op: :relu} = graph ->
+          # Get nodes immediate parent
+          parent = Axon.get_parent(graph)
+          # Replace node with a tanh
+          Axon.tanh(parent)
+
+        graph ->
+          graph
+      end)
+  """
+  @doc type: :graph
+  def map_nodes(%Axon{} = axon, fun) when is_function(fun, 1) do
+    {new_axon, _cache} = do_map_nodes(axon, %{}, fun)
+    new_axon
+  end
+
+  defp do_map_nodes(%Axon{id: id, op: op, parent: parents} = axon, cache, fun) do
+    case cache do
+      %{^id => result} ->
+        {result, cache}
+
+      %{} ->
+        {parents, cache} =
+          case {op, parents} do
+            {:container, [parents]} ->
+              deep_map_reduce(parents, cache, &do_map_nodes(&1, &2, fun))
+
+            {_, parents} ->
+              Enum.map_reduce(parents, cache, &do_map_nodes(&1, &2, fun))
+          end
+
+        new_node = fun.(axon)
+
+        unless is_struct(new_node, __MODULE__) do
+          raise ArgumentError,
+                "function passed to map_nodes must return an" <>
+                  " Axon struct, got #{inspect(new_node)}"
+        end
+
+        # New nodes need to retain the same ID as well as
+        # parents, because we depend on IDs to do certain
+        # graph traversals this is important
+        result = %{new_node | id: id, parent: List.wrap(parents)}
+
+        {result, Map.put(cache, id, result)}
+    end
+  end
+
+  @doc """
+  Traverses graph nodes in order, applying `fun` to each
+  node exactly once to return a transformed node in its
+  place(s) in the graph.
+
+  This function maintains an internal cache which ensures
+  each node is only visited and transformed exactly once.
+
+  `fun` must accept an Axon node and accumulator and return
+  an updated accumulator.
+
+  ## Examples
+
+  Internally this function is used in several places to accumulate
+  graph metadata. For example, you can use it to count the number
+  of a certain type of operation in the graph:
+
+      Axon.reduce_nodes(model, 0, fn
+        %Axon{op: :relu}, acc -> acc + 1
+        _, acc -> acc
+      end)
+
+  You can potentially use this method as a means of altering Axon
+  graphs themselves, though note that it is possible to end up with
+  a disconnected graph in the event something goes wrong. Here's an
+  example which removes all dropout layers from a graph:
+
+      Axon.reduce_nodes(model, nil, fn
+        %Axon{} = axon, nil ->
+          axon
+
+        %Axon{op: :dropout}, %Axon{} = acc ->
+          acc
+        
+        %Axon{} = axon, %Axon{} = acc ->
+          Axon.set_parent(axon, acc)
+      end)
+  """
+  @doc type: :graph
+  def reduce_nodes(%Axon{} = axon, acc, fun) when is_function(fun, 2) do
+    {acc, _visited} = do_reduce_nodes(axon, {acc, MapSet.new()}, fun)
+    acc
+  end
+
+  defp do_reduce_nodes(%Axon{id: id, op: op, parent: parents} = axon, {acc, visited}, fun) do
+    if MapSet.member?(visited, id) do
+      {acc, visited}
+    else
+      {acc, visited} =
+        case {op, parents} do
+          {:container, [parents]} ->
+            deep_reduce(parents, {acc, visited}, &do_reduce_nodes(&1, &2, fun))
+
+          {_, parents} ->
+            Enum.reduce(parents, {acc, visited}, &do_reduce_nodes(&1, &2, fun))
+        end
+
+      {fun.(axon, acc), MapSet.put(visited, id)}
+    end
+  end
+
+  # TODO: This should not be duplicated
+  defp deep_reduce(item, acc, fun) when is_integer(item) do
+    fun.(item, acc)
+  end
+
+  defp deep_reduce(map, acc, fun) do
     Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
   end
 
@@ -3127,54 +3452,27 @@ defmodule Axon do
       %Nx.Tensor{} = val ->
         fun.(val, acc)
 
-      {:leaf, val} ->
-        fun.(val, acc)
-
       val ->
         deep_reduce(val, acc, fun)
     end
   end
 
-  ## Utilities
+  defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
 
-  @doc """
-  Returns the model's signature as a tuple of `{input_shape, output_shape}`.
+  defp deep_map_reduce(container, acc, fun) do
+    Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
+  end
 
-  ## Examples
+  defp recur_deep_map_reduce(leaf, acc, fun) do
+    case leaf do
+      %Axon{} = leaf ->
+        fun.(leaf, acc)
 
-      iex> model = Axon.input({nil, 32}, "input") |> Axon.dense(10)
-      iex> {inp, out} = Axon.get_model_signature(model)
-      iex> inp
-      {nil, 32}
-      iex> out
-      {nil, 10}
+      %Nx.Tensor{} = leaf ->
+        fun.(leaf, acc)
 
-      iex> inp1 = Axon.input({nil, 32}, "input_0")
-      iex> inp2 = Axon.input({nil, 32}, "input_1")
-      iex> model = Axon.concatenate(inp1, inp2)
-      iex> {{inp1_shape, inp2_shape}, out} = Axon.get_model_signature(model)
-      iex> inp1_shape
-      {nil, 32}
-      iex> inp2_shape
-      {nil, 32}
-      iex> out
-      {nil, 64}
-  """
-  def get_model_signature(%Axon{output_shape: output_shape} = axon) do
-    # TODO: Refactor for tuples and use `tree_*` when they support
-    # tuple inputs
-    input_shapes =
-      tree_reduce(axon, [], fn
-        %Axon{op: :input, output_shape: shape}, acc -> [shape | acc]
-        _, acc -> acc
-      end)
-
-    case input_shapes do
-      [input_shape] ->
-        {input_shape, output_shape}
-
-      shapes ->
-        {List.to_tuple(Enum.reverse(shapes)), output_shape}
+      container ->
+        deep_map_reduce(container, acc, fun)
     end
   end
 
@@ -3182,10 +3480,137 @@ defmodule Axon do
   Compiles the given model to `{init_fn, predict_fn}`.
 
   Once compiled, a model can be passed as argument to `Nx.Defn`.
+
+  ## Options
+
+    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :compilation
   def compile(model, opts \\ []) when is_list(opts) do
     {Axon.Compiler.compile_init(model, opts), Axon.Compiler.compile_predict(model, opts)}
+  end
+
+  @doc """
+  Compiles and returns the given model's init function
+  expression with the given options.
+
+  The returned expression is an Nx expression which can be
+  traversed and lowered to an IR or inspected for debugging
+  purposes.
+
+  You may optionally specify initial parameters for some layers or
+  namespaces by passing a partial parameter map:
+
+      Axon.trace_init(model, %{"dense_0" => dense_params})
+
+  The parameter map will be merged with the initialized model
+  parameters.
+
+  ## Options
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+  """
+  @doc type: :debugging
+  def trace_init(model, params \\ %{}, opts \\ []) do
+    init_fn = Axon.Compiler.compile_init(model, opts)
+
+    Nx.Defn.jit(init_fn, [params], compiler: Axon.Defn)
+  end
+
+  @doc """
+  Compiles and returns the given model's forward function
+  expression with the given options.
+
+  The returned expression is an Nx expression which can be
+  traversed and lowered to an IR or inspected for debugging
+  purposes.
+
+  ## Options
+
+    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+  """
+  @doc type: :debugging
+  def trace_forward(model, params, opts \\ []) when is_list(opts) do
+    {input_shapes, _} = get_model_signature(model)
+
+    input_templates =
+      Map.new(input_shapes, fn {k, v} ->
+        # TODO: Respect input types
+        {non_nil_shape, _indices} = Axon.Shape.replace_nil(v)
+        {k, Nx.template(non_nil_shape, {:f, 32})}
+      end)
+
+    forward_fun = Axon.Compiler.compile_predict(model, opts)
+    Nx.Defn.jit(forward_fun, [params, input_templates], compiler: Axon.Defn)
+  end
+
+  @doc """
+  Compiles and returns the given model's backward function
+  expression with respect to the given loss function.
+
+  The returned expression is an Nx expression which can be
+  traversed and lowered to an IR or inspected for debugging
+  purposes.
+
+  The given loss function must be a scalar loss function which
+  expects inputs and targets with the same shapes as the model's
+  output shapes as determined by the model's signature.
+
+  ## Options
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+  """
+  @doc type: :debugging
+  def trace_backward(model, params, loss) do
+    {input_shapes, output_shapes} = get_model_signature(model)
+
+    input_templates =
+      Map.new(input_shapes, fn {k, v} ->
+        # TODO: Respect input types
+        {non_nil_shape, _indices} = Axon.Shape.replace_nil(v)
+        {k, Nx.template(non_nil_shape, {:f, 32})}
+      end)
+
+    output_templates =
+      output_shapes
+      |> List.wrap()
+      |> Enum.reduce([], fn shape, input_shapes ->
+        {template, _template_indices} = template_shape(shape)
+        [template | input_shapes]
+      end)
+      |> Enum.reverse()
+
+    forward_fn = Axon.Compiler.compile_predict(model, mode: :train)
+
+    backward_fn = fn params, inputs, targets ->
+      Nx.Defn.grad(params, fn params ->
+        %{prediction: preds} = forward_fn.(params, inputs)
+        loss.(targets, preds)
+      end)
+    end
+
+    inputs = [params, input_templates | output_templates]
+
+    Nx.Defn.jit(backward_fn, inputs, compiler: Axon.Defn)
   end
 
   @doc """
@@ -3199,6 +3624,15 @@ defmodule Axon do
 
   The parameter map will be merged with the initialized model
   parameters.
+
+  ## Options
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :execution
   def init(model, params \\ %{}, opts \\ []) when is_list(opts) do
@@ -3208,6 +3642,19 @@ defmodule Axon do
   @doc """
   Compiles and runs the given Axon model with `params` on
   `input` with the given compiler options.
+
+  ## Options
+
+    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+    * `:debug` - if `true`, will log graph traversal and generation
+      metrics. Also forwarded to JIT if debug mode is available
+      for your chosen compiler or backend. Defaults to `false`
+
+  All other options are forwarded to the default JIT compiler
+  or backend.
   """
   @doc type: :execution
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
