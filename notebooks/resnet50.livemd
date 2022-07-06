@@ -1,0 +1,155 @@
+# ResNet50
+
+## Introduction
+
+ResNet, which stands for Residual Network, is a CNN which won in 2015 ILSVRC, a renowned and prestige competition for Computer Vision scientists. The winning version of ResNet has 152 layers, but all concepts stay the same with 50 layers.
+
+The key concept introduced in ResNet is a skip connection.
+
+<!-- <img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/ResNets.svg"> -->
+
+| ![](https://upload.wikimedia.org/wikipedia/commons/5/5f/ResNets.svg) |
+| :------------------------------------------------------------------: |
+| Figure 1: An example of skip connection                              |
+
+As we can see in the picture above, an input to layer l is not only output from layer l-1 but also output from l-2. In other words, a signal from l-2 skips the l-1 in one of the connections.
+msluszniak marked this conversation as resolved.
+
+The ResNet architecture has a few benefits over NN without skip connections.
+
+The first one is acceleration in learning. In the beginning, all the weights of NN are almost zero. After adding skip connections at the beginning of the learning process, layers pass only the copy of the input. Layers simulate the identity function. However, if the target function is similar to the identity function (which is often the case), then learning process is dramatically sped up.
+
+Moreover, if we add numorous skip connections, our NN's performance will progress even though a few layers don't start the learning process. Skip connections enable better flow of the signals through the net.
+
+We can say that ResNet consists of Residual Units (RU). Even if one RU stops the learning process, this will not affect other RUs.
+
+## Imports
+
+The only package we need in this example is Axon.
+
+```elixir
+Mix.install([
+  {:axon, "~> 0.1.0"}
+])
+```
+
+## Identity Block
+
+The identity block is the standard block used in ResNets and corresponds to the case where the input activation has the same dimension as the output activation.
+
+<!-- <img src="https://i.stack.imgur.com/37qzA.png"> -->
+
+| ![](https://i.stack.imgur.com/37qzA.png) |
+| :--------------------------------------: |
+| Figure 2: Identity Block                 |
+
+Below we present the implementation of the identity block in Elixir using Axon.
+
+```elixir
+defp identity_block(%Axon{output_shape: shape} = x, kernel_size, [f1, f2]) do
+  x
+  |> Axon.conv(f1, kernel_size: {1, 1})
+  |> Axon.batch_norm()
+  |> Axon.relu()
+  |> Axon.conv(f2, kernel_size: kernel_size, padding: :same)
+  |> Axon.batch_norm()
+  |> Axon.relu()
+  |> Axon.conv(elem(shape, 1), kernel_size: {1, 1})
+  |> Axon.batch_norm()
+  |> Axon.add(x)
+  |> Axon.relu()
+end
+```
+
+## Section
+
+As we can see the identity block consists of a series of convolutions ```Axon.conv```, batch normalizations ```Axon.batch_norm``` and activation functions, in our case ReLU ```Axon.relu```. At the end we use ```Axon.add``` on original input to create a skip connection.
+
+## Convolutional Block
+
+We can use this type of block when the input and output dimensions don’t match up. The difference with the identity block is that there is a convolutional layer in the shortcut path.
+
+<!-- <img src="https://i.stack.imgur.com/0mE2p.png"> -->
+
+| ![](https://i.stack.imgur.com/0mE2p.png) |
+| :--------------------------------------: |
+| Figure 3: Convolutional Block            |
+
+And again, the implementation in Elixir.
+
+```elixir
+defp conv_block(x, kernel_size, [f1, f2, f3], strides \\ [2, 2]) do
+  shortcut =
+    x
+    |> Axon.conv(f3, kernel_size: {1, 1}, strides: strides)
+    |> Axon.batch_norm()
+
+  main =
+    x
+    |> Axon.conv(f1, kernel_size: {1, 1}, strides: strides)
+    |> Axon.batch_norm()
+    |> Axon.relu()
+    |> Axon.conv(f2, kernel_size: kernel_size, padding: :same)
+    |> Axon.batch_norm()
+    |> Axon.relu()
+    |> Axon.conv(f3, kernel_size: {1, 1})
+    |> Axon.batch_norm()
+
+  shortcut
+  |> Axon.add(main)
+  |> Axon.relu()
+end
+```
+
+## Model
+
+The ResNet-50 model consists of 5 stages each with convolution and identity blocks. The first stage reduces the width and height of the input image and hence the computation overhead. Then, stages 2-4 consist of convolutional and identity layers. In the end, we use one more time convolutional and identity blocks, then use average pooling Axon.avg_pool and fully connected layer Axon.dense with 1000 neurons. Eventually, use softmax function Axon.softmax for the output of fully connected layer.
+| ![](https://jananisbabu.github.io/ResNet50_From_Scratch_Tensorflow/images/resnet50.png) | 
+|:--:| 
+| Figure 4: ResNet50 Model|
+
+```elixir
+def build_model(input_shape) do
+  x = Axon.input(input_shape)
+
+  stage1 =
+    x
+    |> Axon.conv(64, kernel_size: {7, 7}, strides: [2, 2], padding: [{3, 3}, {3, 3}])
+    |> Axon.batch_norm()
+    |> Axon.relu()
+    |> Axon.max_pool(kernel_size: {3, 3}, strides: [2, 2], padding: [{1, 1}, {1, 1}])
+
+  stage2 =
+    stage1
+    |> conv_block({3, 3}, [64, 64, 256], [1, 1])
+    |> identity_block({3, 3}, [64, 64])
+    |> identity_block({3, 3}, [64, 64])
+
+  stage3 =
+    stage2
+    |> conv_block({3, 3}, [128, 128, 512])
+    |> identity_block({3, 3}, [128, 128])
+    |> identity_block({3, 3}, [128, 128])
+    |> identity_block({3, 3}, [128, 128])
+
+  stage4 =
+    stage3
+    |> conv_block({3, 3}, [256, 256, 1024])
+    |> identity_block({3, 3}, [256, 256])
+    |> identity_block({3, 3}, [256, 256])
+    |> identity_block({3, 3}, [256, 256])
+    |> identity_block({3, 3}, [256, 256])
+    |> identity_block({3, 3}, [256, 256])
+
+  stage5 =
+    stage4
+    |> conv_block({3, 3}, [512, 512, 2048])
+    |> identity_block({3, 3}, [512, 512])
+    |> identity_block({3, 3}, [512, 512])
+    |> Axon.avg_pool(kernel_size: {7, 7})
+    |> Axon.flatten()
+    |> Axon.dense(1000)
+
+  Axon.softmax(stage5)
+end
+```
