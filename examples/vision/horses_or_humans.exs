@@ -1,6 +1,6 @@
 Mix.install([
-  {:stb_image, "~> 0.1.0"},
-  {:axon, "~> 0.1.0-dev", github: "elixir-nx/axon"},
+  {:stb_image, "~> 0.5.2"},
+  {:axon, "~> 0.1.0"},
   {:exla, "~> 0.2.2"},
   {:nx, "~> 0.2.1"}
 ])
@@ -50,12 +50,7 @@ defmodule HorsesOrHumans do
 
     {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
 
-    tensor =
-      binary
-      |> Nx.from_binary({:u, 8})
-      |> Nx.reshape(shape)
-
-    {tensor, class}
+    {StbImage.to_nx(img), class}
   end
 
   defp build_model(input_shape, transpose_shape) do
