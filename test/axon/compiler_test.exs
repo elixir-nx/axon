@@ -1,8 +1,10 @@
 defmodule CompilerTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
+
+  import Nx.Defn
   import AxonTestUtil
   alias Axon.MixedPrecision, as: AMP
-  import Nx.Defn
 
   setup config do
     Nx.Defn.default_options(compiler: test_compiler())
@@ -127,12 +129,29 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, %{}, %{"input_0" => inp1}), Nx.tensor([[1.0, 3.0]]))
     end
 
+    test "allows container inputs" do
+      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
+
+      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2]]), Nx.tensor([[1, 2, 3]])}}
+
+      assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
+    end
+
     test "raises on bad input shape" do
       model = Axon.input({nil, 32}, "input_0")
       input = Nx.random_uniform({1, 16})
       assert {_, predict_fn} = Axon.compile(model)
 
       exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
+
+      assert Exception.message(exception) =~
+               "invalid input shape given to model"
+
+      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
+      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2, 3]]), Nx.tensor([[1, 2, 3]])}}
+      assert {_, predict_fn} = Axon.compile(model)
+
+      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{"input_0" => input}) end
 
       assert Exception.message(exception) =~
                "invalid input shape given to model"
@@ -4496,6 +4515,56 @@ defmodule CompilerTest do
 
       assert_equal(Axon.predict(first_elem, %{}, inputs), input1)
       assert_equal(Axon.predict(second_elem, %{}, inputs), input2)
+    end
+  end
+
+  describe "edge cases" do
+    test "raises clean error on missing parameter" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+
+      assert_raise ArgumentError, ~r/parameter "kernel" for layer:/, fn ->
+        Axon.predict(model, %{}, input)
+      end
+    end
+  end
+
+  describe "instrumentation" do
+    @describetag :capture_log
+
+    test "predict logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+
+      assert capture_log(fn ->
+               Axon.init(model, %{}, debug: true)
+             end) =~ "Axon finished init"
+    end
+
+    test "init logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+      params = Axon.init(model)
+
+      assert capture_log(fn ->
+               Axon.predict(model, params, input, debug: true)
+             end) =~ "Axon finished predict"
+    end
+
+    test "compile logs debug utilities when debug true" do
+      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+
+      {init_fn, predict_fn} = Axon.compile(model, debug: true)
+
+      assert capture_log(fn ->
+               init_fn.(%{})
+             end) =~ "Axon finished init"
+
+      params = init_fn.(%{})
+
+      assert capture_log(fn ->
+               predict_fn.(params, input)
+             end) =~ "Axon finished predict"
     end
   end
 end

@@ -31,13 +31,35 @@ defmodule Axon.Shape do
   ### Error cases
 
       iex> Axon.Shape.input(5)
-      ** (ArgumentError) invalid input shape 5, input shape must be a tuple
+      ** (ArgumentError) invalid input shape 5, input shape must be a tuple of dimension sizes or a container of valid shapes
   """
-  def input(input_shape) when is_tuple(input_shape), do: input_shape
+  def input(input_shape) when is_tuple(input_shape) or is_map(input_shape) do
+    cond do
+      is_tuple(input_shape) and tuple_size(input_shape) == 0 ->
+        input_shape
+
+      is_tuple(input_shape) and is_dim(elem(input_shape, 0)) ->
+        input_shape
+
+      true ->
+        {shapes, :ok} =
+          Nx.Container.traverse(input_shape, :ok, fn shape, :ok ->
+            shape = input(shape)
+            {shape, :ok}
+          end)
+
+        shapes
+    end
+  end
 
   def input(shape) do
-    raise ArgumentError, "invalid input shape #{inspect(shape)}, input shape must be a tuple"
+    raise ArgumentError,
+          "invalid input shape #{inspect(shape)}, input shape must be" <>
+            " a tuple of dimension sizes or a container of valid shapes"
   end
+
+  defp is_dim(dim) when is_integer(dim) or is_nil(dim), do: true
+  defp is_dim(_), do: false
 
   @doc """
   Determines if two shapes are compatible. Shapes are compatible
@@ -315,24 +337,24 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3}, :first)
+      iex> Axon.Shape.conv_kernel({nil, 3, 224, 224}, 32, {3, 3}, :first, 1)
       {32, 3, 3, 3}
 
-      iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2}, :first)
+      iex> Axon.Shape.conv_kernel({nil, 3, 28}, 64, {2}, :first, 1)
       {64, 3, 2}
 
-      iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first)
+      iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first, 1)
       {32, 1, 2, 1, 3}
 
-      iex> Axon.Shape.conv_kernel({nil, 28, 3}, 64, {2}, :last)
+      iex> Axon.Shape.conv_kernel({nil, 28, 3}, 64, {2}, :last, 1)
       {64, 3, 2}
 
   ### Error cases
 
-      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2}, :first)
+      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2}, :first, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def conv_kernel(input_shape, output_filters, kernel_size, channels) do
+  def conv_kernel(input_shape, output_filters, kernel_size, channels, feature_group_size) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
@@ -344,6 +366,16 @@ defmodule Axon.Shape do
         elem(input_shape, 1)
       else
         elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
+    input_channels =
+      if rem(input_channels, feature_group_size) == 0 do
+        div(input_channels, feature_group_size)
+      else
+        raise ArgumentError,
+              "input channels must be evenly divisible by" <>
+                " feature group size, got #{inspect(input_channels)}" <>
+                " and #{inspect(feature_group_size)}"
       end
 
     List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
@@ -358,24 +390,24 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3}, :first)
+      iex> Axon.Shape.conv_bias({nil, 3, 224, 224}, 32, {3, 3}, :first, 1)
       {32}
 
-      iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2}, :first)
+      iex> Axon.Shape.conv_bias({nil, 3, 28}, 64, {2}, :first, 1)
       {64}
 
-      iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first)
+      iex> Axon.Shape.conv_bias({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first, 1)
       {32}
 
-      iex> Axon.Shape.conv_bias({nil, 28, 3}, 64, {2}, :last)
+      iex> Axon.Shape.conv_bias({nil, 28, 3}, 64, {2}, :last, 1)
       {64}
 
   ### Error cases
 
-      iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2}, :first)
+      iex> Axon.Shape.conv_bias({nil, 1, 28, 28}, 32, {2}, :first, 1)
       ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
-  def conv_bias(input_shape, output_filters, kernel_size, _channels) do
+  def conv_bias(input_shape, output_filters, kernel_size, _channels, _feature_group_size) do
     unless Nx.rank(kernel_size) == Nx.rank(input_shape) - 2 do
       raise ArgumentError,
             "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
