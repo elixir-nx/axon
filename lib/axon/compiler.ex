@@ -262,7 +262,7 @@ defmodule Axon.Compiler do
          {cache, op_counts, namespace},
          _
        ) do
-    tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
+    tensor = Nx.backend_transfer(tensor, Nx.BinaryBackend)
 
     fun = fn _params, _inputs, state, _cache, result_cache ->
       out = safe_as_type(tensor, output)

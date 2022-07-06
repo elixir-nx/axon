@@ -151,7 +151,7 @@ defmodule Axon do
 
   It is suggested that you set compiler options globally rather than pass
   them as options to execution macros:
-
+      
       EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
       params = Axon.init(model)
@@ -189,7 +189,7 @@ defmodule Axon do
   # Axon serialization version
   @file_version 1
 
-  @empty_tensor Nx.tensor(-1, backend: Nx.BinaryBackend)
+  @empty_tensor Nx.tensor(-1)
 
   @type t :: %__MODULE__{}
 
