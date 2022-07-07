@@ -785,7 +785,7 @@ defmodule Axon do
     * `:input_dilation` - dilation to apply to input. Defaults to `1`.
 
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
-    
+
     * `:feature_group_size` - feature group size for convolution. Defaults
       to `1`.
 
@@ -3407,7 +3407,7 @@ defmodule Axon do
 
         %Axon{op: :dropout}, %Axon{} = acc ->
           acc
-        
+
         %Axon{} = axon, %Axon{} = acc ->
           Axon.set_parent(axon, acc)
       end)
@@ -3925,7 +3925,7 @@ defmodule Axon do
       >
   """
   def deserialize(serialized, opts \\ []) do
-    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, [:safe | opts])
+    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
     model = map_to_axon(model_meta)
     params = Nx.deserialize(serialized_params, opts)
     {model, params}
