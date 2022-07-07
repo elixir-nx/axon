@@ -498,7 +498,7 @@ defmodule Axon do
   @doc type: :special
   def constant(%Nx.Tensor{shape: output_shape} = tensor, opts) do
     opts = Keyword.validate!(opts, [:name])
-
+    tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
     layer(:constant, [], name: opts[:name], value: tensor, shape: output_shape, op_name: :constant)
   end
 
@@ -3979,7 +3979,7 @@ defmodule Axon do
         default
 
       %Nx.Tensor{} = default ->
-        default
+        Nx.backend_copy(default, Nx.BinaryBackend)
 
       invalid ->
         raise ArgumentError,

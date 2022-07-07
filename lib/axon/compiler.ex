@@ -262,8 +262,6 @@ defmodule Axon.Compiler do
          {cache, op_counts, namespace},
          _
        ) do
-    tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
-
     fun = fn _params, _inputs, state, _cache, result_cache ->
       out = safe_as_type(tensor, output)
       {out, {state, result_cache}}
@@ -288,21 +286,6 @@ defmodule Axon.Compiler do
        ) do
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
-
-    default =
-      case default do
-        nil ->
-          nil
-
-        :no_default_value ->
-          :no_default_value
-
-        fun when is_function(fun, 1) ->
-          fun
-
-        %Nx.Tensor{} = tensor ->
-          Nx.backend_transfer(tensor, Nx.BinaryBackend)
-      end
 
     fun = fn _params, inputs, state, _cache, result_cache ->
       res =
