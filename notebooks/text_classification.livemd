@@ -1,0 +1,29 @@
+# Text Classification using Word Recognition with LSTM in Axon
+
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.2.1"},
+  {:exla, "~> 0.2.2"}
+])
+
+EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:cuda
+```
+## Introduction
+In this example, we will discover how to create a generative model for text, character-by-character using LSTM recurrent neural networks in Elixir with Axon.
+
+## Why words, why not characters?
+## Recurrent Neural Networks
+## NER
+## LSTM
+
+
+## Preparation
+
+Using [Example Datasets](https://github.com/bhuvanakundumani/NER_tensorflow2.2.0/blob/master/data/) we can download three example datasets from the CONL2003 library, these will be the Train, Test and Validate datasets.
