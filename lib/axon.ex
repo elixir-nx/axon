@@ -134,7 +134,7 @@ defmodule Axon do
   To create a custom layer, you "wrap" your implementation and inputs into
   a layer using `Axon.layer`. You'll notice the API mirrors Elixir's `apply`:
 
-      def atan2_layer(%Axon{output_shape: shape} = input) do
+      def atan2_layer(%Axon{} = input) do
         weight = Axon.param(input_shape, "weight")
         Axon.layer(&my_layer/3, [input, weight])
       end
@@ -196,7 +196,6 @@ defmodule Axon do
   defstruct [
     :id,
     :name,
-    :output_shape,
     :parent,
     :parameters,
     :args,
@@ -216,7 +215,6 @@ defmodule Axon do
   specifies inference options. All options passed to layer are forwarded
   to inference function except:
 
-    * `:shape` - specify layer output shape to bypass shape inference.
     * `:name` - layer name.
     * `:op_name` - layer operation for inspection and building parameter
       map.
@@ -238,30 +236,20 @@ defmodule Axon do
   """
   @doc type: :special
   def layer(op, inputs, opts \\ []) when (is_atom(op) or is_function(op)) and is_list(inputs) do
-    {inputs, params, args, input_shapes} = split_inputs(op, inputs)
+    {inputs, params, args} = split_inputs(op, inputs)
 
     inputs = Enum.reverse(inputs)
     params = Enum.reverse(params)
     args = Enum.reverse(args)
-    input_shapes = Enum.reverse(input_shapes)
 
     {name, opts} = Keyword.pop(opts, :name)
-    {shape, opts} = Keyword.pop(opts, :shape)
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
 
     {id, name} = unique_identifiers(op_name, name)
 
-    output_shape =
-      if shape do
-        shape
-      else
-        infer_shape(input_shapes, op, opts)
-      end
-
     %Axon{
       id: id,
       name: name,
-      output_shape: output_shape,
       parent: inputs,
       parameters: params,
       args: args,
@@ -273,148 +261,21 @@ defmodule Axon do
     }
   end
 
-  defp split_inputs(:container, [container] = inputs) do
-    input_shapes = deep_new(container, fn %Axon{output_shape: shape} -> shape end)
-    args = [:layer]
-    params = []
-    {inputs, params, args, [input_shapes]}
+  defp split_inputs(:container, [inputs]) do
+    {[inputs], [], [:layer]}
   end
 
   defp split_inputs(_op, inputs) do
-    Enum.reduce(inputs, {[], [], [], []}, fn
-      %Axon{output_shape: shape} = layer, {layers, params, args, shapes} ->
-        {[layer | layers], params, [:layer | args], [shape | shapes]}
+    Enum.reduce(inputs, {[], [], []}, fn
+      %Axon{} = layer, {layers, params, args} ->
+        {[layer | layers], params, [:layer | args]}
 
-      %Parameter{shape: shape} = param, {layers, params, args, shapes} ->
-        {layers, [param | params], [:parameter | args], [shape | shapes]}
+      %Parameter{} = param, {layers, params, args} ->
+        {layers, [param | params], [:parameter | args]}
 
       invalid, _ ->
         raise ArgumentError, "invalid input given to layer: #{inspect(invalid)}"
     end)
-  end
-
-  defp infer_shape(input_shapes, fun, opts) do
-    {inputs, indices} =
-      Enum.reduce(input_shapes, {[], []}, fn shape, {input_shapes, indices} ->
-        {template, template_indices} = template_shape(shape)
-        {[template | input_shapes], [template_indices | indices]}
-      end)
-
-    inputs = Enum.reverse(inputs)
-
-    opts = Keyword.put(opts, :mode, :inference)
-
-    wrapper_fun = fn tensors ->
-      tensors = Tuple.to_list(tensors)
-      apply(fun, tensors ++ [opts])
-    end
-
-    expr = Nx.Defn.jit(wrapper_fun, [List.to_tuple(inputs)], compiler: Axon.Defn)
-
-    indices = Enum.map(indices, &MapSet.new/1)
-
-    indices_that_are_1 =
-      deep_new(expr, fn input ->
-        indices =
-          input
-          |> Nx.shape()
-          |> Tuple.to_list()
-          |> Enum.with_index()
-          |> Enum.filter(fn {x, _} -> x == 1 end)
-          |> Enum.map(&elem(&1, 1))
-
-        # This is a hack because containers don't like
-        # lists as leaf values, but they do like tensors
-        if indices == [] do
-          @empty_tensor
-        else
-          Nx.tensor(indices)
-        end
-      end)
-
-    deduped_nil_indices = Enum.reduce(indices, MapSet.new(), &MapSet.union/2)
-
-    deep_merge(expr, indices_that_are_1, fn input, indices_tensor ->
-      shape = Nx.shape(input)
-
-      indices =
-        if indices_tensor == @empty_tensor do
-          []
-        else
-          Nx.to_flat_list(indices_tensor)
-        end
-
-      indices_to_make_nil = MapSet.intersection(deduped_nil_indices, MapSet.new(indices))
-
-      Enum.reduce(indices_to_make_nil, shape, fn i, shape ->
-        put_elem(shape, i, nil)
-      end)
-    end)
-  end
-
-  defp template_shape(shape) when is_map(shape) do
-    Nx.Container.traverse(shape, [], &recur_template_shape/2)
-  end
-
-  defp template_shape(shape) do
-    if tuple_size(shape) == 0 do
-      {Nx.template({}, {:f, 32}), []}
-    else
-      first_elem = elem(shape, 0)
-
-      if is_integer(first_elem) or is_nil(first_elem) do
-        {shape, template_indices} = Axon.Shape.replace_nil(shape)
-        template = Nx.template(shape, {:f, 32})
-        {template, List.wrap(template_indices)}
-      else
-        Nx.Container.traverse(shape, [], &recur_template_shape/2)
-      end
-    end
-  end
-
-  defp recur_template_shape(shape, indices) do
-    case shape do
-      shape when is_map(shape) ->
-        {template, template_indices} = template_shape(shape)
-        {template, indices ++ template_indices}
-
-      shape when is_tuple(shape) ->
-        {template, template_indices} = template_shape(shape)
-        {template, indices ++ template_indices}
-    end
-  end
-
-  # TODO: This should not be duplicated
-  def deep_merge(%Nx.Tensor{} = left, %Nx.Tensor{} = right, fun) do
-    fun.(left, right)
-  end
-
-  def deep_merge(left, right, fun) do
-    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
-      {merged, []} ->
-        merged
-
-      {_merged, _leftover} ->
-        raise ArgumentError,
-              "unable to merge arguments with incompatible" <>
-                " structure"
-    end
-  end
-
-  defp leaves(container) do
-    container
-    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
-    |> Enum.reverse()
-  end
-
-  defp recur_merge(left, [right | right_leaves], fun) do
-    case {left, right} do
-      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
-        {fun.(left, right), right_leaves}
-
-      {left, right} ->
-        {deep_merge(left, right, fun), right_leaves}
-    end
   end
 
   @doc """
@@ -497,10 +358,10 @@ defmodule Axon do
   def constant(tensor, opts \\ [])
 
   @doc type: :special
-  def constant(%Nx.Tensor{shape: output_shape} = tensor, opts) do
+  def constant(%Nx.Tensor{} = tensor, opts) do
     opts = Keyword.validate!(opts, [:name])
 
-    layer(:constant, [], name: opts[:name], value: tensor, shape: output_shape, op_name: :constant)
+    layer(:constant, [], name: opts[:name], value: tensor, op_name: :constant)
   end
 
   def constant(value, _) do
@@ -552,12 +413,7 @@ defmodule Axon do
   def container(container, opts \\ []) do
     opts = Keyword.validate!(opts, [:name])
 
-    output_shape =
-      deep_new(container, fn %Axon{output_shape: shape} ->
-        shape
-      end)
-
-    layer(:container, [container], name: opts[:name], shape: output_shape, op_name: :container)
+    layer(:container, [container], name: opts[:name], op_name: :container)
   end
 
   # TODO: This should not be duplicated
@@ -610,8 +466,8 @@ defmodule Axon do
   and attempting to share layers between namespaces are still sharp
   edges in namespace usage.
   """
-  def namespace(%Axon{output_shape: shape} = axon, name) when is_binary(name) do
-    layer(:namespace, [axon], name: name, shape: shape)
+  def namespace(%Axon{} = axon, name) when is_binary(name) do
+    layer(:namespace, [axon], name: name)
   end
 
   @doc """
@@ -644,7 +500,7 @@ defmodule Axon do
 
   """
   @doc type: :linear
-  def dense(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
+  def dense(%Axon{} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     opts =
       Keyword.validate!(opts, [
@@ -657,7 +513,6 @@ defmodule Axon do
 
     kernel_shape = &Axon.Shape.dense_kernel(&1, units)
     bias_shape = &Axon.Shape.dense_bias(&1, units)
-    output_shape = Axon.Shape.dense(parent_shape, units)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -669,7 +524,7 @@ defmodule Axon do
         {[x, kernel], &Axon.Layers.dense(&1, &2, 0, &3)}
       end
 
-    node = layer(op, inputs, name: opts[:name], shape: output_shape, op_name: :dense)
+    node = layer(op, inputs, name: opts[:name], op_name: :dense)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -713,8 +568,8 @@ defmodule Axon do
   """
   @doc type: :linear
   def bilinear(
-        %Axon{output_shape: parent1_shape} = input1,
-        %Axon{output_shape: parent2_shape} = input2,
+        %Axon{} = input1,
+        %Axon{} = input2,
         units,
         opts \\ []
       )
@@ -730,7 +585,6 @@ defmodule Axon do
 
     kernel_shape = &Axon.Shape.bilinear_kernel(&1, &2, units)
     bias_shape = &Axon.Shape.bilinear_bias(&1, &2, units)
-    output_shape = Axon.Shape.bilinear(parent1_shape, parent2_shape, units)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -742,7 +596,7 @@ defmodule Axon do
         {[input1, input2, kernel], &Axon.Layers.bilinear(&1, &2, &3, 0, &4)}
       end
 
-    node = layer(op, inputs, name: opts[:name], shape: output_shape, op_name: :bilinear)
+    node = layer(op, inputs, name: opts[:name], op_name: :bilinear)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -786,7 +640,7 @@ defmodule Axon do
     * `:input_dilation` - dilation to apply to input. Defaults to `1`.
 
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
-    
+
     * `:feature_group_size` - feature group size for convolution. Defaults
       to `1`.
 
@@ -795,7 +649,7 @@ defmodule Axon do
 
   """
   @doc type: :convolution
-  def conv(%Axon{output_shape: parent_shape} = x, units, opts \\ [])
+  def conv(%Axon{} = x, units, opts \\ [])
       when is_integer(units) and units > 0 do
     opts =
       Keyword.validate!(opts, [
@@ -820,28 +674,9 @@ defmodule Axon do
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
     feature_group_size = opts[:feature_group_size]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
-    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
-
     bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, feature_group_size)
-
-    output_shape =
-      Axon.Shape.conv(
-        parent_shape,
-        kernel_shape,
-        strides,
-        padding,
-        input_dilation,
-        kernel_dilation,
-        channels,
-        feature_group_size
-      )
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -862,7 +697,6 @@ defmodule Axon do
         kernel_dilation: kernel_dilation,
         feature_group_size: feature_group_size,
         channels: channels,
-        shape: output_shape,
         op_name: :conv
       )
 
@@ -911,7 +745,7 @@ defmodule Axon do
 
   """
   @doc type: :convolution
-  def conv_transpose(%Axon{output_shape: parent_shape} = x, units, opts \\ []) do
+  def conv_transpose(%Axon{} = x, units, opts \\ []) do
     opts =
       Keyword.validate!(opts, [
         :name,
@@ -931,11 +765,6 @@ defmodule Axon do
     padding = opts[:padding]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
     bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, 1)
@@ -950,16 +779,6 @@ defmodule Axon do
         {[x, kernel], &Axon.Layers.conv_transpose(&1, &2, 0, &3)}
       end
 
-    output_shape =
-      Axon.Shape.conv_transpose(
-        parent_shape,
-        kernel_shape,
-        strides,
-        padding,
-        kernel_dilation,
-        channels
-      )
-
     node =
       layer(op, inputs,
         name: opts[:name],
@@ -967,7 +786,6 @@ defmodule Axon do
         padding: padding,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape,
         op_name: :conv_transpose
       )
 
@@ -1024,7 +842,7 @@ defmodule Axon do
 
   """
   @doc type: :convolution
-  def depthwise_conv(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+  def depthwise_conv(%Axon{} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     opts =
       Keyword.validate!(opts, [
@@ -1047,29 +865,11 @@ defmodule Axon do
     input_dilation = opts[:input_dilation]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
-    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     kernel_shape =
-      Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size, channels)
+      &Axon.Shape.depthwise_conv_kernel(&1, channel_multiplier, kernel_size, channels)
 
-    bias_shape =
-      Axon.Shape.depthwise_conv_bias(parent_shape, channel_multiplier, kernel_size, channels)
-
-    output_shape =
-      Axon.Shape.depthwise_conv(
-        parent_shape,
-        kernel_shape,
-        strides,
-        padding,
-        input_dilation,
-        kernel_dilation,
-        channels
-      )
+    bias_shape = &Axon.Shape.depthwise_conv_bias(&1, channel_multiplier, kernel_size, channels)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
@@ -1090,7 +890,6 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape,
         op_name: :depthwise_conv
       )
 
@@ -1143,7 +942,7 @@ defmodule Axon do
 
   """
   @doc type: :convolution
-  def separable_conv2d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+  def separable_conv2d(%Axon{} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     opts =
       Keyword.validate!(opts, [
@@ -1166,12 +965,6 @@ defmodule Axon do
     input_dilation = opts[:input_dilation]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
-    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
       &Axon.Shape.separable_conv2d_kernel(
@@ -1192,19 +985,7 @@ defmodule Axon do
       )
 
     b1_shape = &Axon.Shape.separable_conv2d_bias(&1, channel_multiplier, kernel_size, channels)
-
     b2_shape = &Axon.Shape.separable_conv2d_bias(&1, channel_multiplier, kernel_size, channels)
-
-    output_shape =
-      Axon.Shape.depthwise_conv(
-        parent_shape,
-        Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size, channels),
-        strides,
-        padding,
-        input_dilation,
-        kernel_dilation,
-        channels
-      )
 
     kernel_initializer = opts[:kernel_initializer]
     k1 = param("kernel_1", k1_shape, initializer: kernel_initializer)
@@ -1230,7 +1011,6 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape,
         op_name: :separable_conv2d
       )
 
@@ -1283,7 +1063,7 @@ defmodule Axon do
 
   """
   @doc type: :convolution
-  def separable_conv3d(%Axon{output_shape: parent_shape} = x, channel_multiplier, opts \\ [])
+  def separable_conv3d(%Axon{} = x, channel_multiplier, opts \\ [])
       when is_integer(channel_multiplier) and channel_multiplier >= 1 do
     opts =
       Keyword.validate!(opts, [
@@ -1306,12 +1086,6 @@ defmodule Axon do
     input_dilation = opts[:input_dilation]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    input_dilation = list_or_duplicate(:input_dilation, input_dilation, inner_rank)
-    kernel_dilation = list_or_duplicate(:kernel_dilation, kernel_dilation, inner_rank)
 
     k1_shape =
       &Axon.Shape.separable_conv3d_kernel(
@@ -1346,17 +1120,6 @@ defmodule Axon do
 
     b3_shape = &Axon.Shape.separable_conv3d_bias(&1, channel_multiplier, kernel_size, channels)
 
-    output_shape =
-      Axon.Shape.depthwise_conv(
-        parent_shape,
-        Axon.Shape.depthwise_conv_kernel(parent_shape, channel_multiplier, kernel_size, channels),
-        strides,
-        padding,
-        input_dilation,
-        kernel_dilation,
-        channels
-      )
-
     kernel_initializer = opts[:kernel_initializer]
     k1 = param("kernel_1", k1_shape, initializer: kernel_initializer)
     k2 = param("kernel_2", k2_shape, initializer: kernel_initializer)
@@ -1383,7 +1146,6 @@ defmodule Axon do
         input_dilation: input_dilation,
         kernel_dilation: kernel_dilation,
         channels: channels,
-        shape: output_shape,
         op_name: :separable_conv3d
       )
 
@@ -1432,14 +1194,14 @@ defmodule Axon do
   @doc type: :activation
   def activation(x, activation, opts \\ [])
 
-  def activation(%Axon{output_shape: shape} = x, activation, opts) when is_atom(activation) do
-    opts = [shape: shape, op_name: activation] ++ opts
+  def activation(%Axon{} = x, activation, opts) when is_atom(activation) do
+    opts = opts ++ [op_name: activation]
     layer(activation, [x], opts)
   end
 
-  def activation(%Axon{output_shape: shape} = x, activation, opts)
+  def activation(%Axon{} = x, activation, opts)
       when is_function(activation) do
-    layer(activation, [x], [shape: shape] ++ opts)
+    layer(activation, [x], opts)
   end
 
   ## Activation
@@ -1489,13 +1251,12 @@ defmodule Axon do
     end
   end
 
-  defp dropout(%Axon{output_shape: parent_shape} = x, dropout, opts) do
+  defp dropout(%Axon{} = x, dropout, opts) do
     opts = Keyword.validate!(opts, [:name, rate: 0.5])
 
     layer(dropout, [x],
       name: opts[:name],
       rate: opts[:rate],
-      shape: parent_shape,
       op_name: dropout
     )
   end
@@ -1538,7 +1299,7 @@ defmodule Axon do
     end
   end
 
-  defp pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
+  defp pool(%Axon{} = x, pool, opts) do
     opts =
       Keyword.validate!(opts, [
         :name,
@@ -1555,16 +1316,6 @@ defmodule Axon do
     padding = opts[:padding]
     channels = opts[:channels]
     dilations = opts[:dilations]
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = if strides, do: strides, else: Tuple.to_list(kernel_size)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    dilations = list_or_duplicate(:dilations, dilations, inner_rank)
-
-    output_shape =
-      Axon.Shape.pool(parent_shape, kernel_size, strides, padding, dilations, channels)
-
     name = opts[:name]
 
     opts =
@@ -1579,7 +1330,6 @@ defmodule Axon do
           channels: channels,
           window_dilations: dilations,
           norm: norm,
-          shape: output_shape,
           op_name: pool
         ]
       else
@@ -1590,7 +1340,6 @@ defmodule Axon do
           padding: padding,
           channels: channels,
           window_dilations: dilations,
-          shape: output_shape,
           op_name: pool
         ]
       end
@@ -1628,33 +1377,12 @@ defmodule Axon do
     end
   end
 
-  defp adaptative_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
+  defp adaptative_pool(%Axon{} = x, pool, opts) do
     opts = Keyword.validate!(opts, [:name, :output_size, channels: :first, norm: 2])
 
     channels = opts[:channels]
-
-    idx =
-      if channels == :first do
-        1
-      else
-        Nx.rank(parent_shape) - 1
-      end
-
-    output_size =
-      if size = opts[:output_size] do
-        size
-      else
-        parent_shape
-        |> Tuple.delete_at(0)
-        |> Tuple.delete_at(idx - 1)
-      end
-
-    inner_rank = Nx.rank(parent_shape) - 2
-
-    output_size = tuple_or_duplicate(:output_size, output_size, inner_rank)
-    output_shape = Axon.Shape.adaptive_pool(parent_shape, output_size, channels)
-
     name = opts[:name]
+    output_size = opts[:output_size]
 
     opts =
       if pool == :adaptive_lp_pool do
@@ -1665,7 +1393,6 @@ defmodule Axon do
           output_size: output_size,
           norm: norm,
           channels: channels,
-          shape: output_shape,
           op_name: pool
         ]
       else
@@ -1673,7 +1400,6 @@ defmodule Axon do
           name: name,
           output_size: output_size,
           channels: channels,
-          shape: output_shape,
           op_name: pool
         ]
       end
@@ -1716,14 +1442,12 @@ defmodule Axon do
     end
   end
 
-  defp global_pool(%Axon{output_shape: parent_shape} = x, pool, opts) do
+  defp global_pool(%Axon{} = x, pool, opts) do
     opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :first, norm: 2])
 
     keep_axes = opts[:keep_axes]
     name = opts[:name]
     channels = opts[:channels]
-
-    output_shape = Axon.Shape.global_pool(parent_shape, keep_axes, channels)
 
     opts =
       if pool == :global_lp_pool do
@@ -1734,11 +1458,10 @@ defmodule Axon do
           channels: channels,
           keep_axes: keep_axes,
           norm: norm,
-          shape: output_shape,
           op_name: pool
         ]
       else
-        [name: name, channels: channels, keep_axes: keep_axes, shape: output_shape, op_name: pool]
+        [name: name, channels: channels, keep_axes: keep_axes, op_name: pool]
       end
 
     layer(pool, [x], opts)
@@ -1779,7 +1502,7 @@ defmodule Axon do
     end
   end
 
-  defp norm_with_stats(%Axon{output_shape: shape} = x, norm, opts) do
+  defp norm_with_stats(%Axon{} = x, norm, opts) do
     opts =
       Keyword.validate!(opts, [
         :name,
@@ -1810,7 +1533,6 @@ defmodule Axon do
       epsilon: opts[:epsilon],
       channel_index: channel_index,
       momentum: opts[:momentum],
-      shape: shape,
       op_name: norm
     )
   end
@@ -1847,7 +1569,7 @@ defmodule Axon do
     end
   end
 
-  defp norm(%Axon{output_shape: shape} = x, norm, opts) do
+  defp norm(%Axon{} = x, norm, opts) do
     opts =
       Keyword.validate!(opts, [
         :name,
@@ -1869,7 +1591,6 @@ defmodule Axon do
       name: opts[:name],
       epsilon: opts[:epsilon],
       channel_index: channel_index,
-      shape: shape,
       op_name: norm
     )
   end
@@ -1896,7 +1617,7 @@ defmodule Axon do
 
   """
   @doc type: :normalization
-  def group_norm(%Axon{output_shape: shape} = x, group_size, opts \\ [])
+  def group_norm(%Axon{} = x, group_size, opts \\ [])
       when is_integer(group_size) and group_size >= 1 do
     opts =
       Keyword.validate!(opts, [
@@ -1920,7 +1641,6 @@ defmodule Axon do
       epsilon: opts[:epsilon],
       channel_index: channel_index,
       group_size: group_size,
-      shape: shape,
       op_name: :group_norm
     )
   end
@@ -1943,12 +1663,11 @@ defmodule Axon do
   def nx(input, fun, opts \\ [])
 
   @doc type: :special
-  def nx(%Axon{output_shape: input_shape} = x, fun, opts) when is_function(fun, 1) do
+  def nx(%Axon{} = x, fun, opts) when is_function(fun, 1) do
     opts = Keyword.validate!(opts, [:name])
     {name, opts} = Keyword.pop(opts, :name)
     fun_with_params = fn x, _opts -> fun.(x) end
-    output_shape = infer_shape([input_shape], fun_with_params, opts)
-    layer(fun_with_params, [x], name: name, shape: output_shape, op_name: :nx)
+    layer(fun_with_params, [x], name: name, op_name: :nx)
   end
 
   @doc """
@@ -1967,15 +1686,13 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def flatten(%Axon{op: op, output_shape: shape} = x, opts \\ []) do
+  def flatten(%Axon{op: op} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
     ignore_batch? = opts[:ignore_batch?]
-    output_shape = Axon.Shape.flatten(shape, ignore_batch?)
 
     layer(:flatten, [x],
       name: opts[:name],
       ignore_batch?: ignore_batch?,
-      shape: output_shape,
       op_name: :flatten
     )
   end
@@ -2000,16 +1717,14 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def reshape(%Axon{op: op, output_shape: shape} = x, new_shape, opts \\ []) do
+  def reshape(%Axon{op: op} = x, new_shape, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
     ignore_batch? = opts[:ignore_batch?]
-    output_shape = Axon.Shape.reshape(shape, new_shape, ignore_batch?)
 
     layer(:reshape, [x],
       name: opts[:name],
       ignore_batch?: ignore_batch?,
-      shape: output_shape,
-      to: output_shape,
+      to: new_shape,
       op_name: :reshape
     )
   end
@@ -2026,16 +1741,14 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def transpose(%Axon{op: op, output_shape: shape} = x, permutation, opts \\ []) do
+  def transpose(%Axon{op: op} = x, permutation, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
     ignore_batch? = opts[:ignore_batch?]
-    output_shape = Axon.Shape.transpose(shape, permutation, ignore_batch?)
 
     layer(:transpose, [x],
       name: opts[:name],
       axes: permutation,
       ignore_batch?: ignore_batch?,
-      shape: output_shape,
       op_name: :transpose
     )
   end
@@ -2056,18 +1769,16 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def pad(%Axon{output_shape: shape} = x, config, value \\ 0.0, opts \\ [])
+  def pad(%Axon{} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
     opts = Keyword.validate!(opts, [:name, channels: :first])
     channels = opts[:channels]
-    output_shape = Axon.Shape.pad(shape, config)
 
     layer(:pad, [x],
       name: opts[:name],
       padding_config: config,
       value: value,
       channels: channels,
-      shape: output_shape,
       op_name: :pad
     )
   end
@@ -2095,16 +1806,14 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def resize(%Axon{output_shape: shape} = x, resize_shape, opts \\ []) do
+  def resize(%Axon{} = x, resize_shape, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :first])
     channels = opts[:channels]
-    output_shape = Axon.Shape.resize(shape, resize_shape, channels)
 
     layer(:resize, [x],
       name: opts[:name],
       method: opts[:method],
       channels: channels,
-      shape: output_shape,
       to: resize_shape,
       op_name: :resize
     )
@@ -2124,16 +1833,14 @@ defmodule Axon do
 
   """
   @doc type: :combinator
-  def concatenate(%Axon{output_shape: x_shape} = x, %Axon{output_shape: y_shape} = y, opts)
+  def concatenate(%Axon{} = x, %Axon{} = y, opts)
       when is_list(opts) do
     opts = Keyword.validate!(opts, [:name, axis: -1])
     axis = opts[:axis]
-    output_shape = Axon.Shape.concatenate([x_shape, y_shape], axis)
 
     layer(:concatenate, [container({x, y})],
       name: opts[:name],
       axis: axis,
-      shape: output_shape,
       op_name: :concatenate
     )
   end
@@ -2143,13 +1850,10 @@ defmodule Axon do
       when is_list(inputs) and is_list(opts) do
     opts = Keyword.validate!(opts, [:name, axis: -1])
     axis = opts[:axis]
-    input_shapes = inputs |> Enum.map(fn %Axon{output_shape: shape} -> shape end)
-    output_shape = Axon.Shape.concatenate(input_shapes, axis)
 
     layer(:concatenate, [container(List.to_tuple(inputs))],
       name: opts[:name],
       axis: axis,
-      shape: output_shape,
       op_name: :concatenate
     )
   end
@@ -2179,13 +1883,11 @@ defmodule Axon do
 
     """
     @doc type: :combinator
-    def unquote(op)(%Axon{output_shape: lhs_shape} = x, %Axon{output_shape: rhs_shape} = y, opts) do
+    def unquote(op)(%Axon{} = x, %Axon{} = y, opts) do
       opts = Keyword.validate!(opts, [:name])
-      output_shape = Axon.Shape.element_wise([lhs_shape, rhs_shape])
 
       layer(unquote(op), [container({x, y})],
         name: opts[:name],
-        shape: output_shape,
         op_name: unquote(op)
       )
     end
@@ -2206,17 +1908,8 @@ defmodule Axon do
     def unquote(op)(inputs, opts) when is_list(inputs) and is_list(opts) do
       opts = Keyword.validate!(opts, [:name])
 
-      shapes =
-        Enum.map(inputs, fn
-          %Axon{output_shape: shape} -> shape
-          invalid -> raise ArgumentError, "invalid input #{inspect(invalid)}"
-        end)
-
-      output_shape = Axon.Shape.element_wise(shapes)
-
       layer(unquote(op), [container(List.to_tuple(inputs))],
         name: opts[:name],
-        shape: output_shape,
         op_name: unquote(op)
       )
     end
@@ -2244,8 +1937,8 @@ defmodule Axon do
   def cond(
         %Axon{} = parent,
         cond_fn,
-        %Axon{output_shape: out_shape} = true_graph,
-        %Axon{output_shape: out_shape} = false_graph,
+        %Axon{} = true_graph,
+        %Axon{} = false_graph,
         opts \\ []
       )
       when is_function(cond_fn, 1) do
@@ -2254,7 +1947,6 @@ defmodule Axon do
     layer(:cond, [parent, true_graph, false_graph],
       name: opts[:name],
       cond: cond_fn,
-      shape: out_shape,
       op_name: :cond
     )
   end
@@ -2303,11 +1995,9 @@ defmodule Axon do
     split_layers |> Enum.reverse() |> List.to_tuple()
   end
 
-  def split(%Axon{output_shape: shape} = parent, n, opts) when is_integer(n) do
+  def split(%Axon{} = parent, n, opts) when is_integer(n) do
     opts = Keyword.validate!(opts, [:name, axis: -1])
     axis = opts[:axis]
-
-    {slice_size, split_shape} = Axon.Shape.split(shape, n, axis)
 
     splits =
       for i <- 0..(n - 1) do
@@ -2321,10 +2011,12 @@ defmodule Axon do
           end
 
         layer(
-          fn x, _ -> Nx.slice_along_axis(x, i * slice_size, slice_size, axis: axis) end,
+          &Axon.Layers.split/2,
           [parent],
           name: name,
-          shape: split_shape,
+          index: i,
+          splits: n,
+          axis: axis,
           op_name: :split
         )
       end
@@ -2353,11 +2045,11 @@ defmodule Axon do
 
   """
   @doc type: :recurrent
-  def lstm(%Axon{output_shape: shape} = x, units, opts)
+  def lstm(%Axon{} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    c = rnn_state(x, shape, units, :lstm, opts[:name], "c", recurrent_initializer)
-    h = rnn_state(x, shape, units, :lstm, opts[:name], "h", recurrent_initializer)
+    c = rnn_state(x, units, :lstm, opts[:name], "c", recurrent_initializer)
+    h = rnn_state(x, units, :lstm, opts[:name], "h", recurrent_initializer)
     lstm(x, {c, h}, units, opts)
   end
 
@@ -2401,8 +2093,8 @@ defmodule Axon do
   """
   @doc type: :recurrent
   def lstm(
-        %Axon{output_shape: shape} = x,
-        {%Axon{output_shape: h_shape}, %Axon{output_shape: h_shape}} = hidden_state,
+        %Axon{} = x,
+        {%Axon{}, %Axon{}} = hidden_state,
         units,
         opts \\ []
       )
@@ -2422,10 +2114,9 @@ defmodule Axon do
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    output_shape = Axon.Shape.rnn(shape, units, :lstm)
-    input_kernel_shape = &Axon.Shape.rnn_input_kernel(&1, units, :lstm)
-    hidden_kernel_shape = &Axon.Shape.rnn_hidden_kernel(&1, units, :lstm)
-    bias_shape = &Axon.Shape.rnn_bias(&1, units, :lstm)
+    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
+    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
+    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2473,7 +2164,6 @@ defmodule Axon do
         activation: activation,
         gate: gate,
         unroll: unroll,
-        shape: {{h_shape, h_shape}, output_shape},
         op_name: :lstm
       )
 
@@ -2513,21 +2203,18 @@ defmodule Axon do
     new_c =
       layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
         name: new_c_name,
-        shape: h_shape,
         op_name: :elem
       )
 
     new_h =
       layer(fn x, _ -> elem(elem(x, 0), 1) end, [output],
         name: new_h_name,
-        shape: h_shape,
         op_name: :elem
       )
 
     output_sequence =
       layer(fn x, _ -> elem(x, 1) end, [output],
         name: output_sequence_name,
-        shape: output_shape,
         op_name: :elem
       )
 
@@ -2555,11 +2242,11 @@ defmodule Axon do
 
   """
   @doc type: :recurrent
-  def gru(%Axon{output_shape: shape} = x, units, opts)
+  def gru(%Axon{} = x, units, opts)
       when is_integer(units) and units > 0
       when is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    h = rnn_state(x, shape, units, :gru, opts[:name], "h", recurrent_initializer)
+    h = rnn_state(x, units, :gru, opts[:name], "h", recurrent_initializer)
     gru(x, {h}, units, opts)
   end
 
@@ -2602,8 +2289,8 @@ defmodule Axon do
   """
   @doc type: :recurrent
   def gru(
-        %Axon{output_shape: shape} = x,
-        {%Axon{output_shape: h_shape}} = hidden_state,
+        %Axon{} = x,
+        {%Axon{}} = hidden_state,
         units,
         opts
       )
@@ -2623,10 +2310,9 @@ defmodule Axon do
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    output_shape = Axon.Shape.rnn(shape, units, :gru)
-    input_kernel_shape = &Axon.Shape.rnn_input_kernel(&1, units, :gru)
-    hidden_kernel_shape = &Axon.Shape.rnn_hidden_kernel(&1, units, :gru)
-    bias_shape = &Axon.Shape.rnn_bias(&1, units, :gru)
+    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
+    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
+    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2673,7 +2359,6 @@ defmodule Axon do
         activation: activation,
         gate: gate,
         unroll: unroll,
-        shape: {{h_shape}, output_shape},
         op_name: :gru
       )
 
@@ -2702,14 +2387,12 @@ defmodule Axon do
     new_h =
       layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
         name: new_h_name,
-        shape: h_shape,
         op_name: :elem
       )
 
     output_sequence =
       layer(fn x, _ -> elem(x, 1) end, [output],
         name: output_sequence_name,
-        shape: output_shape,
         op_name: :elem
       )
 
@@ -2737,11 +2420,11 @@ defmodule Axon do
 
   """
   @doc type: :recurrent
-  def conv_lstm(%Axon{output_shape: shape} = x, units, opts)
+  def conv_lstm(%Axon{} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    c = rnn_state(x, shape, units, :conv_lstm, opts[:name], "c", recurrent_initializer)
-    h = rnn_state(x, shape, units, :conv_lstm, opts[:name], "h", recurrent_initializer)
+    c = rnn_state(x, units, :conv_lstm, opts[:name], "c", recurrent_initializer)
+    h = rnn_state(x, units, :conv_lstm, opts[:name], "h", recurrent_initializer)
     conv_lstm(x, {c, h}, units, opts)
   end
 
@@ -2787,8 +2470,8 @@ defmodule Axon do
   """
   @doc type: :recurrent
   def conv_lstm(
-        %Axon{output_shape: shape} = x,
-        {%Axon{output_shape: h_shape}, %Axon{output_shape: h_shape}} = hidden_state,
+        %Axon{} = x,
+        {%Axon{}, %Axon{}} = hidden_state,
         units,
         opts
       )
@@ -2809,38 +2492,21 @@ defmodule Axon do
     kernel_size = opts[:kernel_size]
     strides = opts[:strides]
     unroll = opts[:unroll]
-    inner_rank = Nx.rank(shape) - 3
-    sequence_length = elem(shape, 1)
-
-    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-    strides = list_or_duplicate(:strides, strides, inner_rank)
-    input_dilation = List.duplicate(1, inner_rank)
-    kernel_dilation = List.duplicate(1, inner_rank)
-
-    conv_shape = Tuple.delete_at(shape, 1)
-    conv_hidden_state_shape = Tuple.delete_at(h_shape, 1)
-
-    hidden_kernel_shape = &Axon.Shape.conv_kernel(&1, 4 * units, kernel_size, :first, 1)
-
-    input_kernel_shape = &Axon.Shape.conv_kernel(&1, 4 * units, kernel_size, :first, 1)
-    bias_shape = &Axon.Shape.conv_bias(&1, 4 * units, kernel_size, :first, 1)
-
-    output_kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, :first, 1)
-
-    output_shape =
-      conv_hidden_state_shape
-      |> Axon.Shape.conv(
-        output_kernel_shape,
-        strides,
-        padding,
-        input_dilation,
-        kernel_dilation,
-        :first,
-        1
-      )
-      |> Tuple.insert_at(1, sequence_length)
-
     kernel_initializer = opts[:kernel_initializer]
+
+    hidden_kernel_shape = fn inp, _ ->
+      Axon.Shape.conv_kernel(inp, 4 * units, kernel_size, :first, 1)
+    end
+
+    input_kernel_shape = fn inp, _ ->
+      Axon.Shape.conv_kernel(inp, 4 * units, kernel_size, :first, 1)
+    end
+
+    bias_shape = fn inp, _ -> Axon.Shape.conv_bias(inp, 4 * units, kernel_size, :first, 1) end
+
+    output_kernel_shape = fn inp, _ ->
+      Axon.Shape.conv_kernel(inp, units, kernel_size, :first, 1)
+    end
 
     wi = param("input_kernel", {:tuple, [input_kernel_shape]}, initializer: kernel_initializer)
     wh = param("hidden_kernel", {:tuple, [hidden_kernel_shape]}, initializer: kernel_initializer)
@@ -2877,7 +2543,6 @@ defmodule Axon do
           padding: padding
         ],
         unroll: unroll,
-        shape: output_shape,
         op_name: :conv_lstm
       )
 
@@ -2917,28 +2582,25 @@ defmodule Axon do
     new_c =
       layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
         name: new_c_name,
-        shape: h_shape,
         op_name: :elem
       )
 
     new_h =
       layer(fn x, _ -> elem(elem(x, 0), 1) end, [output],
         name: new_h_name,
-        shape: h_shape,
         op_name: :elem
       )
 
     output_sequence =
       layer(fn x, _ -> elem(x, 1) end, [output],
         name: output_sequence_name,
-        shape: output_shape,
         op_name: :elem
       )
 
     {{new_c, new_h}, output_sequence}
   end
 
-  defp rnn_state(x, shape, units, rnn_type, parent_name, state_name, initializer) do
+  defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer) do
     initializer = initializer || :glorot_uniform
 
     name =
@@ -2952,10 +2614,8 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    shape = Axon.Shape.rnn_hidden_state(shape, units, rnn_type)
-
     fun = fn inputs, _opts ->
-      shape = put_elem(shape, 0, elem(Nx.shape(inputs), 0))
+      shape = Nx.shape(inputs)
 
       case initializer do
         fun when is_function(fun) ->
@@ -2987,15 +2647,14 @@ defmodule Axon do
 
   """
   @doc type: :linear
-  def embedding(%Axon{output_shape: shape} = x, vocab_size, embedding_size, opts \\ []) do
+  def embedding(%Axon{} = x, vocab_size, embedding_size, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, kernel_initializer: :uniform])
 
     kernel_shape = &Axon.Shape.embedding_kernel(&1, vocab_size, embedding_size)
-    output_shape = Axon.Shape.embedding(shape, vocab_size, embedding_size)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    layer(:embedding, [x, kernel], name: opts[:name], shape: output_shape, op_name: :embedding)
+    layer(:embedding, [x, kernel], name: opts[:name], op_name: :embedding)
   end
 
   @doc """
@@ -3012,14 +2671,13 @@ defmodule Axon do
 
   """
   @doc type: :linear
-  def bias(%Axon{output_shape: shape} = x, opts \\ []) do
+  def bias(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, bias_initializer: :zeros])
 
-    units = elem(shape, tuple_size(shape) - 1)
-    bias_shape = &Axon.Shape.dense_bias(&1, units)
+    bias_shape = fn shape -> elem(shape, tuple_size(shape) - 1) end
     bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
-    layer(:bias, [x, bias], name: opts[:name], shape: shape, op_name: :bias)
+    layer(:bias, [x, bias], name: opts[:name], op_name: :bias)
   end
 
   @doc """
@@ -3158,16 +2816,7 @@ defmodule Axon do
   parent replaces it's entire lineage.
   """
   @doc type: :graph
-  def set_parent(%Axon{parent: [parent]} = axon, %Axon{output_shape: shape} = new_parent) do
-    %Axon{output_shape: parent_shape} = parent
-    # TODO: compatible? does not handle container shapes
-    unless Axon.Shape.compatible?(parent_shape, shape) do
-      raise ArgumentError,
-            "new parent graph must be compatible with old parent" <>
-              " graph, but got incompatible shapes #{inspect(parent_shape)}" <>
-              " and #{inspect(shape)}"
-    end
-
+  def set_parent(%Axon{parent: [parent]} = axon, %Axon{} = new_parent) do
     %{axon | parent: new_parent}
   end
 
@@ -3250,17 +2899,9 @@ defmodule Axon do
       %{out1: {nil, 32}, out2: {nil, 64}}
   """
   @doc type: :graph
-  def get_model_signature(%Axon{output_shape: output_shape} = axon) do
-    inputs =
-      reduce_nodes(axon, %{}, fn
-        %Axon{op: :input, output_shape: shape, name: name}, inputs ->
-          Map.put(inputs, name.(:input, %{}), shape)
-
-        _, inputs ->
-          inputs
-      end)
-
-    {inputs, output_shape}
+  def get_model_signature(%Axon{} = axon) do
+    # TODO
+    :ok
   end
 
   @doc """
@@ -3399,7 +3040,7 @@ defmodule Axon do
 
         %Axon{op: :dropout}, %Axon{} = acc ->
           acc
-        
+
         %Axon{} = axon, %Axon{} = acc ->
           Axon.set_parent(axon, acc)
       end)
@@ -3567,18 +3208,9 @@ defmodule Axon do
       for your chosen compiler or backend. Defaults to `false`
   """
   @doc type: :debugging
-  def trace_forward(model, params, opts \\ []) when is_list(opts) do
-    {input_shapes, _} = get_model_signature(model)
-
-    input_templates =
-      Map.new(input_shapes, fn {k, v} ->
-        # TODO: Respect input types
-        {non_nil_shape, _indices} = Axon.Shape.replace_nil(v)
-        {k, Nx.template(non_nil_shape, {:f, 32})}
-      end)
-
+  def trace_forward(model, inputs, params, opts \\ []) when is_list(opts) do
     forward_fun = Axon.Compiler.compile_predict(model, opts)
-    Nx.Defn.jit(forward_fun, [params, input_templates], compiler: Axon.Defn)
+    Nx.Defn.jit(forward_fun, [params, inputs], compiler: Axon.Defn)
   end
 
   @doc """
@@ -3600,37 +3232,8 @@ defmodule Axon do
       for your chosen compiler or backend. Defaults to `false`
   """
   @doc type: :debugging
-  def trace_backward(model, params, loss) do
-    {input_shapes, output_shapes} = get_model_signature(model)
-
-    input_templates =
-      Map.new(input_shapes, fn {k, v} ->
-        # TODO: Respect input types
-        {non_nil_shape, _indices} = Axon.Shape.replace_nil(v)
-        {k, Nx.template(non_nil_shape, {:f, 32})}
-      end)
-
-    output_templates =
-      output_shapes
-      |> List.wrap()
-      |> Enum.reduce([], fn shape, input_shapes ->
-        {template, _template_indices} = template_shape(shape)
-        [template | input_shapes]
-      end)
-      |> Enum.reverse()
-
-    forward_fn = Axon.Compiler.compile_predict(model, mode: :train)
-
-    backward_fn = fn params, inputs, targets ->
-      Nx.Defn.grad(params, fn params ->
-        %{prediction: preds} = forward_fn.(params, inputs)
-        loss.(targets, preds)
-      end)
-    end
-
-    inputs = [params, input_templates | output_templates]
-
-    Nx.Defn.jit(backward_fn, inputs, compiler: Axon.Defn)
+  def trace_backward(model, inputs, params, loss) do
+    # TODO
   end
 
   @doc """
@@ -3691,191 +3294,7 @@ defmodule Axon do
     alias Axon.Parameter
 
     def inspect(axon, _opts) do
-      title = "Model"
-      header = ["Layer", "Shape", "Policy", "Parameters", "Parameters Memory"]
-      model_info = %{num_params: 0, total_param_byte_size: 0, inputs: []}
-      {_, _, cache, _, model_info} = axon_to_rows(axon, %{}, %{}, model_info)
-
-      rows =
-        cache
-        |> Enum.sort()
-        |> Enum.unzip()
-        |> elem(1)
-        |> Enum.map(&elem(&1, 0))
-
-      rows
-      |> TableRex.Table.new(header, title)
-      |> TableRex.Table.render!(
-        header_separator_symbol: "=",
-        title_separator_symbol: "=",
-        vertical_style: :off
-      )
-      |> then(&(&1 <> "Total Parameters: #{model_info.num_params}\n"))
-      |> then(&(&1 <> "Total Parameters Memory: #{model_info.total_param_byte_size} bytes\n"))
-      |> then(&(&1 <> "Inputs: #{inspect(Map.new(model_info.inputs))}\n"))
-      |> string()
-    end
-
-    defp axon_to_rows(%{id: id, op_name: op_name} = graph, cache, op_counts, model_info) do
-      case cache do
-        %{^id => {row, name}} ->
-          {row, name, cache, op_counts, model_info}
-
-        %{} ->
-          {row, name, cache, op_counts, model_info} =
-            do_axon_to_rows(graph, cache, op_counts, model_info)
-
-          cache = Map.put(cache, id, {row, name})
-          op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
-          {row, name, cache, op_counts, model_info}
-      end
-    end
-
-    defp do_axon_to_rows(
-           %Axon{
-             op: :container,
-             parent: [parents],
-             name: name_fn,
-             output_shape: shape,
-             policy: policy
-           },
-           cache,
-           op_counts,
-           model_info
-         ) do
-      {input_names, {cache, op_counts, model_info}} =
-        deep_map_reduce(parents, {cache, op_counts, model_info}, fn
-          graph, {cache, op_counts, model_info} ->
-            {_, name, cache, op_counts, model_info} =
-              axon_to_rows(graph, cache, op_counts, model_info)
-
-            {name, {cache, op_counts, model_info}}
-        end)
-
-      op_string = "container"
-
-      name = name_fn.(:container, op_counts)
-
-      row = [
-        "#{name} ( #{op_string} #{inspect(input_names)} )",
-        "#{inspect(shape)}",
-        "#{inspect(policy)}",
-        0,
-        "0 bytes"
-      ]
-
-      {row, name, cache, op_counts, model_info}
-    end
-
-    defp do_axon_to_rows(
-           %Axon{
-             op: :namespace,
-             parent: parents,
-             name: name_fn,
-             output_shape: shape,
-             policy: policy
-           },
-           cache,
-           op_counts,
-           model_info
-         ) do
-      init_model_info = %{num_params: 0, total_param_byte_size: 0, inputs: []}
-
-      {_input_names, {_cache, op_counts, namespace_model_info}} =
-        Enum.map_reduce(parents, {%{}, op_counts, init_model_info}, fn
-          graph, {cache, op_counts, model_info} ->
-            {_, name, cache, op_counts, model_info} =
-              axon_to_rows(graph, cache, op_counts, model_info)
-
-            {name, {cache, op_counts, model_info}}
-        end)
-
-      name = name_fn.(:namespace, op_counts)
-
-      num_params = namespace_model_info.num_params
-      param_byte_size = namespace_model_info.total_param_byte_size
-      inputs = namespace_model_info.inputs
-
-      model_info =
-        model_info
-        |> Map.update(:num_params, 0, fn x -> x + num_params end)
-        |> Map.update(:total_param_byte_size, 0, fn x -> x + param_byte_size end)
-        |> Map.update(:inputs, [], fn x -> x ++ inputs end)
-
-      row = [
-        "#{name} ( #{inputs |> Map.new() |> Map.keys()} )",
-        "#{inspect(shape)}",
-        "#{inspect(policy)}",
-        "#{num_params}",
-        "#{param_byte_size} bytes"
-      ]
-
-      {row, name, cache, op_counts, model_info}
-    end
-
-    defp do_axon_to_rows(
-           %Axon{
-             parent: parents,
-             parameters: params,
-             name: name_fn,
-             output_shape: shape,
-             policy: %{params: {_, bitsize}} = policy,
-             op_name: op_name
-           },
-           cache,
-           op_counts,
-           model_info
-         ) do
-      {input_names, {cache, op_counts, model_info}} =
-        Enum.map_reduce(parents, {cache, op_counts, model_info}, fn
-          graph, {cache, op_counts, model_info} ->
-            {_, name, cache, op_counts, model_info} =
-              axon_to_rows(graph, cache, op_counts, model_info)
-
-            {name, {cache, op_counts, model_info}}
-        end)
-
-      num_params =
-        Enum.reduce(params, 0, fn
-          %Parameter{shape: {:tuple, shapes}}, acc ->
-            Enum.reduce(shapes, acc, &(Nx.size(&1) + &2))
-
-          %Parameter{shape: shape}, acc ->
-            acc + Nx.size(shape)
-        end)
-
-      param_byte_size = num_params * div(bitsize, 8)
-
-      op_inspect = Atom.to_string(op_name)
-
-      inputs =
-        case input_names do
-          [] ->
-            ""
-
-          [_ | _] = input_names ->
-            "#{inspect(input_names)}"
-        end
-
-      name = name_fn.(op_name, op_counts)
-
-      row = [
-        "#{name} ( #{op_inspect}#{inputs} )",
-        "#{inspect(shape)}",
-        "#{inspect(policy)}",
-        "#{num_params}",
-        "#{param_byte_size} bytes"
-      ]
-
-      model_info =
-        model_info
-        |> Map.update(:num_params, 0, &(&1 + num_params))
-        |> Map.update(:total_param_byte_size, 0, &(&1 + param_byte_size))
-        |> Map.update(:inputs, [], fn inputs ->
-          if op_name == :input, do: [{name, shape} | inputs], else: inputs
-        end)
-
-      {row, name, cache, op_counts, model_info}
+      ""
     end
   end
 
@@ -4007,48 +3426,6 @@ defmodule Axon do
         raise ArgumentError,
               "default input value must be nil, tensor, or arity-1 function" <>
                 " of the inputs, got #{inspect(invalid)}"
-    end
-  end
-
-  defp tuple_or_duplicate(key, tuple_or_integer, rank) do
-    cond do
-      is_tuple(tuple_or_integer) ->
-        if tuple_size(tuple_or_integer) != rank do
-          raise ArgumentError,
-                "expected #{inspect(key)} to be a #{rank}-element tuple, " <>
-                  "got: #{inspect(tuple_or_integer)}"
-        end
-
-        tuple_or_integer
-
-      is_integer(tuple_or_integer) ->
-        Tuple.duplicate(tuple_or_integer, rank)
-
-      true ->
-        raise ArgumentError,
-              "expected #{inspect(key)} to be an integer or a tuple, " <>
-                "got: #{inspect(tuple_or_integer)}"
-    end
-  end
-
-  defp list_or_duplicate(key, list_or_integer, rank) do
-    cond do
-      is_list(list_or_integer) ->
-        if length(list_or_integer) != rank do
-          raise ArgumentError,
-                "expected #{inspect(key)} to be a #{rank}-element list, " <>
-                  "got: #{inspect(list_or_integer)}"
-        end
-
-        list_or_integer
-
-      is_integer(list_or_integer) ->
-        List.duplicate(list_or_integer, rank)
-
-      true ->
-        raise ArgumentError,
-              "expected #{inspect(key)} to be an integer or a list, " <>
-                "got: #{inspect(list_or_integer)}"
     end
   end
 

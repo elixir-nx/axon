@@ -138,7 +138,7 @@ defmodule Axon.Compiler do
            op: :input,
            hooks: hooks,
            name: name_fn,
-           opts: [default: default]
+           opts: [shape: input_shape, default: default]
          },
          {cache, op_counts, namespace},
          mode
@@ -550,23 +550,24 @@ defmodule Axon.Compiler do
 
     {pred_expr, {_, _}} = predict_fun.(model_params, template, %{}, cache, %{})
 
-    {Nx.shape(pred_expr), {model_params, result_cache}}
+    {safe_shape(pred_expr), {model_params, result_cache}}
   end
 
   defp init_param(param, layer_params, parent_shapes, dtype) do
     %{name: name, shape: shape, initializer: initializer} = param
-    shape = apply(shape, parent_shapes)
 
     fun =
       case shape do
         {:tuple, params} ->
           params
           |> Enum.map(fn shape ->
+            shape = apply(shape, parent_shapes)
             apply_initializer(initializer, shape, dtype)
           end)
           |> List.to_tuple()
 
         shape ->
+          shape = apply(shape, parent_shapes)
           apply_initializer(initializer, shape, dtype)
       end
 
@@ -617,6 +618,19 @@ defmodule Axon.Compiler do
 
       container ->
         deep_new(container, &Nx.as_type(&1, type))
+    end
+  end
+
+  defp safe_shape(container_or_tensor) do
+    case container_or_tensor do
+      nil ->
+        nil
+
+      %Nx.Tensor{} = tensor ->
+        Nx.shape(tensor)
+
+      container ->
+        deep_new(container, &Nx.shape/1)
     end
   end
 

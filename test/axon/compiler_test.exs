@@ -381,7 +381,7 @@ defmodule CompilerTest do
       input2 = Axon.input({nil, 2}, "input_1")
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
 
-      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 1})}
+      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
 
       assert {init_fn, _predict_fn} = Axon.build(model)
       assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
@@ -1142,7 +1142,7 @@ defmodule CompilerTest do
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      input = Nx.template({1, 1, 32})
+      input = Nx.template({1, 1, 32}, {:f, 32})
 
       assert {init_fn, _} = Axon.build(mp_model)
       assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
@@ -4330,7 +4330,8 @@ defmodule CompilerTest do
 
       inp = Nx.random_uniform({1, 1})
 
-      assert %{"custom_0" => %{"kernel" => _}, "custom_1" => %{"kernel" => _}} = Axon.init(model, inp)
+      assert %{"custom_0" => %{"kernel" => _}, "custom_1" => %{"kernel" => _}} =
+               Axon.init(model, inp)
     end
 
     test "computes forward pass with parameters" do
@@ -4646,7 +4647,8 @@ defmodule CompilerTest do
       model = Axon.add(x, x)
       input = Nx.random_uniform({1, 1})
 
-      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model, input)
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+               params = Axon.init(model, input)
 
       expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
       assert_equal(Axon.predict(model, params, input), expected)

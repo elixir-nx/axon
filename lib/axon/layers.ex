@@ -299,10 +299,12 @@ defmodule Axon.Layers do
       )
 
     bias_reshape =
-      transform({Nx.shape(bias), Nx.rank(input) - 2, opts[:channels]}, fn {bias_shape, rank,
-                                                                           channels} ->
-        Axon.Shape.conv_bias_reshape(bias_shape, rank, channels)
-      end)
+      transform(
+        {Nx.shape(bias), Nx.rank(input) - 2, opts[:channels]},
+        fn {bias_shape, rank, channels} ->
+          Axon.Shape.conv_bias_reshape(bias_shape, rank, channels)
+        end
+      )
 
     permutations =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1032,9 +1034,14 @@ defmodule Axon.Layers do
 
     opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
 
+    output_size =
+      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size)
+      end)
+
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), output_size, opts[:channels]},
         fn {shape, rank, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
@@ -1042,14 +1049,13 @@ defmodule Axon.Layers do
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), window_strides, output_size, opts[:channels]},
         fn {shape, rank, strides, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end
       )
 
-    input
-    |> Nx.window_mean(window_dimensions, padding: :valid, strides: window_strides)
+    Nx.window_mean(input, window_dimensions, padding: :valid, strides: window_strides)
   end
 
   @doc """
@@ -1079,9 +1085,14 @@ defmodule Axon.Layers do
 
     opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
 
+    output_size =
+      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size)
+      end)
+
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), output_size, opts[:channels]},
         fn {shape, rank, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
@@ -1089,14 +1100,13 @@ defmodule Axon.Layers do
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), window_strides, output_size, opts[:channels]},
         fn {shape, rank, strides, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end
       )
 
-    input
-    |> Nx.window_max(window_dimensions, padding: :valid, strides: window_strides)
+    Nx.window_max(input, window_dimensions, padding: :valid, strides: window_strides)
   end
 
   @doc """
@@ -2487,5 +2497,24 @@ defmodule Axon.Layers do
 
   defp get_cell_fn({:conv_lstm, _, _, conv_opts}) do
     &Axon.Recurrent.conv_lstm_cell(&1, &2, &3, &4, &5, conv_opts)
+  end
+
+  @doc false
+  defn split(inp, opts) do
+    opts = keyword!(opts, [:index, :splits, axis: -1, mode: :train])
+
+    shape = Nx.shape(inp)
+
+    {offset, size} =
+      transform(
+        {shape, opts[:index], opts[:splits], opts[:axis]},
+        fn {shape, idx, splits, axis} ->
+          {slice_size, _shape} = Axon.Shape.split(shape, splits, axis)
+          offset = idx * slice_size
+          {offset, slice_size}
+        end
+      )
+
+    Nx.slice_along_axis(inp, offset, size, axis: opts[:axis])
   end
 end
