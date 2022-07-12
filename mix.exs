@@ -37,8 +37,8 @@ defmodule Axon.MixProject do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.2.2", [only: :test] ++ exla_opts()},
-      {:nx, "~> 0.2.1", nx_opts()},
+      {:exla, "~> 0.3.0-dev", [only: :test] ++ exla_opts()},
+      {:nx, "~> 0.3.0-dev", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
     ]

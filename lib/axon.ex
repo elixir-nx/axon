@@ -2494,7 +2494,7 @@ defmodule Axon do
     unroll = opts[:unroll]
     kernel_initializer = opts[:kernel_initializer]
 
-    hidden_kernel_shape = fn inp, _ ->
+    hidden_kernel_shape = fn _, inp ->
       Axon.Shape.conv_kernel(inp, 4 * units, kernel_size, :first, 1)
     end
 

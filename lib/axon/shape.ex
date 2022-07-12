@@ -1101,6 +1101,12 @@ defmodule Axon.Shape do
   @doc """
   Computes the window size from the given parent shape.
   """
+  def adaptive_pool_window_size(parent_shape, nil) do
+    parent_shape
+    |> Tuple.delete_at(0)
+    |> Tuple.delete_at(0)
+  end
+
   def adaptive_pool_window_size(parent_shape, output_size) do
     inner_rank = Nx.rank(parent_shape) - 2
     tuple_or_duplicate(:output_size, output_size, inner_rank)

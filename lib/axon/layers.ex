@@ -1144,9 +1144,14 @@ defmodule Axon.Layers do
 
     norm = opts[:norm]
 
+    output_size =
+      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size)
+      end)
+
     window_strides =
       transform(
-        {Nx.shape(input), Nx.rank(input), opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), output_size, opts[:channels]},
         fn {shape, rank, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_strides(shape, output_size, rank - 2, channels)
         end
@@ -1154,7 +1159,7 @@ defmodule Axon.Layers do
 
     window_dimensions =
       transform(
-        {Nx.shape(input), Nx.rank(input), window_strides, opts[:output_size], opts[:channels]},
+        {Nx.shape(input), Nx.rank(input), window_strides, output_size, opts[:channels]},
         fn {shape, rank, strides, output_size, channels} ->
           Axon.Shape.adaptive_pool_window_size(shape, strides, output_size, rank - 2, channels)
         end

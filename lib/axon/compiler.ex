@@ -271,14 +271,14 @@ defmodule Axon.Compiler do
 
       params =
         if namespace_params == %{} do
-          result_cache
+          init_params
         else
           Map.put(init_params, name, namespace_params)
         end
 
-      out = predict_fun.(params, template, %{}, cache, result_cache)
+      {pred_expr, {_, _}} = predict_fun.(params, template, %{}, cache, result_cache)
 
-      {Nx.shape(out), {params, result_cache}}
+      {safe_shape(pred_expr), {params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
@@ -341,7 +341,19 @@ defmodule Axon.Compiler do
       )
 
     init_fun =
-      &layer_init_fun(&1, &2, &3, &4, parent_ids, name, predict_fun, layer_params, policy, hooks)
+      &layer_init_fun(
+        &1,
+        &2,
+        &3,
+        &4,
+        parent_ids,
+        name,
+        namespace,
+        predict_fun,
+        layer_params,
+        policy,
+        hooks
+      )
 
     model_funs = %{predict: predict_fun, init: init_fun}
     {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
@@ -518,6 +530,7 @@ defmodule Axon.Compiler do
          result_cache,
          parent_ids,
          name,
+         namespace,
          predict_fun,
          parameters,
          %{params: dtype},
@@ -548,7 +561,13 @@ defmodule Axon.Compiler do
           Map.put(parent_params, name, layer_params)
       end
 
-    {pred_expr, {_, _}} = predict_fun.(model_params, template, %{}, cache, %{})
+    namespace_params =
+      namespace
+      |> Enum.reduce(model_params, fn name, params ->
+        %{name => params}
+      end)
+
+    {pred_expr, {_, _}} = predict_fun.(namespace_params, template, %{}, cache, %{})
 
     {safe_shape(pred_expr), {model_params, result_cache}}
   end

@@ -323,7 +323,7 @@ defmodule CompilerTest do
       input = Nx.random_uniform({1, 1})
 
       assert %{"dense" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
@@ -467,7 +467,7 @@ defmodule CompilerTest do
       end
 
       assert %{"bilinear" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 2}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
@@ -585,7 +585,7 @@ defmodule CompilerTest do
       end
 
       assert %{"embedding" => %{"kernel" => kernel_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1}))
     end
@@ -1131,7 +1131,7 @@ defmodule CompilerTest do
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
@@ -1316,7 +1316,7 @@ defmodule CompilerTest do
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
@@ -1511,7 +1511,7 @@ defmodule CompilerTest do
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
@@ -1723,7 +1723,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2_grad,
                  "bias_2" => b2_grad
                }
-             } = Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+             } = apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(k1_grad, Nx.broadcast(0.0, {1, 1, 1, 1}))
       assert_equal(b1_grad, Nx.broadcast(0.0, {1}))
@@ -1983,7 +1983,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3_grad,
                  "bias_3" => b3_grad
                }
-             } = Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+             } = apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(k1_grad, Nx.broadcast(0.0, {1, 1, 1, 1, 1}))
       assert_equal(b1_grad, Nx.broadcast(0.0, {1}))
@@ -2269,7 +2269,7 @@ defmodule CompilerTest do
         end
 
         assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-                 Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+                 apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
         assert_equal(gamma_grad, Nx.broadcast(0.0, {1}))
         assert_equal(beta_grad, Nx.broadcast(0.0, {1}))
@@ -2439,7 +2439,7 @@ defmodule CompilerTest do
         end
 
         assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-                 Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+                 apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
         assert_equal(gamma_grad, Nx.broadcast(0.0, {1}))
         assert_equal(beta_grad, Nx.broadcast(0.0, {1}))
@@ -2568,7 +2568,7 @@ defmodule CompilerTest do
       end
 
       assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(input, %{}), input])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(gamma_grad, Nx.broadcast(0.0, {2}))
       assert_equal(beta_grad, Nx.broadcast(0.0, {2}))
@@ -4303,7 +4303,7 @@ defmodule CompilerTest do
     end
 
     test "initializes with parameters" do
-      kernel_param = Axon.param("kernel", {1, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       model =
         Axon.layer(fn x, _kernel, _opts -> x end, [Axon.input({nil, 1}, "input_0"), kernel_param],
@@ -4319,8 +4319,8 @@ defmodule CompilerTest do
     end
 
     test "initializes with two custom layers and no op_name" do
-      k1 = Axon.param("kernel", {1, 1})
-      k2 = Axon.param("kernel", {1, 1})
+      k1 = Axon.param("kernel", fn shape -> shape end)
+      k2 = Axon.param("kernel", fn shape -> shape end)
 
       layer = fn x, k -> Axon.layer(fn y, _kernel, _opts -> y end, [x, k]) end
 
@@ -4336,7 +4336,7 @@ defmodule CompilerTest do
 
     test "computes forward pass with parameters" do
       input = Axon.input({nil, 1}, "input_0")
-      kernel_param = Axon.param("kernel", {1, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       model =
         Axon.layer(fn x, kernel, _opts -> Nx.multiply(x, kernel) end, [input, kernel_param],
@@ -4361,7 +4361,7 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with options" do
-      kernel_param = Axon.param("kernel", {1, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       input = Nx.random_uniform({1, 1})
 
@@ -4779,7 +4779,7 @@ defmodule CompilerTest do
     test "init logs debug utilities when debug true" do
       model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
       input = Nx.tensor([[1.0]])
-      params = Axon.init(model)
+      params = Axon.init(model, Nx.template({1, 1}, {:f, 32}))
 
       assert capture_log(fn ->
                Axon.predict(model, params, input, debug: true)
