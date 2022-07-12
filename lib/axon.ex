@@ -2494,18 +2494,24 @@ defmodule Axon do
     unroll = opts[:unroll]
     kernel_initializer = opts[:kernel_initializer]
 
-    hidden_kernel_shape = fn _, inp ->
-      Axon.Shape.conv_kernel(inp, 4 * units, kernel_size, :first, 1)
+    hidden_kernel_shape = fn _, {inp, _} ->
+      shape = Tuple.delete_at(inp, 1)
+      Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
     input_kernel_shape = fn inp, _ ->
-      Axon.Shape.conv_kernel(inp, 4 * units, kernel_size, :first, 1)
+      shape = Tuple.delete_at(inp, 1)
+      Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    bias_shape = fn inp, _ -> Axon.Shape.conv_bias(inp, 4 * units, kernel_size, :first, 1) end
+    bias_shape = fn inp, _ ->
+      shape = Tuple.delete_at(inp, 1)
+      Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
+    end
 
-    output_kernel_shape = fn inp, _ ->
-      Axon.Shape.conv_kernel(inp, units, kernel_size, :first, 1)
+    output_kernel_shape = fn _, {inp, _} ->
+      shape = Tuple.delete_at(inp, 1)
+      Axon.Shape.conv_kernel(shape, units, kernel_size, :first, 1)
     end
 
     wi = param("input_kernel", {:tuple, [input_kernel_shape]}, initializer: kernel_initializer)
@@ -2615,7 +2621,7 @@ defmodule Axon do
       end
 
     fun = fn inputs, _opts ->
-      shape = Nx.shape(inputs)
+      shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
 
       case initializer do
         fun when is_function(fun) ->
@@ -3293,8 +3299,17 @@ defmodule Axon do
     import Axon.Shared
     alias Axon.Parameter
 
-    def inspect(axon, _opts) do
-      ""
+    def inspect(axon, opts) do
+      inner = concat([line(), "model"])
+
+      force_unfit(
+        concat([
+          color("#Axon<", :map, opts),
+          nest(inner, 2),
+          line(),
+          color(">", :map, opts)
+        ])
+      )
     end
   end
 
@@ -3316,7 +3331,7 @@ defmodule Axon do
   ## Examples
 
       iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> params = Axon.init(model)
+      iex> params = Axon.init(model, Nx.template({1, 2}, :f32))
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
       iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))
@@ -3354,7 +3369,7 @@ defmodule Axon do
   ## Examples
 
       iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> params = Axon.init(model)
+      iex> params = Axon.init(model, Nx.template({1, 2}, :f32))
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
       iex> Axon.predict(saved_model, saved_params, Nx.tensor([[1.0, 1.0]]))

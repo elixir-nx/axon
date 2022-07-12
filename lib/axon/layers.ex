@@ -2505,21 +2505,22 @@ defmodule Axon.Layers do
   end
 
   @doc false
-  defn split(inp, opts) do
+  defn split(input, opts) do
+    assert_min_rank!("Axon.Layers.split", "input", input, 2)
     opts = keyword!(opts, [:index, :splits, axis: -1, mode: :train])
 
-    shape = Nx.shape(inp)
+    shape = Nx.shape(input)
 
     {offset, size} =
       transform(
         {shape, opts[:index], opts[:splits], opts[:axis]},
         fn {shape, idx, splits, axis} ->
-          {slice_size, _shape} = Axon.Shape.split(shape, splits, axis)
+          slice_size = Axon.Shape.split(shape, splits, axis)
           offset = idx * slice_size
           {offset, slice_size}
         end
       )
 
-    Nx.slice_along_axis(inp, offset, size, axis: opts[:axis])
+    Nx.slice_along_axis(input, offset, size, axis: opts[:axis])
   end
 end

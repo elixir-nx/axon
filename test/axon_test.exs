@@ -79,9 +79,9 @@ defmodule AxonTest do
                Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(64)
 
       assert opts[:padding] == :valid
-      assert opts[:strides] == [1, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:strides] == 1
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -102,30 +102,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{shape: {64, 1, 2, 2}} = kernel
-      assert %Axon.Parameter{shape: {64}} = bias
-    end
-
-    test "fails on bad options" do
-      assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, kernel_size: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, strides: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, padding: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, input_dilation: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, kernel_dilation: :foo)
-      end
+      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
+      assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
     test "fails on bad initializers" do
@@ -150,7 +128,7 @@ defmodule AxonTest do
                Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3)
 
       assert opts[:padding] == :valid
-      assert opts[:strides] == [1, 1]
+      assert opts[:strides] == 1
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
@@ -173,8 +151,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{shape: {3, 1, 2, 2}} = kernel
-      assert %Axon.Parameter{shape: {3}} = bias
+      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
+      assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
     test "fails on bad options" do
@@ -254,10 +232,10 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{shape: {3, 1, 2, 1}} = k1
-      assert %Axon.Parameter{shape: {3, 1, 1, 2}} = k2
-      assert %Axon.Parameter{shape: {3}} = b1
-      assert %Axon.Parameter{shape: {3}} = b2
+      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
+      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
+      assert %Axon.Parameter{initializer: :zeros} = b1
+      assert %Axon.Parameter{initializer: :zeros} = b2
     end
 
     test "fails on bad options" do
@@ -433,8 +411,8 @@ defmodule AxonTest do
         assert pool1 == pool
 
         assert opts[:padding] == :valid
-        assert opts[:strides] == [1, 1]
-        assert opts[:kernel_size] == {1, 1}
+        assert opts[:strides] == nil
+        assert opts[:kernel_size] == 1
       end
     end
 
@@ -646,14 +624,6 @@ defmodule AxonTest do
         assert op1 == op
       end
     end
-
-    test "raises on bad shapes" do
-      for op <- @element_wise_layers do
-        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
-          apply(Axon, op, [[Axon.input({nil, 32}, "input"), Axon.input({nil, 64}, "input")]])
-        end
-      end
-    end
   end
 
   describe "nx" do
@@ -694,16 +664,18 @@ defmodule AxonTest do
   # TODO(seanmor5): Move/replace all with compiler_test
   describe "execution" do
     test "compile returns init and predict" do
+      inp = Nx.iota({1, 6}, type: {:f, 32})
+
       {init_fn, predict_fn} =
         Axon.input({nil, 6}, "input")
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
-        |> Axon.compile()
+        |> Axon.build()
 
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(inp, %{})
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
 
-      assert predict_fn.(params, Nx.iota({1, 6})) == Nx.iota({1, 6}, type: {:f, 32})
+      assert predict_fn.(params, inp) == inp
     end
 
     def model do
@@ -711,7 +683,7 @@ defmodule AxonTest do
     end
 
     test "init works outside defn" do
-      assert Axon.init(model()) == %{
+      assert Axon.init(model(), Nx.template({1, 6}, {:f, 32})) == %{
                "dense" => %{
                  "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
                  "bias" => zeros({6})
@@ -720,10 +692,10 @@ defmodule AxonTest do
     end
 
     test "predict works outside defn" do
+      inp = Nx.iota({1, 6}, type: {:f, 32})
       model = model()
 
-      assert Axon.predict(model, Axon.init(model), Nx.iota({1, 6})) ==
-               Nx.iota({1, 6}, type: {:f, 32})
+      assert Axon.predict(model, Axon.init(model, inp), inp) == inp
     end
   end
 
@@ -751,19 +723,7 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             -------------------------------------------------------------------------------------------------
-                                                           Model
-             =================================================================================================
-              Layer                           Shape        Policy              Parameters   Parameters Memory
-             =================================================================================================
-              input ( input )                 {nil, 784}   p=f32 c=f32 o=f32   0            0 bytes
-              dense1 ( dense["input"] )       {nil, 128}   p=f32 c=f32 o=f32   100480       401920 bytes
-              dense2 ( dense["dense1"] )      {nil, 10}    p=f32 c=f32 o=f32   1290         5160 bytes
-              softmax ( softmax["dense2"] )   {nil, 10}    p=f32 c=f32 o=f32   0            0 bytes
-             -------------------------------------------------------------------------------------------------
-             Total Parameters: 101770
-             Total Parameters Memory: 407080 bytes
-             Inputs: %{"input" => {nil, 784}}
+             TODO
              """
     end
 
@@ -782,22 +742,7 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             ---------------------------------------------------------------------------------------------------------------------------------------
-                                                                              Model
-             =======================================================================================================================================
-              Layer                                                   Shape                      Policy              Parameters   Parameters Memory
-             =======================================================================================================================================
-              input ( input )                                         {nil, 784}                 p=f32 c=f32 o=f32   0            0 bytes
-              dense ( dense["input"] )                                {nil, 128}                 p=f32 c=f32 o=f32   100480       401920 bytes
-              residual_dense ( dense["dense"] )                       {nil, 128}                 p=f32 c=f32 o=f32   16512        66048 bytes
-              container_0 ( container {"residual_dense", "dense"} )   {{nil, 128}, {nil, 128}}   p=f32 c=f32 o=f32   0            0 bytes
-              residual_add ( add["container_0"] )                     {nil, 128}                 p=f32 c=f32 o=f32   0            0 bytes
-              dense2 ( dense["residual_add"] )                        {nil, 10}                  p=f32 c=f32 o=f32   1290         5160 bytes
-              softmax ( softmax["dense2"] )                           {nil, 10}                  p=f32 c=f32 o=f32   0            0 bytes
-             ---------------------------------------------------------------------------------------------------------------------------------------
-             Total Parameters: 118282
-             Total Parameters Memory: 473128 bytes
-             Inputs: %{"input" => {nil, 784}}
+             TODO
              """
     end
 
@@ -805,21 +750,7 @@ defmodule AxonTest do
       {_, out_sequence} = Axon.input({nil, 32, 10}, "input_0") |> Axon.lstm(64, name: "lstm")
 
       assert inspect(out_sequence) == """
-             -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                                                                                     Model
-             =====================================================================================================================================================================================
-              Layer                                                                            Shape                                           Policy              Parameters   Parameters Memory
-             =====================================================================================================================================================================================
-              input_0 ( input )                                                                {nil, 32, 10}                                   p=f32 c=f32 o=f32   0            0 bytes
-              lstm_c_hidden_state ( recurrent_state["input_0"] )                               {nil, 1, 64}                                    p=f32 c=f32 o=f32   0            0 bytes
-              lstm_h_hidden_state ( recurrent_state["input_0"] )                               {nil, 1, 64}                                    p=f32 c=f32 o=f32   0            0 bytes
-              lstm_hidden_state ( container {"lstm_c_hidden_state", "lstm_h_hidden_state"} )   {{nil, 1, 64}, {nil, 1, 64}}                    p=f32 c=f32 o=f32   0            0 bytes
-              lstm ( lstm["input_0", "lstm_hidden_state"] )                                    {{{nil, 1, 64}, {nil, 1, 64}}, {nil, 32, 64}}   p=f32 c=f32 o=f32   19200        76800 bytes
-              lstm_output_sequence ( elem["lstm"] )                                            {nil, 32, 64}                                   p=f32 c=f32 o=f32   0            0 bytes
-             -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-             Total Parameters: 19200
-             Total Parameters Memory: 76800 bytes
-             Inputs: %{"input_0" => {nil, 32, 10}}
+             TODO
              """
     end
 
@@ -827,16 +758,7 @@ defmodule AxonTest do
       model = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
 
       assert inspect(model) == """
-             -------------------------------------------------------------------------------
-                                                  Model
-             ===============================================================================
-              Layer           Shape      Policy              Parameters   Parameters Memory
-             ===============================================================================
-              x ( input_0 )   {nil, 2}   p=f32 c=f32 o=f32   4            16 bytes
-             -------------------------------------------------------------------------------
-             Total Parameters: 4
-             Total Parameters Memory: 16 bytes
-             Inputs: %{"input_0" => {nil, 1}}
+             TODO
              """
     end
 
@@ -848,16 +770,7 @@ defmodule AxonTest do
         |> Axon.namespace("y")
 
       assert inspect(model) == """
-             -------------------------------------------------------------------------------
-                                                  Model
-             ===============================================================================
-              Layer           Shape      Policy              Parameters   Parameters Memory
-             ===============================================================================
-              y ( input_0 )   {nil, 2}   p=f32 c=f32 o=f32   4            16 bytes
-             -------------------------------------------------------------------------------
-             Total Parameters: 4
-             Total Parameters Memory: 16 bytes
-             Inputs: %{"input_0" => {nil, 1}}
+             TODO
              """
     end
 
@@ -868,19 +781,7 @@ defmodule AxonTest do
       model = Axon.add(x, y)
 
       assert inspect(model) == """
-             ------------------------------------------------------------------------------------------------------------------
-                                                                   Model
-             ==================================================================================================================
-              Layer                                  Shape                  Policy              Parameters   Parameters Memory
-             ==================================================================================================================
-              x ( input_0 )                          {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
-              y ( input_1 )                          {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
-              container_0 ( container {"x", "y"} )   {{nil, 2}, {nil, 2}}   p=f32 c=f32 o=f32   0            0 bytes
-              add_0 ( add["container_0"] )           {nil, 2}               p=f32 c=f32 o=f32   0            0 bytes
-             ------------------------------------------------------------------------------------------------------------------
-             Total Parameters: 8
-             Total Parameters Memory: 32 bytes
-             Inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+             TODO
              """
     end
 
@@ -891,20 +792,7 @@ defmodule AxonTest do
       model = Axon.add(x, y)
 
       assert inspect(model) == """
-             ------------------------------------------------------------------------------------------------------------------------
-                                                                      Model
-             ========================================================================================================================
-              Layer                                        Shape                  Policy              Parameters   Parameters Memory
-             ========================================================================================================================
-              x ( input_0 )                                {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
-              input_1 ( input )                            {nil, 1}               p=f32 c=f32 o=f32   0            0 bytes
-              dense_1 ( dense["input_1"] )                 {nil, 2}               p=f32 c=f32 o=f32   4            16 bytes
-              container_0 ( container {"x", "dense_1"} )   {{nil, 2}, {nil, 2}}   p=f32 c=f32 o=f32   0            0 bytes
-              add_0 ( add["container_0"] )                 {nil, 2}               p=f32 c=f32 o=f32   0            0 bytes
-             ------------------------------------------------------------------------------------------------------------------------
-             Total Parameters: 8
-             Total Parameters Memory: 32 bytes
-             Inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+             TODO
              """
     end
   end

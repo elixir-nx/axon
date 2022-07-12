@@ -396,7 +396,7 @@ defmodule CompilerTest do
       input2 = Axon.input({nil, 2}, "input_1")
       model1 = Axon.bilinear(input1, input2, 1, name: "bilinear", kernel_initializer: :zeros)
 
-      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 1})}
+      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
 
       assert {init_fn, _predict_fn} = Axon.build(model1)
       assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
@@ -1187,6 +1187,33 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.build(model)
       assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.conv(input, k, b, channels: :last))
+    end
+
+    test "raises on bad options" do
+      assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+        model = Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, kernel_size: :foo)
+        Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+      end
+
+      assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+        model = Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, strides: :foo)
+        Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+      end
+
+      assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+        model = Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, padding: :foo)
+        Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+      end
+
+      assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
+        model = Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, input_dilation: :foo)
+        Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+      end
+
+      assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
+        model = Axon.input({nil, 1, 28, 28}, "input") |> Axon.conv(128, kernel_dilation: :foo)
+        Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+      end
     end
   end
 
@@ -3901,6 +3928,20 @@ defmodule CompilerTest do
         )
       end
     end
+
+    test "raises on bad shapes" do
+      for op <- @binary_layers do
+        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
+          inp1 = Nx.random_uniform({1, 32})
+          inp2 = Nx.random_uniform({1, 64})
+
+          model =
+            apply(Axon, op, [[Axon.input({nil, 32}, "input_0"), Axon.input({nil, 64}, "input_1")]])
+
+          Axon.predict(model, %{}, %{"input_0" => inp1, "input_1" => inp2})
+        end
+      end
+    end
   end
 
   describe "concatenate" do
@@ -4252,7 +4293,9 @@ defmodule CompilerTest do
       {state, _} = input |> Axon.lstm(4)
       {_, out} = input |> Axon.lstm(state, 8)
 
-      assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = Axon.init(out, input)
+      inp = Nx.template({1, 8, 2}, {:f, 32})
+
+      assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = Axon.init(out, inp)
 
       assert %{
                "input_kernel" => {wii_0, wif_0, wig_0, wio_0},

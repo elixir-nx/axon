@@ -227,21 +227,10 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.conv_kernel({nil, 28, 3}, 64, {2}, :last, 1)
       {64, 3, 2}
-
-  ### Error cases
-
-      iex> Axon.Shape.conv_kernel({nil, 1, 28, 28}, 32, {2}, :first, 1)
-      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
   def conv_kernel(input_shape, output_filters, kernel_size, channels, feature_group_size) do
     inner_rank = Nx.rank(input_shape) - 2
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-
-    unless Nx.rank(kernel_size) == inner_rank do
-      raise ArgumentError,
-            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
-              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
-    end
 
     input_channels =
       if channels == :first do
@@ -387,21 +376,10 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.depthwise_conv_kernel({nil, 28, 3}, 2, {2}, :last)
       {6, 1, 2}
-
-  ### Error cases
-
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 28, 28}, 32, {2}, :first)
-      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
   """
   def depthwise_conv_kernel(input_shape, channel_multiplier, kernel_size, channels) do
     inner_rank = Nx.rank(input_shape) - 2
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-
-    unless Nx.rank(kernel_size) == inner_rank do
-      raise ArgumentError,
-            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
-              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
-    end
 
     input_channels =
       if channels == :first do
@@ -462,9 +440,6 @@ defmodule Axon.Shape do
       {9, 1, 1, 3}
 
   ### Error cases
-
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2}, 1, :first)
-      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (2)
 
       iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3, :first)
       ** (ArgumentError) invalid kernel number
@@ -544,20 +519,10 @@ defmodule Axon.Shape do
       iex> Axon.Shape.separable_conv3d_kernel({nil, 3, 32, 32, 3}, 4, {3, 3, 3}, 3, :first)
       {12, 1, 1, 1, 3}
 
-  ### Error cases
-
-      iex> Axon.Shape.separable_conv3d_kernel({nil, 1, 28, 28, 3}, 3, {2}, 1, :first)
-      ** (ArgumentError) kernel size must have same rank (1) as number of spatial dimensions in the input (3)
   """
   def separable_conv3d_kernel(input_shape, channel_multiplier, kernel_size, num, channels) do
     inner_rank = Nx.rank(input_shape) - 2
     kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
-
-    unless Nx.rank(kernel_size) == inner_rank do
-      raise ArgumentError,
-            "kernel size must have same rank (#{Nx.rank(kernel_size)})" <>
-              " as number of spatial dimensions in the input (#{Nx.rank(input_shape) - 2})"
-    end
 
     idx =
       if channels == :first do
@@ -845,6 +810,22 @@ defmodule Axon.Shape do
     else
       {out_units}
     end
+  end
+
+  @doc """
+  Computes split sizes for the given splits.
+  """
+  def split(shape, n, axis) do
+    nil_names = List.duplicate(nil, Nx.rank(shape))
+    axis = Nx.Shape.normalize_axis(shape, axis, nil_names)
+
+    unless rem(elem(shape, axis), n) == 0 do
+      raise ArgumentError,
+            "unable to create #{n} even splits along axis #{axis}" <>
+              " of size #{elem(shape, axis)}"
+    end
+
+    div(elem(shape, axis), n)
   end
 
   @doc """
