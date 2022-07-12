@@ -116,7 +116,7 @@ defmodule AxonTestUtil do
     {params, _} =
       for _ <- 1..num_steps, reduce: state do
         state ->
-          Nx.Defn.jit(step_fn, [state])
+          apply(Nx.Defn.jit(step_fn), [state])
       end
 
     lhs = loss.(params)

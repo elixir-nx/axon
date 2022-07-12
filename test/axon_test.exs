@@ -99,8 +99,8 @@ defmodule AxonTest do
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{shape: {64, 1, 2, 2}} = kernel
       assert %Axon.Parameter{shape: {64}} = bias
@@ -151,8 +151,8 @@ defmodule AxonTest do
 
       assert opts[:padding] == :valid
       assert opts[:strides] == [1, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
       assert %Axon.Parameter{initializer: :zeros} = bias
@@ -170,8 +170,8 @@ defmodule AxonTest do
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{shape: {3, 1, 2, 2}} = kernel
       assert %Axon.Parameter{shape: {3}} = bias
@@ -224,9 +224,9 @@ defmodule AxonTest do
              } = Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3)
 
       assert opts[:padding] == :valid
-      assert opts[:strides] == [1, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:strides] == 1
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = k1
       assert %Axon.Parameter{initializer: :glorot_uniform} = k2
@@ -251,8 +251,8 @@ defmodule AxonTest do
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
-      assert opts[:kernel_dilation] == [1, 1]
-      assert opts[:input_dilation] == [1, 1]
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{shape: {3, 1, 2, 1}} = k1
       assert %Axon.Parameter{shape: {3, 1, 1, 2}} = k2
@@ -308,9 +308,9 @@ defmodule AxonTest do
              } = Axon.input({nil, 1, 28, 28, 3}, "input") |> Axon.separable_conv3d(3)
 
       assert opts[:padding] == :valid
-      assert opts[:strides] == [1, 1, 1]
-      assert opts[:kernel_dilation] == [1, 1, 1]
-      assert opts[:input_dilation] == [1, 1, 1]
+      assert opts[:strides] == 1
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = k1
       assert %Axon.Parameter{initializer: :glorot_uniform} = k2
@@ -341,15 +341,15 @@ defmodule AxonTest do
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1, 1]
-      assert opts[:kernel_dilation] == [1, 1, 1]
-      assert opts[:input_dilation] == [1, 1, 1]
+      assert opts[:kernel_dilation] == 1
+      assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{shape: {3, 1, 2, 1, 1}} = k1
-      assert %Axon.Parameter{shape: {3, 1, 1, 2, 1}} = k2
-      assert %Axon.Parameter{shape: {3, 1, 1, 1, 2}} = k3
-      assert %Axon.Parameter{shape: {3}} = b1
-      assert %Axon.Parameter{shape: {3}} = b2
-      assert %Axon.Parameter{shape: {3}} = b3
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = k3
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = b2
+      assert %Axon.Parameter{} = b3
     end
 
     test "fails on bad options" do
@@ -474,7 +474,7 @@ defmodule AxonTest do
   describe "global pooling" do
     test "works with options" do
       for pool <- @global_pooling_layers do
-        assert %Axon{output_shape: {nil, 1}} =
+        assert %Axon{} =
                  apply(Axon, pool, [
                    Axon.input({nil, 1, 28, 28}, "input"),
                    [keep_axes: false, name: "pool"]
@@ -600,8 +600,7 @@ defmodule AxonTest do
 
   describe "flatten" do
     test "works with defaults" do
-      assert %Axon{op: :flatten, output_shape: {nil, 784}} =
-               Axon.input({nil, 1, 28, 28}, "input") |> Axon.flatten()
+      assert %Axon{op: :flatten} = Axon.input({nil, 1, 28, 28}, "input") |> Axon.flatten()
     end
   end
 
@@ -659,38 +658,34 @@ defmodule AxonTest do
 
   describe "nx" do
     test "works with defaults" do
-      assert %Axon{output_shape: {nil, 32}} =
-               Axon.input({nil, 32}, "input") |> Axon.nx(fn x -> Nx.erf(x) end)
+      assert %Axon{} = Axon.input({nil, 32}, "input") |> Axon.nx(fn x -> Nx.erf(x) end)
     end
   end
 
   describe "embedding" do
     test "works with defaults" do
-      assert %Axon{output_shape: {nil, 10, 32}} =
+      assert %Axon{} =
                Axon.input({nil, 10}, "input") |> Axon.embedding(128, 32, name: "embedding")
     end
   end
 
   describe "reshape" do
     test "works with batch input" do
-      assert %Axon{output_shape: {nil, 3, 3}} =
-               Axon.input({nil, 9}, "input") |> Axon.reshape({3, 3})
+      assert %Axon{} = Axon.input({nil, 9}, "input") |> Axon.reshape({3, 3})
     end
 
     test "works with constant input" do
-      assert %Axon{output_shape: {1, 2, 3}} =
-               Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
+      assert %Axon{} = Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
     end
   end
 
   describe "transpose" do
     test "works with batch input" do
-      assert %Axon{output_shape: {nil, 1, 2}} =
-               Axon.input({nil, 2, 1}, "input") |> Axon.transpose([1, 0])
+      assert %Axon{} = Axon.input({nil, 2, 1}, "input") |> Axon.transpose([1, 0])
     end
 
     test "works with constant input" do
-      assert %Axon{output_shape: {1, 2, 3}} =
+      assert %Axon{} =
                Axon.constant(Nx.iota({3, 2, 1}))
                |> Axon.transpose([2, 1, 0], ignore_batch?: false)
     end
@@ -924,11 +919,9 @@ defmodule AxonTest do
       last_hidden_state = Axon.input({5, 128, 768}, "last_hidden_state")
       pooled = Axon.input({5, 768}, "pooled")
 
-      assert %Axon{output_shape: {5, 128, 768}} =
-               Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 0))
+      assert %Axon{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 0))
 
-      assert %Axon{output_shape: {5, 768}} =
-               Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
+      assert %Axon{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
     end
   end
 
