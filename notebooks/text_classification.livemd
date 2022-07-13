@@ -8,7 +8,9 @@ Mix.install([
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
-
+@sequence_length 75
+@batch_size 128
+@lstm 256
 @def_split " "
 @start "-DOCSTART- -X- -X- O\n"
 @ending "-------------------------------------------------------------"
@@ -302,10 +304,193 @@ Now we can transform our words using the respective functions:
 {train_data, train_labels} =
   transform_words(word_label_data, word_to_idx, label_to_idx, word_count, label_count)
 
-{ttd, ttl} =
+{test_train_data, test_train_labels} =
   transform_words(test_word_label_data, word_to_idx, label_to_idx, word_count, label_count)
 ```
 
 ## Building the model
 
-Now it's time to build our model.
+```elixir
+def build_model(word_count, label_count) do
+  Axon.input({nil, @sequence_length, 1}, "inputs")
+  |> Axon.embedding(word_count, @sequence_length)
+  |> Axon.nx(fn t ->
+    t[[0..-1//1, -1]]
+  end)
+  |> Axon.spatial_dropout(rate: 0.1)
+  |> Axon.lstm(@lstm)
+  |> then(fn {{new_cell, new_hidden}, out} ->
+    out
+  end)
+  |> Axon.dropout(rate: 0.2)
+  |> Axon.dense(label_count, activation: :softmax)
+end
+```
+
+Now it's time to build our model. our model consists of a base input layer of shape
+```{batch_size, time_steps_sequence_length, 1}```
+the embedding layer is a vectorization layer for the model, this allows us to compute the corresponding vectors of ```{token, label}``` to determine how accurate the result was.
+
+We use ```Axon.nx``` to then take the tensor returned from the above layer and using ```t[[0..-1//1, -1]]``` we slice the arity 1 dimension from the layer, returning the needed vectorization (embed matrice) along with the input sequence. You can also use ```Nx.squeeze``` here as long as the squeeze column is of value 1.
+
+```@lstm``` is our lstm memory size, this is the memory 'window' of the LSTM model. The LSTM memory size will greatly affect performance and is related to your standard sentence length, i.e if you were trying to classify sentences above 100 words long, a memory window of 50 would split them into two seperate passes.
+
+```Axon.dense``` is our final layer which uses the total label count to define it's input_length. If we only have 5 labels to classify a word with, it wouldn't make sense to have an ionput_length of above 5 as it would be wasted memory & space. the result shape would look like ```{batch_size, time_step, label_count}``` The dense layer will compute the result along the tensor.
+
+An important thing to note
+The activation function of ```:softmax``` has a bearing on the loss function you'll need to use to calculate the difference between the results. Some loss functions require the tensor values to be between 0 & 1 etc, this is where the activation function comes into play.
+
+## Model Training Setup
+
+```elixir
+def train(model, data) do
+  model
+  |> Axon.Loop.trainer(&kl_divergence/2, Axon.Optimizers.adam(0.001))
+  |> Axon.Loop.metric(:accuracy, "Accuracy")
+  |> Axon.Loop.run(data, %{}, epochs: 15, iterations: 5)
+end
+
+defp kl_divergence(y_true, y_pred) do
+  Axon.Losses.kl_divergence(y_true, y_pred, reduction: :mean)
+end
+```
+
+In Axon we trainh the model using ```Axon.Loop.trainer``` this creates a supervised training loop for the model to use.
+
+```kl_divergence/2``` is the loss function we'll for the trainer, kl_divergence is one of many loss functions. For classifcation problems You can use Categorical Cross Entropy, or Binary Cross Entropy; however the latter is used for one hot encoding (either 0 or 1), where the former is a computation by it's respective reduction, i.e ```:mean```, ```:sum```
+
+You can see loss functions generally take two arguments, the true value and the predicted value. The function will operate on thos eteo arguments and return a value. It's important to not get hung up on the actual loss value, as this is proportional to your input scale (we have normalized via ```Nx.divide```)
+
+If we hadn't normalized the loss value maybe: 12300, where as if we normalize it may be: 2.350. The result you want is the loss to decrease at the next epoch, not the actual value.
+
+## Training Execution
+
+Before we can train our model we need to transform our training_data & labels into a format the model will accept at the input layer. As discussed earlier this is of the form ```{input, output}```, where input is the word token and output is the label token.
+
+To do this we'll use ```Stream.zip/2```, this function takes two arrays and combines each respective child into the tuple ```{input, output}```.
+
+Before Zip:
+
+```
+[word_token, n++]
+[label_token, n++]
+```
+
+After Zip: ```[{word_token, label_token}, n++]```
+
+```elixir
+data = Stream.zip(train_data, train_labels)
+```
+
+To execute our training Loop using ```train/2```, this first argument for the train function is a model, lets use ```build_model/2``` to generate the model we'll need.
+
+```elixir
+model = build_model(word_count, label_count)
+```
+
+We can now execute the training loop using ```train/2``` and the output of the training loop will be training paramteres which are needed to predict word classifications from the model.
+
+```elixir
+training_params = train(model, data)
+```
+
+## Prediction Setup
+
+```elixir
+def predict(init_sequence, params, model, idx_to_char, idx_to_label, count, real) do
+  Enum.reduce(1..10, [], fn _, seq ->
+    p = Axon.predict(model, params, init_sequence)
+
+    predicted =
+      p
+      |> Nx.argmax(axis: -1)
+      |> Nx.to_flat_list()
+      |> Enum.map(fn predict_sequence ->
+        decode(idx_to_label, predict_sequence)
+      end)
+
+    given =
+      init_sequence
+      |> Nx.to_flat_list()
+      |> Enum.map(fn inpseq ->
+        {actual_result, _} =
+          (inpseq * count)
+          |> Float.floor()
+          |> Float.to_string()
+          |> Integer.parse()
+
+        decode(idx_to_char, actual_result)
+      end)
+
+    rl =
+      real
+      |> Nx.to_flat_list()
+      |> Enum.map(fn real_sequence ->
+        decode(idx_to_label, real_sequence)
+      end)
+
+    Enum.zip([given, predicted, rl])
+  end)
+  |> Enum.map(fn {input, output, r} ->
+    true? =
+      if output == r do
+        "CORRECT"
+      else
+        "INCORRECT"
+      end
+
+    if true? == "CORRECT" do
+      Logger.warn(
+        "Word was: #{input}, Predicted Category was: #{output} Real Result: #{r}, RETURNED: #{true?}"
+      )
+    else
+      Logger.error(
+        "Word was: #{input}, Predicted Category was: #{output} Real Result: #{r}, RETURNED: #{true?}"
+      )
+    end
+  end)
+end
+```
+
+As you can see above ```predict/6``` requires an input sequence, the ```training paramaters```, the buil't model & the relevant meta data for encoding/decoding (```idx_to```, ```count```, ```real_results```)
+
+<!-- livebook:{"break_markdown":true} -->
+
+To predict the word classification, we require the training paramters from the training execution above & some sample test data from the start. We'll select a random batch from the ```test_train_data``` & the corresponding real results from the ```test_train_labels```
+
+You could use the training dataset for this, however, you don't want to use the sdame dataset the model was trained on as it isn't a realistic or valid test (as it's learnt those sequences already). This tutorial doesn't cover the test:train:validate split, as it's a quite a large area that invlives biases and other important factors.
+
+This is the input sequence the predict function will utilize
+
+```elixir
+# Has to be in range
+random_int_from_sample = 5
+sample_slice = Enum.fetch!(test_train_data, random_int_from_sample)
+real_results = Enum.fetch!(test_train_labels, random_int_from_sample)
+```
+
+To predict the input_sequence's word classification sequence, we use ```Axon.predict```, this will return a tensor which holds the classified word sequence.
+
+```Nx.argmax``` is used to isolate the tensor with the maximum values, in our case it's the closes classification. We use ```Nx.to_flat_list``` to return the sequence to a flat array so that we can decode the resultant prediction using ```decode/2```
+
+We'll transform  the input sequence so we can decode it, this is becasue we normalized the tensor in the ```transform_words``` function in order to make the model run more efficiently. If we dont do this, the values you'll get back would be a float i.e 0.43, which we then cannot use to decode into the actual word.
+
+We take the ```real_result```, which is the actual labels for that given input sequence, and we decode to compare the prediction
+
+The Result arrays then use ```Enum.zip``` so we can tidy them up neatly to compare our results. I've included a very basic output for the results which just print the word that was given, it's predicted word and the actual word, also displaying if they were a match or not.
+
+## Prediction Execution
+
+We can now execute our predictions.
+
+```elixir
+predict(
+  sample_slice,
+  unpadded_params,
+  unpadded_model,
+  idx_to_word,
+  idx_to_label,
+  word_count,
+  real_results
+)
+```
