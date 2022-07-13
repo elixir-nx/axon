@@ -155,28 +155,6 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
-    test "fails on bad options" do
-      assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, kernel_size: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, strides: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, padding: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, input_dilation: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, kernel_dilation: :foo)
-      end
-    end
-
     test "fails on bad initializers" do
       assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
         Axon.input({nil, 1, 28, 28}, "input") |> Axon.depthwise_conv(3, kernel_initializer: :foo)
@@ -236,28 +214,6 @@ defmodule AxonTest do
       assert %Axon.Parameter{initializer: :glorot_uniform} = k2
       assert %Axon.Parameter{initializer: :zeros} = b1
       assert %Axon.Parameter{initializer: :zeros} = b2
-    end
-
-    test "fails on bad options" do
-      assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3, kernel_size: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3, strides: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3, padding: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3, input_dilation: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28}, "input") |> Axon.separable_conv2d(3, kernel_dilation: :foo)
-      end
     end
 
     test "fails on bad initializers" do
@@ -330,29 +286,6 @@ defmodule AxonTest do
       assert %Axon.Parameter{} = b3
     end
 
-    test "fails on bad options" do
-      assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
-        Axon.input({nil, 1, 28, 28, 3}, "input") |> Axon.separable_conv3d(3, kernel_size: {1, 1})
-      end
-
-      assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
-        Axon.input({nil, 1, 28, 28, 3}, "input") |> Axon.separable_conv3d(3, strides: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
-        Axon.input({nil, 1, 28, 28, 3}, "input") |> Axon.separable_conv3d(3, padding: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28, 3}, "input") |> Axon.separable_conv3d(3, input_dilation: :foo)
-      end
-
-      assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
-        Axon.input({nil, 1, 28, 28, 3}, "input")
-        |> Axon.separable_conv3d(3, kernel_dilation: [1, 1])
-      end
-    end
-
     test "fails on bad initializers" do
       assert_raise ArgumentError, ~r/initializer must be one of/, fn ->
         Axon.input({nil, 1, 28, 28, 3}, "input")
@@ -413,22 +346,6 @@ defmodule AxonTest do
         assert opts[:padding] == :valid
         assert opts[:strides] == nil
         assert opts[:kernel_size] == 1
-      end
-    end
-
-    test "fails on bad options" do
-      for pool <- @pooling_layers do
-        assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
-          apply(Axon, pool, [Axon.input({nil, 1, 28, 28}, "input"), [strides: :foo]])
-        end
-
-        assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
-          apply(Axon, pool, [Axon.input({nil, 1, 28, 28}, "input"), [kernel_size: :foo]])
-        end
-
-        assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
-          apply(Axon, pool, [Axon.input({nil, 1, 28, 28}, "input"), [padding: :foo]])
-        end
       end
     end
   end
@@ -723,7 +640,9 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input"]
+             >\
              """
     end
 
@@ -742,7 +661,9 @@ defmodule AxonTest do
         |> Axon.softmax(name: "softmax")
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input"]
+             >\
              """
     end
 
@@ -750,7 +671,9 @@ defmodule AxonTest do
       {_, out_sequence} = Axon.input({nil, 32, 10}, "input_0") |> Axon.lstm(64, name: "lstm")
 
       assert inspect(out_sequence) == """
-             TODO
+             #Axon<
+               inputs: ["input_0"]
+             >\
              """
     end
 
@@ -758,7 +681,9 @@ defmodule AxonTest do
       model = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input_0"]
+             >\
              """
     end
 
@@ -770,7 +695,9 @@ defmodule AxonTest do
         |> Axon.namespace("y")
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input_0"]
+             >\
              """
     end
 
@@ -781,7 +708,9 @@ defmodule AxonTest do
       model = Axon.add(x, y)
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input_0", "input_1"]
+             >\
              """
     end
 
@@ -792,7 +721,9 @@ defmodule AxonTest do
       model = Axon.add(x, y)
 
       assert inspect(model) == """
-             TODO
+             #Axon<
+               inputs: ["input_0", "input_1"]
+             >\
              """
     end
   end

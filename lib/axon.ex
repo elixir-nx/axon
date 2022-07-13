@@ -1723,8 +1723,8 @@ defmodule Axon do
 
     layer(:reshape, [x],
       name: opts[:name],
+      shape: new_shape,
       ignore_batch?: ignore_batch?,
-      to: new_shape,
       op_name: :reshape
     )
   end
@@ -2881,33 +2881,17 @@ defmodule Axon do
   end
 
   @doc """
-  Returns the model's signature as a tuple of `{inputs, outputs}`.
-
-  `inputs` will be a map of input names to input shapes, while outputs
-  will be an output shape or a container of output shapes.
-
-  ## Examples
-
-      iex> model = Axon.input({nil, 32}, "input") |> Axon.dense(10)
-      iex> {inp, out} = Axon.get_model_signature(model)
-      iex> inp
-      %{"input" => {nil, 32}}
-      iex> out
-      {nil, 10}
-
-      iex> inp1 = Axon.input({nil, 32}, "input_0")
-      iex> inp2 = Axon.input({nil, 64}, "input_1")
-      iex> model = Axon.container(%{out1: inp1, out2: inp2})
-      iex> {inp, out} = Axon.get_model_signature(model)
-      iex> inp
-      %{"input_0" => {nil, 32}, "input_1" => {nil, 64}}
-      iex> out
-      %{out1: {nil, 32}, out2: {nil, 64}}
+  Returns information about a model's inputs.
   """
   @doc type: :graph
-  def get_model_signature(%Axon{} = axon) do
-    # TODO
-    :ok
+  def get_inputs(%Axon{} = axon) do
+    reduce_nodes(axon, [], fn
+      %Axon{op: :input, name: name}, inputs ->
+        [name.(:input, %{}) | inputs]
+
+      _, inputs ->
+        inputs
+    end)
   end
 
   @doc """
@@ -3300,7 +3284,9 @@ defmodule Axon do
     alias Axon.Parameter
 
     def inspect(axon, opts) do
-      inner = concat([line(), "model"])
+      inputs = Enum.reverse(Axon.get_inputs(axon))
+
+      inner = concat([line(), "inputs: #{inspect(inputs)}"])
 
       force_unfit(
         concat([

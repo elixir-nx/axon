@@ -365,8 +365,8 @@ defmodule Axon.Loop do
     end
 
     {
-      fn data, state -> Nx.Defn.jit_or_apply(init_fn, [data, state]) end,
-      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+      Nx.Defn.jit(init_fn, on_conflict: :reuse),
+      Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
   end
 
@@ -398,8 +398,8 @@ defmodule Axon.Loop do
     end
 
     {
-      fn state -> Nx.Defn.jit_or_apply(init_fn, [state]) end,
-      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+      Nx.Defn.jit(init_fn, on_conflict: :reuse),
+      Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
   end
 
@@ -437,7 +437,7 @@ defmodule Axon.Loop do
   This is useful for extracting specific fields from a loop and piping them into
   additional functions.
   """
-  def loop(step_fn, init_fn \\ & &1, output_transform \\ & &1)
+  def loop(step_fn, init_fn \\ &default_init/2, output_transform \\ & &1)
       when is_function(step_fn, 2) and is_function(init_fn, 2) and
              is_function(output_transform, 1) do
     %Loop{
@@ -446,6 +446,8 @@ defmodule Axon.Loop do
       output_transform: output_transform
     }
   end
+
+  defp default_init(_data, state), do: state
 
   @doc """
   Creates a supervised training loop from a model, loss function,
@@ -1183,10 +1185,13 @@ defmodule Axon.Loop do
       output_transform: output_transform
     } = loop
 
+    # TODO: Raise on empty dataset
+    [sample_data | _] = Enum.take(data, 1)
+
     loop_state =
       init_loop_state(
         init_fn,
-        Enum.take(data, 1),
+        sample_data,
         init_state,
         attached_state,
         metric_fns,
@@ -1653,7 +1658,7 @@ defmodule Axon.Loop do
   # otherwise just applies the function with the given arguments
   defp maybe_jit(fun, args, jit_compile?, jit_opts) do
     if jit_compile? do
-      Nx.Defn.jit(fun, args, jit_opts)
+      apply(Nx.Defn.jit(fun, jit_opts), args)
     else
       apply(fun, args)
     end

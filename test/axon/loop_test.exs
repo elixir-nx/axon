@@ -18,7 +18,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.loop(step_fn)
 
-      assert_equal(init_fn.(%{}), %{})
+      assert_equal(init_fn.(Nx.tensor(1), %{}), %{})
       assert_equal(update_fn.({}, %{}), Nx.tensor(1))
       assert_equal(transform.(%{}), %{})
     end
@@ -49,7 +49,8 @@ defmodule Axon.LoopTest do
           assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                    Loop.trainer(model, loss, optimizer)
 
-          assert %{model_state: %{}} = pstate = init_fn.(%{})
+          assert %{model_state: %{}} =
+                   pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
 
           state = %State{step_state: pstate}
 
@@ -71,7 +72,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, custom_loss_fn, :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.(%{})
+      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
 
       state = %State{step_state: pstate}
 
@@ -92,7 +93,7 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, optimizer)
 
-      assert %{model_state: %{}} = pstate = init_fn.(%{})
+      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
 
       state = %State{step_state: pstate}
 
@@ -209,7 +210,7 @@ defmodule Axon.LoopTest do
       model_state = Axon.init(model, inp)
 
       {init_fn, step_fn} = Axon.Loop.eval_step(model)
-      pstate = apply(Nx.Defn.jit(init_fn), [model_state])
+      pstate = apply(Nx.Defn.jit(init_fn), [Nx.tensor(1), model_state])
 
       # Older versions of the loop API had backend mismatches,
       # so just verify there was a successful result here
@@ -224,7 +225,9 @@ defmodule Axon.LoopTest do
 
       {init_fn, _step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      %{model_state: %{"x" => x_params_2}} = init_fn.(init_params)
+      %{model_state: %{"x" => x_params_2}} =
+        init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, init_params)
+
       assert_equal(x_params_1, x_params_2)
     end
 
@@ -234,7 +237,7 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.(%{})
+      state = init_fn.({val, val}, %{})
       state = step_fn.({val, val}, state)
 
       assert_all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8}))
@@ -244,7 +247,7 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.instance_norm(name: "instance_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.(%{})
+      state = init_fn.({val, val}, %{})
       state = step_fn.({val, val}, state)
 
       assert_all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
@@ -329,7 +332,7 @@ defmodule Axon.LoopTest do
       state =
         step_fn
         |> Loop.loop()
-        |> Loop.run([], %{}, epochs: 0)
+        |> Loop.run([Nx.tensor(1)], %{}, epochs: 0)
 
       assert %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate} = state
 
@@ -418,7 +421,7 @@ defmodule Axon.LoopTest do
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
-      step_state = init_fn.(%{})
+      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor(1)}, %{})
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
@@ -431,8 +434,8 @@ defmodule Axon.LoopTest do
       serialize_fn = fn step_state, opts -> :erlang.term_to_binary(step_state, opts) end
       deserialize_fn = fn binary, opts -> :erlang.binary_to_term(binary, opts) end
 
-      init_fn = fn _state -> %{foo: Nx.tensor(1)} end
-      step_state = init_fn.(%{})
+      init_fn = fn _data, _state -> %{foo: Nx.tensor(1)} end
+      step_state = init_fn.(Nx.tensor(1), %{})
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state, serialize_step_state: serialize_fn)

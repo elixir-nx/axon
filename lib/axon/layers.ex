@@ -1944,11 +1944,11 @@ defmodule Axon.Layers do
   # Internal version of Nx.reshape for constructing reshape layers
   # without worrying about a batch dimension
   defn reshape(x, opts \\ []) do
-    opts = keyword!(opts, [:to, ignore_batch?: true, mode: :inference])
+    opts = keyword!(opts, [:shape, ignore_batch?: true, mode: :inference])
 
-    transform({opts[:to], opts[:ignore_batch?]}, fn
+    transform({opts[:shape], opts[:ignore_batch?]}, fn
       {shape, true} ->
-        Nx.reshape(x, put_elem(shape, 0, elem(Nx.shape(x), 0)))
+        Nx.reshape(x, Tuple.insert_at(shape, 0, elem(Nx.shape(x), 0)))
 
       {shape, false} ->
         Nx.reshape(x, shape)
