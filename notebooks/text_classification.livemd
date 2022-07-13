@@ -8,20 +8,304 @@ Mix.install([
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
+
+@def_split " "
+@start "-DOCSTART- -X- -X- O\n"
+@ending "-------------------------------------------------------------"
 ```
 
-<!-- livebook:{"output":true} -->
-
 ## Introduction
-In this example, we will discover how to create a generative model for text, character-by-character using LSTM recurrent neural networks in Elixir with Axon. The follwing information is based on some really helpful guides: [NER Recognition in Keras](https://valueml.com/named-entity-recognition-using-lstm-in-keras/) &
-[NER RNN TensorFlow](http://alexminnaar.com/2019/08/22/ner-rnns-tensorflow.html).
 
-## Why words, why not characters?
-## Recurrent Neural Networks
-## NER
-## LSTM
-
+In this example, we will discover how to create a generative model for text, character-by-character using LSTM recurrent neural networks in Elixir with Axon. The follwing information is based on some really helpful guides: [NER Recognition in Keras](https://valueml.com/named-entity-recognition-using-lstm-in-keras/) & [NER RNN TensorFlow](http://alexminnaar.com/2019/08/22/ner-rnns-tensorflow.html).
 
 ## Preparation
 
 Using [Example Datasets](https://github.com/bhuvanakundumani/NER_tensorflow2.2.0/blob/master/data/) we can download three example datasets from the CONL2003 library, these will be the Train, Test and Validate datasets.
+
+```elixir
+test_src = "https://github.com/bhuvanakundumani/NER_tensorflow2.2.0/blob/master/data/test.txt"
+train_src = "https://github.com/bhuvanakundumani/NER_tensorflow2.2.0/blob/master/data/train.txt"
+
+validation_src =
+  "https://github.com/bhuvanakundumani/NER_tensorflow2.2.0/blob/master/data/valid.txt"
+```
+
+## Using the datasets
+
+For each dataset, we'll need to stream the contents. This is due to the size of datasets, and the nature in which the RNN operates. If you look closely at the references you can see that Keras & TensorFlow use a generator function in order to process data through the RNN. We'll be using File.stream/1 & some helper functions.
+
+### from_file/2
+
+is responsible for Streaming the contents of the file
+
+### pre_process/1
+
+Takes the streamed data & sanitizes the incoming data. We'll cover this in the section below.
+
+```elixir
+defp from_file(filename, opts \\ []) do
+  data_stream =
+    filename
+    |> File.stream!()
+end
+
+defp pre_process(streamed_data) do
+  char_label_data =
+    streamed_data
+    |> Stream.map(fn line ->
+      [token | entities] = String.split(line, @def_split)
+
+      if(
+        !is_nil(token) &&
+          token !== "" &&
+          line !== "\n" &&
+          token !== @start &&
+          token !== @ending
+      ) do
+        [r | rest] = entities |> List.last() |> String.split("\n")
+
+        {token, r}
+      else
+        nil
+      end
+    end)
+    |> Stream.reject(fn x -> is_nil(x) end)
+
+  unique_words = char_label_data |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+
+  unique_labels = char_label_data |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+
+  {char_label_data, unique_words, unique_labels}
+end
+```
+
+## Pre-Processing the Data
+
+As you can see above, we need to process the data after we have opened the stream. We will first look at the structure of the dataset.
+
+```
+[["TOKEN_WORD_WERE_LOOKING_FOR", "LABEL_1", "LABEL_2", ...], ...]
+```
+
+As seen above, it's comprised of Rows of a word (token) plus it's corresponding labels.
+
+We first use the ```@def_split``` in order to split the raw line into the above sequences.
+
+We're only worried about the last label for this example, if you we're to use more than the one label you would have a one to many relationship, where only looking at a one to one relationship of ```Tokens:Labels```
+
+## Optimizng the dataset
+
+RNN's & LSTM's are memory intensive programs that can cause performance issues & unintended side-effects in your results iof the datasets haven't been optimized. This can result in large pre-processing times, large epoch intervals (slow processing).
+
+By the nature of LSTM based RNN newtworks, the program will look across a window consisting of timesteps.
+
+```[0,1,2,3, [4,5,6], 7,8,9] (timesteps == 3)```
+
+Each character or token the network has to learn, increases the output of the model size. This can be insiginificant with smaller datasets, however, if you're using words & characters that don't effect the final result, youre spending resources for no reason.
+
+```!is_nil(token) && token !== "" && line !== "\n" && token !== @start && token !== @ending```
+
+Above you can see we're removing any unwanted word
+
+## Putting the Datasets Together
+
+Now that we have covered some basics, we'll finally stream the dataset & pre-process ready for the next stage.
+
+```elixir
+{word_label_data, unique_words, unique_labels} =
+  from_file(train_src)
+  |> pre_process
+
+{test_word_label_data, unique_test_words, unique_test_labels} =
+  from_file(test_src)
+  |> pre_process
+```
+
+## Encoding & Decoding the Tokens & Labels
+
+RNN's don't operate with strings as values very efficiently. This is due to the operation of the RNN working via matrice's and transformations. For this reason, we'll tokenize the words & labels, we'll call this encoding. Once we've tokenzied the words & Labels we also need a method to convert the result from the RNN back into a word or label, we'll call this decoding.
+
+This will be performed using the following helper functions ```to_idx/1``` and ```idx_to/1```
+
+idx is a nice way of saying ID's, thus:
+```to_idx``` ~> converts words/labels to tokens (id's) and
+```idx_to``` ~> converts tokens to words/labels
+
+```encode/2``` & ```decode/2``` are responsbile for the actual encoding/decoding from the token. This is somewhat needed to solve the issue of unknown tokens & labels being introduced into the dataset via an input. This can be made clearer if you thjink about training the RNN on a certain vocabulary and then it encounters a word (token in this case) that it hasn't seen before.
+
+i.e: ```%{"CAT" => 0, "DOG" => 1, "BIRD" => 3}```, now if you try and encode the word ```"Donkey"``` it wouldn't have a token for it.
+
+```elixir
+defp to_idx(str_array) do
+  str_array
+  |> Stream.uniq()
+  |> Stream.with_index()
+  |> Enum.into(%{})
+end
+
+defp idx_to(str_array) do
+  str_array
+  |> Stream.uniq()
+  |> Enum.with_index(&{&2, &1})
+  |> Enum.into(%{})
+end
+
+defp encode(dictionary, word) do
+  with {:ok, id} <- Map.fetch(dictionary, word) do
+    id
+  else
+    _ ->
+      0
+  end
+end
+
+defp decode(dictionary, word) do
+  with {:ok, id} <- Map.fetch(dictionary, word) do
+    word
+  else
+    _ -> "Unknown"
+  end
+end
+
+word_to_idx = to_idx(unique_words)
+label_to_idx = to_idx(unique_labels)
+
+idx_to_word = idx_to(unique_words)
+idx_to_label = idx_to(unique_labels)
+```
+
+## LSTM Input Preparation
+
+For the RNN network to operate, it uses input sequences of tokens & labels. this can be visualized as:
+
+``` [1,3,4,3,1,2,0, ...] ```
+
+These input sequences are generated from the tokenized (encoded) words that we processed in the steps above. This means that our sequence from the file we stream would be an array of:
+
+```[token, n++]```, where n is the sum of all the tokens in the file, this could mean you have 1200 words in the file, or 12000 words in the file.
+
+The same sequence pattern must be followed by the labels, as we defined above we have a one to one relationship for our datasets:
+
+```[token, n++] = [label, n++]```
+
+As you can expect, for every token there must be a respective label. This is essential as we feed our network in inputs, with each input corresponding to ```{token, label}```, thus one of the major goals in this step is to ensure consistency across the labels & tokens.
+
+LSTM networks are fed in batches of inputs, usually designated by ```batch_size```, this variable allows us to split our Single Dimension input sequence into groups of input sequences (i.e batches). We have defined the batch size in the start of the modukle (```@batch_size```)
+
+RNN inputs must be of equal size matrice, this means that you cannot have an input sequence(row) with 8 elements, and then another with 6 and so forth. The process of transforming the input sequences into equal size input sequences (rows) is known as either Padding or Truncation (depending on the method used).
+
+Padding must be used if you know you fixed length input, i.e if we expect we are only going to need a sequence length of 200 characters, we can pad the input sequence to achieve the max length:
+
+```
+Input Sequence 1 ~> [1,3,4,4]
+Input Sequence 2 ~> [1,3,4]
+```
+
+After padding:
+
+```
+Input Sequence 1 ~> [1,3,4,4]
+Input Sequence 2 ~> [1,3,4,0]
+```
+
+Truncation is chosen if we have an infinite length for the sequence, i.e we are processing paragraphs of text, that can have any legth, opposed to the former situation where you might be taking an input from an api of fixed character length.
+
+```
+Input Sequence 1 ~> [1,3,4,4]
+Input Sequence 2 ~> [1,3,4]
+```
+
+After Truncation:
+
+```
+Input Sequence 1 ~> [1,3,4]
+Input Sequence 2 ~> [1,3,4]
+```
+
+The important thing to note here, if we truncate or pad the input sequence, we need to do the same process to the label input sequence; this ensures the training data (tokens/words) matches the labelling data (labels).
+
+For this example, since we don't know the sequence length that we would require, we'll use truncation. Within elixir this is ```Enum.chunk_every/2```
+
+We have defined a sequence length (```@sequence_length```) at the start of the module, this is aklso known as the ```time steps```. This value isn't arbritrary and you can find the optimal sequence length by analyzing your input words and seeing the frequency of the word count. i.e you may find that sentences with 64 words were used mostly, and anything below that were only used a small fraction. This is important as it's one fo the variables you can use to adjust your models performance.
+
+```elixir
+def transform_words(word_labels, word_to_idx, label_to_idx, wcount, lcount) do
+  train_data =
+    word_labels
+    |> Enum.map(fn {word, label} ->
+      encode(word_to_idx, word)
+    end)
+    |> Enum.chunk_every(@sequence_length, 1, :discard)
+    |> Nx.tensor()
+    |> Nx.divide(wcount)
+    |> Nx.reshape({:auto, @sequence_length, 1})
+    |> Nx.to_batched_list(@batch_size)
+
+  train_labels =
+    word_labels
+    |> Enum.map(fn {word, label} ->
+      encode(label_to_idx, label)
+    end)
+    |> Enum.chunk_every(@sequence_length, 1, :discard)
+    |> Nx.tensor()
+    |> Nx.reshape({:auto, @sequence_length, 1})
+    |> Nx.to_batched_list(@batch_size)
+
+  {train_data, train_labels}
+end
+```
+
+In the above code block, we can see the input sequence is first encoded using the ```encode/1``` (```to_idx```) function discussed earlier, this is ran through the encode/1 function to catch errors in the input sequence (unknown characters etc)
+
+we use Enum.chunk_every/3 to split the long input sequence into our designated sequence length, i.e:
+
+```
+sequence_length = 100 (time steps)
+total_input_sequence_length = 1000
+Total_Input_Sequences = (total_sequence_length/10) => 100 input sequences of 100 tokens
+```
+
+The ```:discard``` option tells Elixir to discard any remainder token that can't be chunked.
+
+<!-- livebook:{"break_markdown":true} -->
+
+The next transformation for the input sequence is to be converted into a Tensor so that it can be fed into the RNN network & utilized by the layers. ```Nx.tensor``` will create a tensor from an array. The shape of the tensor is proportional to the shape of the array it was created from:
+
+```Tensor[time_steps][sequence_length] = [[input_sequence_of_length, ...], ...]```
+
+We will then reshape that tensor so that we have an undetermined amount of rows of sequence_length timesteps of sequence length of 1.
+
+```Tensor[time_steps][sequence_length][1]```
+
+The last part of this transformation process is to thenm create batches from the tensor created above. ```Nx.to_batch_list``` will return batches of your input_sequence with correposnding time steps.
+
+This means that you will be feeding the model batches of input_sequences which contain X time steps:
+
+```Tensor[batch_size][time_steps][sequence_length]```
+
+This is the correct input shape for an RNN LSTM model
+
+## Transforming the Words & Labels
+
+Before we transform the words and lables using ```transform_words/5``` we need to count the amount of unique words & labels that we have. This is so we can further optimize the input layers as RNN nertworks don't like to use values such as 0,1,2,3, but instead floating point values that are relational betwen each other i.e 0.4321, 0.521 etc.
+
+We use the total amount of words to normalize the input layer, this is done by ```Nx.divide```.  We use the total amount of labels to give us our resulting model dimensions, this will be covered at a later stage.
+
+```elixir
+word_count = unique_words |> Enum.count()
+label_count = unique_labels |> Enum.count()
+```
+
+Now we can transform our words using the respective functions:
+
+```elixir
+{train_data, train_labels} =
+  transform_words(word_label_data, word_to_idx, label_to_idx, word_count, label_count)
+
+{ttd, ttl} =
+  transform_words(test_word_label_data, word_to_idx, label_to_idx, word_count, label_count)
+```
+
+## Building the model
+
+Now it's time to build our model.

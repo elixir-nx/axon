@@ -159,14 +159,17 @@ defmodule TextClassification do
           |> Stream.reject(&is_nil(&1))
 
 
-        word_count  = unique_words |> Enum.count
-        label_count  = unique_labels |> Enum.count
+
 
         word_to_idx = to_idx(unique_words)
         label_to_idx = to_idx(unique_labels)
 
         idx_to_word = idx_to(unique_words)
         idx_to_label = idx_to(unique_labels)
+
+
+        word_count  = unique_words |> Enum.count
+        label_count  = unique_labels |> Enum.count
 
 
         {td, tl} = transform_words(streamed, word_to_idx, label_to_idx, word_count, label_count)
