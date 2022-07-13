@@ -140,26 +140,6 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
     end
 
-    test "raises on bad input shape" do
-      model = Axon.input({nil, 32}, "input_0")
-      input = Nx.random_uniform({1, 16})
-      assert {_, predict_fn} = Axon.build(model)
-
-      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
-
-      assert Exception.message(exception) =~
-               "invalid input shape given to model"
-
-      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
-      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2, 3]]), Nx.tensor([[1, 2, 3]])}}
-      assert {_, predict_fn} = Axon.build(model)
-
-      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{"input_0" => input}) end
-
-      assert Exception.message(exception) =~
-               "invalid input shape given to model"
-    end
-
     test "raises if input not found, no default value" do
       model = Axon.input({nil, 32}, "input_0")
       input = Nx.random_uniform({1, 16})
@@ -4379,7 +4359,7 @@ defmodule CompilerTest do
     test "recurrent model initializes correctly" do
       input = Axon.input({nil, 8, 2}, "input")
 
-      {state, _} = input |> Axon.lstm(4)
+      {state, _} = input |> Axon.lstm(8)
       {_, out} = input |> Axon.lstm(state, 8)
 
       inp = Nx.template({1, 8, 2}, {:f, 32})
@@ -4392,18 +4372,18 @@ defmodule CompilerTest do
                "bias" => {bi_0, bf_0, bg_0, bo_0}
              } = lstm_0_params
 
-      assert Nx.shape(wii_0) == {2, 4}
-      assert Nx.shape(wif_0) == {2, 4}
-      assert Nx.shape(wig_0) == {2, 4}
-      assert Nx.shape(wio_0) == {2, 4}
-      assert Nx.shape(whi_0) == {4, 4}
-      assert Nx.shape(whf_0) == {4, 4}
-      assert Nx.shape(whg_0) == {4, 4}
-      assert Nx.shape(who_0) == {4, 4}
-      assert Nx.shape(bi_0) == {4}
-      assert Nx.shape(bf_0) == {4}
-      assert Nx.shape(bg_0) == {4}
-      assert Nx.shape(bo_0) == {4}
+      assert Nx.shape(wii_0) == {2, 8}
+      assert Nx.shape(wif_0) == {2, 8}
+      assert Nx.shape(wig_0) == {2, 8}
+      assert Nx.shape(wio_0) == {2, 8}
+      assert Nx.shape(whi_0) == {8, 8}
+      assert Nx.shape(whf_0) == {8, 8}
+      assert Nx.shape(whg_0) == {8, 8}
+      assert Nx.shape(who_0) == {8, 8}
+      assert Nx.shape(bi_0) == {8}
+      assert Nx.shape(bf_0) == {8}
+      assert Nx.shape(bg_0) == {8}
+      assert Nx.shape(bo_0) == {8}
 
       assert %{
                "input_kernel" => {wii_1, wif_1, wig_1, wio_1},

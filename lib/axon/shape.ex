@@ -278,6 +278,33 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates kernel shape of a ConvLSTM Cell Kernel.
+  """
+  def conv_lstm_kernel(input_shape, output_filters, kernel_size, channels, feature_group_size) do
+    inner_rank = Nx.rank(input_shape) - 3
+    kernel_size = tuple_or_duplicate(:kernel_size, kernel_size, inner_rank)
+
+    input_channels =
+      if channels == :first do
+        elem(input_shape, 1)
+      else
+        elem(input_shape, tuple_size(input_shape) - 1)
+      end
+
+    input_channels =
+      if rem(input_channels, feature_group_size) == 0 do
+        div(input_channels, feature_group_size)
+      else
+        raise ArgumentError,
+              "input channels must be evenly divisible by" <>
+                " feature group size, got #{inspect(input_channels)}" <>
+                " and #{inspect(feature_group_size)}"
+      end
+
+    List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
+  end
+
+  @doc """
   Calculates the reshape needed to broadcast convolution bias
   over the given input shape.
 

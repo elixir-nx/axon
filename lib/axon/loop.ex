@@ -310,7 +310,7 @@ defmodule Axon.Loop do
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
 
-    init_fn = fn {inp, _}, init_model_state ->
+    init_fn = fn {inp, _} = sample, init_model_state ->
       model_state = init_model_fn.(inp, init_model_state)
       optimizer_state = init_optimizer_fn.(model_state)
 
