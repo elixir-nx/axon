@@ -189,8 +189,6 @@ defmodule Axon do
   # Axon serialization version
   @file_version 1
 
-  @empty_tensor Nx.tensor(-1, backend: Nx.BinaryBackend)
-
   @type t :: %__MODULE__{}
 
   defstruct [
@@ -1665,9 +1663,8 @@ defmodule Axon do
   @doc type: :special
   def nx(%Axon{} = x, fun, opts) when is_function(fun, 1) do
     opts = Keyword.validate!(opts, [:name])
-    {name, opts} = Keyword.pop(opts, :name)
     fun_with_params = fn x, _opts -> fun.(x) end
-    layer(fun_with_params, [x], name: name, op_name: :nx)
+    layer(fun_with_params, [x], name: opts[:name], op_name: :nx)
   end
 
   @doc """
@@ -2509,11 +2506,6 @@ defmodule Axon do
       Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    output_kernel_shape = fn _, {inp, _} ->
-      shape = Tuple.delete_at(inp, 1)
-      Axon.Shape.conv_kernel(shape, units, kernel_size, :first, 1)
-    end
-
     wi = param("input_kernel", {:tuple, [input_kernel_shape]}, initializer: kernel_initializer)
     wh = param("hidden_kernel", {:tuple, [hidden_kernel_shape]}, initializer: kernel_initializer)
 
@@ -2822,8 +2814,8 @@ defmodule Axon do
   parent replaces it's entire lineage.
   """
   @doc type: :graph
-  def set_parent(%Axon{parent: [parent]} = axon, %Axon{} = new_parent) do
-    %{axon | parent: new_parent}
+  def set_parent(%Axon{} = axon, %Axon{} = new_parent) do
+    %{axon | parent: List.wrap(new_parent)}
   end
 
   @doc """
@@ -3121,8 +3113,7 @@ defmodule Axon do
   def build(model, opts \\ []) when is_list(opts) do
     {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
     opts = [on_conflict: :reuse] ++ opts
-    # TODO: Wrap in jit_apply
-    {&Nx.Defn.jit(init_fn, [&1, &2], opts), &Nx.Defn.jit(predict_fn, [&1, &2], opts)}
+    {Nx.Defn.jit(init_fn, opts), Nx.Defn.jit(predict_fn, opts)}
   end
 
   @doc """
@@ -3173,10 +3164,9 @@ defmodule Axon do
       for your chosen compiler or backend. Defaults to `false`
   """
   @doc type: :debugging
-  def trace_init(model, params \\ %{}, opts \\ []) do
-    init_fn = Axon.Compiler.compile_init(model, opts)
-
-    Nx.Defn.jit(init_fn, [params], compiler: Axon.Defn)
+  def trace_init(model, template, params \\ %{}, opts \\ []) do
+    {init_fn, _} = build(model, opts)
+    Nx.Defn.jit(init_fn, compiler: Axon.Defn).(template, params)
   end
 
   @doc """
@@ -3199,8 +3189,8 @@ defmodule Axon do
   """
   @doc type: :debugging
   def trace_forward(model, inputs, params, opts \\ []) when is_list(opts) do
-    forward_fun = Axon.Compiler.compile_predict(model, opts)
-    Nx.Defn.jit(forward_fun, [params, inputs], compiler: Axon.Defn)
+    {_, forward_fun} = build(model, opts)
+    Nx.Defn.jit(forward_fun, compiler: Axon.Defn).(params, inputs)
   end
 
   @doc """
@@ -3280,8 +3270,6 @@ defmodule Axon do
 
   defimpl Inspect do
     import Inspect.Algebra
-    import Axon.Shared
-    alias Axon.Parameter
 
     def inspect(axon, opts) do
       inputs = Enum.reverse(Axon.get_inputs(axon))

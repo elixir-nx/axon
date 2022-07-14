@@ -10,11 +10,11 @@ defmodule Axon.Compiler do
   @doc false
   def build(%Axon{} = graph, opts) do
     debug? = Keyword.get(opts, :debug, false)
-    {mode, jit_opts} = Keyword.pop(opts, :mode, :inference)
+    {mode, _jit_opts} = Keyword.pop(opts, :mode, :inference)
 
-    {time, {root_id, {cache, _op_counts, _namespace}}} =
+    {time, {root_id, {cache, _op_counts}}} =
       :timer.tc(fn ->
-        to_model_funs(graph, {%{}, %{}, []}, mode)
+        to_model_funs(graph, {%{}, %{}}, mode)
       end)
 
     if debug? do
@@ -69,13 +69,13 @@ defmodule Axon.Compiler do
             " output, use `Axon.container`"
   end
 
-  defp to_model_funs(%{id: id} = graph, {cache, op_counts, namespace}, mode) do
+  defp to_model_funs(%{id: id} = graph, {cache, op_counts}, mode) do
     case cache do
       %{^id => _} ->
-        {id, {cache, op_counts, namespace}}
+        {id, {cache, op_counts}}
 
       %{} ->
-        recur_model_funs(graph, {cache, op_counts, namespace}, mode)
+        recur_model_funs(graph, {cache, op_counts}, mode)
     end
   end
 
@@ -111,7 +111,7 @@ defmodule Axon.Compiler do
 
   defp recur_model_funs(
          %Axon{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
-         {cache, op_counts, namespace},
+         {cache, op_counts},
          _
        ) do
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
@@ -129,7 +129,7 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
+    {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
   defp recur_model_funs(
@@ -140,7 +140,7 @@ defmodule Axon.Compiler do
            name: name_fn,
            opts: [shape: input_shape, default: default]
          },
-         {cache, op_counts, namespace},
+         {cache, op_counts},
          mode
        ) do
     name = name_fn.(:input, op_counts)
@@ -181,16 +181,16 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
+    {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
   defp recur_model_funs(
          %Axon{id: id, op: :container, parent: [parents]},
-         cache_counts_namespace,
+         cache_and_counts,
          mode
        ) do
-    {parent_ids, {cache, op_counts, namespace}} =
-      deep_map_reduce(parents, cache_counts_namespace, &to_model_funs(&1, &2, mode))
+    {parent_ids, {cache, op_counts}} =
+      deep_map_reduce(parents, cache_and_counts, &to_model_funs(&1, &2, mode))
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
 
@@ -209,12 +209,12 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
+    {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
   defp recur_model_funs(
          %Axon{id: id, op: :namespace, name: name_fn, parent: parents},
-         {cache, op_counts, namespace},
+         {cache, op_counts},
          mode
        ) do
     name = name_fn.(:namespace, op_counts)
@@ -227,10 +227,10 @@ defmodule Axon.Compiler do
     # All of the children of this namespace belong to it, so
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
-    {parent_ids, {cache, namespace_op_counts, _namespace}} =
+    {parent_ids, {cache, namespace_op_counts}} =
       Enum.map_reduce(
         parents,
-        {cache, namespace_op_counts, [name | namespace]},
+        {cache, namespace_op_counts},
         &to_model_funs(&1, &2, mode)
       )
 
@@ -288,7 +288,7 @@ defmodule Axon.Compiler do
     model_funs = %{predict: predict_fun, init: init_fun}
 
     # Then we return the cache, op_counts, and original namespace
-    {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
+    {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
   defp recur_model_funs(
@@ -304,7 +304,7 @@ defmodule Axon.Compiler do
            hooks: hooks,
            op_name: op_name
          },
-         cache_counts_namespace,
+         cache_and_counts,
          mode
        )
        when (is_function(op) or is_atom(op)) and is_list(inputs) do
@@ -312,10 +312,10 @@ defmodule Axon.Compiler do
     # application within the function. We work only with
     # functions and IDs to avoid leaking entire graphs into
     # the closure
-    {parent_ids, {cache, op_counts, namespace}} =
+    {parent_ids, {cache, op_counts}} =
       Enum.map_reduce(
         inputs,
-        cache_counts_namespace,
+        cache_and_counts,
         &to_model_funs(&1, &2, mode)
       )
 
@@ -334,7 +334,6 @@ defmodule Axon.Compiler do
         &5,
         op,
         parent_ids,
-        namespace,
         name,
         args,
         opts,
@@ -352,7 +351,6 @@ defmodule Axon.Compiler do
         &4,
         parent_ids,
         name,
-        namespace,
         predict_fun,
         layer_params,
         policy,
@@ -360,7 +358,7 @@ defmodule Axon.Compiler do
       )
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, {Map.put(cache, id, model_funs), op_counts, namespace}}
+    {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
   defp get_input(inputs, name, default) do
@@ -418,7 +416,6 @@ defmodule Axon.Compiler do
          result_cache,
          op,
          parent_ids,
-         namespace,
          name,
          args,
          opts,
@@ -455,10 +452,10 @@ defmodule Axon.Compiler do
         else
           raise ArgumentError,
                 "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
-                  " namespace: #{inspect(namespace)} was not present in" <>
-                  " the given parameter map, this can happen if you are" <>
-                  " using parameters intended for another model or did not" <>
-                  " initialize portions of your model with Axon.init/3"
+                  " was not present in the given parameter map, this can" <>
+                  " happen if you are using parameters intended for another" <>
+                  " model or did not initialize portions of your model with" <>
+                  " Axon.init/3"
         end
       end)
 
@@ -525,7 +522,6 @@ defmodule Axon.Compiler do
          result_cache,
          parent_ids,
          name,
-         namespace,
          predict_fun,
          parameters,
          %{params: dtype},
