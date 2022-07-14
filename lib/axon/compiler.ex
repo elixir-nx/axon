@@ -176,7 +176,7 @@ defmodule Axon.Compiler do
 
     init_fun = fn template, init_params, _cache, result_cache ->
       input = get_input(template, name, default)
-      {Nx.shape(input), {init_params, result_cache}}
+      {safe_shape(input), {init_params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}

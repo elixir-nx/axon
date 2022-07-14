@@ -97,6 +97,8 @@ defmodule CompilerTest do
           x -> x
         end)
 
+      assert Axon.init(model, %{}) == %{}
+
       assert_equal(
         Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
         Nx.tensor([[2.0]])
