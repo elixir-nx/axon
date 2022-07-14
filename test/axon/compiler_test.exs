@@ -4901,6 +4901,16 @@ defmodule CompilerTest do
         Axon.predict(model, %{}, input)
       end
     end
+
+    test "initializes a non-linear model" do
+      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2, name: "dense_0")
+      y = Axon.input({nil, 1}, "input_1") |> Axon.dense(2, name: "dense_1")
+      model = Axon.add(x, y)
+
+      input = %{"input_0" => Nx.tensor([[1.0]]), "input_1" => Nx.tensor([[2.0]])}
+
+      assert %{"dense_0" => _, "dense_1" => _} = Axon.init(model, input)
+    end
   end
 
   describe "instrumentation" do
