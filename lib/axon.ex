@@ -2672,7 +2672,7 @@ defmodule Axon do
   def bias(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, bias_initializer: :zeros])
 
-    bias_shape = fn shape -> elem(shape, tuple_size(shape) - 1) end
+    bias_shape = fn shape -> {elem(shape, tuple_size(shape) - 1)} end
     bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
     layer(:bias, [x, bias], name: opts[:name], op_name: :bias)

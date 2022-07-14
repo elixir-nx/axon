@@ -241,6 +241,19 @@ defmodule CompilerTest do
     end
   end
 
+  describe "bias" do
+    test "initializes in default case" do
+      model = Axon.input({nil, 1}, "input_0") |> Axon.bias(name: "bias")
+
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"bias" => %{"bias" => bias}} = init_fn.(input, %{})
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
+    end
+  end
+
   describe "dense" do
     test "initializes in default case" do
       model = Axon.input({nil, 1}, "input_0") |> Axon.dense(1, name: "dense")
