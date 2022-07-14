@@ -242,12 +242,16 @@ defmodule Axon.Compiler do
     # The function just returns the result of it's child,
     # or parent depending on how you view the tree
     predict_fun = fn params, inputs, state, cache, result_cache ->
+      # We're only concerned with this namespaces parameters, so we pair
+      # down parameters first given the namespace
+      namespace_params = params[name]
+
       # TODO: How should hooks be handled here?
       # TODO: I think we can actually handle parameter freezing and access
       # better here by only forwarding params[namespace] to the child function
       {[out], {state, result_cache}} =
         Enum.map_reduce(parent_ids, {state, result_cache}, fn parent_id, {state, result_cache} ->
-          call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+          call_predict_cache(parent_id, namespace_params, inputs, state, cache, result_cache)
         end)
 
       {out, {state, result_cache}}
@@ -276,7 +280,7 @@ defmodule Axon.Compiler do
           Map.put(init_params, name, namespace_params)
         end
 
-      {pred_expr, {_, _}} = predict_fun.(params, template, %{}, cache, result_cache)
+      {pred_expr, {_, _}} = predict_fun.(params, template, %{}, cache, %{})
 
       {safe_shape(pred_expr), {params, result_cache}}
     end
@@ -439,21 +443,12 @@ defmodule Axon.Compiler do
         {layer_input, {state, result_cache}}
       end)
 
-    # We're only concerned with this namespaces parameters, so we pair
-    # down parameters first given the namespaces we've accumulated at
-    # this level (if any)
-    # TODO: This should be a namespace concern, not layer concern
-    namespace_params =
-      namespace
-      |> Enum.reverse()
-      |> Enum.reduce(params, fn name, params -> params[name] end)
-
     # Parameters are just accessed in the layer sub-map of the nested
     # parameter map, so we just need to extract them and then apply
     # freezing and dtype policy
     parameter_inputs =
       Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-        param = namespace_params[name][v]
+        param = params[name][v]
 
         if param != nil do
           safe_as_type(maybe_freeze(param, frz), compute)
@@ -561,13 +556,7 @@ defmodule Axon.Compiler do
           Map.put(parent_params, name, layer_params)
       end
 
-    namespace_params =
-      namespace
-      |> Enum.reduce(model_params, fn name, params ->
-        %{name => params}
-      end)
-
-    {pred_expr, {_, _}} = predict_fun.(namespace_params, template, %{}, cache, %{})
+    {pred_expr, {_, _}} = predict_fun.(model_params, template, %{}, cache, %{})
 
     {safe_shape(pred_expr), {model_params, result_cache}}
   end

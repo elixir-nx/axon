@@ -4636,6 +4636,18 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
     end
 
+    test "initializes correctly with layers after namespace, re-using params" do
+      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
+      model = Axon.dense(x, 2)
+
+      assert %{"x" => x_params_1} = init_params = Axon.init(x, Nx.tensor([[1]]))
+
+      assert %{"x" => x_params_2, "dense_0" => _} =
+               Axon.init(model, Nx.tensor([[1]]), init_params)
+
+      assert_equal(x_params_1, x_params_2)
+    end
+
     # TODO: I actually don't know what the correct behavior is here?
     # test "initializes correctly re-using part of inner namespace" do
     #   inner = Axon.input({nil, 1}, "input_0") |> Axon.dense(2)
