@@ -2877,13 +2877,28 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_inputs(%Axon{} = axon) do
-    reduce_nodes(axon, [], fn
-      %Axon{op: :input, name: name}, inputs ->
-        [name.(:input, %{}) | inputs]
+    reduce_nodes(axon, %{}, fn
+      %Axon{op: :input, name: name, opts: opts}, inputs ->
+        name = name.(:input, %{})
+        Map.put(inputs, name, opts[:shape])
 
       _, inputs ->
         inputs
     end)
+  end
+
+  @doc """
+  Returns a model's output shape from the given input
+  template.
+  """
+  @doc type: :graph
+  def get_output_shape(%Axon{} = axon, inputs) do
+    {init_fn, forward_fn} = build(axon)
+    out = Nx.Defn.jit(fn inputs ->
+      forward_fn.(init_fn.(inputs, %{}), inputs)
+    end).(inputs)
+    # TODO: Safe shape to handle outputs
+    Nx.shape(out)
   end
 
   @doc """
