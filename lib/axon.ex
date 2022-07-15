@@ -3302,7 +3302,7 @@ defmodule Axon do
     import Inspect.Algebra
 
     def inspect(axon, opts) do
-      inputs = Enum.reverse(Axon.get_inputs(axon))
+      inputs = axon |> Axon.get_inputs() |> Map.keys() |> Enum.sort()
 
       inner = concat([line(), "inputs: #{inspect(inputs)}"])
 
