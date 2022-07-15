@@ -336,7 +336,6 @@ defmodule Axon.Compiler do
     # Names are computed lazily, so compute name from current
     # op and aggregate op_counts.
     name = name_fn.(op_name, op_counts)
-    # IO.inspect op_name
     op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
 
     # Each model builds two functions: predict_fun and init_fun
