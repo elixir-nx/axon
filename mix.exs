@@ -72,7 +72,7 @@ defmodule Axon.MixProject do
     [
       main: "Axon",
       source_ref: "v#{@version}",
-      logo: "axon.png",
+      logo: "logo.png",
       source_url: @source_url,
       extras: [
         "notebooks/mnist.livemd",
