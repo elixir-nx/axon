@@ -10,8 +10,8 @@ defmodule Axon do
 
   ## Model Creation
 
-  All Axon models start with an input layer, specifying the
-  expected input shape of the training data:
+  All Axon models start with an input layer, optionally specifying
+  the expected shape of the input data:
 
       input = Axon.input("input", shape: {nil, 784})
 
@@ -129,13 +129,13 @@ defmodule Axon do
   parameters. You can pass Axon graph inputs as-is to a custom layer. To
   declare trainable parameters, use `Axon.param/3`:
 
-      weight = Axon.param(input_shape, "weight")
+      weight = Axon.param("weight", param_shape)
 
   To create a custom layer, you "wrap" your implementation and inputs into
   a layer using `Axon.layer`. You'll notice the API mirrors Elixir's `apply`:
 
       def atan2_layer(%Axon{} = input) do
-        weight = Axon.param(input_shape, "weight")
+        weight = Axon.param("weight", param_shape)
         Axon.layer(&my_layer/3, [input, weight])
       end
 
@@ -294,7 +294,7 @@ defmodule Axon do
   """
   @doc type: :special
   def param(name, shape, opts \\ [])
-      when (is_binary(name) and is_tuple(shape)) or is_function(shape) do
+      when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
     initializer = opts[:initializer]
     validate_initializer!(initializer)
