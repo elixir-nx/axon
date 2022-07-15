@@ -348,6 +348,8 @@ defmodule Axon do
     layer(:input, [], name: name, shape: output_shape, op_name: :input, default: default)
   end
 
+  # TODO: remove on Axon v0.3
+
   def input(input_shape, name) when is_binary(name) do
     IO.warn(
       "Passing shape as an argument to Axon.input/2 is deprecated, pass it as an option instead"
