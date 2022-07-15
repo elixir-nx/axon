@@ -24,7 +24,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with basic case" do
-      model = Axon.input({nil, 1}, "input")
+      model = Axon.input("input", shape: {nil, 1})
 
       valid_axon_losses = [
         :binary_cross_entropy,
@@ -66,7 +66,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with custom loss" do
-      model = Axon.input({nil, 1}, "input")
+      model = Axon.input("input", shape: {nil, 1})
       custom_loss_fn = fn _, _ -> Nx.tensor(5.0, backend: Nx.Defn.Expr) end
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
@@ -87,7 +87,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
-      model = Axon.input({nil, 1}, "input")
+      model = Axon.input("input", shape: {nil, 1})
       optimizer = Axon.Optimizers.rmsprop(1.0e-3)
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
@@ -107,7 +107,7 @@ defmodule Axon.LoopTest do
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
-      model = Axon.input({nil, 1}, "input") |> Axon.build(mode: :train)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.build(mode: :train)
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, :adam)
@@ -127,7 +127,8 @@ defmodule Axon.LoopTest do
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
       model =
-        {Axon.input({nil, 1}, "input_0"), Axon.input({nil, 1}, "input_1")} |> Axon.container()
+        {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 1})}
+        |> Axon.container()
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
@@ -156,18 +157,18 @@ defmodule Axon.LoopTest do
       end
 
       assert_raise ArgumentError, ~r/Invalid/, fn ->
-        Axon.Loop.trainer(Axon.input({nil, 1}, "input"), :foo, :adam)
+        Axon.Loop.trainer(Axon.input("input", shape: {nil, 1}), :foo, :adam)
       end
 
       assert_raise ArgumentError, ~r/Invalid/, fn ->
-        Axon.Loop.trainer(Axon.input({nil, 1}, "input"), :mean_squared_error, :foo)
+        Axon.Loop.trainer(Axon.input("input", shape: {nil, 1}), :mean_squared_error, :foo)
       end
     end
 
     test "evaluator/1 returns a supervised evaluator loop" do
       inp = Nx.tensor([[1]])
 
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(1)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       model_state = Axon.init(model, inp)
 
       expected_pred = Axon.predict(model, model_state, inp)
@@ -192,7 +193,7 @@ defmodule Axon.LoopTest do
     test "evaluator/1 runs a supervised evaluator loop" do
       inp = Nx.tensor([[1]])
 
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(1)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       model_state = Axon.init(model, inp)
       data = [{Nx.tensor([[1]]), Nx.tensor([[2]])}]
 
@@ -206,7 +207,7 @@ defmodule Axon.LoopTest do
       inp = Nx.tensor([0, 1, 0, 1, 0, 1]) |> Nx.new_axis(-1)
       tar = Nx.tensor([1, 0, 1, 0, 1, 0]) |> Nx.new_axis(-1)
 
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(1)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       model_state = Axon.init(model, inp)
 
       {init_fn, step_fn} = Axon.Loop.eval_step(model)
@@ -218,7 +219,7 @@ defmodule Axon.LoopTest do
     end
 
     test "train_step/3 can initialize from partial model state" do
-      x = Axon.input({nil, 1}, "input") |> Axon.dense(1) |> Axon.namespace("x")
+      x = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1) |> Axon.namespace("x")
       model = Axon.dense(x, 2)
 
       %{"x" => x_params_1} = init_params = Axon.init(x, Nx.tensor([[1]]))
@@ -340,7 +341,7 @@ defmodule Axon.LoopTest do
     end
 
     test "propagates user-defined numerical data inside step_state" do
-      Axon.input({nil, 1}, "input")
+      Axon.input("input", shape: {nil, 1})
       |> Axon.dense(1)
       |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
       |> Loop.handle(
@@ -375,7 +376,7 @@ defmodule Axon.LoopTest do
     end
 
     test "propagates user-defined numerical data inside step_state when it is nested into a tuple" do
-      Axon.input({nil, 1}, "input")
+      Axon.input("input", shape: {nil, 1})
       |> Axon.dense(1)
       |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
       |> Loop.handle(
@@ -416,7 +417,7 @@ defmodule Axon.LoopTest do
 
   describe "serialization" do
     test "serialize_state/deserialize_state preserve loop state" do
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       optimizer = Axon.Optimizers.adam(1.0e-2)
       loss = :binary_cross_entropy
 
@@ -452,7 +453,7 @@ defmodule Axon.LoopTest do
       File.rm_rf!("checkpoint")
 
       loop =
-        Axon.input({nil, 1}, "input")
+        Axon.input("input", shape: {nil, 1})
         |> Axon.dense(1)
         |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
 

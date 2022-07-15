@@ -37,7 +37,7 @@ An example model looks something like:
 
 ```elixir
 model =
-  Axon.input({nil, 784}, "input")
+  Axon.input("input", shape: {nil, 784})
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 ```
@@ -64,7 +64,7 @@ Axon provides a few conveniences for working with models. First, we chose to tak
 
 ```elixir
 model =
-  Axon.input({nil, 784}, "input")
+  Axon.input("input", shape: {nil, 784})
   |> Axon.dense(128, activation: :relu)
   |> Axon.dropout(rate: 0.5)
   |> Axon.dense(10, activation: :softmax)
@@ -93,7 +93,7 @@ with plans to support recurrent layers, attention layers, and many more. Our goa
 The purpose of the training API is to provide conveniences and common routines for implementing training loops. The API is inspired by the excellent PyTorch Ignite library.
 
 The general pattern for training a model is:
-  
+
   1) Define model
   2) Define loop using one of the factory methods (here `Axon.Loop.trainer/3`)
   3) Instrument loop with metrics and event handlers
@@ -101,7 +101,7 @@ The general pattern for training a model is:
 
 ```elixir
 model =
-  Axon.input({nil, 784}, "input")
+  Axon.input("input", shape: {nil, 784})
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 

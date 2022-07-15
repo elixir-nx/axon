@@ -94,7 +94,7 @@ defmodule Axon.MixProject do
         "Layers: Recurrent": &(&1[:type] == :recurrent),
         "Layers: Combinators": &(&1[:type] == :combinator),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model": &(&1[:type] == :model),
+        Model: &(&1[:type] == :model),
         "Model: Manipulation": &(&1[:type] == :graph),
         "Model: Debugging": &(&1[:type] == :debug),
 

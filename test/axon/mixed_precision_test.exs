@@ -16,7 +16,7 @@ defmodule MixedPrecisionTest do
 
     test "apply_policy" do
       model =
-        Axon.input({nil, 784}, "input")
+        Axon.input("input", shape: {nil, 784})
         |> Axon.dense(128)
         |> Axon.batch_norm()
         |> Axon.dense(10)
@@ -42,7 +42,7 @@ defmodule MixedPrecisionTest do
     # belongs in a train test or elsewhere
     test "correctly maintains parameter type after train step" do
       model =
-        Axon.input({nil, 32}, "input")
+        Axon.input("input", shape: {nil, 32})
         |> Axon.dense(2, name: "dense1")
         |> Axon.batch_norm(name: "batch_norm")
         |> Axon.dense(1, activation: :sigmoid, name: "dense2")

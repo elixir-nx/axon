@@ -13,7 +13,7 @@ defmodule Axon do
   All Axon models start with an input layer, specifying the
   expected input shape of the training data:
 
-      input = Axon.input({nil, 784}, "input")
+      input = Axon.input("input", shape: {nil, 784})
 
   Notice you can specify some dimensions as `nil`, indicating
   that the dimension size will be filled in at model runtime.
@@ -59,8 +59,8 @@ defmodule Axon do
   the final Axon graph will be required to be passed as input at the
   time of model execution.
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 1}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 1})
 
       # Both inputs will be used
       model1 = Axon.add(inp1, inp2)
@@ -75,8 +75,8 @@ defmodule Axon do
   input to have a unique binary identifier. You can then reference
   inputs by name when passing to models at execution time:
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 1}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 1})
 
       model1 = Axon.add(inp1, inp2)
       params1 = Axon.init(model1, Nx.template({1, 1}, {:f, 32}))
@@ -89,20 +89,20 @@ defmodule Axon do
   which is extended to Axon. Axon allows you to wrap any valid Nx container
   in a layer. Containers are most commonly used to structure outputs:
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 1}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 1})
       model = Axon.container(%{foo: inp1, bar: inp2})
 
   Containers can be arbitrarily nested:
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 1}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 1})
       model = Axon.container({%{foo: {inp1, %{bar: inp2}}}})
 
   You can even use custom structs which implement the container protocol:
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 1}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 1})
       model = Axon.container(%MyStruct{foo: inp1, bar: inp2})
 
   ### Custom Layers
@@ -167,7 +167,7 @@ defmodule Axon do
   APIs, you can create and train neural networks with ease:
 
       model =
-        Axon.input({nil, 784}, "input_0")
+        Axon.input("input_0", shape: {nil, 784})
         |> Axon.dense(128, activation: :relu)
         |> Axon.layer_norm()
         |> Axon.dropout()
@@ -325,14 +325,40 @@ defmodule Axon do
   values in subsequent layers, you will likely experience
   cryptic errors. Default value shape must match the expected
   `input_shape` given to model.
+
+  ## Options
+
+    * `:shape` - the expected input shape, use `nil` for dimensions
+      of a dynamic size
+
+    * `:default` - the default value, either `nil`, a tensor
+      or an arity-1 function
+
   """
   @doc type: :special
-  def input(input_shape, name, opts \\ []) when is_binary(name) do
-    opts = Keyword.validate!(opts, default: :no_default_value)
+  def input(name, opts \\ [])
+
+  def input(name, opts) when is_binary(name) and is_list(opts) do
+    opts = Keyword.validate!(opts, [:shape, default: :no_default_value])
     default = validate_default_input!(opts[:default])
 
-    output_shape = Axon.Shape.input(input_shape)
+    input_shape = opts[:shape]
+
+    output_shape = input_shape && Axon.Shape.input(input_shape)
     layer(:input, [], name: name, shape: output_shape, op_name: :input, default: default)
+  end
+
+  def input(input_shape, name) when is_binary(name) do
+    IO.warn(
+      "Passing shape as an argument to Axon.input/2 is deprecated, pass it as an option instead"
+    )
+
+    input(name, [{:shape, input_shape}])
+  end
+
+  @deprecated "Pass the shape as an option to Axon.input/2"
+  def input(input_shape, name, opts) when is_binary(name) do
+    input(name, [{:shape, input_shape} | opts])
   end
 
   @doc """
@@ -342,7 +368,7 @@ defmodule Axon do
   of use with other Axon layers. They can be used interchangeably
   with other Axon layers:
 
-      inp = Axon.input({nil, 32}, "input")
+      inp = Axon.input("input", shape: {nil, 32})
       my_constant = Axon.constant(Nx.iota({1, 32}))
       model = Axon.add(inp, my_constant)
 
@@ -388,8 +414,8 @@ defmodule Axon do
 
   ## Examples
 
-      iex> inp1 = Axon.input({nil, 1}, "input_0")
-      iex> inp2 = Axon.input({nil, 2}, "input_1")
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
       iex> model = Axon.container(%{a: inp1, b: inp2})
       iex> %{a: a, b: b} = Axon.predict(model, %{}, %{
       ...>    "input_0" => Nx.tensor([[1.0]]),
@@ -2758,7 +2784,7 @@ defmodule Axon do
 
   To invoke a hook on every single event, you may pass `:all` to `on:`.
 
-      Axon.input({nil, 1}, "input") |> Axon.attach_hook(&IO.inspect/1, on: :all)
+      Axon.input("input", shape: {nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :all)
 
   The default event is `:forward`, assuming you want a hook invoked
   on the layers forward pass.
@@ -2767,13 +2793,13 @@ defmodule Axon do
   mode using the `:mode` option. The default mode is `:both` to be invoked
   during both train and inference mode.
 
-      Axon.input({nil, 1}, "input") |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
+      Axon.input("input", shape: {nil, 1}) |> Axon.attach_hook(&IO.inspect/1, on: :forward, mode: :train)
 
   You can also attach multiple hooks to a single layer. Hooks are invoked in
   the order in which they are declared. If order is important, you should attach
   hooks in the order you want them to be executed:
 
-      Axon.input({nil, 1}, "input")
+      Axon.input("input", shape: {nil, 1})
       # I will be executed first
       |> Axon.attach_hook(&IO.inspect/1)
       # I will be executed second
@@ -2782,7 +2808,7 @@ defmodule Axon do
   Hooks are executed at their point of attachment. You must insert hooks at each point
   you want a hook to execute during model execution.
 
-      Axon.input({nil, 1}, "input")
+      Axon.input("input", shape: {nil, 1})
       |> Axon.attach_hook(&IO.inspect/1)
       |> Axon.relu()
       |> Axon.attach_hook(&IO.inspect/1)
@@ -2920,11 +2946,11 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      iex> model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       iex> Axon.get_op_counts(model)
       %{input: 1, dense: 1}
 
-      iex> model = Axon.input({nil, 1}, "input") |> Axon.tanh() |> Axon.tanh()
+      iex> model = Axon.input("input", shape: {nil, 1}) |> Axon.tanh() |> Axon.tanh()
       iex> Axon.get_op_counts(model)
       %{input: 1, tanh: 2}
 
@@ -3350,7 +3376,7 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
       iex> params = Axon.init(model, Nx.template({1, 2}, :f32))
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
@@ -3390,7 +3416,7 @@ defmodule Axon do
 
   ## Examples
 
-      iex> model = Axon.input({nil, 2}, "input") |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
       iex> params = Axon.init(model, Nx.template({1, 2}, :f32))
       iex> serialized = Axon.serialize(model, params)
       iex> {saved_model, saved_params} = Axon.deserialize(serialized)
