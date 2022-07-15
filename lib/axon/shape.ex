@@ -273,7 +273,7 @@ defmodule Axon.Shape do
       iex> Axon.Shape.conv_bias({nil, 28, 3}, 64, {2}, :last, 1)
       {64}
   """
-  def conv_bias(input_shape, output_filters, _kernel_size, _channels, _feature_group_size) do
+  def conv_bias(_input_shape, output_filters, _kernel_size, _channels, _feature_group_size) do
     {output_filters}
   end
 
@@ -516,7 +516,7 @@ defmodule Axon.Shape do
       {12}
 
   """
-  def separable_conv2d_bias(input_shape, channel_multiplier, kernel_size, channels) do
+  def separable_conv2d_bias(input_shape, channel_multiplier, _kernel_size, channels) do
     input_channels =
       if channels == :first do
         elem(input_shape, 1)
@@ -585,7 +585,7 @@ defmodule Axon.Shape do
       iex> Axon.Shape.separable_conv3d_bias({nil, 1, 224, 224, 3}, 5, {3, 3, 1}, :first)
       {5}
   """
-  def separable_conv3d_bias(input_shape, channel_multiplier, kernel_size, channels) do
+  def separable_conv3d_bias(input_shape, channel_multiplier, _kernel_size, channels) do
     input_channels =
       if channels == :first do
         elem(input_shape, 1)
@@ -957,27 +957,6 @@ defmodule Axon.Shape do
         raise ArgumentError,
               "expected #{inspect(key)} to be an integer or a tuple, " <>
                 "got: #{inspect(tuple_or_integer)}"
-    end
-  end
-
-  defp list_or_duplicate(key, list_or_integer, rank) do
-    cond do
-      is_list(list_or_integer) ->
-        if length(list_or_integer) != rank do
-          raise ArgumentError,
-                "expected #{inspect(key)} to be a #{rank}-element list, " <>
-                  "got: #{inspect(list_or_integer)}"
-        end
-
-        list_or_integer
-
-      is_integer(list_or_integer) ->
-        List.duplicate(list_or_integer, rank)
-
-      true ->
-        raise ArgumentError,
-              "expected #{inspect(key)} to be an integer or a list, " <>
-                "got: #{inspect(list_or_integer)}"
     end
   end
 end

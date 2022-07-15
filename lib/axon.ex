@@ -2894,9 +2894,12 @@ defmodule Axon do
   @doc type: :graph
   def get_output_shape(%Axon{} = axon, inputs) do
     {init_fn, forward_fn} = build(axon)
-    out = Nx.Defn.jit(fn inputs ->
-      forward_fn.(init_fn.(inputs, %{}), inputs)
-    end).(inputs)
+
+    out =
+      Nx.Defn.jit(fn inputs ->
+        forward_fn.(init_fn.(inputs, %{}), inputs)
+      end).(inputs)
+
     # TODO: Safe shape to handle outputs
     Nx.shape(out)
   end
