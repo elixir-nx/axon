@@ -142,15 +142,15 @@ defmodule Axon do
   ## Model Execution
 
   Under the hood, Axon models are represented as Elixir structs. You
-  can initialize and apply models using the macros `Axon.init/3` and
-  `Axon.predict/4`:
+  can initialize and apply models using the `Axon.init/3` and `Axon.predict/4`
+  functions:
 
       params = Axon.init(model, compiler: EXLA)
 
       Axon.predict(model, params, inputs, compiler: EXLA, mode: :train)
 
   It is suggested that you set compiler options globally rather than pass
-  them as options to execution macros:
+  them as options to execution functions:
 
       EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
@@ -214,6 +214,7 @@ defmodule Axon do
   to inference function except:
 
     * `:name` - layer name.
+
     * `:op_name` - layer operation for inspection and building parameter
       map.
 
@@ -231,6 +232,7 @@ defmodule Axon do
       fun = fn input, weight, bias, _opts ->
         input * weight + bias
       end
+
   """
   @doc type: :special
   def layer(op, inputs, opts \\ []) when (is_atom(op) or is_function(op)) and is_list(inputs) do
@@ -407,6 +409,7 @@ defmodule Axon do
           [1.0, 2.0]
         ]
       >
+
   """
   @doc type: :special
   def container(container, opts \\ []) do
@@ -2681,19 +2684,19 @@ defmodule Axon do
   end
 
   @doc """
-  Freezes parameters returned from `fun` in the given
-  model. `fun` takes the model's parameter list and returns
-  the list of parameters it wishes to freeze. `fun` defaults
-  to the identity function, freezing all of the parameters in
-  `model`.
+  Freezes parameters returned from `fun` in the given model.
+
+  `fun` takes the model's parameter list and returns the list of
+  parameters it wishes to freeze. `fun` defaults to the identity
+  function, freezing all of the parameters in `model`.
 
   Freezing parameters is useful when performing transfer learning
   to leverage features learned from another problem in a new problem.
   For example, it's common to combine the convolutional base from
   larger models trained on ImageNet with fresh fully-connected classifiers.
   The combined model is then trained on fresh data, with the convolutional
-  base frozen so as not to lose information. You can see this example in code
-  here:
+  base frozen so as not to lose information. You can see this example
+  in code here:
 
       cnn_base = get_pretrained_cnn_base()
       model =
@@ -2712,7 +2715,6 @@ defmodule Axon do
   which zeros out the gradient with respect to the frozen parameter. Gradients
   of frozen parameters will return `0.0`, meaning they won't be changed during
   the update process.
-
   """
   @doc type: :model
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
@@ -2784,6 +2786,7 @@ defmodule Axon do
       |> Axon.attach_hook(&IO.inspect/1)
       |> Axon.relu()
       |> Axon.attach_hook(&IO.inspect/1)
+
   """
   @doc type: :debug
   def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
@@ -2852,9 +2855,9 @@ defmodule Axon do
   @doc """
   Returns a node's immediate input options.
 
-  Note this does not take into account options of
-  parent layers---only the optionf which belong to
-  the immediate layer.
+  Note that this does not take into account options of
+  parent layers, only the option which belong to the
+  immediate layer.
   """
   @doc type: :graph
   def get_options(%Axon{opts: opts}), do: opts
@@ -2863,9 +2866,9 @@ defmodule Axon do
   Sets a node's immediate options to the given input
   options.
 
-  Note this does not take into account options of
-  parent layers---only the optionf which belong to
-  the immediate layer.
+  Note that this does not take into account options of
+  parent layers, only the option which belong to the
+  immediate layer.
 
   New options must be compatible with the given layer
   op. Adding unsupported options to an Axon layer will
@@ -2921,6 +2924,7 @@ defmodule Axon do
       iex> model = Axon.input({nil, 1}, "input") |> Axon.tanh() |> Axon.tanh()
       iex> Axon.get_op_counts(model)
       %{input: 1, tanh: 2}
+
   """
   @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
@@ -2972,6 +2976,7 @@ defmodule Axon do
         graph ->
           graph
       end)
+
   """
   @doc type: :graph
   def map_nodes(%Axon{} = axon, fun) when is_function(fun, 1) do
@@ -3048,6 +3053,7 @@ defmodule Axon do
         %Axon{} = axon, %Axon{} = acc ->
           Axon.set_parent(axon, acc)
       end)
+
   """
   @doc type: :graph
   def reduce_nodes(%Axon{} = axon, acc, fun) when is_function(fun, 2) do
@@ -3184,6 +3190,7 @@ defmodule Axon do
     * `:debug` - if `true`, will log graph traversal and generation
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
+
   """
   @doc type: :debug
   def trace_init(model, template, params \\ %{}, opts \\ []) do
@@ -3208,6 +3215,7 @@ defmodule Axon do
     * `:debug` - if `true`, will log graph traversal and generation
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
+
   """
   @doc type: :debug
   def trace_forward(model, inputs, params, opts \\ []) when is_list(opts) do
@@ -3232,6 +3240,7 @@ defmodule Axon do
     * `:debug` - if `true`, will log graph traversal and generation
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
+
   """
   @doc type: :debug
   def trace_backward(model, inputs, params, loss, opts \\ []) do
@@ -3349,6 +3358,7 @@ defmodule Axon do
           [0.0]
         ]
       >
+
   """
   @doc type: :model
   def serialize(%Axon{} = model, params, opts \\ []) do
@@ -3388,6 +3398,7 @@ defmodule Axon do
           [0.0]
         ]
       >
+
   """
   @doc type: :model
   def deserialize(serialized, opts \\ []) do
