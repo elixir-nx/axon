@@ -98,7 +98,7 @@ defmodule Axon.Compiler do
   end
 
   defp call_predict_cache(parent_id, params, inputs, state, cache, result_cache) do
-    key = {:cache, parent_id}
+    key = {:predict_cache, parent_id}
 
     case result_cache do
       %{^key => {expr, state}} ->
@@ -113,7 +113,7 @@ defmodule Axon.Compiler do
   end
 
   defp call_init_cache(parent_id, template, params, cache, result_cache) do
-    key = {:cache, parent_id}
+    key = {:init_cache, parent_id}
 
     {parent_shape, {parent_params, result_cache}} =
       case result_cache do
@@ -559,7 +559,7 @@ defmodule Axon.Compiler do
         Map.put(parent_params, name, layer_params)
       end
 
-    {pred_expr, {_, _}} = predict_fun.(params, template, %{}, cache, %{})
+    {pred_expr, {_, result_cache}} = predict_fun.(params, template, %{}, cache, result_cache)
 
     {safe_shape(pred_expr), {params, result_cache}}
   end
