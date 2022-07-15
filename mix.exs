@@ -92,9 +92,11 @@ defmodule Axon.MixProject do
         "Layers: Pooling": &(&1[:type] == :pooling),
         "Layers: Normalization": &(&1[:type] == :normalization),
         "Layers: Recurrent": &(&1[:type] == :recurrent),
-        "Layers: Combinators": &(&1[:type] == :combinators),
+        "Layers: Combinators": &(&1[:type] == :combinator),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model: Execution": &(&1[:type] == :execution),
+        "Model": &(&1[:type] == :model),
+        "Model: Manipulation": &(&1[:type] == :graph),
+        "Model: Debugging": &(&1[:type] == :debug),
 
         # Axon.Layers
         "Functions: Attention": &(&1[:type] == :attention),

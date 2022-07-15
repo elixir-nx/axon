@@ -290,6 +290,7 @@ defmodule Axon do
     * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
 
   """
+  @doc type: :special
   def param(name, shape, opts \\ [])
       when (is_binary(name) and is_tuple(shape)) or is_function(shape) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
@@ -464,6 +465,7 @@ defmodule Axon do
   and attempting to share layers between namespaces are still sharp
   edges in namespace usage.
   """
+  @doc type: :special
   def namespace(%Axon{} = axon, name) when is_binary(name) do
     layer(:namespace, [axon], name: name)
   end
@@ -2712,6 +2714,7 @@ defmodule Axon do
   the update process.
 
   """
+  @doc type: :model
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
     parameters =
       reduce_nodes(model, MapSet.new(), fn %Axon{} = axon, acc ->
@@ -2782,6 +2785,7 @@ defmodule Axon do
       |> Axon.relu()
       |> Axon.attach_hook(&IO.inspect/1)
   """
+  @doc type: :debug
   def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
     opts = Keyword.validate!(opts, on: :forward, mode: :both)
     on_event = opts[:on]
@@ -3127,7 +3131,7 @@ defmodule Axon do
   All other options are forwarded to the default JIT compiler
   or backend.
   """
-  @doc type: :compilation
+  @doc type: :model
   def build(model, opts \\ []) when is_list(opts) do
     {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
     opts = [on_conflict: :reuse] ++ opts
@@ -3148,7 +3152,7 @@ defmodule Axon do
   provided to this function will result in potentially expensive
   recompilation.
   """
-  @doc type: :compilation
+  @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
     {init_fn, predict_fn} = build(model, opts)
     init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params])
@@ -3181,7 +3185,7 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
   """
-  @doc type: :debugging
+  @doc type: :debug
   def trace_init(model, template, params \\ %{}, opts \\ []) do
     {init_fn, _} = build(model, opts)
     Nx.Defn.jit(init_fn, compiler: Axon.Defn).(template, params)
@@ -3205,7 +3209,7 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
   """
-  @doc type: :debugging
+  @doc type: :debug
   def trace_forward(model, inputs, params, opts \\ []) when is_list(opts) do
     {_, forward_fun} = build(model, opts)
     Nx.Defn.jit(forward_fun, compiler: Axon.Defn).(params, inputs)
@@ -3229,7 +3233,7 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
   """
-  @doc type: :debugging
+  @doc type: :debug
   def trace_backward(model, inputs, params, loss, opts \\ []) do
     {_, forward_fn} = build(model, opts)
 
@@ -3267,7 +3271,7 @@ defmodule Axon do
   All other options are forwarded to the default JIT compiler
   or backend.
   """
-  @doc type: :execution
+  @doc type: :model
   def init(model, template, params \\ %{}, opts \\ []) when is_list(opts) do
     {init_fn, _predict_fn} = build(model, opts)
     init_fn.(template, params)
@@ -3290,7 +3294,7 @@ defmodule Axon do
   All other options are forwarded to the default JIT compiler
   or backend.
   """
-  @doc type: :execution
+  @doc type: :model
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
     {_init_fn, predict_fn} = build(model, opts)
     predict_fn.(params, input)
@@ -3346,6 +3350,7 @@ defmodule Axon do
         ]
       >
   """
+  @doc type: :model
   def serialize(%Axon{} = model, params, opts \\ []) do
     model_meta = axon_to_map(model)
     params = Nx.serialize(params, opts)
@@ -3384,6 +3389,7 @@ defmodule Axon do
         ]
       >
   """
+  @doc type: :model
   def deserialize(serialized, opts \\ []) do
     {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, [:safe | opts])
     model = map_to_axon(model_meta)
