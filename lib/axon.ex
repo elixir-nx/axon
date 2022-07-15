@@ -1738,7 +1738,7 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def transpose(%Axon{op: op} = x, permutation, opts \\ []) do
+  def transpose(%Axon{op: op} = x, permutation \\ nil, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
     ignore_batch? = opts[:ignore_batch?]
 
@@ -3212,8 +3212,20 @@ defmodule Axon do
       for your chosen compiler or backend. Defaults to `false`
   """
   @doc type: :debugging
-  def trace_backward(model, inputs, params, loss) do
-    # TODO
+  def trace_backward(model, inputs, params, loss, opts \\ []) do
+    {_, forward_fn} = build(model, opts)
+
+    backward_fn = fn params, inputs, targets ->
+      Nx.Defn.grad(params, fn params ->
+        %{prediction: preds} = forward_fn.(params, inputs)
+        loss.(targets, preds)
+      end)
+    end
+
+    outputs = Nx.Defn.jit(forward_fn, compiler: Axon.Defn).(params, inputs)
+    inputs = [params, inputs, outputs]
+
+    apply(Nx.Defn.jit(backward_fn, compiler: Axon.Defn), inputs)
   end
 
   @doc """

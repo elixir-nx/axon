@@ -160,7 +160,7 @@ defmodule Axon.Compiler do
            op: :input,
            hooks: hooks,
            name: name_fn,
-           opts: [shape: input_shape, default: default]
+           opts: [shape: _input_shape, default: default]
          },
          {cache, op_counts},
          mode
@@ -186,6 +186,7 @@ defmodule Axon.Compiler do
     predict_fun = fn _params, inputs, state, _cache, result_cache ->
       value = get_input(inputs, name, default)
 
+      # TODO: Add this back in
       # validate_input_shape!(value, shape)
 
       res =

@@ -1980,11 +1980,14 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:axes, ignore_batch?: true, mode: :inference])
 
     axes =
-      transform({opts[:axes], opts[:ignore_batch?]}, fn
-        {axes, true} ->
+      transform({Nx.shape(x), opts[:axes], opts[:ignore_batch?]}, fn
+        {shape, nil, _} ->
+          Nx.axes(shape) |> Enum.reverse()
+
+        {_, axes, true} ->
           [0 | Enum.map(axes, &(&1 + 1))]
 
-        {axes, false} ->
+        {_, axes, false} ->
           axes
       end)
 
