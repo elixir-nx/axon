@@ -3317,7 +3317,7 @@ defmodule CompilerTest do
         height = 6
       }
 
-      out_channel_n = 3
+      out_channel_n = 4
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 

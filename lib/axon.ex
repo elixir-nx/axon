@@ -79,7 +79,7 @@ defmodule Axon do
       inp2 = Axon.input({nil, 1}, "input_1")
 
       model1 = Axon.add(inp1, inp2)
-      params1 = Axon.init(model1)
+      params1 = Axon.init(model1, Nx.template({1, 1}, {:f, 32}))
       # Inputs are referenced by name
       Axon.predict(model1, params1, %{"input_0" => x, "input_1" => y})
 
@@ -142,10 +142,10 @@ defmodule Axon do
   ## Model Execution
 
   Under the hood, Axon models are represented as Elixir structs. You
-  can initialize and apply models using the `Axon.init/3` and `Axon.predict/4`
+  can initialize and apply models using the `Axon.init/4` and `Axon.predict/4`
   functions:
 
-      params = Axon.init(model, compiler: EXLA)
+      params = Axon.init(model, Nx.template({1, 1}, {:f, 32}), compiler: EXLA)
 
       Axon.predict(model, params, inputs, compiler: EXLA, mode: :train)
 
@@ -154,7 +154,7 @@ defmodule Axon do
 
       EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
-      params = Axon.init(model)
+      params = Axon.init(model, Nx.template({1, 1}, {:f, 32}))
       Axon.predict(model, params, inputs, mode: :train)
 
   `Axon.predict/4` by default runs in inference mode, which performs certain
@@ -457,7 +457,7 @@ defmodule Axon do
       base = base |> Axon.namespace("resnet")
 
       model = base |> Axon.dense(1)
-      Axon.init(model, %{"resnset" => resnet_params})
+      Axon.init(model, Nx.template({1, 3, 224, 224}, {:f, 32}), %{"resnset" => resnet_params})
 
   Notice you can use `Axon.init` in conjunction with namespaces
   to specify which portion of a model you'd like to initialize
@@ -2899,13 +2899,16 @@ defmodule Axon do
   template.
   """
   @doc type: :graph
-  def get_output_shape(%Axon{} = axon, inputs) do
-    {init_fn, forward_fn} = build(axon)
+  def get_output_shape(%Axon{} = axon, inputs, opts \\ []) do
+    {init_fn, forward_fn} = build(axon, opts)
 
     out =
-      Nx.Defn.jit(fn inputs ->
-        forward_fn.(init_fn.(inputs, %{}), inputs)
-      end).(inputs)
+      Nx.Defn.jit(
+        fn inputs ->
+          forward_fn.(init_fn.(inputs, %{}), inputs)
+        end,
+        compiler: Axon.Defn
+      ).(inputs)
 
     # TODO: Safe shape to handle outputs
     Nx.shape(out)
@@ -3266,7 +3269,7 @@ defmodule Axon do
   You may optionally specify initial parameters for some layers or
   namespaces by passing a partial parameter map:
 
-      Axon.init(model, %{"dense_0" => dense_params})
+      Axon.init(model, Nx.template({1, 1}, {:f, 32}), %{"dense_0" => dense_params})
 
   The parameter map will be merged with the initialized model
   parameters.
