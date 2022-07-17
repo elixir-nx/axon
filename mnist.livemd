@@ -75,7 +75,7 @@ Let's start by defining a simple model:
 
 ```elixir
 model =
-  Axon.input({nil, 1, 28, 28}, "input")
+  Axon.input("input", shape: {nil, 1, 28, 28})
   |> Axon.flatten()
   |> Axon.dense(128, activation: :relu)
   |> Axon.dense(10, activation: :softmax)
