@@ -21,7 +21,7 @@ defmodule MNISTGAN do
   end
 
   defp build_generator(z_dim) do
-    Axon.input({nil, z_dim}, "input")
+    Axon.input("input", shape: {nil, z_dim})
     |> Axon.dense(256)
     |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
@@ -37,7 +37,7 @@ defmodule MNISTGAN do
   end
 
   defp build_discriminator(input_shape) do
-    Axon.input(input_shape, "input")
+    Axon.input("input", shape: input_shape)
     |> Axon.flatten()
     |> Axon.dense(512)
     |> Axon.leaky_relu(alpha: 0.9)

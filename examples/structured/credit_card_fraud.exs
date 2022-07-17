@@ -70,7 +70,7 @@ defmodule CreditCardFraud do
   end
 
   defp build_model(num_features) do
-    Axon.input({nil, num_features}, "input")
+    Axon.input("input", shape: {nil, num_features})
     |> Axon.dense(256)
     |> Axon.relu()
     |> Axon.dense(256)

@@ -16,7 +16,7 @@ defmodule TextGenerator do
   @batch_size 128
 
   def build_model(characters_count) do
-    Axon.input({nil, @sequence_length, 1}, "input_chars")
+    Axon.input("input_chars", shape: {nil, @sequence_length, 1})
     |> Axon.lstm(256)
     |> then(fn {_, out} -> out end)
     |> Axon.nx(fn t -> t[[0..-1//1, -1]] end)

@@ -37,8 +37,8 @@ defmodule Axon.MixProject do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.2.2", [only: :test] ++ exla_opts()},
-      {:nx, "~> 0.2.1", nx_opts()},
+      {:exla, "~> 0.3.0-dev", [only: :test] ++ exla_opts()},
+      {:nx, "~> 0.3.0-dev", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
     ]
@@ -56,7 +56,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      []
+      [github: "elixir-nx/nx", sparse: "nx", override: true]
     end
   end
 
@@ -64,7 +64,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path]
     else
-      []
+      [github: "elixir-nx/nx", sparse: "exla"]
     end
   end
 
@@ -92,9 +92,11 @@ defmodule Axon.MixProject do
         "Layers: Pooling": &(&1[:type] == :pooling),
         "Layers: Normalization": &(&1[:type] == :normalization),
         "Layers: Recurrent": &(&1[:type] == :recurrent),
-        "Layers: Combinators": &(&1[:type] == :combinators),
+        "Layers: Combinators": &(&1[:type] == :combinator),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model: Execution": &(&1[:type] == :execution),
+        Model: &(&1[:type] == :model),
+        "Model: Manipulation": &(&1[:type] == :graph),
+        "Model: Debugging": &(&1[:type] == :debug),
 
         # Axon.Layers
         "Functions: Attention": &(&1[:type] == :attention),

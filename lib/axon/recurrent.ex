@@ -96,32 +96,6 @@ defmodule Axon.Recurrent do
     {{new_c, new_h}, new_h}
   end
 
-  defnp rank_down(rnn_data) do
-    transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] =
-        for tensor <- [cell, hidden, input] do
-          Nx.squeeze(tensor, axes: [1])
-        end
-
-      {{cell, hidden}, input}
-    end)
-  end
-
-  defnp rank_up(rnn_data) do
-    transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] =
-        for tensor <- [cell, hidden, input] do
-          new_shape =
-            Nx.shape(tensor)
-            |> Tuple.insert_at(1, 1)
-
-          Nx.reshape(tensor, new_shape)
-        end
-
-      {{cell, hidden}, input}
-    end)
-  end
-
   @doc """
   ConvLSTM Cell.
 
@@ -178,6 +152,32 @@ defmodule Axon.Recurrent do
     end)
   end
 
+  defnp rank_down(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          Nx.squeeze(tensor, axes: [1])
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
+  defnp rank_up(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          new_shape =
+            Nx.shape(tensor)
+            |> Tuple.insert_at(1, 1)
+
+          Nx.reshape(tensor, new_shape)
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
   @doc """
   Dynamically unrolls an RNN.
 
@@ -195,8 +195,11 @@ defmodule Axon.Recurrent do
     feature_dims = transform(Nx.rank(input_sequence), &List.duplicate(0, &1 - 2))
 
     initial_shape =
-      transform({Nx.shape(input_sequence), Nx.shape(elem(input_kernel, 0))}, fn {shape, kernel} ->
-        put_elem(shape, 2, elem(kernel, 1))
+      transform({cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias}, fn
+        {cell_fn, inp, carry, inp_kernel, hid_kernel, bias} ->
+          seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
+          {_, seq} = cell_fn.(seq, carry, inp_kernel, hid_kernel, bias)
+          put_elem(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
       end)
 
     init_sequence = Nx.broadcast(0.0, initial_shape)
