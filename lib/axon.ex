@@ -3393,21 +3393,25 @@ defmodule Axon do
   """
   @doc type: :model
   def serialize(%Axon{} = model, params, opts \\ []) do
-    model_meta = axon_to_map(model)
+    {model_meta, _op_counts} = axon_to_map(model, %{})
     params = Nx.serialize(params, opts)
     :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
 
-  defp axon_to_map(%Axon{op: :container, parent: [parents]} = model) do
-    parents = deep_new(parents, &axon_to_map/1)
+  defp axon_to_map(%Axon{op: :container, name: name_fn, parent: [parents]} = model, op_counts) do
+    {parents, op_counts} = deep_map_reduce(parents, op_counts, &axon_to_map/2)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | parent: List.wrap(parents)}
+    name = name_fn.(:container, op_counts)
+    op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
+    {%{axon_map | parent: List.wrap(parents), name: name}, op_counts}
   end
 
-  defp axon_to_map(%Axon{parent: parents} = model) do
-    parents = Enum.map(parents, &axon_to_map/1)
+  defp axon_to_map(%Axon{op_name: op, parent: parents, name: name_fn} = model, op_counts) do
+    {parents, op_counts} = Enum.map_reduce(parents, op_counts, &axon_to_map/2)
     axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    %{axon_map | parent: parents}
+    name = name_fn.(op, op_counts)
+    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+    {%{axon_map | parent: parents, name: name}, op_counts}
   end
 
   @doc """
@@ -3439,17 +3443,19 @@ defmodule Axon do
     {model, params}
   end
 
-  defp map_to_axon(%{op: :container, parent: [parents]} = model) do
+  defp map_to_axon(%{op: :container, parent: [parents], name: name} = model) do
     parents = deep_new(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
-    model = %{model | parent: List.wrap(parents)}
+    name_fn = fn _, _ -> name end
+    model = %{model | parent: List.wrap(parents), name: name_fn}
     struct(__MODULE__, model)
   end
 
-  defp map_to_axon(%{axon: :axon, parent: parents} = model) do
+  defp map_to_axon(%{axon: :axon, parent: parents, name: name} = model) do
     parents = Enum.map(parents, &map_to_axon/1)
     model = Map.drop(model, [:axon])
-    model = %{model | parent: parents}
+    name_fn = fn _, _ -> name end
+    model = %{model | parent: parents, name: name_fn}
     struct(__MODULE__, model)
   end
 
