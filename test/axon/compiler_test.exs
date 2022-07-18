@@ -110,7 +110,7 @@ defmodule CompilerTest do
   end
 
   describe "optional" do
-    test "raises when predict compiles down to Axon.None" do
+    test "raises when predict compiles down to %Axon.None{}" do
       model =
         Axon.input("input_0", shape: {nil, 1}, optional: true)
         |> Axon.dense(1)
@@ -139,47 +139,47 @@ defmodule CompilerTest do
 
       assert_equal(
         Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[20]])}),
-        Nx.tensor([[1]])
+        Nx.tensor(1)
       )
 
       assert_equal(
         Axon.predict(model, %{}, %{}),
-        Nx.tensor([[0]])
+        Nx.tensor(0)
       )
     end
 
-    test "propagates Axon.None through subsequent layers" do
+    test "propagates %Axon.None{} through subsequent layers" do
       input0 = Axon.input("input_0", shape: {nil, 1})
       input1 = Axon.input("input_1", shape: {nil, 1}, optional: true)
 
-      sum = Axon.add(input0, input1) |> Axon.dense(1) |> Axon.sigmoid()
+      sum =
+        Axon.add(input0, input1)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
 
       model =
         Axon.layer(
           fn
-            %Axon.None{}, _ -> 0
-            %Nx.Tensor{}, _ -> 1
+            %Axon.None{}, _ -> Nx.tensor([0])
+            %Nx.Tensor{}, _ -> Nx.tensor([1])
           end,
           [Axon.optional(sum)]
         )
+        |> Axon.bias(bias_initializer: :zeros)
 
-      assert Axon.init(model, %{"input_0" => Nx.tensor([[20]])}) == %{}
+      inputs = %{"input_0" => Nx.tensor([[20]])}
 
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[20]])}),
-        Nx.tensor([[0]])
-      )
+      params = Axon.init(model, inputs)
+      assert Map.keys(params) == ["bias_0"]
 
-      params = Axon.init(model, %{"input_0" => Nx.tensor([[20]]), "input_1" => Nx.tensor([[20]])})
-      assert %{"dense_0" => _dense_params} = params
+      assert_equal(Axon.predict(model, params, inputs), Nx.tensor([0]))
 
-      assert_equal(
-        Axon.predict(model, params, %{
-          "input_0" => Nx.tensor([[20]]),
-          "input_1" => Nx.tensor([[20]])
-        }),
-        Nx.tensor([[1]])
-      )
+      inputs = %{"input_0" => Nx.tensor([[20]]), "input_1" => Nx.tensor([[20]])}
+
+      params = Axon.init(model, inputs)
+      assert params |> Map.keys() |> Enum.sort() == ["bias_0", "dense_0"]
+
+      assert_equal(Axon.predict(model, params, inputs), Nx.tensor([1]))
     end
   end
 

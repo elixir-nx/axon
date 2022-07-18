@@ -219,6 +219,8 @@ defmodule Axon.Compiler do
       {out, {params, result_cache}} =
         call_init_cache(parent_id, template, %{}, cache, result_cache)
 
+      out = with %Axon.None{} <- out, do: %Axon.None{__propagate__: false}
+
       {safe_shape(out), {params, result_cache}}
     end
 
