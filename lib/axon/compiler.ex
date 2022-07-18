@@ -469,20 +469,23 @@ defmodule Axon.Compiler do
     # state, and result_cache and then apply dtype policy and hooks
     # to each input
     {layer_inputs, {state, result_cache, none?}} =
-      Enum.map_reduce(parent_ids, {state, result_cache, false}, fn parent_id,
-                                                                   {state, result_cache, none?} ->
-        {layer_input, {state, result_cache}} =
-          call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+      Enum.map_reduce(
+        parent_ids,
+        {state, result_cache, false},
+        fn parent_id, {state, result_cache, none?} ->
+          {layer_input, {state, result_cache}} =
+            call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
 
-        none? = none? or propagating_none?(layer_input)
+          none? = none? or propagating_none?(layer_input)
 
-        layer_input =
-          layer_input
-          |> safe_as_type(compute)
-          |> apply_hooks(:pre_forward, mode, hooks)
+          layer_input =
+            layer_input
+            |> safe_as_type(compute)
+            |> apply_hooks(:pre_forward, mode, hooks)
 
-        {layer_input, {state, result_cache, none?}}
-      end)
+          {layer_input, {state, result_cache, none?}}
+        end
+      )
 
     if none? do
       {%Axon.None{}, {state, result_cache}}

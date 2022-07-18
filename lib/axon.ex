@@ -374,9 +374,9 @@ defmodule Axon do
 
   In case the mask is not provided, the input node will resolve to
   `%Axon.None{}` and so will all the layers that depend on it. By
-  using `optional/2` a layer may opt-in to receive `%Axon.None{}`
-  and it needs to handle it accordingly. To fix our example, we
-  could define a custom layer to apply the mask only when present
+  using `optional/2` a layer may opt-in to receive `%Axon.None{}`.
+  To fix our example, we could define a custom layer to apply the
+  mask only when present
 
       def apply_optional_mask(%Axon{} = x, %Axon{} = mask) do
         Axon.layer(
