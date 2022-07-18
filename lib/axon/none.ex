@@ -1,0 +1,10 @@
+defmodule Axon.None do
+  @moduledoc """
+  Represents a missing value of an optional node.
+
+  See `Axon.input/2` and `Axon.optional/2` for more details.
+  """
+
+  @derive {Inspect, except: [:__propagate__]}
+  defstruct __propagate__: true
+end
