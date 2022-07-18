@@ -324,7 +324,7 @@ defmodule Axon do
       of a dynamic size.
 
     * `:optional` - if `true`, the input may be omitted when using
-      the model and this needs to be handled in one of the subsequent
+      the model. This needs to be handled in one of the subsequent
       layers. See `optional/2` for more details.
 
   """
