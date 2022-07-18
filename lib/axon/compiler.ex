@@ -534,6 +534,13 @@ defmodule Axon.Compiler do
             apply(Axon.Layers, op, args)
         end
 
+      result =
+        case result do
+          # Make sure the none is non-propagating
+          %Axon.None{} -> %Axon.None{}
+          result -> result
+        end
+
       # Final stage is to extract correct output form by determining if
       # the layer had stateful output, apply hooks, and cast back to policy
       # dtype for outputs

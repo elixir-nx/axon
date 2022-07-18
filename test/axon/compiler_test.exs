@@ -181,6 +181,21 @@ defmodule CompilerTest do
 
       assert_equal(Axon.predict(model, params, inputs), Nx.tensor([1]))
     end
+
+    test "does not propagate %Axon.None{} further when returned by a layer" do
+      x = Axon.input("input_0", shape: {nil, 1}, optional: true)
+
+      x =
+        Axon.layer(
+          fn %Axon.None{} = none, _ -> none end,
+          [Axon.optional(x)]
+        )
+        |> Axon.nx(fn _ -> flunk("should not evaluate") end)
+
+      model = Axon.layer(fn _, _ -> 1 end, [Axon.optional(x)])
+
+      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([1]))
+    end
   end
 
   describe "constant" do
