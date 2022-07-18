@@ -6,5 +6,6 @@ defmodule Axon.None do
   """
 
   @derive {Inspect, except: [:__propagate__]}
+  @derive {Nx.Container, containers: []}
   defstruct __propagate__: true
 end
