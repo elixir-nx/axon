@@ -200,7 +200,9 @@ defmodule Axon.LoopTest do
       assert %Loop{} = loop = Loop.evaluator(model)
       assert %Loop{} = loop = Loop.metric(loop, :mean_absolute_error)
 
-      assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
+      end)
     end
 
     test "eval_step/1 evalutes model on a single batch" do

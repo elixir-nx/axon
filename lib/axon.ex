@@ -318,34 +318,27 @@ defmodule Axon do
   You must specify the input layers name, which will be used
   to uniquely identify it in the case of multiple inputs.
 
-  You may optionally specify an input with a default value
-  using the `:default` option. Default values can be `nil`,
-  tensors, or an arity-1 function. If the default value is
-  `nil` and you do not handle the possibility of missing
-  values in subsequent layers, you will likely experience
-  cryptic errors. Default value shape must match the expected
-  `input_shape` given to model.
-
   ## Options
 
     * `:shape` - the expected input shape, use `nil` for dimensions
-      of a dynamic size
+      of a dynamic size.
 
-    * `:default` - the default value, either `nil`, a tensor
-      or an arity-1 function
+    * `:optional` - if `true`, the input may be omitted when using
+      the model. This needs to be handled in one of the subsequent
+      layers. See `optional/2` for more details.
 
   """
   @doc type: :special
   def input(name, opts \\ [])
 
   def input(name, opts) when is_binary(name) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:shape, default: :no_default_value])
-    default = validate_default_input!(opts[:default])
+    opts = Keyword.validate!(opts, [:shape, optional: false])
+    optional = opts[:optional]
 
     input_shape = opts[:shape]
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
-    layer(:input, [], name: name, shape: output_shape, op_name: :input, default: default)
+    layer(:input, [], name: name, shape: output_shape, op_name: :input, optional: optional)
   end
 
   # TODO: remove on Axon v0.3
@@ -361,6 +354,60 @@ defmodule Axon do
   @deprecated "Pass the shape as an option to Axon.input/2"
   def input(input_shape, name, opts) when is_binary(name) do
     input(name, [{:shape, input_shape} | opts])
+  end
+
+  @doc """
+  Wraps an Axon model in an optional node.
+
+  By default, when an optional input is missing, all subsequent layers
+  are nullified. For example, consider this model:
+
+      values = Axon.input("values")
+      mask = Axon.input("mask", optional: true)
+
+      model =
+        values
+        |> Axon.dense(10)
+        |> Axon.multiply(mask)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
+
+  In case the mask is not provided, the input node will resolve to
+  `%Axon.None{}` and so will all the layers that depend on it. By
+  using `optional/2` a layer may opt-in to receive `%Axon.None{}`.
+  To fix our example, we could define a custom layer to apply the
+  mask only when present
+
+      def apply_optional_mask(%Axon{} = x, %Axon{} = mask) do
+        Axon.layer(
+          fn x, mask, _opts ->
+            case mask do
+              %Axon.None{} -> x
+              mask -> Nx.multiply(x, mask)
+            end
+          end,
+          [x, Axon.optional(mask)]
+        )
+      end
+
+      # ...
+
+      model =
+        values
+        |> Axon.dense(10)
+        |> apply_optional_mask(mask)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
+
+  ## Options
+
+    * `:name` - layer name.
+
+  """
+  @doc type: :special
+  def optional(%Axon{} = x, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
+    layer(:optional, [x], name: opts[:name], op_name: :optional)
   end
 
   @doc """
@@ -3479,27 +3526,6 @@ defmodule Axon do
           "initializer must be one of #{inspect(@valid_initializers)}," <>
             " or an arity-2 function accepting initializer shape and type" <>
             " got #{inspect(initializer)}"
-  end
-
-  defp validate_default_input!(default) do
-    case default do
-      nil ->
-        default
-
-      :no_default_value ->
-        :no_default_value
-
-      default when is_function(default, 1) ->
-        default
-
-      %Nx.Tensor{} = default ->
-        default
-
-      invalid ->
-        raise ArgumentError,
-              "default input value must be nil, tensor, or arity-1 function" <>
-                " of the inputs, got #{inspect(invalid)}"
-    end
   end
 
   # Names are generated lazily at inspect, initialization, and compile

@@ -7,12 +7,6 @@ defmodule AxonTest do
     test "works with defaults" do
       assert %Axon{op: :input, parent: []} = Axon.input("input", shape: {32, 1, 28, 28})
     end
-
-    test "raises on bad default value" do
-      assert_raise ArgumentError, ~r/default input value/, fn ->
-        Axon.input("foo", shape: {nil, 1}, default: :bad_default)
-      end
-    end
   end
 
   describe "constant" do

@@ -89,58 +89,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :capture_log
-    test "allows nil default inputs" do
-      model =
-        Axon.input("input_0", shape: {nil, 1}, default: nil)
-        |> Axon.nx(fn
-          nil -> Nx.tensor([[1.0]])
-          x -> x
-        end)
-
-      assert Axon.init(model, %{}) == %{}
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
-        Nx.tensor([[2.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
-    end
-
-    test "allows tensor default inputs" do
-      model = Axon.input("input_0", shape: {nil, 1}, default: Nx.tensor([[1.0]]))
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
-        Nx.tensor([[2.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
-    end
-
-    test "allows function default inputs" do
-      inp1 = Axon.input("input_0", shape: {nil, 2})
-
-      inp2 =
-        Axon.input("input_1",
-          shape: {nil, 2},
-          default: fn inputs -> Nx.iota(inputs["input_0"]) end
-        )
-
-      model = Axon.add(inp1, inp2)
-
-      inp1 = Nx.tensor([[1.0, 2.0]])
-      inp2 = Nx.tensor([[3.0, 4.0]])
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => inp1, "input_1" => inp2}),
-        Nx.tensor([[4.0, 6.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{"input_0" => inp1}), Nx.tensor([[1.0, 3.0]]))
-    end
-
     test "allows container inputs" do
       model = Axon.input("input_0", shape: %{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}})
 
@@ -158,6 +106,95 @@ defmodule CompilerTest do
 
       assert Exception.message(exception) =~
                "unable to find input"
+    end
+  end
+
+  describe "optional" do
+    test "raises when predict compiles down to %Axon.None{}" do
+      model =
+        Axon.input("input_0", shape: {nil, 1}, optional: true)
+        |> Axon.dense(1)
+
+      assert_raise ArgumentError,
+                   ~r/the compiled model will always result in %Axon.None{}/,
+                   fn ->
+                     Axon.predict(model, %{}, %{})
+                   end
+    end
+
+    test "passes optional nodes to the layer function" do
+      input = Axon.input("input_0", shape: {nil, 1}, optional: true)
+
+      model =
+        Axon.layer(
+          fn
+            %Axon.None{}, _ -> 0
+            %Nx.Tensor{}, _ -> 1
+          end,
+          [Axon.optional(input)]
+        )
+
+      assert Axon.init(model, %{"input_0" => Nx.tensor([[20]])}) == %{}
+      assert Axon.init(model, %{}) == %{}
+
+      assert_equal(
+        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[20]])}),
+        Nx.tensor(1)
+      )
+
+      assert_equal(
+        Axon.predict(model, %{}, %{}),
+        Nx.tensor(0)
+      )
+    end
+
+    test "propagates %Axon.None{} through subsequent layers" do
+      input0 = Axon.input("input_0", shape: {nil, 1})
+      input1 = Axon.input("input_1", shape: {nil, 1}, optional: true)
+
+      sum =
+        Axon.add(input0, input1)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
+
+      model =
+        Axon.layer(
+          fn
+            %Axon.None{}, _ -> Nx.tensor([0])
+            %Nx.Tensor{}, _ -> Nx.tensor([1])
+          end,
+          [Axon.optional(sum)]
+        )
+        |> Axon.bias(bias_initializer: :zeros)
+
+      inputs = %{"input_0" => Nx.tensor([[20]])}
+
+      params = Axon.init(model, inputs)
+      assert Map.keys(params) == ["bias_0"]
+
+      assert_equal(Axon.predict(model, params, inputs), Nx.tensor([0]))
+
+      inputs = %{"input_0" => Nx.tensor([[20]]), "input_1" => Nx.tensor([[20]])}
+
+      params = Axon.init(model, inputs)
+      assert params |> Map.keys() |> Enum.sort() == ["bias_0", "dense_0"]
+
+      assert_equal(Axon.predict(model, params, inputs), Nx.tensor([1]))
+    end
+
+    test "does not propagate %Axon.None{} further when returned by a layer" do
+      x = Axon.input("input_0", shape: {nil, 1}, optional: true)
+
+      x =
+        Axon.layer(
+          fn %Axon.None{} = none, _ -> none end,
+          [Axon.optional(x)]
+        )
+        |> Axon.nx(fn _ -> flunk("should not evaluate") end)
+
+      model = Axon.layer(fn _, _ -> 1 end, [Axon.optional(x)])
+
+      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([1]))
     end
   end
 
