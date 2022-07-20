@@ -1742,9 +1742,10 @@ defmodule Axon do
 
   @doc type: :special
   def nx(%Axon{} = x, fun, opts) when is_function(fun, 1) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :op_name])
+    op_name = opts[:op_name] || :nx
     fun_with_params = fn x, _opts -> fun.(x) end
-    layer(fun_with_params, [x], name: opts[:name], op_name: :nx)
+    layer(fun_with_params, [x], name: opts[:name], op_name: op_name)
   end
 
   @doc """
