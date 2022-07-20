@@ -53,7 +53,20 @@ defmodule CreditCardFraud do
   end
 
   defp normalize(name),
-    do: fn df -> Explorer.Series.divide(df[name], Explorer.Series.max(Explorer.Series.transform(df[name], fn x -> (if x >= 0 do x else -x end) end))) end
+    do: fn df ->
+      Explorer.Series.divide(
+        df[name],
+        Explorer.Series.max(
+          Explorer.Series.transform(df[name], fn x ->
+            if x >= 0 do
+              x
+            else
+              -x
+            end
+          end)
+        )
+      )
+    end
 
   defp normalize_data(df) do
     df
