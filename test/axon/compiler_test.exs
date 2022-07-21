@@ -5082,4 +5082,50 @@ defmodule CompilerTest do
              end) =~ "Axon finished predict"
     end
   end
+
+  describe "parameter sharing" do
+    test "shares parameters between built-in layers of same type" do
+      dense_1 = Axon.input("input") |> Axon.dense(2)
+      dense_1_parameters = Axon.get_parameters(dense_1)
+
+      model = dense_1 |> Axon.dense(2) |> Axon.set_parameters(dense_1_parameters)
+
+      input = Nx.random_uniform({1, 2})
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = params = init_fn.(input, %{})
+      refute Map.has_key?(params, "dense_1")
+
+      expected = input |> Axon.Layers.dense(k, b) |> Axon.Layers.dense(k, b)
+      actual = predict_fn.(params, input)
+
+      assert_equal(actual, expected)
+    end
+
+    test "shares parameters between custom layers" do
+      kernel = Axon.param("kernel", fn shape -> shape end)
+
+      model_input = Axon.input("input")
+
+      multiply_with_opts = fn x, y, _opts -> Nx.multiply(x, y) end
+
+      model =
+        model_input
+        |> then(fn input -> Axon.layer(multiply_with_opts, [input, kernel]) end)
+        |> then(fn input -> Axon.layer(multiply_with_opts, [input, kernel]) end)
+
+      input = Nx.random_uniform({1, 1})
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"custom_0" => %{"kernel" => k}} = params = init_fn.(input, %{})
+      refute Map.has_key?(params, "custom_1")
+
+      expected = input |> Nx.multiply(k) |> Nx.multiply(k)
+      actual = predict_fn.(params, input)
+
+      assert_equal(actual, expected)
+    end
+  end
 end

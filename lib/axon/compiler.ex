@@ -310,8 +310,6 @@ defmodule Axon.Compiler do
       namespace_params = params[name]
 
       # TODO: How should hooks be handled here?
-      # TODO: I think we can actually handle parameter freezing and access
-      # better here by only forwarding params[namespace] to the child function
       {out, {state, result_cache}} =
         call_predict_cache(parent_id, namespace_params, inputs, state, cache, result_cache)
 
@@ -493,12 +491,13 @@ defmodule Axon.Compiler do
       # Parameters are just accessed in the layer sub-map of the nested
       # parameter map, so we just need to extract them and then apply
       # freezing and dtype policy
-      parameter_inputs =
-        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          param = params[name][v]
+      {parameter_inputs, result_cache} =
+        Enum.map_reduce(layer_params, result_cache, fn %{id: id, name: v, frozen: frz},
+                                                       result_cache ->
+          {param, result_cache} = get_param(result_cache, params, id, name, v)
 
           if param != nil do
-            safe_as_type(maybe_freeze(param, frz), compute)
+            {safe_as_type(maybe_freeze(param, frz), compute), result_cache}
           else
             raise ArgumentError,
                   "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
@@ -597,9 +596,9 @@ defmodule Axon.Compiler do
     if none? do
       {%Axon.None{}, {parent_params, result_cache}}
     else
-      layer_params =
-        Enum.reduce(parameters, %{}, fn param, layer_params ->
-          init_param(param, layer_params, parent_shapes, dtype)
+      {layer_params, result_cache} =
+        Enum.reduce(parameters, {%{}, result_cache}, fn param, {layer_params, result_cache} ->
+          init_param(param, name, layer_params, result_cache, parent_shapes, dtype)
         end)
 
       layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
@@ -617,8 +616,9 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp init_param(param, layer_params, parent_shapes, dtype) do
-    %{name: name, shape: shape, initializer: initializer} = param
+  defp init_param(param, layer_name, layer_params, result_cache, parent_shapes, dtype) do
+    %{id: id, name: name, shape: shape, initializer: initializer} = param
+    key = {:param_cache, id}
 
     fun =
       case shape do
@@ -635,7 +635,26 @@ defmodule Axon.Compiler do
           apply_initializer(initializer, shape, dtype)
       end
 
-    Map.put(layer_params, name, fun)
+    case result_cache do
+      %{^key => _} ->
+        {layer_params, result_cache}
+
+      %{} ->
+        {Map.put(layer_params, name, fun), Map.put(result_cache, key, [layer_name, name])}
+    end
+  end
+
+  defp get_param(result_cache, params, id, layer_name, param_name) do
+    key = {:param_cache, id}
+
+    case result_cache do
+      %{^key => access_path} ->
+        {get_in(params, access_path), result_cache}
+
+      %{} ->
+        {get_in(params, [layer_name, param_name]),
+         Map.put(result_cache, key, [layer_name, param_name])}
+    end
   end
 
   defp apply_initializer(initializer, shape, type) when is_atom(initializer) do
