@@ -27,10 +27,10 @@ defmodule Axon.SchedulesTest do
 
     test "can be called within JIT" do
       fun = exponential_decay()
-      assert_all_close(jit(fun, [0]), 1.0e-2)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-2)
 
       fun = exponential_decay(init_value: 1.0e-3)
-      assert_all_close(jit(fun, [0]), 1.0e-3)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-3)
     end
 
     test "matches optax values at different counts" do
@@ -87,10 +87,10 @@ defmodule Axon.SchedulesTest do
 
     test "can be called within JIT" do
       fun = cosine_decay()
-      assert_all_close(jit(fun, [0]), 1.0e-2)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-2)
 
       fun = cosine_decay(init_value: 1.0e-3)
-      assert_all_close(jit(fun, [0]), 1.0e-3)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-3)
     end
 
     test "matches optax values at different counts" do
@@ -141,10 +141,10 @@ defmodule Axon.SchedulesTest do
 
     test "can be called within JIT" do
       fun = constant()
-      assert_all_close(jit(fun, [0]), 1.0e-2)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-2)
 
       fun = constant(init_value: 1.0e-3)
-      assert_all_close(jit(fun, [0]), 1.0e-3)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-3)
     end
 
     test "matches optax values at different counts" do
@@ -195,10 +195,10 @@ defmodule Axon.SchedulesTest do
 
     test "can be called within JIT" do
       fun = polynomial_decay()
-      assert_all_close(jit(fun, [0]), 1.0e-2)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-2)
 
       fun = polynomial_decay(init_value: 1.0e-3)
-      assert_all_close(jit(fun, [0]), 1.0e-3)
+      assert_all_close(apply(jit(fun), [0]), 1.0e-3)
     end
 
     test "matches optax values at different counts" do

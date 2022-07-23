@@ -537,7 +537,7 @@ defmodule Axon.Activations do
   defn sigmoid(x) do
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
-    transform(Nx.logistic(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+    transform(Nx.sigmoid(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
   end
 
   @doc ~S"""
@@ -569,7 +569,7 @@ defmodule Axon.Activations do
   """
   defn silu(x) do
     x
-    |> Nx.logistic()
+    |> Nx.sigmoid()
     |> Nx.multiply(x)
   end
 

@@ -270,7 +270,7 @@ train_results =
 ```elixir
 # As the input, We expect the sequence_length characters. Each one is a number.
 model =
-  Axon.input({nil, sequence_length, 1}, "input_chars")
+  Axon.input("input_chars", shape: {nil, sequence_length, 1})
   # The Long Short Term Memory layer of our network
   |> Axon.lstm(256)
   # Selecting only the output from the LSTM Layer
@@ -428,7 +428,7 @@ We can improve our network by stacking multiple LSTM layers together. We just ne
 
 ```elixir
 new_model =
-  Axon.input({nil, sequence_length, 1}, "input_chars")
+  Axon.input("input_chars", shape: {nil, sequence_length, 1})
   |> Axon.lstm(256)
   |> then(fn {_, out} -> out end)
   |> Axon.dropout(rate: 0.2)
@@ -563,7 +563,7 @@ generate_fn.(new_model, new_params, init_seq) |> IO.puts()
 ```
 not like to drop the jar for fear
 of killing somebody underneath so managed to put it into one of the
-cupboards as she fell past it. the project gutenbergtm electronic works and any part of the project gutenbergtm electronic works 
+cupboards as she fell past it. the project gutenbergtm electronic works and any part of the project gutenbergtm electronic works
 
 ```
 
