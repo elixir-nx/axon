@@ -496,3 +496,5 @@ predict(
   real_results
 )
 ```
+
+The program will run through the set amount of ```epochs```, which was set in the Application setup. You'll be able to see the loss & accuracy of each epoch.
