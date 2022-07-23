@@ -12,7 +12,7 @@ defmodule Power do
 
   defp build_model do
     fc =
-      Axon.input({nil, 1}, "input")
+      Axon.input("input", shape: {nil, 1})
       |> Axon.dense(32, activation: :relu)
       |> Axon.dense(64, activation: :relu)
 
@@ -20,7 +20,7 @@ defmodule Power do
     out2 = Axon.dense(fc, 1)
 
     # Notice the "model" is just a tuple which matches the form we expect the targets
-    # to be in, you can call Axon.container directly on this tuple and then you can 
+    # to be in, you can call Axon.container directly on this tuple and then you can
     # pass it to the Axon.Loop functions and you'll get valid results
     Axon.container({out1, out2})
   end

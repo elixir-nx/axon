@@ -15,7 +15,7 @@ defmodule Axon.MixedPrecision do
   to a model:
 
       model =
-        Axon.input({nil, 784})
+        Axon.input("input", shape: {nil, 784})
         |> Axon.dense(128, activation: :relu)
         |> Axon.batch_norm()
         |> Axon.dropout(rate: 0.5)

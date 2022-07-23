@@ -40,7 +40,7 @@ defmodule ResNet50 do
   end
 
   def build_model(input_shape) do
-    x = Axon.input(input_shape, "input")
+    x = Axon.input("input", shape: input_shape)
 
     stage1 =
       x
