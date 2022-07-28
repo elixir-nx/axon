@@ -790,45 +790,11 @@ defmodule Axon.LayersTest do
   end
 
   describe "resize" do
-    test "bilinear without aligned corners" do
-      input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
-
-      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: false) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.5, 2.5],
-                     [2.1000001430511475, 4.100000381469727],
-                     [4.5, 6.5],
-                     [6.900000095367432, 8.899999618530273],
-                     [8.5, 10.5]
-                   ]
-                 ]
-               ])
-    end
-
-    test "bilinear with aligned corners" do
-      input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
-
-      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: true) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.0, 3.0],
-                     [2.0, 5.0],
-                     [4.0, 7.0],
-                     [6.0, 9.0],
-                     [8.0, 11.0]
-                   ]
-                 ]
-               ])
-    end
-
-    test "raises on input rank less than 3" do
+    test "raises on input rank not equal to 4" do
       inp = Nx.iota({1, 1})
 
       assert_raise ArgumentError,
-                   ~r/Axon.Layers.resize: expected input shape to have at least rank 3/,
+                   ~r/Axon.Layers.resize: expected input to have rank equal to 4, got 2 != 4/,
                    fn ->
                      Axon.Layers.resize(inp)
                    end
