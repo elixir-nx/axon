@@ -1892,7 +1892,7 @@ defmodule Axon do
       name: opts[:name],
       method: opts[:method],
       channels: channels,
-      to: resize_shape,
+      size: resize_shape,
       op_name: :resize
     )
   end
@@ -2119,7 +2119,7 @@ defmodule Axon do
   ## Additional options
 
     * `:recurrent_initializer` - initializer for hidden state.
-      Defaults to `:glorot_uniform`.
+      Defaults to `:orthogonal`.
 
   """
   @doc type: :recurrent
@@ -2316,7 +2316,7 @@ defmodule Axon do
   ## Additional options
 
     * `:recurrent_initializer` - initializer for hidden state.
-      Defaults to `:glorot_uniform`.
+      Defaults to `:orthogonal`.
 
   """
   @doc type: :recurrent
@@ -2494,7 +2494,7 @@ defmodule Axon do
   ## Additional options
 
     * `:recurrent_initializer` - initializer for hidden state. Defaults
-      to `:glorot_uniform`.
+      to `:orthogonal`.
 
   """
   @doc type: :recurrent

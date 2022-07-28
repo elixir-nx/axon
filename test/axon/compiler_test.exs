@@ -2930,7 +2930,7 @@ defmodule CompilerTest do
       input1 = Nx.random_uniform({1, 1, 3, 3})
 
       assert {_, predict_fn} = Axon.build(model1)
-      assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, to: {4, 4}))
+      assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, size: {4, 4}))
     end
 
     test "computes forward pass with output policy" do
