@@ -381,10 +381,10 @@ defmodule Axon.Metrics do
 
   ## Examples
 
-      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([0, 1, 0, 0, 0]), Nx.tensor([0.1, 0.4, 0.7, 0.7, 0.1]), k: 2)
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([0, 1, 0, 0, 0]), Nx.tensor([0.1, 0.4, 0.3, 0.7, 0.1]), k: 2)
       #Nx.Tensor<
         f32
-        0.0
+        1.0
       >
 
       iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([[0, 1, 0], [1, 0, 0]]), Nx.tensor([[0.1, 0.4, 0.7], [0.1, 0.4, 0.7]]), k: 2)
@@ -411,14 +411,28 @@ defmodule Axon.Metrics do
         end
       end)
 
-    {rows, _} = Nx.shape(y_pred)
+    cond do
+      Nx.rank(y_pred) == 2 ->
+        {rows, _} = Nx.shape(y_pred)
 
-    y_pred
-    |> Nx.argsort(direction: :desc, axis: -1)
-    |> Nx.slice([0, 0], [rows, opts[:k]])
-    |> Nx.equal(y_true)
-    |> Nx.any(axes: [-1])
-    |> Nx.mean()
+        y_pred
+        |> Nx.argsort(direction: :desc, axis: -1)
+        |> Nx.slice([0, 0], [rows, opts[:k]])
+        |> Nx.equal(y_true)
+        |> Nx.any(axes: [-1])
+        |> Nx.mean()
+
+      Nx.rank(y_pred) == 1 ->
+        y_pred
+        |> Nx.argsort(direction: :desc, axis: -1)
+        |> Nx.slice([0], [opts[:k]])
+        |> Nx.equal(y_true)
+        |> Nx.any(axes: [-1])
+        |> Nx.mean()
+
+      true ->
+        raise ArgumentError, "rank must be 1 or 2"
+    end
   end
 
   defnp(top_k_index_transform(y_true), do: Nx.argmax(y_true, axis: -1, keep_axis: true))
