@@ -402,7 +402,7 @@ defmodule Axon.Metrics do
   defn top_k_categorical_accuracy(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, k: 5, sparse: false)
 
-    take_index =
+    y_true =
       transform(y_true, fn y_true ->
         if opts[:sparse] do
           y_true
@@ -411,15 +411,17 @@ defmodule Axon.Metrics do
         end
       end)
 
+    {rows, _} = Nx.shape(y_pred)
+
     y_pred
     |> Nx.argsort(direction: :desc, axis: -1)
-    |> Nx.take_along_axis(take_index, axis: -1)
-    |> Nx.flatten()
-    |> Nx.less(opts[:k])
+    |> Nx.slice([0, 0], [rows, opts[:k]])
+    |> Nx.equal(y_true)
+    |> Nx.any(axes: [-1])
     |> Nx.mean()
   end
 
-  defnp top_k_index_transform(y_true), do: Nx.argmax(y_true, axis: -1, keep_axis: true)
+  defnp(top_k_index_transform(y_true), do: Nx.argmax(y_true, axis: -1, keep_axis: true))
 
   # Combinators
 
