@@ -185,8 +185,7 @@ defmodule Axon.Loop do
       * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
 
-      * `Axon.Loop.evaluator/2` - Creates a supervised evaluator loop from model and model
-      state.
+      * `Axon.Loop.evaluator/1` - Creates a supervised evaluator loop from model.
 
   ## Running loops
 
@@ -604,7 +603,7 @@ defmodule Axon.Loop do
   loop:
 
       model
-      |> Axon.Loop.evaluator(trained_state)
+      |> Axon.Loop.evaluator()
       |> Axon.Loop.metric("Accuracy", :accuracy)
 
   Applies an output transform which returns the map of metrics accumulated over
