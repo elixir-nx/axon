@@ -365,6 +365,78 @@ defmodule Axon.Metrics do
     |> Nx.mean()
   end
 
+  @doc ~S"""
+  Computes the top-k categorical accuracy.
+
+  ## Options
+
+    * `k` - The k in "top-k". Defaults to 5.
+    * `sparse` - If `y_true` is a sparse tensor. Defaults to `false`.
+
+
+  ## Argument Shapes
+
+    * `y_true` - $\(d_0, d_1, ..., d_n\)$
+    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+
+  ## Examples
+
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([0, 1, 0, 0, 0]), Nx.tensor([0.1, 0.4, 0.3, 0.7, 0.1]), k: 2)
+      #Nx.Tensor<
+        f32
+        1.0
+      >
+
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([[0, 1, 0], [1, 0, 0]]), Nx.tensor([[0.1, 0.4, 0.7], [0.1, 0.4, 0.7]]), k: 2)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+
+      iex> Axon.Metrics.top_k_categorical_accuracy(Nx.tensor([[0], [2]]), Nx.tensor([[0.1, 0.4, 0.7], [0.1, 0.4, 0.7]]), k: 2, sparse: true)
+      #Nx.Tensor<
+        f32
+        0.5
+      >
+  """
+  defn top_k_categorical_accuracy(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, k: 5, sparse: false)
+
+    y_true =
+      transform(y_true, fn y_true ->
+        if opts[:sparse] do
+          y_true
+        else
+          top_k_index_transform(y_true)
+        end
+      end)
+
+    cond do
+      Nx.rank(y_pred) == 2 ->
+        {rows, _} = Nx.shape(y_pred)
+
+        y_pred
+        |> Nx.argsort(direction: :desc, axis: -1)
+        |> Nx.slice([0, 0], [rows, opts[:k]])
+        |> Nx.equal(y_true)
+        |> Nx.any(axes: [-1])
+        |> Nx.mean()
+
+      Nx.rank(y_pred) == 1 ->
+        y_pred
+        |> Nx.argsort(direction: :desc, axis: -1)
+        |> Nx.slice([0], [opts[:k]])
+        |> Nx.equal(y_true)
+        |> Nx.any(axes: [-1])
+        |> Nx.mean()
+
+      true ->
+        raise ArgumentError, "rank must be 1 or 2"
+    end
+  end
+
+  defnp(top_k_index_transform(y_true), do: Nx.argmax(y_true, axis: -1, keep_axis: true))
+
   # Combinators
 
   @doc """
