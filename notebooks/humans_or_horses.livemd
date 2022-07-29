@@ -212,7 +212,7 @@ end
 
 ## Training
 
-Creating a training loop starts with setting a loss function to categorical cross-entropy and optimizer of your choice. We also set the log option to 1 to keep track of loss and metrics during training. Next, we choose accuracy as a metric. Finally, we pass the number of epochs and set the number of iterations per epoch to 50.
+Creating a training loop starts with setting a loss function to categorical cross-entropy and optimizer of your choice. We also set the log option to 1 to keep track of loss and metrics during training. Next, we choose accuracy as a metric. Finally, we pass the number of epochs and set the number of iterations per epoch to utilize almost all of the images.
 
 ```elixir
 defmodule HorsesHumans.Training do
