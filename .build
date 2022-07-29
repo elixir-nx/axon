@@ -3,6 +3,7 @@
 /home/runner/work/axon/axon/doc/multi_input_example.livemd
 404.html
 Axon.Activations.html
+Axon.Display.html
 Axon.Initializers.html
 Axon.Layers.html
 Axon.Loop.State.html
@@ -27,8 +28,8 @@ dist/html/fonts/remixicon.svg
 dist/html/fonts/remixicon.ttf
 dist/html/fonts/remixicon.woff
 dist/html/fonts/remixicon.woff2
-dist/search_items-81e9bd1adb.js
-dist/sidebar_items-5275deef4a.js
+dist/search_items-1a6015ee06.js
+dist/sidebar_items-f1df5df7a6.js
 fashionmnist_autoencoder.html
 index.html
 mnist.html
