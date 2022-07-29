@@ -656,7 +656,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input"]
+               inputs: %{"input" => {nil, 784}}
+               outputs: "softmax"
+               nodes: 4
              >\
              """
     end
@@ -677,7 +679,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input"]
+               inputs: %{"input" => {nil, 784}}
+               outputs: "softmax"
+               nodes: 7
              >\
              """
     end
@@ -688,7 +692,9 @@ defmodule AxonTest do
 
       assert inspect(out_sequence) == """
              #Axon<
-               inputs: ["input_0"]
+               inputs: %{"input_0" => {nil, 32, 10}}
+               outputs: "lstm_output_sequence"
+               nodes: 6
              >\
              """
     end
@@ -698,7 +704,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input_0"]
+               inputs: %{"input_0" => {nil, 1}}
+               outputs: "x"
+               nodes: 3
              >\
              """
     end
@@ -712,7 +720,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input_0"]
+               inputs: %{"input_0" => {nil, 1}}
+               outputs: "y"
+               nodes: 4
              >\
              """
     end
@@ -725,7 +735,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input_0", "input_1"]
+               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+               outputs: "add_0"
+               nodes: 8
              >\
              """
     end
@@ -738,7 +750,9 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: ["input_0", "input_1"]
+               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+               outputs: "add_0"
+               nodes: 7
              >\
              """
     end
