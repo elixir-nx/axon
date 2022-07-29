@@ -3393,10 +3393,28 @@ defmodule Axon do
   defimpl Inspect do
     import Inspect.Algebra
 
-    def inspect(axon, opts) do
-      inputs = axon |> Axon.get_inputs() |> Map.keys() |> Enum.sort()
+    def inspect(%Axon{op_name: op_name, name: name_fn} = axon, opts) do
+      inputs =
+        axon
+        |> Axon.get_inputs()
+        |> Enum.sort()
+        |> Map.new()
 
-      inner = concat([line(), "inputs: #{inspect(inputs)}"])
+      op_counts = Axon.get_op_counts(axon)
+      op_counts = Map.update(op_counts, op_name, 0, fn x -> x - 1 end)
+      output = name_fn.(op_name, op_counts)
+
+      node_count = Axon.reduce_nodes(axon, 0, fn %Axon{}, acc -> acc + 1 end)
+
+      inner =
+        concat([
+          line(),
+          "inputs: #{inspect(inputs)}",
+          line(),
+          "outputs: #{inspect(output)}",
+          line(),
+          "nodes: #{inspect(node_count)}"
+        ])
 
       force_unfit(
         concat([
