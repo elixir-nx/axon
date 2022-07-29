@@ -56,7 +56,7 @@ defmodule Axon.Display do
          %Axon{
            op: :container,
            parent: [parents],
-           name: name_fn,
+           name: name_fn
          } = model,
          templates,
          cache,
@@ -116,7 +116,7 @@ defmodule Axon.Display do
     num_params =
       Enum.reduce(params, 0, fn
         %Parameter{shape: {:tuple, shapes}}, acc ->
-          Enum.reduce(shapes, acc, &Nx.size(apply(&1, input_shapes)) + &2)
+          Enum.reduce(shapes, acc, &(Nx.size(apply(&1, input_shapes)) + &2))
 
         %Parameter{shape: shape_fn}, acc ->
           acc + Nx.size(apply(shape_fn, input_shapes))
