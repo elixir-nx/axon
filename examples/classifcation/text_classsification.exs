@@ -11,8 +11,8 @@
 
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.2.1"},
-  {:exla, "~> 0.2.2"}
+  {:exla, "~> 0.3.0-dev", github: "elixir-nx/nx", sparse: "exla"},
+  {:nx, "~> 0.3.0-dev", github: "elixir-nx/nx", sparse: "nx", override: true},
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
@@ -20,26 +20,24 @@ EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 defmodule TextClassification do
   require Axon
   # From Example http://alexminnaar.com/2019/08/22/ner-rnns-tensorflow.html
-  EXLA.set_as_nx_default([:tpu, :cuda, :rocl, :host]) # My :host option doesnt work, jit_apply is undefined
+  EXLA.set_as_nx_default([:tpu, :cuda, :rocl, :host])
   require Logger
   @sequence_length 75
   @batch_size 128
-  @lstm 128
+  @lstm 64
   @embed_dimension 256
-  @def_split " "
+  @def_split [" ", "\n"]
   @start "-DOCSTART- -X- -X- O\n"
   @ending "-------------------------------------------------------------"
-  @incorrect [".", "?", "%", ",", ":", ";", "-docstart-"]
-
-  # seqlen
-  # word_count
+  @incorrect [".", "?", "%", ",", ":", ";", "-docstart-", "\n"]
+  @unknown_encode_token 0
+  @unknown_decode_token "Unknown"
 
   def train(model, data) do
     model
-    |> Axon.Loop.trainer(&kl_divergence/2, Axon.Optimizers.adam(0.001))
+    |> Axon.Loop.trainer(:kl_divergence, Axon.Optimizers.adam(0.001)) # Can use :categorical_cross_entropy
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(data, %{}, epochs: 3, iterations: 5)
-
+    |> Axon.Loop.run(data, %{}, epochs: 20, iterations: 300)
   end
 
   defp kl_divergence(y_true, y_pred) do
@@ -47,36 +45,16 @@ defmodule TextClassification do
   end
 
   def build_model(word_count, label_count) do
-      Axon.input({nil, @sequence_length, 1}, "inputs")
+      Axon.input("inputs", shape: {nil, @sequence_length})
        |> Axon.embedding(word_count, @sequence_length)
-       |> Axon.nx(fn t ->
-         t[[0..-1//1, -1]] # Dropping out the sized 1 column created from the embed
-       end)
-       |> Axon.spatial_dropout(rate: 0.1)
        |> Axon.lstm(@lstm)
-       |> then(fn {{new_cell, new_hidden}, out} ->
-         out
-       end)
-      |> Axon.dropout(rate: 0.2)
-      |> Axon.dense(label_count, activation: :softmax)
+       |> elem(1)
+       |> Axon.dropout(rate: 0.2)
+       |> Axon.dense(label_count, activation: :softmax)
   end
 
-  defp encode(dictionary, word) do
-    with {:ok, encoded} <- Map.fetch(dictionary, word) do
-      encoded
-    else
-      _->
-      0
-    end
-  end
-
-  defp decode(dictionary, word) do
-    with {:ok, decoded} <- Map.fetch(dictionary, word) do
-      decoded
-    else
-      _-> "Unknown"
-    end
-  end
+  defp encode(dictionary, word), do: dictionary[word] || @unknown_encode_token
+  defp decode(dictionary, word), do: dictionary[word] || @unknown_decode_token
 
   def transform_words(word_labels, word_to_idx, label_to_idx, wcount, lcount) do
 
@@ -89,7 +67,7 @@ defmodule TextClassification do
       |> Enum.drop(-1)
       |> Nx.tensor
       |> Nx.divide(wcount)
-      |> Nx.reshape({:auto, @sequence_length, 1})
+      |> Nx.reshape({:auto, @sequence_length})
       |> Nx.to_batched_list(@batch_size)
 
 
@@ -159,47 +137,47 @@ defmodule TextClassification do
   end
 
   defp from_file(filename, opts \\ []) do
-
     data_stream =
       filename
       |> File.stream!()
   end
 
   def pre_process(streamed_data) do
-
     char_label_data =
     streamed_data
     |> Stream.map(fn line ->
       [token | entities] = String.split(line, @def_split)
       if(
-      !is_nil(token) &&
-      token !== "" &&
-      String.length(token) !== 1 &&
-      line !== "\n" &&
-      token !== @start &&
-      token !== @ending &&
-      token not in @incorrect)
+      token not in (["", "\n", @start, @ending | @incorrect]) &&
+      String.length(token) !== 1)
       do
-
-        [ r | rest ] = entities |> List.last |> String.split("\n")
-
-        {String.downcase(token), r}
+        single_label_classification = Enum.fetch!(entities, 2)
+        {String.downcase(token), single_label_classification}
       else
         nil
       end
     end)
-    |> Stream.reject(fn x -> is_nil(x) end)
-    # Here we start to remove unwanted things to reduce memory size
+    |> Stream.reject(&is_nil/1)
 
-
-    unique_words = char_label_data |> Enum.map(&(elem(&1, 0))) |> Enum.uniq
-
-
-    unique_labels = char_label_data |> Enum.map(&(elem(&1, 1))) |> Enum.uniq
+    unique_words = uniq_seq(char_label_data, 0)
+    unique_labels = uniq_seq(char_label_data, 1)
 
     {char_label_data, unique_words, unique_labels}
   end
 
+  # Convert Words & Labels Sequences into a unique array
+  defp uniq_seq(data, index), do: Enum.map(data, &(elem(&1, index))) |> Enum.uniq
+
+  # Take a random sample from the data
+  defp fetch_random_sample({sequence_words, sequence_labels} = seq_tuple) do
+    {predict_words, predict_index} =
+      Enum.with_index(sequence_words)
+      |> Enum.random
+
+    predict_labels = Enum.fetch!(sequence_labels, predict_index)
+
+    {predict_words, predict_labels}
+  end
 
   def run do
 
@@ -220,8 +198,8 @@ defmodule TextClassification do
         |> Stream.reject(&is_nil(&1))
 
 
-      word_count  = unique_words |> Enum.count
-      label_count  = unique_labels |> Enum.count
+      word_count  = Enum.count(unique_words)
+      label_count = Enum.count(unique_labels)
 
       word_to_idx =
         unique_words
@@ -250,24 +228,23 @@ defmodule TextClassification do
 
             {td, tl} = transform_words(streamed, word_to_idx, label_to_idx, word_count, label_count)
 
-            {ttd, ttl} = transform_words(test_streamed, word_to_idx, label_to_idx, word_count, label_count)
-
-            unpadded_model = build_model(word_count, label_count)
+            model = build_model(word_count, label_count)
 
             data = Stream.zip(td, tl)
-#
-            unpadded_params = train(unpadded_model, data)
 
-            random_int_from_sample = 5# Has to be in range
-            sample_slice = Enum.fetch!(ttd, random_int_from_sample)
-            real_results = Enum.fetch!(ttl, random_int_from_sample)
+            {predict_words, predict_labels} =
+              transform_words(test_streamed, word_to_idx, label_to_idx, word_count, label_count)
+              |> fetch_random_sample
 
-            predict(sample_slice, unpadded_params, unpadded_model, idx_to_word, idx_to_label, word_count, real_results)
+            params = train(model, data)
+
+            predict(predict_words, params, model, idx_to_word, idx_to_label, word_count, predict_labels)
 
   end
 
 
 end
+
 
 
 TextClassification.run()
