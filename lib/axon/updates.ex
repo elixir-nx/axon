@@ -105,6 +105,32 @@ defmodule Axon.Updates do
     )
   end
 
+  @doc ~S"""
+  Scales input by a tunable learning rate which can be
+  manipulated by external APIs such as Axon's Loop API.
+
+  $$f(x_i) = \alpha x_i$$
+  """
+  def scale_by_state(combinator_or_step)
+
+  def scale_by_state(step) when is_number(step) do
+    scale_by_state(identity(), step)
+  end
+
+  def scale_by_state({init_fn, apply_fn} = combinator, step)
+      when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_number(step) do
+    stateful(combinator, &init_scale_by_state(&1, init_scale: step), &apply_scale_by_state/3)
+  end
+
+  defnp init_scale_by_state(_params, opts \\ []) do
+    opts = keyword!(opts, [:init_scale])
+    %{scale: opts[:init_scale]}
+  end
+
+  defnp apply_scale_by_state(x, %{scale: scale} = state, params) do
+    {apply_scale(x, params, scale), state}
+  end
+
   @doc """
   Scales input according to Adam algorithm.
 

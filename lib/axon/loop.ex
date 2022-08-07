@@ -1077,6 +1077,123 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which reduces the learning rate by
+  the given factor if the given metric does not improve between
+  events.
+
+  By default, this will run after each epoch and track the
+  improvement of a given metric.
+
+  You must specify a metric to monitor and the metric must
+  be present in the loop state. Typically, this will be
+  a validation metric:
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.metric(:accuracy)
+      |> Axon.Loop.validate(val_data)
+      |> Axon.Loop.reduce_lr_on_plateau("validation_accuracy")
+
+  ## Options
+
+    * `:event` - event to fire handler on. Defaults to `:epoch_completed`.
+
+    * `:filter` - event filter to attach to handler. Defaults to `:always`.
+
+    * `:patience` - number of given events to wait for improvement. Defaults
+      to `3`.
+
+    * `:mode` - whether given metric is being minimized or maximized. Defaults
+      to `:min`.
+
+    * `:factor` - factor to decrease learning rate by. Defaults to `0.1`.
+  """
+  def reduce_lr_on_plateau(%Loop{} = loop, monitor, opts \\ []) do
+    event = opts[:event] || :epoch_completed
+    filter = opts[:filter] || :always
+    patience = opts[:patience] || 3
+    mode = opts[:mode] || :min
+    factor = opts[:factor] || 0.1
+
+    reduce_lr_fn = fn %State{
+                        step_state: step_state,
+                        metrics: metrics,
+                        handler_metadata: handler_meta
+                      } = state ->
+      unless Map.has_key?(metrics, monitor) do
+        raise ArgumentError,
+              "invalid metric to monitor, key #{inspect(monitor)} not present in metrics"
+      end
+
+      unless Map.has_key?(step_state, :optimizer_state) do
+        raise ArgumentError,
+              "given loop state is not a supervised training loop, key `:optimizer_state`" <>
+                " was not present in the given step state"
+      end
+
+      cur_criteria_value = metrics[monitor]
+      # TODO: This is a strong assumption
+      %{scale: current_lr} = elem(step_state[:optimizer_state], 0)
+
+      {prev_criteria_value, since_last_improvement} =
+        case handler_meta[:reduce_lr] do
+          nil ->
+            {nil, 0}
+
+          meta ->
+            {meta[monitor], meta[:since_last_improvement]}
+        end
+
+      improved? =
+        case mode do
+          :min ->
+            prev_criteria_value == nil or
+              Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+
+          :max ->
+            prev_criteria_value == nil or
+              Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+        end
+
+      over_patience? = since_last_improvement >= patience
+
+      cond do
+        improved? ->
+          updated_handler_meta =
+            handler_meta
+            |> Map.replace(monitor, cur_criteria_value)
+            |> Map.replace(:since_last_improvement, 0)
+
+          {:continue, %{state | handler_metadata: updated_handler_meta}}
+
+        not improved? and not over_patience? ->
+          updated_handle_meta =
+            Map.update(handler_meta, :since_last_improvement, 0, fn x -> x + 1 end)
+
+          {:continue, %{state | handler_metadata: updated_handle_meta}}
+
+        true ->
+          updated_handler_meta =
+            handler_meta
+            |> Map.replace(monitor, cur_criteria_value)
+            |> Map.replace(:since_last_improvement, 0)
+
+          updated_lr = Nx.multiply(current_lr, factor)
+
+          updated_optimizer_state =
+            put_elem(step_state[:optimizer_state], 0, %{scale: updated_lr})
+
+          updated_step_state = %{step_state | optimizer_state: updated_optimizer_state}
+
+          {:continue,
+           %{state | handler_metadata: updated_handler_meta, step_state: updated_step_state}}
+      end
+    end
+
+    handle(loop, event, reduce_lr_fn, filter)
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 

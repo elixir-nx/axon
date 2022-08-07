@@ -293,6 +293,6 @@ defmodule Axon.Optimizers do
   end
 
   defp scale_by_learning_rate(combinator, lr) do
-    Updates.scale(combinator, -lr)
+    Updates.scale_by_state(combinator, -lr)
   end
 end
