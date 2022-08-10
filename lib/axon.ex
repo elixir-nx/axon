@@ -2278,25 +2278,25 @@ defmodule Axon do
           "#{name}_output_sequence"
       end
 
+    output_sequence =
+      layer(fn x, _ -> elem(x, 0) end, [output],
+        name: output_sequence_name,
+        op_name: :elem
+      )
+
     new_c =
-      layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
+      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 0), 1) end, [output],
+      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
 
-    output_sequence =
-      layer(fn x, _ -> elem(x, 1) end, [output],
-        name: output_sequence_name,
-        op_name: :elem
-      )
-
-    {{new_c, new_h}, output_sequence}
+    {output_sequence, {new_c, new_h}}
   end
 
   @doc """
@@ -2462,19 +2462,19 @@ defmodule Axon do
           "#{name}_output_sequence"
       end
 
-    new_h =
-      layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
-        name: new_h_name,
-        op_name: :elem
-      )
-
     output_sequence =
-      layer(fn x, _ -> elem(x, 1) end, [output],
+      layer(fn x, _ -> elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
-    {{new_h}, output_sequence}
+    new_h =
+      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+        name: new_h_name,
+        op_name: :elem
+      )
+
+    {output_sequence, {new_h}}
   end
 
   @doc """
@@ -2658,25 +2658,25 @@ defmodule Axon do
           "#{name}_output_sequence"
       end
 
+    output_sequence =
+      layer(fn x, _ -> elem(x, 0) end, [output],
+        name: output_sequence_name,
+        op_name: :elem
+      )
+
     new_c =
-      layer(fn x, _ -> elem(elem(x, 0), 0) end, [output],
+      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 0), 1) end, [output],
+      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
 
-    output_sequence =
-      layer(fn x, _ -> elem(x, 1) end, [output],
-        name: output_sequence_name,
-        op_name: :elem
-      )
-
-    {{new_c, new_h}, output_sequence}
+    {output_sequence, {new_c, new_h}}
   end
 
   defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer) do
