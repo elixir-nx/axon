@@ -37,6 +37,7 @@ defmodule Axon.Recurrent do
 
   * [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](https://arxiv.org/pdf/1412.3555v1.pdf)
   """
+  @deprecated "Use Axon.Layers.gru_cell/7 instead"
   defn gru_cell(
          input,
          carry,
@@ -70,6 +71,7 @@ defmodule Axon.Recurrent do
 
   * [Long Short-Term Memory](http://www.bioinf.jku.at/publications/older/2604.pdf)
   """
+  @deprecated "Use Axon.Layers.lstm_cell/7 instead"
   defn lstm_cell(
          input,
          carry,
@@ -112,6 +114,7 @@ defmodule Axon.Recurrent do
 
     * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
+  @deprecated "Use Axon.Layers.conv_lstm_cell/6 instead"
   defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
@@ -189,6 +192,7 @@ defmodule Axon.Recurrent do
   This function will make use of an `defn` while-loop such and thus
   may be more efficient for long sequences.
   """
+  @deprecated "Use Axon.Layers.dynamic_unroll/6 instead"
   defn dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     time_steps = transform(Nx.shape(input_sequence), &elem(&1, 1))
 
@@ -230,6 +234,7 @@ defmodule Axon.Recurrent do
   the entire operation appears as a part of the compilation graph.
   This makes it suitable for shorter sequences.
   """
+  @deprecated "Use Axon.Layers.static_unroll/6 instead"
   defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     transform(
       {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias},

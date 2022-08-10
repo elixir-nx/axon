@@ -3103,8 +3103,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(
-          &Axon.Recurrent.lstm_cell/5,
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.lstm_cell/5,
           input,
           init_carry,
           k,
@@ -3130,7 +3130,7 @@ defmodule CompilerTest do
       init_carry1 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.lstm_cell(
+        Axon.Layers.lstm_cell(
           i,
           c,
           k,
@@ -3157,7 +3157,7 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
       )
 
       model2 =
@@ -3169,7 +3169,7 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
-      cell_fn2 = &Axon.Recurrent.lstm_cell/5
+      cell_fn2 = &Axon.Layers.lstm_cell/5
 
       assert {init_fn, predict_fn} = Axon.build(model2)
 
@@ -3187,13 +3187,13 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
       )
     end
 
     test "computes forward pass with hidden state" do
       seq = Axon.input("input", shape: {nil, 8, 2})
-      {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
+      {_, carry} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.lstm(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
 
@@ -3205,10 +3205,10 @@ defmodule CompilerTest do
 
         init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
-        {carr, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
+        {_, carry} =
+          Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, init_carry, ei, eh, eb)
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, carr, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, carry, di, dh, db)
       end
 
       assert %{
@@ -3277,7 +3277,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, input, c, k, h, b)
       )
     end
 
@@ -3434,8 +3434,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(
-          &Axon.Recurrent.conv_lstm_cell/5,
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.conv_lstm_cell/5,
           input,
           init_carry,
           k,
@@ -3490,8 +3490,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.static_unroll(
-          &Axon.Recurrent.conv_lstm_cell/5,
+        Axon.Layers.static_unroll(
+          &Axon.Layers.conv_lstm_cell/5,
           input,
           init_carry,
           k,
@@ -3529,7 +3529,7 @@ defmodule CompilerTest do
       init_carry1 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.conv_lstm_cell(
+        Axon.Layers.conv_lstm_cell(
           i,
           c,
           k,
@@ -3554,7 +3554,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
       )
 
       model2 =
@@ -3573,7 +3573,7 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
+      cell_fn2 = &Axon.Layers.conv_lstm_cell/5
 
       assert {init_fn, predict_fn} = Axon.build(model2)
 
@@ -3591,7 +3591,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
       )
     end
 
@@ -3609,7 +3609,7 @@ defmodule CompilerTest do
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
       seq = Axon.input("input", shape: input_shape)
 
-      {carry, _} =
+      {_, carry} =
         seq
         |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
 
@@ -3630,9 +3630,9 @@ defmodule CompilerTest do
 
         init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-        {carr, _} =
-          Axon.Recurrent.dynamic_unroll(
-            &Axon.Recurrent.conv_lstm_cell/5,
+        {_, carry} =
+          Axon.Layers.dynamic_unroll(
+            &Axon.Layers.conv_lstm_cell/5,
             inp,
             init_carry,
             ei,
@@ -3640,7 +3640,7 @@ defmodule CompilerTest do
             eb
           )
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, carr, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, inp, carry, di, dh, db)
       end
 
       assert %{
@@ -3708,7 +3708,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, input, c, k, h, b)
       )
     end
   end
@@ -3839,7 +3839,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, carry, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, carry, k, h, b)
       )
     end
 
@@ -3858,7 +3858,7 @@ defmodule CompilerTest do
       carry1 = {zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.gru_cell(
+        Axon.Layers.gru_cell(
           i,
           c,
           k,
@@ -3885,7 +3885,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
       )
 
       model2 =
@@ -3912,13 +3912,13 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(&Axon.Recurrent.gru_cell/5, input2, carry2, k, h, b)
+        Axon.Layers.static_unroll(&Axon.Layers.gru_cell/5, input2, carry2, k, h, b)
       )
     end
 
     test "computes forward pass with hidden state" do
       seq = Axon.input("input", shape: {nil, 8, 2})
-      {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
+      {_, carry} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.gru(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
       carry = {zeros({1, 1, 2})}
@@ -3927,10 +3927,9 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        {carry, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, ei, eh, eb)
+        {_, carry} = Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, ei, eh, eb)
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, di, dh, db)
       end
 
       assert {init_fn, predict_fn} = Axon.build(model)
@@ -3996,7 +3995,7 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, c, k, h, b)
       )
     end
 
@@ -4486,8 +4485,8 @@ defmodule CompilerTest do
     test "recurrent model initializes correctly" do
       input = Axon.input("input", shape: {nil, 8, 2})
 
-      {state, _} = input |> Axon.lstm(8)
-      {_, out} = input |> Axon.lstm(state, 8)
+      {_, state} = input |> Axon.lstm(8)
+      {out, _} = input |> Axon.lstm(state, 8)
 
       inp = Nx.template({1, 8, 2}, {:f, 32})
 

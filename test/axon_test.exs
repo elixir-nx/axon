@@ -687,7 +687,7 @@ defmodule AxonTest do
     end
 
     test "works with rnns" do
-      {_, out_sequence} =
+      {out_sequence, _} =
         Axon.input("input_0", shape: {nil, 32, 10}) |> Axon.lstm(64, name: "lstm")
 
       assert inspect(out_sequence) == """
