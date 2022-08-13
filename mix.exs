@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.2.0-dev"
+  @version "0.2.0"
 
   def project do
     [
@@ -56,7 +56,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      [github: "elixir-nx/nx", sparse: "nx", override: true]
+      []
     end
   end
 
@@ -64,7 +64,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path]
     else
-      [github: "elixir-nx/nx", sparse: "exla"]
+      []
     end
   end
 
@@ -108,9 +108,16 @@ defmodule Axon.MixProject do
         "Functions: Shape": &(&1[:type] == :shape)
       ],
       groups_for_modules: [
-        # Axon
-        # Axon.MixedPrecision
-
+        Model: [
+          Axon,
+          Axon.MixedPrecision,
+          Axon.None,
+          Axon.StatefulOutput,
+          Axon.Initalizers
+        ],
+        Summary: [
+          Axon.Display
+        ],
         Functional: [
           Axon.Activations,
           Axon.Initalizers,
@@ -121,7 +128,8 @@ defmodule Axon.MixProject do
         ],
         Optimization: [
           Axon.Optimizers,
-          Axon.Updates
+          Axon.Updates,
+          Axon.Schedules
         ],
         Loop: [
           Axon.Loop,

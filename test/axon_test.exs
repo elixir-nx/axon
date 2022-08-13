@@ -614,20 +614,14 @@ defmodule AxonTest do
       |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
     end
 
-    test "init works outside defn" do
-      assert Axon.init(model(), Nx.template({1, 6}, {:f, 32})) == %{
-               "dense" => %{
-                 "kernel" => Nx.eye({6, 6}, type: {:f, 32}),
-                 "bias" => zeros({6})
-               }
-             }
-    end
-
     test "predict works outside defn" do
       inp = Nx.iota({1, 6}, type: {:f, 32})
       model = model()
 
-      assert Axon.predict(model, Axon.init(model, inp), inp) == inp
+      {init_fn, _} = Axon.build(model)
+      params = init_fn.(inp, %{})
+
+      assert Axon.predict(model, params, inp) == inp
     end
   end
 

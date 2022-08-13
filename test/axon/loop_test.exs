@@ -169,7 +169,9 @@ defmodule Axon.LoopTest do
       inp = Nx.tensor([[1]])
 
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
-      model_state = Axon.init(model, inp)
+      {init_fn, _} = Axon.build(model)
+
+      model_state = init_fn.(inp, %{})
 
       expected_pred = Axon.predict(model, model_state, inp)
 
@@ -194,7 +196,9 @@ defmodule Axon.LoopTest do
       inp = Nx.tensor([[1]])
 
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
-      model_state = Axon.init(model, inp)
+      {init_fn, _} = Axon.build(model)
+
+      model_state = init_fn.(inp, %{})
       data = [{Nx.tensor([[1]]), Nx.tensor([[2]])}]
 
       assert %Loop{} = loop = Loop.evaluator(model)
@@ -210,7 +214,9 @@ defmodule Axon.LoopTest do
       tar = Nx.tensor([1, 0, 1, 0, 1, 0]) |> Nx.new_axis(-1)
 
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
-      model_state = Axon.init(model, inp)
+      {init_fn, _} = Axon.build(model)
+
+      model_state = init_fn.(inp, %{})
 
       {init_fn, step_fn} = Axon.Loop.eval_step(model)
       pstate = apply(Nx.Defn.jit(init_fn), [Nx.tensor(1), model_state])
@@ -224,7 +230,9 @@ defmodule Axon.LoopTest do
       x = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1) |> Axon.namespace("x")
       model = Axon.dense(x, 2)
 
-      %{"x" => x_params_1} = init_params = Axon.init(x, Nx.tensor([[1]]))
+      {init_fn, _} = Axon.build(x)
+
+      %{"x" => x_params_1} = init_params = init_fn.(Nx.tensor([[1]]), %{})
 
       {init_fn, _step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
