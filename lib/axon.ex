@@ -3203,6 +3203,22 @@ defmodule Axon do
 
   Once built, a model can be passed as argument to `Nx.Defn`.
 
+  ## `init_fn`
+
+  The `init_fn` receives two arguments, the input template and
+  an optional map with initial parameters for layers or namespaces:
+
+      {init_fn, predict_fn} = Axon.build(model)
+      init_fn.(Nx.template({1, 1}, {:f, 32}), %{"dense_0" => dense_params})
+
+  ## `predict_fn`
+
+  The `predict_fn` receives two arguments, the trained parameters
+  and the actual inputs:
+
+      {_init_fn, predict_fn} = Axon.build(model, opts)
+      predict_fn.(params, input)
+
   ## Options
 
     * `:mode` - one of `:inference` or `:training`. Forwarded to layers
@@ -3338,28 +3354,8 @@ defmodule Axon do
     apply(Nx.Defn.jit(backward_fn, compiler: Axon.Defn), inputs)
   end
 
-  @doc """
-  Compiles and runs the given models initialization function
-  with the given compiler options.
-
-  You may optionally specify initial parameters for some layers or
-  namespaces by passing a partial parameter map:
-
-      Axon.init(model, Nx.template({1, 1}, {:f, 32}), %{"dense_0" => dense_params})
-
-  The parameter map will be merged with the initialized model
-  parameters.
-
-  ## Options
-
-    * `:debug` - if `true`, will log graph traversal and generation
-      metrics. Also forwarded to JIT if debug mode is available
-      for your chosen compiler or backend. Defaults to `false`
-
-  All other options are forwarded to the default JIT compiler
-  or backend.
-  """
-  @doc type: :model
+  @doc false
+  @deprecated "Use Axon.build/2 instead"
   def init(model, template, params \\ %{}, opts \\ []) when is_list(opts) do
     {init_fn, _predict_fn} = build(model, opts)
     init_fn.(template, params)
