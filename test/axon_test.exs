@@ -836,4 +836,14 @@ defmodule AxonTest do
       end)
     end
   end
+
+  describe "get_output_shape" do
+    test "works with container shapes" do
+      out = Axon.input("input") |> Axon.dense(2)
+      model = Axon.container({out, out})
+
+      assert shape = Axon.get_output_shape(model, Nx.template({1, 1}, :f32))
+      assert shape == {{1, 2}, {1, 2}}
+    end
+  end
 end

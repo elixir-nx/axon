@@ -3018,8 +3018,20 @@ defmodule Axon do
         compiler: Axon.Defn
       ).(inputs)
 
-    # TODO: Safe shape to handle outputs
-    Nx.shape(out)
+    safe_shape(out)
+  end
+
+  defp safe_shape(container_or_tensor) do
+    case container_or_tensor do
+      %Axon.None{} = none ->
+        none
+
+      %Nx.Tensor{} = tensor ->
+        Nx.shape(tensor)
+
+      container ->
+        deep_new(container, &Nx.shape/1)
+    end
   end
 
   @doc """
