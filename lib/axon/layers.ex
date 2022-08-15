@@ -2453,32 +2453,17 @@ defmodule Axon.Layers do
   may be more efficient for long sequences.
   """
   defn dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
-    time_steps = transform(Nx.shape(input_sequence), &elem(&1, 1))
+    scan(
+      input_sequence,
+      carry,
+      &dynamic_unroll_body(cell_fn, &1, &2, &3),
+      {input_kernel, recurrent_kernel, bias}
+    )
+  end
 
-    feature_dims = transform(Nx.rank(input_sequence), &List.duplicate(0, &1 - 2))
-
-    initial_shape =
-      transform({cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias}, fn
-        {cell_fn, inp, carry, inp_kernel, hid_kernel, bias} ->
-          seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
-          {seq, _} = cell_fn.(seq, carry, inp_kernel, hid_kernel, bias)
-          put_elem(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
-      end)
-
-    init_sequence = Nx.broadcast(0.0, initial_shape)
-    i = Nx.tensor(0)
-
-    {_, carry, output, _, _, _, _} =
-      while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias},
-            Nx.less(i, time_steps) do
-        sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
-        indices = transform({feature_dims, i}, fn {feature_dims, i} -> [0, i] ++ feature_dims end)
-        {output, carry} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
-        update_sequence = Nx.put_slice(init_sequence, indices, output)
-        {i + 1, carry, update_sequence, input_sequence, input_kernel, recurrent_kernel, bias}
-      end
-
-    {output, carry}
+  defnp dynamic_unroll_body(cell_fn, inp, acc, env) do
+    {ik, hk, b} = env
+    cell_fn.(inp, acc, ik, hk, b)
   end
 
   @doc """
@@ -2612,5 +2597,66 @@ defmodule Axon.Layers do
       )
 
     Nx.slice_along_axis(input, offset, size, axis: opts[:axis])
+  end
+
+  @doc false
+  defn scan(input, acc, fun, env, opts \\ []) do
+    opts = keyword!(opts, reverse: false, unroll: 1, axis: 1)
+
+    initial_shape =
+      transform({fun, input, acc, env}, fn
+        {fun, inp, acc, env} ->
+          seq = Nx.slice_along_axis(inp, 0, 1, axis: opts[:axis])
+          {seq, _} = fun.(seq, acc, env)
+          put_elem(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+      end)
+
+    init_sequence =
+      Nx.broadcast(0, initial_shape)
+      |> Nx.as_type(Nx.type(input))
+
+    i = if opts[:reverse], do: Nx.axis_size(init_sequence, opts[:axis]), else: Nx.tensor(0)
+
+    max_steps =
+      if opts[:reverse], do: Nx.tensor(0), else: Nx.axis_size(init_sequence, opts[:axis])
+
+    cond_fn = get_scan_cond_fn(opts[:reverse])
+    inc_fn = get_scan_inc_fn(opts[:reverse])
+
+    {out_sequence, out_acc, _, _, _} =
+      while {init_sequence, acc, input, env, i}, cond_fn.(i, max_steps) do
+        current_step = Nx.slice_along_axis(input, i, 1, axis: opts[:axis])
+        {out_step, acc} = fun.(current_step, acc, env)
+
+        indices = get_scan_indices(input, i, opts[:axis])
+
+        out = Nx.put_slice(init_sequence, indices, out_step)
+
+        {out, acc, input, env, inc_fn.(i)}
+      end
+
+    {out_sequence, out_acc}
+  end
+
+  deftransform get_scan_cond_fn(reverse) do
+    if reverse do
+      &Nx.greater/2
+    else
+      &Nx.less/2
+    end
+  end
+
+  deftransform get_scan_inc_fn(reverse) do
+    if reverse do
+      &Nx.subtract(&1, 1)
+    else
+      &Nx.add(&1, 1)
+    end
+  end
+
+  deftransform get_scan_indices(input, step, axis) do
+    for i <- 0..(Nx.rank(input) - 1) do
+      if i == axis, do: step, else: 0
+    end
   end
 end
