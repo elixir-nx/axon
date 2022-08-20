@@ -1465,6 +1465,9 @@ defmodule Axon.Loop do
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
         step_state = maybe_jit(init_fn, [sample_data, init_state], jit_compile?, jit_opts)
 
+        Nx.backend_deallocate(init_state)
+        :erlang.garbage_collect()
+
         %State{
           epoch: 0,
           max_epoch: max_epochs,
