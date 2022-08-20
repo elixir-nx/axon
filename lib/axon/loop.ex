@@ -840,8 +840,23 @@ defmodule Axon.Loop do
   the same order they are declared in the training loop, you MUST call
   this method before any other handler which expects or may use
   validation metrics.
+
+  By default the validation loop runs after every epoch; however, you
+  can customize it by overriding the default event and event filters:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.metric(:mean_absolute_error)
+      |> Axon.Loop.validate(model, validation_data, :iteration_completed, every: 10_000)
+      |> Axon.Loop.metric(:binary_cross_entropy)
   """
-  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data) do
+  def validate(
+        %Loop{metrics: metric_fns} = loop,
+        model,
+        validation_data,
+        event \\ :epoch_completed,
+        filter \\ :always
+      ) do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
@@ -863,7 +878,7 @@ defmodule Axon.Loop do
       {:continue, %{state | metrics: metrics}}
     end
 
-    handle(loop, :epoch_completed, validation_loop)
+    handle(loop, event, validation_loop, filter)
   end
 
   @doc """
