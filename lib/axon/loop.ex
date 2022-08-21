@@ -611,7 +611,7 @@ defmodule Axon.Loop do
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
-    output_transform = fn state -> state.metrics end
+    # output_transform = fn state -> state.metrics end
 
     loop(step_fn, init_fn, output_transform)
     |> log(:iteration_completed, &supervised_log_message_fn(&1, false), :stdio)
@@ -860,7 +860,7 @@ defmodule Axon.Loop do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
-      metrics =
+      state =
         model
         |> evaluator()
         |> then(
@@ -870,6 +870,9 @@ defmodule Axon.Loop do
         )
         |> log(:completed, fn _ -> "\n" end)
         |> run(validation_data, model_state)
+
+      metrics =
+        state.metrics
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)
