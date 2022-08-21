@@ -613,7 +613,7 @@ defmodule Axon.Loop do
     {init_fn, step_fn} = eval_step(model)
     # output_transform = fn state -> state.metrics end
 
-    loop(step_fn, init_fn, output_transform)
+    loop(step_fn, init_fn)
     |> log(:iteration_completed, &supervised_log_message_fn(&1, false), :stdio)
   end
 
