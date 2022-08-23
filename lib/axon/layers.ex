@@ -1344,9 +1344,9 @@ defmodule Axon.Layers do
     opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1, mode: :inference])
 
     group_shape =
-      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn {shape, groups,
-                                                                                channel} ->
-        Axon.Shape.group_norm_shape(shape, groups, channel)
+      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn
+        {shape, groups, channel} ->
+          Axon.Shape.group_norm_shape(shape, groups, channel)
       end)
 
     channel_index = opts[:channel_index]
@@ -1357,21 +1357,22 @@ defmodule Axon.Layers do
       end)
 
     {gamma, beta} =
-      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
-        new_shape =
-          1
-          |> List.duplicate(rank)
-          |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn
+        {g, b, rank, num_channels, channel_idx} ->
+          new_shape =
+            1
+            |> List.duplicate(rank)
+            |> List.to_tuple()
+            |> put_elem(channel_idx, num_channels)
 
-        {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
+          {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
 
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
+    {mean, var} = {Nx.squeeze(mean, axes: axes), Nx.squeeze(var, axes: axes)}
+    {mean, var} = {Nx.reshape(mean, {:auto, 1, 1, 1}), Nx.reshape(var, {:auto, 1, 1, 1})}
     normalize(Nx.reshape(x, input), mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
