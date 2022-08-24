@@ -1727,8 +1727,8 @@ defmodule Axon do
 
   """
   @doc type: :normalization
-  def group_norm(%Axon{} = x, group_size, opts \\ [])
-      when is_integer(group_size) and group_size >= 1 do
+  def group_norm(%Axon{} = x, num_groups, opts \\ [])
+      when is_integer(num_groups) and num_groups >= 1 do
     opts =
       Keyword.validate!(opts, [
         :name,
@@ -1750,7 +1750,7 @@ defmodule Axon do
       name: opts[:name],
       epsilon: opts[:epsilon],
       channel_index: channel_index,
-      group_size: group_size,
+      num_groups: num_groups,
       op_name: :group_norm
     )
   end

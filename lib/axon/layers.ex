@@ -1315,8 +1315,8 @@ defmodule Axon.Layers do
   @doc """
   Functional implementation of group normalization.
 
-  Normalizes the input by reshaping input into groups of given
-  `:group_size` and then calculating the mean and variance along
+  Normalizes the input by reshaping input into `:num_groups`
+  groups and then calculating the mean and variance along
   every dimension but the input batch dimension.
 
   $$y = \frac{x - E[x]}{\sqrt{Var[x] + \epsilon}} * \gamma + \beta$$
@@ -1326,8 +1326,7 @@ defmodule Axon.Layers do
 
   ## Options
 
-    * `:group_size` - channel group size. Size of each group to split
-      input channels into.
+    * `:num_groups` - Number of groups.
 
     * `:epsilon` - numerical stability term. $epsilon$ in the above
       formulation.
@@ -1341,10 +1340,10 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, beta, opts \\ []) do
-    opts = keyword!(opts, [:group_size, epsilon: 1.0e-5, channel_index: 1, mode: :inference])
+    opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: 1, mode: :inference])
 
     group_shape =
-      transform({Nx.shape(input), opts[:group_size], opts[:channel_index]}, fn
+      transform({Nx.shape(input), opts[:num_groups], opts[:channel_index]}, fn
         {shape, groups, channel} ->
           Axon.Shape.group_norm_shape(shape, groups, channel)
       end)

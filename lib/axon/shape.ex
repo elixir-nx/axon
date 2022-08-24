@@ -799,9 +799,9 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reshape for group normalization.
   """
-  def group_norm_shape(shape, group_size, channel_index) do
+  def group_norm_shape(shape, num_groups, channel_index) do
     channels = elem(shape, channel_index)
-    num_groups = div(channels, group_size)
+    group_size = div(channels, num_groups)
 
     shape
     |> put_elem(channel_index, num_groups)
