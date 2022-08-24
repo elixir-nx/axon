@@ -793,18 +793,18 @@ defmodule Axon.Shape do
   Calculates the reduction axes for group normalization.
   """
   def group_norm_axes(rank) do
-    for(i <- 1..(rank - 2), do: i) ++ [rank - 1]
+    for i <- 2..(rank - 1), do: i
   end
 
   @doc """
   Calculates the reshape for group normalization.
   """
   def group_norm_shape(shape, group_size, channel_index) do
-    channels = :erlang.element(channel_index + 1, shape)
+    channels = elem(shape, channel_index)
     num_groups = div(channels, group_size)
 
-    Tuple.delete_at(shape, channel_index)
-    |> Tuple.insert_at(channel_index, num_groups)
+    shape
+    |> put_elem(channel_index, num_groups)
     |> Tuple.insert_at(channel_index + 1, group_size)
   end
 

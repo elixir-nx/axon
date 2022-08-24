@@ -1371,9 +1371,9 @@ defmodule Axon.Layers do
     x = Nx.reshape(input, group_shape)
     axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
     {mean, var} = mean_and_variance(x, axes: axes)
-    {mean, var} = {Nx.squeeze(mean, axes: axes), Nx.squeeze(var, axes: axes)}
-    {mean, var} = {Nx.reshape(mean, {:auto, 1, 1, 1}), Nx.reshape(var, {:auto, 1, 1, 1})}
-    normalize(Nx.reshape(x, input), mean, var, gamma, beta, epsilon: opts[:epsilon])
+    x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
+    x = Nx.reshape(x, input)
+    x * gamma + beta
   end
 
   @doc """

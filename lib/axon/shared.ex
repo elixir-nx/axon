@@ -296,7 +296,8 @@ defmodule Axon.Shared do
   defn mean_and_variance(input, opts \\ []) do
     opts = keyword!(opts, [:axes])
     mean = Nx.mean(input, axes: opts[:axes], keep_axes: true)
-    mean_of_squares = Nx.mean(input * input, axes: opts[:axes], keep_axes: true)
-    {mean, mean_of_squares - mean * mean}
+    mean_of_squares = Nx.mean(Nx.multiply(input, input), axes: opts[:axes], keep_axes: true)
+    square_of_mean = Nx.multiply(mean, mean)
+    {mean, mean_of_squares - square_of_mean}
   end
 end
