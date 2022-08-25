@@ -2719,7 +2719,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Layers.group_norm(input1, gamma, beta, group_size: 2)
+        Axon.Layers.group_norm(input1, gamma, beta, num_groups: 2)
       )
 
       model2 = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.group_norm(3, name: "norm")
@@ -2730,7 +2730,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Layers.group_norm(input2, gamma, beta, group_size: 3)
+        Axon.Layers.group_norm(input2, gamma, beta, num_groups: 3)
       )
     end
 
@@ -2747,7 +2747,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Layers.group_norm(input, gamma, beta, [group_size: 3] ++ opts)
+        Axon.Layers.group_norm(input, gamma, beta, [num_groups: 3] ++ opts)
       )
     end
 

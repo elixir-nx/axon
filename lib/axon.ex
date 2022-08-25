@@ -1732,7 +1732,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
-        gamma_initializer: :glorot_uniform,
+        gamma_initializer: :ones,
         beta_initializer: :zeros,
         channel_index: 1,
         epsilon: 1.0e-5

@@ -467,9 +467,9 @@ defmodule AxonTest do
 
       assert opts[:channel_index] == 1
       assert opts[:epsilon] == 1.0e-5
-      assert opts[:group_size] == 3
+      assert opts[:num_groups] == 3
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
+      assert %Axon.Parameter{initializer: :ones} = gamma
       assert %Axon.Parameter{initializer: :zeros} = beta
     end
 
