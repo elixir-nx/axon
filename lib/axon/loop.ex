@@ -259,6 +259,8 @@ defmodule Axon.Loop do
     :yogi
   ]
 
+  @valid_axon_loss_scale [:identity, :dynamic, :static]
+
   @doc false
   @derive {Inspect, only: [:metrics, :handlers]}
   @enforce_keys [:init, :step]
@@ -303,14 +305,16 @@ defmodule Axon.Loop do
   optimizer state, and gradients. See `Axon.Updates` for more information on building
   optimizers.
   """
-  def train_step(model, loss, optimizer) do
+  def train_step(model, loss, optimizer, loss_scale \\ :identity) do
     {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
+    {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
 
     init_fn = fn {inp, _}, init_model_state ->
       model_state = init_model_fn.(inp, init_model_state)
       optimizer_state = init_optimizer_fn.(model_state)
+      loss_scale_state = init_loss_scale.()
 
       %{
         i: Nx.tensor(0),
@@ -318,24 +322,35 @@ defmodule Axon.Loop do
         y_pred: Nx.tensor(0.0),
         loss: Nx.tensor(0.0),
         model_state: model_state,
-        optimizer_state: optimizer_state
+        optimizer_state: optimizer_state,
+        loss_scale_state: loss_scale_state
       }
     end
 
-    objective_fn = fn state, inp, tar ->
-      model_out = forward_model_fn.(state, inp)
-      {model_out, loss_fn.(tar, model_out.prediction)}
+    # TODO: We should probably compute in same compute policy as MP
+    # here
+    objective_fn = fn model_state, loss_scale_state, inp, tar ->
+      model_out = forward_model_fn.(model_state, inp)
+      {model_out, scale_loss.(loss_fn.(tar, model_out.prediction), loss_scale_state)}
     end
 
     step_fn = fn {inp, tar}, state ->
-      %{i: i, model_state: model_state, optimizer_state: optimizer_state, loss: loss} = state
+      %{
+        i: i,
+        loss_scale_state: loss_scale_state,
+        model_state: model_state,
+        optimizer_state: optimizer_state,
+        loss: loss
+      } = state
 
       {{model_out, batch_loss}, gradients} =
         Nx.Defn.value_and_grad(
           model_state,
-          &objective_fn.(&1, inp, tar),
+          &objective_fn.(&1, loss_scale_state, inp, tar),
           fn x -> elem(x, 1) end
         )
+
+      {gradients, new_loss_scale_state} = unscale_grads.(gradients, loss_scale_state)
 
       preds = model_out.prediction
       new_state = model_out.state
@@ -358,7 +373,8 @@ defmodule Axon.Loop do
           y_pred: preds,
           loss: new_loss,
           model_state: new_model_state,
-          optimizer_state: new_optimizer_state
+          optimizer_state: new_optimizer_state,
+          loss_scale_state: new_loss_scale_state
       }
     end
 
@@ -531,11 +547,11 @@ defmodule Axon.Loop do
     * `:log` - training loss and metric log interval. Set to 0 to silence
       training logs. Defaults to 50
   """
-  def trainer(model, loss, optimizer, opts \\ []) do
+  def trainer(model, loss, optimizer, loss_scale \\ :identity, opts \\ []) do
     log_interval = opts[:log] || 50
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    {init_fn, step_fn} = train_step(model, loss_fn, optimizer)
+    {init_fn, step_fn} = train_step(model, loss_fn, optimizer, loss_scale)
     output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
@@ -1738,6 +1754,31 @@ defmodule Axon.Loop do
             " is an atom matching the name of an optimizer in Axon.Optimizers" <>
             " or a tuple of {init_fn, update_fn}. See Axon.Updates for more" <>
             " information on building optimizers using the low-level API"
+  end
+
+  # Builds loss scale init, scale, and unscale functions either from an
+  # atom or a tuple of init, scale, unscale functions. The init, scale, and
+  # unscale functions match the signatures of those defined in Axon.LossScale.
+  # If the loss scale is an atom, it must match the name of a function in
+  # Axon.LossScale
+  defp build_loss_scale_fns(loss_scale)
+       when is_atom(loss_scale) and loss_scale in @valid_axon_loss_scale do
+    apply(Axon.LossScale, loss_scale, [])
+  end
+
+  defp build_loss_scale_fns({init_scale_fn, scale_fn, unscale_fn})
+       when is_function(init_scale_fn, 0) and is_function(scale_fn, 2) and
+              is_function(unscale_fn, 2) do
+    {init_scale_fn, scale_fn, unscale_fn}
+  end
+
+  defp build_loss_scale_fns(invalid) do
+    raise ArgumentError,
+          "Invalid loss scale #{inspect(invalid)}, a valid" <>
+            " loss scale is an atom amtching the name of a loss" <>
+            " scale implementation in Axon.LossScale or a 3-tuple" <>
+            " of {init_scale, scale_fn, unscale_fn}. See Axon.LossScale" <>
+            " for more information"
   end
 
   # Builds a metric function from an atom or function and an output transform.
