@@ -125,7 +125,7 @@ defmodule Axon.LossScale do
     %{loss_scale: new_loss_scale, counter: new_counter}
   end
 
-  defnp is_finite(x), do: Nx.logical_not(Nx.is_infinity(x))
+  defnp is_finite(x), do: Nx.all(Nx.logical_not(Nx.is_infinity(x)))
 
   defnp first_finite(a, b), do: Nx.select(is_finite(a), a, b)
 end
