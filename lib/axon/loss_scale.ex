@@ -102,7 +102,7 @@ defmodule Axon.LossScale do
 
     grads_are_finite =
       transform(grads, fn grads ->
-        deep_reduce(grads, true, fn x, acc ->
+        deep_reduce(grads, Nx.tensor(1), fn x, acc ->
           x
           |> is_finite()
           |> Nx.logical_and(acc)
