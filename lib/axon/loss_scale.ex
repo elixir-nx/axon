@@ -101,10 +101,12 @@ defmodule Axon.LossScale do
     opts = keyword!(opts, period: 2_000, factor: 2, min_loss_scale: 1)
 
     grads_are_finite =
-      deep_reduce(grads, true, fn x, acc ->
-        x
-        |> is_finite()
-        |> Nx.logical_and(acc)
+      transform(grads, fn grads ->
+        deep_reduce(grads, true, fn x, acc ->
+          x
+          |> is_finite()
+          |> Nx.logical_and(acc)
+        end)
       end)
 
     new_loss_scale =
