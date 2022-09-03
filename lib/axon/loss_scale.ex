@@ -44,12 +44,20 @@ defmodule Axon.LossScale do
   end
 
   defnp scale_static(value, %{loss_scale: loss_scale}) do
-    deep_new(value, fn x -> x * loss_scale end)
+    transform({value, loss_scale}, fn {value, loss_scale} ->
+      deep_new(value, fn x -> x * loss_scale end)
+    end)
   end
 
   defnp unscale_static(value, %{loss_scale: loss_scale} = state) do
     inv_loss_scale = 1 / loss_scale
-    {deep_new(value, fn x -> x * inv_loss_scale end), state}
+
+    unscaled =
+      transform({value, inv_loss_scale}, fn {value, inv_loss_scale} ->
+        deep_new(value, fn x -> x * inv_loss_scale end)
+      end)
+
+    {unscaled, state}
   end
 
   @doc """
@@ -73,12 +81,20 @@ defmodule Axon.LossScale do
   end
 
   defnp scale_dynamic(value, %{loss_scale: loss_scale}) do
-    deep_new(value, fn x -> x * loss_scale end)
+    transform({value, loss_scale}, fn {value, loss_scale} ->
+      deep_new(value, fn x -> x * loss_scale end)
+    end)
   end
 
   defnp unscale_dynamic(value, %{loss_scale: loss_scale} = state, opts \\ []) do
     inv_loss_scale = 1 / loss_scale
-    {deep_new(value, fn x -> x * inv_loss_scale end), adjust_dynamic(value, state, opts)}
+
+    unscaled =
+      transform({value, inv_loss_scale}, fn {value, inv_loss_scale} ->
+        deep_new(value, fn x -> x * inv_loss_scale end)
+      end)
+
+    {unscaled, adjust_dynamic(value, state, opts)}
   end
 
   defnp adjust_dynamic(grads, %{loss_scale: loss_scale, counter: counter}, opts \\ []) do
