@@ -216,6 +216,8 @@ defmodule Axon do
   alias __MODULE__, as: Axon
   alias Axon.Parameter
 
+  require Logger
+
   # Axon serialization version
   @file_version 1
 
@@ -3421,8 +3423,15 @@ defmodule Axon do
   """
   @doc type: :model
   def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
+    Logger.warning(
+      "Attempting to serialize an Axon model. Serialiation is discouraged" <>
+        " and will be deprecated, then removed in future releases. You should" <>
+        " keep your model definitions as code and serialize your parameters using" <>
+        " `Nx.serialize/2`."
+    )
     nodes =
-      Map.new(nodes, fn {k, v} ->
+      Map.new(nodes, fn {k, %{op: op, op_name: op_name} = v} ->
+        validate_serialized_op!(op_name, op)
         node_meta = Map.from_struct(v)
         {k, Map.put(node_meta, :node, :node)}
       end)
@@ -3431,6 +3440,27 @@ defmodule Axon do
     params = Nx.serialize(params, opts)
     :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
+
+  # TODO: Raise on next release
+  defp validate_serialized_op!(op_name, op) when is_function(op) do
+    fun_info = Function.info(op)
+
+    case fun_info[:type] do
+      :local ->
+        Logger.warning(
+          "Attempting to serialize anonymous function in #{inspect(op_name)} layer," <>
+            " this will result in errors during deserialization between" <>
+            " different processes, and will be unsupported in a future" <>
+            " release. You should instead use a fully-qualified MFA function" <>
+            " such as &Axon.Layers.dense/3"
+        )
+
+      :external ->
+        :ok
+    end
+  end
+
+  defp validate_serialized_op!(_name, op) when is_atom(op), do: :ok
 
   @doc """
   Deserializes serialized model and parameters into a `{model, params}`
@@ -3457,11 +3487,20 @@ defmodule Axon do
   """
   @doc type: :model
   def deserialize(serialized, opts \\ []) do
+    Logger.warning(
+      "Attempting to deserialize a serialized Axon model. Deserialization" <>
+        " is discouraged and will be deprecated, then removed in future" <>
+        " releases. You should keep your model definitions as code and" <>
+        " serialize your parameters using `Nx.serialize/2`."
+    )
+
     {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
     %{nodes: nodes, output: id} = model_meta
 
     nodes =
-      Map.new(nodes, fn {k, v} ->
+      Map.new(nodes, fn {k, %{op_name: op_name, op: op} = v} ->
+        validate_deserialized_op!(op_name, op)
+
         node_struct =
           v
           |> Map.delete(:node)
@@ -3474,6 +3513,32 @@ defmodule Axon do
     params = Nx.deserialize(serialized_params, opts)
     {model, params}
   end
+
+  # TODO: Raise on next release
+  defp validate_deserialized_op!(op_name, op) when is_function(op) do
+    fun_info = Function.info(op)
+
+    case fun_info[:type] do
+      :local ->
+        Logger.warning(
+          "Attempting to deserialize anonymous function in #{inspect(op_name)} layer," <>
+            " this will result in errors during deserialization between" <>
+            " different processes, and will be unsupported in a future" <>
+            " release"
+        )
+
+      :external ->
+        unless function_exported?(fun_info[:module], fun_info[:name], fun_info[:arity]) do
+          Logger.warning(
+            "Attempting to deserialize model which depends on function" <>
+              " #{inspect(op)} in layer #{name} which does not exist in" <>
+              " the current environment, check your dependencies"
+          )
+        end
+    end
+  end
+
+  defp validate_deserialized_op!(_name, op) when is_atom(op), do: :ok
 
   ## Helpers
 
