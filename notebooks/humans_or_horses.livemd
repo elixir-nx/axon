@@ -8,16 +8,95 @@ In this notebook, we want to predict whether an image presents a human or a hors
 
 ```elixir
 Mix.install([
-  {:stb_image, "~> 0.1.0"},
+  {:stb_image, "~> 0.5.2"},
   {:axon, "~> 0.1.0"},
   {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"}
+  {:nx, "~> 0.2.1"},
+  {:kino, "~> 0.6.2"}
 ])
 
 EXLA.set_as_nx_default(
-  [:tpu, :cuda, :rocm, :host],
+  [:cuda, :tpu, :rocm, :host],
   run_options: [keep_on_device: true]
 )
+```
+
+## Notebook Setup
+
+The data for this notebook is found at: https://laurencemoroney.com/datasets.html.  The humans or horses dataset is at https://storage.googleapis.com/laurencemoroney-blog.appspot.com/horse-or-human.zip.
+
+Download the zip file. unzip in a directory below where you started livebook from.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Now we need to setup configuration data for the rest of the notebook.  We need the relative location of the humans_or_horses folder.
+
+We also need to know how many images to include in the batch.  A batch is the number of images to load into the GPU at a time.  If the batch size is too big for your GPU, i.e. out of memory error, reduce the batch size.  It is generally optimal to utilize almost all of the GPU memory when training.  It will take more time to train with a lower batch size.
+
+```elixir
+defmodule HorsesHumans.Config do
+  def directories do
+    "data/humans_or_horses/{horses,humans}/*"
+  end
+
+  def batch_size do
+    32
+  end
+
+  def batches_per_epoch do
+    Path.wildcard(directories())
+    |> Enum.count()
+    |> div(batch_size())
+  end
+end
+
+alias HorsesHumans.Config, as: Config
+```
+
+## Exploratory Analysis
+
+We'll do a really quick analysis of our data.  We want to make sure the directories configuration points to the correct directory.  Make sure the output shows something like:
+
+["data/humans_or_horses/horses/horse01-0.png", .....
+
+```elixir
+defmodule HorsesHumans.Exploratory do
+  def check_data_directory do
+    Enum.take(Path.wildcard(Config.directories()), 10)
+  end
+end
+
+sample_data = HorsesHumans.Exploratory.check_data_directory()
+```
+
+Then, you can derive the expected class from the file name:
+
+* horse when horsenn-nn.png
+* human when humannn-nn.png
+
+<!-- livebook:{"break_markdown":true} -->
+
+Let's look at a sample image.
+
+```elixir
+Enum.at(sample_data, 0)
+|> File.read!()
+|> Kino.Image.new(:png)
+```
+
+How many images are there?
+
+How many images will not be used for training? The remainder of the integer division will be ignored.
+
+```elixir
+Path.wildcard(Config.directories())
+|> Enum.count()
+```
+
+```elixir
+Path.wildcard(Config.directories())
+|> Enum.count()
+|> rem(Config.batch_size())
 ```
 
 ## Data processing
@@ -25,44 +104,46 @@ EXLA.set_as_nx_default(
 First, we need to preprocess the data for our CNN. At the beginning of the process, we chunk images into batches. We use the ```parse_png``` function to load images and label them accurately. Finally, we "augment" the input, which means that we normalize data and flip the images along one of the axes. The last procedure helps neural network to make predictions regardless of the orientation of the image.
 
 ```elixir
-@directories "examples/vision/{horses,humans}/*"
-def data() do
-  Path.wildcard(@directories)
-  |> Stream.chunk_every(32, 32, :discard)
-  |> Task.async_stream(fn batch ->
-    {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
-    {Nx.stack(inp), Nx.stack(labels)}
-  end)
-  |> Stream.map(fn {:ok, {inp, labels}} -> {augment(inp), labels} end)
-  |> Stream.cycle()
-end
+defmodule HorsesHumans.DataProcessing do
+  import Nx.Defn
 
-defnp augment(inp) do
-  # Normalize
-  inp = inp / 255.0
-
-  # For now just a random flip
-  if Nx.random_uniform({}) > 0.5 do
-    Nx.reverse(inp, axes: [0])
-  else
-    Nx.reverse(inp, axes: [1])
+  def data_stream() do
+    Path.wildcard(Config.directories())
+    |> Stream.chunk_every(Config.batch_size(), Config.batch_size(), :discard)
+    |> Task.async_stream(
+      fn batch ->
+        {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
+        {Nx.stack(inp), Nx.stack(labels)}
+      end,
+      timeout: :infinity
+    )
+    |> Stream.map(fn {:ok, {inp, labels}} -> {augment(inp), labels} end)
+    |> Stream.cycle()
   end
-end
 
-defp parse_png(filename) do
-  class =
-    if String.contains?(filename, "horses"),
-      do: Nx.tensor([1, 0], type: {:u, 8}),
-      else: Nx.tensor([0, 1], type: {:u, 8})
+  defnp augment(inp) do
+    # Normalize
+    inp = inp / 255.0
 
-  {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
+    # For now just a random flip
+    if Nx.random_uniform({}) > 0.5 do
+      Nx.reverse(inp, axes: [0])
+    else
+      Nx.reverse(inp, axes: [1])
+    end
+  end
 
-  tensor =
-    binary
-    |> Nx.from_binary({:u, 8})
-    |> Nx.reshape(shape)
+  defp parse_png(filename) do
+    class =
+      if String.contains?(filename, "horses"),
+        do: Nx.tensor([1, 0], type: {:u, 8}),
+        else: Nx.tensor([0, 1], type: {:u, 8})
 
-  {tensor, class}
+    {:ok, img} = StbImage.read_file(filename)
+    tensor = StbImage.to_nx(img)
+
+    {tensor, class}
+  end
 end
 ```
 
@@ -105,38 +186,42 @@ Axon.dropout and Axon.spatial_dropout create dropout layers which prevent the ne
 And eventually, we get the model build. At the end of the CNN, we use one dense layer with 512 neurons and an output layer with two neurons and a softmax function.
 
 ```elixir
-defp build_model(input_shape, transpose_shape) do
-  Axon.input("input", shape: input_shape)
-  |> Axon.transpose(transpose_shape)
-  |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.spatial_dropout(rate: 0.5)
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.spatial_dropout(rate: 0.5)
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
-  |> Axon.max_pool(kernel_size: {2, 2})
-  |> Axon.flatten()
-  |> Axon.dropout(rate: 0.5)
-  |> Axon.dense(512, activation: :relu)
-  |> Axon.dense(2, activation: :softmax)
+defmodule HorsesHumans.Model do
+  def build_model(input_shape, transpose_shape) do
+    Axon.input(input_shape, "input")
+    |> Axon.transpose(transpose_shape)
+    |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.spatial_dropout(rate: 0.5)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.spatial_dropout(rate: 0.5)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.flatten()
+    |> Axon.dropout(rate: 0.5)
+    |> Axon.dense(512, activation: :relu)
+    |> Axon.dense(2, activation: :softmax)
+  end
 end
 ```
 
 ## Training
 
-Creating a training loop starts with setting a loss function to binary cross-entropy and optimizer of your choice. We also set the log option to 1 to keep track of loss and metrics during training. Next, we choose accuracy as a metric. Finally, we pass the number of epochs and set the number of iterations per epoch to 100.
+Creating a training loop starts with setting a loss function to categorical cross-entropy and optimizer of your choice. We also set the log option to 1 to keep track of loss and metrics during training. Next, we choose accuracy as a metric. Finally, we pass the number of epochs and set the number of iterations per epoch to utilize almost all of the images.
 
 ```elixir
-defp train_model(model, data, optimizer, epochs) do
-  model
-  |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
-  |> Axon.Loop.metric(:accuracy)
-  |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100)
+defmodule HorsesHumans.Training do
+  def train_model(model, data, optimizer, epochs) do
+    model
+    |> Axon.Loop.trainer(:categorical_cross_entropy, optimizer, log: 1)
+    |> Axon.Loop.metric(:accuracy)
+    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: Config.batches_per_epoch())
+  end
 end
 ```
 
@@ -145,17 +230,29 @@ end
 Now we can build and train our model. We start with passing input shape and indices to data transposition. Next, we set the optimizer to adam with a learning rate of 1.0e-4. In the next step, we define an optimizer but with gradient centralization. It is a technique with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents us from exploding gradients.
 
 ```elixir
-def run() do
-  model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
-  optimizer = Axon.Optimizers.adam(1.0e-4)
-  centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
+defmodule HorsesHumans.ModelTraining do
+  def run() do
+    model = HorsesHumans.Model.build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
+    optimizer = Axon.Optimizers.adam(1.0e-4)
+    centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
 
-  data = data()
+    data = HorsesHumans.DataProcessing.data_stream()
 
-  IO.write("\n\nTraining model without gradient centralization\n\n")
-  train_model(model, data, optimizer, 10)
+    IO.write("\n\nTraining model without gradient centralization\n\n")
+    HorsesHumans.Training.train_model(model, data, optimizer, 2)
 
-  IO.write("\n\nTraining model with gradient centralization\n\n")
-  train_model(model, data, centralized_optimizer, 10)
+    IO.write("\n\nTraining model with gradient centralization\n\n")
+    HorsesHumans.Training.train_model(model, data, centralized_optimizer, 2)
+  end
 end
 ```
+
+```elixir
+HorsesHumans.ModelTraining.run()
+```
+
+## Conclusions
+
+We have an accuracy of almost 1.0.  That is great right?  Hmmm. Not so great.  With this notebook we've demonstrated the ability for a neural net model to memorize a dataset.  The model knows how to distinguish each image with the kind of image it is.  Training a model is tricky.  It may learn unintended characteristics.  Do all of the horses have something in the background that the model can make it's decision on?
+
+For useful models, we need to compare the model against images that it hasn't seen.  Comparison against unseen input data measures the generalization of the model with respect to the unseen images.  Using the model against further unseen images will help with measure the bias of the model.  How well will this model perform against a real horse or pony?
