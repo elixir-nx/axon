@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.2.0-dev"
+  @version "0.2.0"
 
   def project do
     [
@@ -37,8 +37,8 @@ defmodule Axon.MixProject do
     [
       # EXLA is a test-only dependency for testing models and training
       # under JIT
-      {:exla, "~> 0.2.2", [only: :test] ++ exla_opts()},
-      {:nx, "~> 0.2.1", nx_opts()},
+      {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
+      {:nx, "~> 0.3.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
     ]
@@ -72,7 +72,7 @@ defmodule Axon.MixProject do
     [
       main: "Axon",
       source_ref: "v#{@version}",
-      logo: "axon.png",
+      logo: "logo.png",
       source_url: @source_url,
       extras: [
         "notebooks/mnist.livemd",
@@ -92,9 +92,11 @@ defmodule Axon.MixProject do
         "Layers: Pooling": &(&1[:type] == :pooling),
         "Layers: Normalization": &(&1[:type] == :normalization),
         "Layers: Recurrent": &(&1[:type] == :recurrent),
-        "Layers: Combinators": &(&1[:type] == :combinators),
+        "Layers: Combinators": &(&1[:type] == :combinator),
         "Layers: Shape": &(&1[:type] == :shape),
-        "Model: Execution": &(&1[:type] == :execution),
+        Model: &(&1[:type] == :model),
+        "Model: Manipulation": &(&1[:type] == :graph),
+        "Model: Debugging": &(&1[:type] == :debug),
 
         # Axon.Layers
         "Functions: Attention": &(&1[:type] == :attention),
@@ -106,9 +108,16 @@ defmodule Axon.MixProject do
         "Functions: Shape": &(&1[:type] == :shape)
       ],
       groups_for_modules: [
-        # Axon
-        # Axon.MixedPrecision
-
+        Model: [
+          Axon,
+          Axon.MixedPrecision,
+          Axon.None,
+          Axon.StatefulOutput,
+          Axon.Initalizers
+        ],
+        Summary: [
+          Axon.Display
+        ],
         Functional: [
           Axon.Activations,
           Axon.Initalizers,
@@ -119,7 +128,8 @@ defmodule Axon.MixProject do
         ],
         Optimization: [
           Axon.Optimizers,
-          Axon.Updates
+          Axon.Updates,
+          Axon.Schedules
         ],
         Loop: [
           Axon.Loop,

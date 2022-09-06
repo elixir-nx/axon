@@ -26,7 +26,7 @@ defmodule Fashionmist do
     end
 
     def build_model(input_shape, latent_dim) do
-      Axon.input(input_shape, "input")
+      Axon.input("input", shape: input_shape)
       |> encoder(latent_dim)
       |> decoder()
     end

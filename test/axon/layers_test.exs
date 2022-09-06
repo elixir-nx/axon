@@ -70,12 +70,12 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        jit(
-          fn kernel, bias ->
+        apply(
+          jit(fn kernel, bias ->
             grad({kernel, bias}, fn {k, b} ->
               Nx.sum(Axon.Layers.dense(inp, k, b))
             end)
-          end,
+          end),
           [kernel, bias]
         )
 
@@ -92,12 +92,12 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        jit(
-          fn kernel, bias ->
+        apply(
+          jit(fn kernel, bias ->
             grad({kernel, bias}, fn {k, b} ->
               Nx.sum(Axon.Layers.dense(inp, k, b))
             end)
-          end,
+          end),
           [kernel, bias]
         )
 
@@ -114,12 +114,12 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        jit(
-          fn kernel, bias ->
+        apply(
+          jit(fn kernel, bias ->
             grad({kernel, bias}, fn {k, b} ->
               Nx.sum(Axon.Layers.dense(inp, k, b))
             end)
-          end,
+          end),
           [kernel, bias]
         )
 
@@ -790,48 +790,283 @@ defmodule Axon.LayersTest do
   end
 
   describe "resize" do
-    test "bilinear without aligned corners" do
-      input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
-
-      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: false) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.5, 2.5],
-                     [2.1000001430511475, 4.100000381469727],
-                     [4.5, 6.5],
-                     [6.900000095367432, 8.899999618530273],
-                     [8.5, 10.5]
-                   ]
-                 ]
-               ])
-    end
-
-    test "bilinear with aligned corners" do
-      input = Nx.iota({1, 1, 3, 4}, type: {:f, 32})
-
-      assert Axon.Layers.resize(input, to: {5, 2}, method: :bilinear, align_corners: true) ==
-               Nx.tensor([
-                 [
-                   [
-                     [0.0, 3.0],
-                     [2.0, 5.0],
-                     [4.0, 7.0],
-                     [6.0, 9.0],
-                     [8.0, 11.0]
-                   ]
-                 ]
-               ])
-    end
-
-    test "raises on input rank less than 3" do
+    test "raises on input rank not equal to 4" do
       inp = Nx.iota({1, 1})
 
       assert_raise ArgumentError,
-                   ~r/Axon.Layers.resize: expected input shape to have at least rank 3/,
+                   ~r/Axon.Layers.resize: expected input to have rank equal to 4, got 2 != 4/,
                    fn ->
                      Axon.Layers.resize(inp)
                    end
+    end
+  end
+
+  describe "dynamic_unroll" do
+    test "computes carry and output identical to static_unroll" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      {s_output, {s_carry}} =
+        Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+
+      {d_output, {d_carry}} =
+        Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+
+      assert s_carry == d_carry
+      assert s_output == d_output
+    end
+
+    defn grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+
+        Nx.mean(output)
+      end)
+    end
+
+    defn grad_dynamic_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+
+        Nx.mean(output)
+      end)
+    end
+
+    test "computes gradient identical to static unroll for hidden kernel w.r.t. output" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_hidden_output(
+                 input,
+                 carry,
+                 input_kernel,
+                 hidden_kernel,
+                 bias,
+                 cell_fn
+               )
+    end
+
+    defn grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    defn grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    test "computes gradient identical to static_unroll for hidden kernel w.r.t carry" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+    end
+
+    defn grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(input_kernel, fn x ->
+        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+
+        Nx.mean(output)
+      end)
+    end
+
+    defn grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(input_kernel, fn x ->
+        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+
+        Nx.mean(output)
+      end)
+    end
+
+    test "computes gradient identical to static unroll for input kernel w.r.t. output" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+    end
+
+    defn grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(input_kernel, fn x ->
+        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    defn grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(input_kernel, fn x ->
+        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    test "computes gradient identical to static unroll for input kernel w.r.t. carry" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+    end
+
+    defn grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(bias, fn x ->
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+
+        Nx.mean(output)
+      end)
+    end
+
+    defn grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(bias, fn x ->
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+
+        Nx.mean(output)
+      end)
+    end
+
+    test "computes gradient identical to static unroll for bias w.r.t. output" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+    end
+
+    defn grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(bias, fn x ->
+        {_, {carry}} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    defn grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(bias, fn x ->
+        {_, {carry}} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+
+        Nx.mean(carry)
+      end)
+    end
+
+    test "computes gradient identical to static unroll for bias w.r.t. carry" do
+      input = Nx.iota({1, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+
+      input_kernel =
+        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
+         Nx.iota({2, 8}, type: {:f, 32})}
+
+      hidden_kernel =
+        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
+         Nx.iota({8, 8}, type: {:f, 32})}
+
+      bias =
+        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
+         Nx.iota({}, type: {:f, 32})}
+
+      cell_fn = &Axon.Layers.gru_cell/5
+
+      assert grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) ==
+               grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
     end
   end
 end

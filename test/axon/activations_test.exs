@@ -93,10 +93,10 @@ defmodule Axon.ActivationsTest do
       expected = Nx.tensor([1.0, 1.0, 1.0])
 
       actual =
-        jit(
-          fn x ->
+        apply(
+          jit(fn x ->
             grad(x, &Nx.sum(Axon.Activations.celu(&1)))
-          end,
+          end),
           [a]
         )
 
@@ -113,10 +113,10 @@ defmodule Axon.ActivationsTest do
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
 
       actual =
-        jit(
-          fn x ->
+        apply(
+          jit(fn x ->
             grad(x, &Nx.sum(Axon.Activations.celu(&1)))
-          end,
+          end),
           [a]
         )
 
@@ -133,10 +133,10 @@ defmodule Axon.ActivationsTest do
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
 
       actual =
-        jit(
-          fn x ->
+        apply(
+          jit(fn x ->
             grad(x, &Nx.sum(Axon.Activations.celu(&1)))
-          end,
+          end),
           [a]
         )
 
@@ -230,7 +230,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.2467288225889206, 0.047934457659721375, 0.6276589035987854])
       expected = Nx.tensor([1.0, 1.0, 1.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -242,7 +242,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -254,7 +254,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.elu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -304,7 +304,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.7080050706863403, 0.5748331546783447, 0.8570890426635742])
       expected = Nx.tensor([2.029937744140625, 1.7768340110778809, 2.3562915325164795])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -321,7 +321,7 @@ defmodule Axon.ActivationsTest do
           [2.561455011367798, 1.7926065921783447]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -338,7 +338,7 @@ defmodule Axon.ActivationsTest do
           [[1.1358495950698853, 1.548065423965454]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.exp(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -388,7 +388,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.5424693822860718, 0.17958815395832062, 0.6342728137969971])
       expected = Nx.tensor([0.89305579662323, 0.641761302947998, 0.9439805150032043])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -405,7 +405,7 @@ defmodule Axon.ActivationsTest do
           [0.5533674359321594, 0.6047282814979553]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -422,7 +422,7 @@ defmodule Axon.ActivationsTest do
           [[1.0198638439178467, 0.8412032127380371]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.gelu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -472,7 +472,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.9485284090042114, 0.435951828956604, 0.5815699696540833])
       expected = Nx.tensor([1.0, 1.0, 1.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -484,7 +484,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -496,7 +496,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.hard_tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -587,7 +587,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.47335895895957947, 0.8662083745002747, 0.07783236354589462])
       expected = Nx.tensor([1.0, 1.0, 1.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -599,7 +599,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -611,7 +611,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.leaky_relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -661,7 +661,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.007618676871061325, 0.2710806727409363, 0.7870540022850037])
       expected = Nx.tensor([0.4980953633785248, 0.43264180421829224, 0.3128015995025635])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -678,7 +678,7 @@ defmodule Axon.ActivationsTest do
           [0.4480943977832794, 0.4035739302635193]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -695,7 +695,7 @@ defmodule Axon.ActivationsTest do
           [[0.28962376713752747, 0.3617258071899414]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -792,7 +792,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.06931844353675842, 0.772077202796936, 0.1932809054851532])
       expected = Nx.tensor([0.27733299136161804, -0.459293007850647, 0.1819601207971573])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -809,7 +809,7 @@ defmodule Axon.ActivationsTest do
           [0.23003646731376648, -0.23003637790679932]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -826,7 +826,7 @@ defmodule Axon.ActivationsTest do
           [[-0.3348658084869385, 0.3348657786846161]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.log_softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -876,7 +876,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.2746083736419678, 0.23505471646785736, 0.5368936657905579])
       expected = Nx.tensor([1.0, 1.0, 1.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -888,7 +888,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -900,7 +900,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -950,7 +950,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.3808571994304657, 0.5188078880310059, 0.9164689183235168])
       expected = Nx.tensor([1.0, 1.0, 1.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -962,7 +962,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[1.0, 1.0], [1.0, 1.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -974,7 +974,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[1.0, 1.0]], [[1.0, 1.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.relu6(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1024,7 +1024,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.6316671967506409, 0.8289909958839417, 0.18112128973007202])
       expected = Nx.tensor([1.0507010221481323, 1.0507010221481323, 1.0507010221481323])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1041,7 +1041,7 @@ defmodule Axon.ActivationsTest do
           [1.0507010221481323, 1.0507010221481323]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1058,7 +1058,7 @@ defmodule Axon.ActivationsTest do
           [[1.0507010221481323, 1.0507010221481323]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.selu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1108,7 +1108,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.9408628344535828, 0.2626379430294037, 0.3255162537097931])
       expected = Nx.tensor([0.20191897451877594, 0.2457379251718521, 0.24349266290664673])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1125,7 +1125,7 @@ defmodule Axon.ActivationsTest do
           [0.2379913330078125, 0.24985475838184357]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1142,7 +1142,7 @@ defmodule Axon.ActivationsTest do
           [[0.22151799499988556, 0.2301725596189499]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1192,7 +1192,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.7756811380386353, 0.3616112768650055, 0.2904549837112427])
       expected = Nx.tensor([0.8521932363510132, 0.6769410967826843, 0.6432110667228699])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1209,7 +1209,7 @@ defmodule Axon.ActivationsTest do
           [0.7066973447799683, 0.6720436215400696]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1226,7 +1226,7 @@ defmodule Axon.ActivationsTest do
           [[0.545869767665863, 0.793329119682312]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.silu(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1323,7 +1323,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.21630559861660004, 0.1898617446422577, 0.9072079062461853])
       expected = Nx.tensor([0.0, 0.0, 0.0])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1335,7 +1335,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[0.0, 0.0], [0.0, 0.0]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1347,7 +1347,7 @@ defmodule Axon.ActivationsTest do
         ])
 
       expected = Nx.tensor([[[0.0, 0.0]], [[0.0, 0.0]]])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1397,7 +1397,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.1869126409292221, 0.5769602656364441, 0.19408872723579407])
       expected = Nx.tensor([0.5465925931930542, 0.6403676867485046, 0.5483704805374146])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1414,7 +1414,7 @@ defmodule Axon.ActivationsTest do
           [0.7168834209442139, 0.5349215865135193]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1431,7 +1431,7 @@ defmodule Axon.ActivationsTest do
           [[0.5830529928207397, 0.7265986204147339]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softplus(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1481,7 +1481,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.8105446696281433, 0.7689074873924255, 0.37004250288009644])
       expected = Nx.tensor([0.3050573468208313, 0.31958746910095215, 0.5327603816986084])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1498,7 +1498,7 @@ defmodule Axon.ActivationsTest do
           [0.8242732882499695, 0.3703756332397461]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1515,7 +1515,7 @@ defmodule Axon.ActivationsTest do
           [[0.8968499898910522, 0.281287282705307]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softsign(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end
@@ -1565,7 +1565,7 @@ defmodule Axon.ActivationsTest do
     test "backward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.006474076770246029, 0.0057099852710962296, 0.9349150061607361])
       expected = Nx.tensor([0.9999580979347229, 0.9999673962593079, 0.4628909230232239])
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1582,7 +1582,7 @@ defmodule Axon.ActivationsTest do
           [0.9996482133865356, 0.9225140810012817]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
 
@@ -1599,7 +1599,7 @@ defmodule Axon.ActivationsTest do
           [[0.7565422058105469, 0.48141953349113464]]
         ])
 
-      actual = jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end, [a])
+      actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.tanh(&1))) end), [a])
       assert_all_close(expected, actual)
     end
   end

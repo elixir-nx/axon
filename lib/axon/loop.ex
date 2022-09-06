@@ -185,8 +185,7 @@ defmodule Axon.Loop do
       * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
 
-      * `Axon.Loop.evaluator/2` - Creates a supervised evaluator loop from model and model
-      state.
+      * `Axon.Loop.evaluator/1` - Creates a supervised evaluator loop from model.
 
   ## Running loops
 
@@ -287,7 +286,7 @@ defmodule Axon.Loop do
 
   `model` must be an Axon struct, a valid defn container
   of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
-  an arity-1 function which initializes the model state and `apply_fn` is
+  an arity-2 function which initializes the model state and `apply_fn` is
   an arity-2 function which applies the forward pass of the model. The forward
   pass of the model must return a map with keys `:prediction` and `:state`
   representing the model's prediction and updated state for layers which
@@ -310,8 +309,8 @@ defmodule Axon.Loop do
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
 
-    init_fn = fn init_model_state ->
-      model_state = init_model_fn.(init_model_state)
+    init_fn = fn {inp, _}, init_model_state ->
+      model_state = init_model_fn.(inp, init_model_state)
       optimizer_state = init_optimizer_fn.(model_state)
 
       %{
@@ -365,8 +364,8 @@ defmodule Axon.Loop do
     end
 
     {
-      fn state -> Nx.Defn.jit_or_apply(init_fn, [state]) end,
-      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+      Nx.Defn.jit(init_fn, on_conflict: :reuse),
+      Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
   end
 
@@ -381,7 +380,7 @@ defmodule Axon.Loop do
   def eval_step(model) do
     {_, forward_model_fn} = build_model_fns(model, :inference)
 
-    init_fn = fn state ->
+    init_fn = fn _, state ->
       %{
         model_state: state,
         y_true: Nx.tensor(0.0),
@@ -398,8 +397,8 @@ defmodule Axon.Loop do
     end
 
     {
-      fn state -> Nx.Defn.jit_or_apply(init_fn, [state]) end,
-      fn data, state -> Nx.Defn.jit_or_apply(step_fn, [data, state]) end
+      Nx.Defn.jit(init_fn, on_conflict: :reuse),
+      Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
   end
 
@@ -437,8 +436,8 @@ defmodule Axon.Loop do
   This is useful for extracting specific fields from a loop and piping them into
   additional functions.
   """
-  def loop(step_fn, init_fn \\ & &1, output_transform \\ & &1)
-      when is_function(step_fn, 2) and is_function(init_fn, 1) and
+  def loop(step_fn, init_fn \\ &default_init/2, output_transform \\ & &1)
+      when is_function(step_fn, 2) and is_function(init_fn, 2) and
              is_function(output_transform, 1) do
     %Loop{
       init: init_fn,
@@ -446,6 +445,8 @@ defmodule Axon.Loop do
       output_transform: output_transform
     }
   end
+
+  defp default_init(_data, state), do: state
 
   @doc """
   Creates a supervised training loop from a model, loss function,
@@ -465,7 +466,7 @@ defmodule Axon.Loop do
 
   `model` must be an Axon struct, a valid defn container
   of Axon structs, or a `{init_fn, apply_fn}`-tuple where `init_fn` is
-  an arity-1 function which initializes the model state and `apply_fn` is
+  an arity-2 function which initializes the model state and `apply_fn` is
   an arity-2 function which applies the forward pass of the model.
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
@@ -497,7 +498,7 @@ defmodule Axon.Loop do
 
       data = Stream.zip(input, target)
 
-      model = Axon.input({nil, 32}, "input") |> Axon.dense(1, activation: :sigmoid)
+      model = Axon.input("input", shape: {nil, 32}) |> Axon.dense(1, activation: :sigmoid)
 
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
@@ -519,7 +520,7 @@ defmodule Axon.Loop do
 
   ### Multiple objectives with multi-output model
 
-      model = {Axon.input({nil, 1}, "input_0"), Axon.input({nil, 2}, "input_1")}
+      model = {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 2})}
       loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
 
       model
@@ -602,7 +603,7 @@ defmodule Axon.Loop do
   loop:
 
       model
-      |> Axon.Loop.evaluator(trained_state)
+      |> Axon.Loop.evaluator()
       |> Axon.Loop.metric("Accuracy", :accuracy)
 
   Applies an output transform which returns the map of metrics accumulated over
@@ -839,8 +840,23 @@ defmodule Axon.Loop do
   the same order they are declared in the training loop, you MUST call
   this method before any other handler which expects or may use
   validation metrics.
+
+  By default the validation loop runs after every epoch; however, you
+  can customize it by overriding the default event and event filters:
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.metric(:mean_absolute_error)
+      |> Axon.Loop.validate(model, validation_data, :iteration_completed, every: 10_000)
+      |> Axon.Loop.metric(:binary_cross_entropy)
   """
-  def validate(%Loop{metrics: metric_fns} = loop, model, validation_data) do
+  def validate(
+        %Loop{metrics: metric_fns} = loop,
+        model,
+        validation_data,
+        event \\ :epoch_completed,
+        filter \\ :always
+      ) do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
@@ -862,7 +878,7 @@ defmodule Axon.Loop do
       {:continue, %{state | metrics: metrics}}
     end
 
-    handle(loop, :epoch_completed, validation_loop)
+    handle(loop, event, validation_loop, filter)
   end
 
   @doc """
@@ -885,9 +901,9 @@ defmodule Axon.Loop do
   of `checkpoint_{epoch}.ckpt`. You can customize the path and pattern
   with the `:path` and `:file_pattern` options:
 
-      my_file_pattern = 
-        fn %Axon.Loop.State{epoch: epoch, iteration: iter} -> 
-          "checkpoint_\#{epoch}_\#{iter}" 
+      my_file_pattern =
+        fn %Axon.Loop.State{epoch: epoch, iteration: iter} ->
+          "checkpoint_\#{epoch}_\#{iter}"
         end
 
       loop
@@ -1076,6 +1092,123 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which reduces the learning rate by
+  the given factor if the given metric does not improve between
+  events.
+
+  By default, this will run after each epoch and track the
+  improvement of a given metric.
+
+  You must specify a metric to monitor and the metric must
+  be present in the loop state. Typically, this will be
+  a validation metric:
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.metric(:accuracy)
+      |> Axon.Loop.validate(val_data)
+      |> Axon.Loop.reduce_lr_on_plateau("validation_accuracy")
+
+  ## Options
+
+    * `:event` - event to fire handler on. Defaults to `:epoch_completed`.
+
+    * `:filter` - event filter to attach to handler. Defaults to `:always`.
+
+    * `:patience` - number of given events to wait for improvement. Defaults
+      to `3`.
+
+    * `:mode` - whether given metric is being minimized or maximized. Defaults
+      to `:min`.
+
+    * `:factor` - factor to decrease learning rate by. Defaults to `0.1`.
+  """
+  def reduce_lr_on_plateau(%Loop{} = loop, monitor, opts \\ []) do
+    event = opts[:event] || :epoch_completed
+    filter = opts[:filter] || :always
+    patience = opts[:patience] || 3
+    mode = opts[:mode] || :min
+    factor = opts[:factor] || 0.1
+
+    reduce_lr_fn = fn %State{
+                        step_state: step_state,
+                        metrics: metrics,
+                        handler_metadata: handler_meta
+                      } = state ->
+      unless Map.has_key?(metrics, monitor) do
+        raise ArgumentError,
+              "invalid metric to monitor, key #{inspect(monitor)} not present in metrics"
+      end
+
+      unless Map.has_key?(step_state, :optimizer_state) do
+        raise ArgumentError,
+              "given loop state is not a supervised training loop, key `:optimizer_state`" <>
+                " was not present in the given step state"
+      end
+
+      cur_criteria_value = metrics[monitor]
+      # TODO: This is a strong assumption
+      %{scale: current_lr} = elem(step_state[:optimizer_state], 0)
+
+      {prev_criteria_value, since_last_improvement} =
+        case handler_meta[:reduce_lr] do
+          nil ->
+            {nil, 0}
+
+          meta ->
+            {meta[monitor], meta[:since_last_improvement]}
+        end
+
+      improved? =
+        case mode do
+          :min ->
+            prev_criteria_value == nil or
+              Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+
+          :max ->
+            prev_criteria_value == nil or
+              Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+        end
+
+      over_patience? = since_last_improvement >= patience
+
+      cond do
+        improved? ->
+          updated_handler_meta =
+            handler_meta
+            |> Map.replace(monitor, cur_criteria_value)
+            |> Map.replace(:since_last_improvement, 0)
+
+          {:continue, %{state | handler_metadata: updated_handler_meta}}
+
+        not improved? and not over_patience? ->
+          updated_handle_meta =
+            Map.update(handler_meta, :since_last_improvement, 0, fn x -> x + 1 end)
+
+          {:continue, %{state | handler_metadata: updated_handle_meta}}
+
+        true ->
+          updated_handler_meta =
+            handler_meta
+            |> Map.replace(monitor, cur_criteria_value)
+            |> Map.replace(:since_last_improvement, 0)
+
+          updated_lr = Nx.multiply(current_lr, factor)
+
+          updated_optimizer_state =
+            put_elem(step_state[:optimizer_state], 0, %{scale: updated_lr})
+
+          updated_step_state = %{step_state | optimizer_state: updated_optimizer_state}
+
+          {:continue,
+           %{state | handler_metadata: updated_handler_meta, step_state: updated_step_state}}
+      end
+    end
+
+    handle(loop, event, reduce_lr_fn, filter)
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
@@ -1165,6 +1298,9 @@ defmodule Axon.Loop do
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
+    * `:debug` - run loop in debug mode to trace loop progress. Defaults to
+      false.
+
     Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
     options are set, the default options set with `Nx.Defn.default_options` are
     used.
@@ -1173,6 +1309,7 @@ defmodule Axon.Loop do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, jit_opts} = Keyword.pop(opts, :jit_compile?, true)
+    debug? = Keyword.get(opts, :debug, false)
 
     %Loop{
       init: init_fn,
@@ -1183,17 +1320,41 @@ defmodule Axon.Loop do
       output_transform: output_transform
     } = loop
 
-    loop_state =
-      init_loop_state(
-        init_fn,
-        init_state,
-        attached_state,
-        metric_fns,
-        max_epochs,
-        max_iterations,
-        jit_compile?,
-        jit_opts
-      )
+    sample_data =
+      case Enum.take(data, 1) do
+        [sample_data | _] ->
+          sample_data
+
+        [] ->
+          raise ArgumentError,
+                "Axon.Loop.run received empty dataset, this can happen" <>
+                  " if you've built a stream and accidentally filtered" <>
+                  " out every value, your dataset must have at least one" <>
+                  " entry"
+      end
+
+    if debug? do
+      Logger.debug("Axon.Loop started initializing loop state")
+    end
+
+    {time, loop_state} =
+      :timer.tc(fn ->
+        init_loop_state(
+          init_fn,
+          sample_data,
+          init_state,
+          attached_state,
+          metric_fns,
+          max_epochs,
+          max_iterations,
+          jit_compile?,
+          jit_opts
+        )
+      end)
+
+    if debug? do
+      Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
+    end
 
     final_metrics_map =
       for i <- 0..(max_epochs - 1) do
@@ -1202,7 +1363,7 @@ defmodule Axon.Loop do
       |> Map.new()
 
     {status, final_metrics, state} =
-      case fire_event(:started, handler_fns, loop_state) do
+      case fire_event(:started, handler_fns, loop_state, debug?) do
         {:halt_epoch, state} ->
           {:halted, final_metrics_map, state}
 
@@ -1214,9 +1375,9 @@ defmodule Axon.Loop do
             0..(max_epochs - 1)//1,
             {:completed, final_metrics_map, state},
             fn epoch, {_, final_metrics_map, loop_state} ->
-              case fire_event(:epoch_started, handler_fns, loop_state) do
+              case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
                 {:halt_epoch, state} ->
-                  halt_epoch(handler_fns, state)
+                  halt_epoch(handler_fns, state, debug?)
 
                 {:halt_loop, state} ->
                   {:halt, {:halted, final_metrics_map, state}}
@@ -1224,15 +1385,23 @@ defmodule Axon.Loop do
                 {:continue, state} ->
                   batch_fn = build_batch_fn(step_fn, metric_fns)
 
+                  if debug? do
+                    Logger.debug("Axon.Loop started running epoch #{epoch}")
+                  end
+
                   {time, status_and_state} =
                     :timer.tc(
                       &run_epoch/6,
                       [batch_fn, handler_fns, state, data, jit_compile?, jit_opts]
                     )
 
+                  if debug? do
+                    Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
+                  end
+
                   case status_and_state do
                     {:halt_epoch, state} ->
-                      halt_epoch(handler_fns, state)
+                      halt_epoch(handler_fns, state, debug?)
 
                     {:halt_loop, state} ->
                       {:halt, {:halted, final_metrics_map, state}}
@@ -1240,9 +1409,9 @@ defmodule Axon.Loop do
                     {:continue, state} ->
                       new_loop_state = put_in(state.times[epoch], time)
 
-                      case fire_event(:epoch_completed, handler_fns, new_loop_state) do
+                      case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
                         {:halt_epoch, state} ->
-                          halt_epoch(handler_fns, state)
+                          halt_epoch(handler_fns, state, debug?)
 
                         {:halt_loop, state} ->
                           {:halt, {:halted, final_metrics_map, state}}
@@ -1269,7 +1438,7 @@ defmodule Axon.Loop do
           )
       end
 
-    {_, state} = fire_event(status, handler_fns, state)
+    {_, state} = fire_event(status, handler_fns, state, debug?)
     state = %State{state | metrics: final_metrics}
 
     output_transform.(state)
@@ -1279,6 +1448,7 @@ defmodule Axon.Loop do
 
   defp init_loop_state(
          init_fn,
+         sample_data,
          init_state,
          attached_state,
          metric_fns,
@@ -1293,7 +1463,7 @@ defmodule Axon.Loop do
 
       nil ->
         metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
-        step_state = maybe_jit(init_fn, [init_state], jit_compile?, jit_opts)
+        step_state = maybe_jit(init_fn, [sample_data, init_state], jit_compile?, jit_opts)
 
         %State{
           epoch: 0,
@@ -1316,7 +1486,7 @@ defmodule Axon.Loop do
          jit_opts
        ) do
     Enum.reduce_while(data, {:continue, loop_state}, fn data, {_, state} ->
-      case fire_event(:iteration_started, handler_fns, state) do
+      case fire_event(:iteration_started, handler_fns, state, jit_opts[:debug]) do
         {:halt_epoch, state} ->
           {:halt, {:halt_epoch, state}}
 
@@ -1331,15 +1501,25 @@ defmodule Axon.Loop do
             metrics: metrics
           } = state
 
-          {new_step_state, new_metrics} =
-            maybe_jit(batch_fn, [data, iters, step_state, metrics], jit_compile?, jit_opts)
+          if jit_opts[:debug] do
+            Logger.debug("Axon.Loop started batch step execution")
+          end
+
+          {time, {new_step_state, new_metrics}} =
+            :timer.tc(fn ->
+              maybe_jit(batch_fn, [data, iters, step_state, metrics], jit_compile?, jit_opts)
+            end)
+
+          if jit_opts[:debug] do
+            Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
+          end
 
           # Force a garbage collection so any device or copied data is deallocated.
           :erlang.garbage_collect()
 
           state = %{state | step_state: new_step_state, metrics: new_metrics}
 
-          case fire_event(:iteration_completed, handler_fns, state) do
+          case fire_event(:iteration_completed, handler_fns, state, jit_opts[:debug]) do
             {:halt_epoch, state} ->
               {:halt, {:halt_epoch, state}}
 
@@ -1371,19 +1551,35 @@ defmodule Axon.Loop do
   # must reverse handler funs in order to enforce order that handlers are
   # attached to the loop.
   # TODO(seanmor5): Custom events
-  defp fire_event(event, handler_fns, state) do
+  defp fire_event(event, handler_fns, state, debug?) do
     handler_fns[event]
     |> Enum.reverse()
     |> Enum.reduce_while({:continue, state}, fn {handler, filter}, {_, state} ->
+      if debug? do
+        Logger.debug("Axon.Loop fired event #{inspect(event)}")
+      end
+
       if filter.(state) do
         case handler.(state) do
           {:continue, %State{} = state} ->
+            if debug? do
+              Logger.debug("Axon.Loop handled event #{inspect(event)} with status :continue")
+            end
+
             {:cont, {:continue, state}}
 
           {:halt_epoch, %State{} = state} ->
+            if debug? do
+              Logger.debug("Axon.Loop handled event #{inspect(event)} with status :halt_epoch")
+            end
+
             {:halt, {:halt_epoch, state}}
 
           {:halt_loop, %State{} = state} ->
+            if debug? do
+              Logger.debug("Axon.Loop handled event #{inspect(event)} with status :halt_loop")
+            end
+
             {:halt, {:halt_loop, state}}
 
           invalid ->
@@ -1394,14 +1590,18 @@ defmodule Axon.Loop do
                     " :halt_loop, or :continue and state is an updated State struct"
         end
       else
+        if debug? do
+          Logger.debug("Axon.Loop no handlers fired for event #{inspect(event)}")
+        end
+
         {:cont, {:continue, state}}
       end
     end)
   end
 
   # Halts an epoch during looping
-  defp halt_epoch(handler_fns, loop_state) do
-    case fire_event(:epoch_halted, handler_fns, loop_state) do
+  defp halt_epoch(handler_fns, loop_state, debug?) do
+    case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
       {:halt_epoch, state} ->
         {:cont, %State{state | epoch: state.epoch + 1, iteration: 0}}
 
@@ -1496,11 +1696,11 @@ defmodule Axon.Loop do
   # functions. Model functions are essentially just model
   # init / apply functions.
   defp build_model_fns(%Axon{} = model, mode) do
-    Axon.compile(model, mode: mode)
+    Axon.build(model, mode: mode)
   end
 
   defp build_model_fns({init_fn, forward_fn}, _)
-       when is_function(init_fn, 1) and is_function(forward_fn, 2) do
+       when is_function(init_fn, 2) and is_function(forward_fn, 2) do
     {init_fn, forward_fn}
   end
 
@@ -1651,9 +1851,11 @@ defmodule Axon.Loop do
   # otherwise just applies the function with the given arguments
   defp maybe_jit(fun, args, jit_compile?, jit_opts) do
     if jit_compile? do
-      Nx.Defn.jit(fun, args, jit_opts)
+      apply(Nx.Defn.jit(fun, jit_opts), args)
     else
       apply(fun, args)
     end
   end
+
+  defp us_to_ms(time), do: Float.round(time / 1000, 1)
 end

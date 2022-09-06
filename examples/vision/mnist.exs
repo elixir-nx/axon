@@ -32,7 +32,7 @@ defmodule Mnist do
   end
 
   defp build_model(input_shape) do
-    Axon.input(input_shape, "input")
+    Axon.input("input", shape: input_shape)
     |> Axon.dense(128, activation: :relu)
     |> Axon.dropout()
     |> Axon.dense(10, activation: :softmax)

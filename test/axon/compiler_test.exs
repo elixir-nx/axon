@@ -14,153 +14,93 @@ defmodule CompilerTest do
 
   describe "input" do
     test "single input, single output" do
-      model = Axon.input({nil, 1}, "input_0")
+      model = Axon.input("input_0", shape: {nil, 1})
       input = Nx.random_uniform({1, 1}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
       assert_equal(predict_fn.(%{}, input), input)
     end
 
     test "multi-input, map with default names" do
       model1 =
-        {Axon.input({nil, 1}, "input_0"), Axon.input({nil, 1}, "input_1")} |> Axon.container()
+        {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 1})}
+        |> Axon.container()
 
       input1 = Nx.random_uniform({1, 1})
       input2 = Nx.random_uniform({1, 1})
+      input = %{"input_0" => input1, "input_1" => input2}
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{} = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{} = init_fn.(input, %{})
 
       assert_equal(
         {input1, input2},
-        predict_fn.(%{}, %{"input_0" => input1, "input_1" => input2})
+        predict_fn.(%{}, input)
       )
     end
 
     test "output map" do
-      model = %{foo: Axon.input({nil, 1}, "input_0")} |> Axon.container()
+      model = %{foo: Axon.input("input_0", shape: {nil, 1})} |> Axon.container()
 
       input = Nx.random_uniform({1, 1})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
       assert_equal(%{foo: input}, predict_fn.(%{}, %{"input_0" => input}))
     end
 
     test "multi-input, multi-output, nested" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
 
       model1 = {input1, {input1, {input2, {}}, input2, %{foo: input1}}} |> Axon.container()
 
       inp1 = Nx.random_uniform({1, 1})
       inp2 = Nx.random_uniform({1, 2})
+      input = %{"input_0" => inp1, "input_1" => inp2}
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{} = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{} = init_fn.(input, %{})
 
       assert_equal(
         {inp1, {inp1, {inp2, {}}, inp2, %{foo: inp1}}},
-        predict_fn.(%{}, %{"input_0" => inp1, "input_1" => inp2})
+        predict_fn.(%{}, input)
       )
     end
 
     test "multi-input, map with custom names" do
-      x = Axon.input({nil, 1}, "x")
-      y = Axon.input({nil, 1}, "y")
-      z = Axon.input({nil, 1}, "z")
+      x = Axon.input("x", shape: {nil, 1})
+      y = Axon.input("y", shape: {nil, 1})
+      z = Axon.input("z", shape: {nil, 1})
       model = {z, x, y} |> Axon.container()
 
       x_val = Nx.random_uniform({1, 1})
       y_val = Nx.random_uniform({1, 1})
       z_val = Nx.random_uniform({1, 1})
+      input = %{"x" => x_val, "y" => y_val, "z" => z_val}
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
 
       assert_equal(
         {z_val, x_val, y_val},
-        predict_fn.(%{}, %{"x" => x_val, "y" => y_val, "z" => z_val})
+        predict_fn.(%{}, input)
       )
-    end
-
-    @tag :capture_log
-    test "allows nil default inputs" do
-      model =
-        Axon.input({nil, 1}, "input_0", default: nil)
-        |> Axon.nx(fn
-          nil -> Nx.tensor([[1.0]])
-          x -> x
-        end)
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
-        Nx.tensor([[2.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
-    end
-
-    test "allows tensor default inputs" do
-      model = Axon.input({nil, 1}, "input_0", default: Nx.tensor([[1.0]]))
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => Nx.tensor([[2.0]])}),
-        Nx.tensor([[2.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([[1.0]]))
-    end
-
-    test "allows function default inputs" do
-      inp1 = Axon.input({nil, 2}, "input_0")
-      inp2 = Axon.input({nil, 2}, "input_1", default: fn inputs -> Nx.iota(inputs["input_0"]) end)
-      model = Axon.add(inp1, inp2)
-
-      inp1 = Nx.tensor([[1.0, 2.0]])
-      inp2 = Nx.tensor([[3.0, 4.0]])
-
-      assert_equal(
-        Axon.predict(model, %{}, %{"input_0" => inp1, "input_1" => inp2}),
-        Nx.tensor([[4.0, 6.0]])
-      )
-
-      assert_equal(Axon.predict(model, %{}, %{"input_0" => inp1}), Nx.tensor([[1.0, 3.0]]))
     end
 
     test "allows container inputs" do
-      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
+      model = Axon.input("input_0", shape: %{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}})
 
       input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2]]), Nx.tensor([[1, 2, 3]])}}
 
       assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
     end
 
-    test "raises on bad input shape" do
-      model = Axon.input({nil, 32}, "input_0")
-      input = Nx.random_uniform({1, 16})
-      assert {_, predict_fn} = Axon.compile(model)
-
-      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, input) end
-
-      assert Exception.message(exception) =~
-               "invalid input shape given to model"
-
-      model = Axon.input(%{foo: {nil, 1}, bar: {{nil, 2}, {nil, 3}}}, "input_0")
-      input = %{foo: Nx.tensor([[1]]), bar: {Nx.tensor([[1, 2, 3]]), Nx.tensor([[1, 2, 3]])}}
-      assert {_, predict_fn} = Axon.compile(model)
-
-      exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{"input_0" => input}) end
-
-      assert Exception.message(exception) =~
-               "invalid input shape given to model"
-    end
-
     test "raises if input not found, no default value" do
-      model = Axon.input({nil, 32}, "input_0")
+      model = Axon.input("input_0", shape: {nil, 32})
       input = Nx.random_uniform({1, 16})
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
 
       exception = assert_raise ArgumentError, fn -> predict_fn.(%{}, %{foo: input}) end
 
@@ -169,26 +109,119 @@ defmodule CompilerTest do
     end
   end
 
+  describe "optional" do
+    test "raises when predict compiles down to %Axon.None{}" do
+      model =
+        Axon.input("input_0", shape: {nil, 1}, optional: true)
+        |> Axon.dense(1)
+
+      assert_raise ArgumentError,
+                   ~r/the compiled model will always result in %Axon.None{}/,
+                   fn ->
+                     Axon.predict(model, %{}, %{})
+                   end
+    end
+
+    test "passes optional nodes to the layer function" do
+      input = Axon.input("input_0", shape: {nil, 1}, optional: true)
+
+      model =
+        Axon.layer(
+          fn
+            %Axon.None{}, _ -> 0
+            %Nx.Tensor{}, _ -> 1
+          end,
+          [Axon.optional(input)]
+        )
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      assert init_fn.(%{"input_0" => Nx.tensor([[20]])}, %{}) == %{}
+      assert init_fn.(%{}, %{}) == %{}
+
+      assert_equal(
+        predict_fn.(%{}, %{"input_0" => Nx.tensor([[20]])}),
+        Nx.tensor(1)
+      )
+
+      assert_equal(
+        predict_fn.(%{}, %{}),
+        Nx.tensor(0)
+      )
+    end
+
+    test "propagates %Axon.None{} through subsequent layers" do
+      input0 = Axon.input("input_0", shape: {nil, 1})
+      input1 = Axon.input("input_1", shape: {nil, 1}, optional: true)
+
+      sum =
+        Axon.add(input0, input1)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
+
+      model =
+        Axon.layer(
+          fn
+            %Axon.None{}, _ -> Nx.tensor([0])
+            %Nx.Tensor{}, _ -> Nx.tensor([1])
+          end,
+          [Axon.optional(sum)]
+        )
+        |> Axon.bias(bias_initializer: :zeros)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      inputs = %{"input_0" => Nx.tensor([[20]])}
+
+      params = init_fn.(inputs, %{})
+      assert Map.keys(params) == ["bias_0"]
+
+      assert_equal(predict_fn.(params, inputs), Nx.tensor([0]))
+
+      inputs = %{"input_0" => Nx.tensor([[20]]), "input_1" => Nx.tensor([[20]])}
+
+      params = init_fn.(inputs, %{})
+      assert params |> Map.keys() |> Enum.sort() == ["bias_0", "dense_0"]
+
+      assert_equal(predict_fn.(params, inputs), Nx.tensor([1]))
+    end
+
+    test "does not propagate %Axon.None{} further when returned by a layer" do
+      x = Axon.input("input_0", shape: {nil, 1}, optional: true)
+
+      x =
+        Axon.layer(
+          fn %Axon.None{} = none, _ -> none end,
+          [Axon.optional(x)]
+        )
+        |> Axon.nx(fn _ -> flunk("should not evaluate") end)
+
+      model = Axon.layer(fn _, _ -> 1 end, [Axon.optional(x)])
+
+      assert_equal(Axon.predict(model, %{}, %{}), Nx.tensor([1]))
+    end
+  end
+
   describe "constant" do
     test "initializes with no params" do
       model = Axon.constant(Nx.tensor(1.0))
 
-      assert {init_fn, _} = Axon.compile(model)
+      assert {init_fn, _} = Axon.build(model)
 
-      assert %{} == init_fn.(%{})
+      assert %{} == init_fn.(%{}, %{})
     end
 
     test "computes forward pass with default options" do
       model = Axon.constant(Nx.tensor(1.0))
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.tensor(1.0))
     end
 
     test "computes forward pass with other layers" do
       model = Axon.add(Axon.constant(Nx.tensor(1.0)), Axon.constant(Nx.tensor(2.0)))
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.tensor(3.0))
     end
 
@@ -197,7 +230,7 @@ defmodule CompilerTest do
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert {_, predict_fn} = Axon.build(mp_model)
       assert_equal(predict_fn.(%{}, {}), Nx.tensor(1.0, type: {:bf, 16}))
     end
   end
@@ -210,29 +243,30 @@ defmodule CompilerTest do
   describe "activations" do
     test "initializes with no params" do
       for activation <- @activation_layers do
-        model = Axon.input({nil, 32}, "input_0") |> Axon.activation(activation)
+        model = Axon.input("input_0", shape: {nil, 32}) |> Axon.activation(activation)
+        input = Nx.random_uniform({1, 32})
 
-        assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = init_fn.(%{})
+        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
       end
     end
 
     test "computes forward pass with default options" do
       for activation <- @activation_layers do
-        model = Axon.input({nil, 1}, "input_0") |> Axon.activation(activation)
+        model = Axon.input("input_0", shape: {nil, 1}) |> Axon.activation(activation)
         input = Nx.random_uniform({1, 1})
 
-        assert {_init_fn, predict_fn} = Axon.compile(model)
+        assert {_init_fn, predict_fn} = Axon.build(model)
         assert_equal(predict_fn.(%{}, input), apply(Axon.Activations, activation, [input]))
       end
     end
 
     test "computes forward pass with custom options" do
       for activation <- [:celu, :elu, :leaky_relu] do
-        model = Axon.input({nil, 32}, "input_0") |> Axon.activation(activation, alpha: 0.8)
+        model = Axon.input("input_0", shape: {nil, 32}) |> Axon.activation(activation, alpha: 0.8)
         input = Nx.random_uniform({1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model)
+        assert {_, predict_fn} = Axon.build(model)
 
         assert_equal(
           predict_fn.(%{}, input),
@@ -243,22 +277,39 @@ defmodule CompilerTest do
 
     test "computes forward pass with output policy" do
       for activation <- @activation_layers do
-        model = Axon.input({nil, 1}, "input_0") |> Axon.activation(activation)
+        model = Axon.input("input_0", shape: {nil, 1}) |> Axon.activation(activation)
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), Nx.random_uniform({1, 1}))) == {:bf, 16}
       end
+    end
+  end
+
+  describe "bias" do
+    test "initializes in default case" do
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.bias(name: "bias")
+
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"bias" => %{"bias" => bias}} = init_fn.(input, %{})
+      assert Nx.shape(bias) == {1}
+      assert Nx.type(bias) == {:f, 32}
     end
   end
 
   describe "dense" do
     test "initializes in default case" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.dense(1, name: "dense")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(1, name: "dense")
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -266,21 +317,24 @@ defmodule CompilerTest do
     end
 
     test "initializes with custom initializers" do
+      input = Nx.random_uniform({1, 1})
+
       model1 =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(1, name: "dense", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert_equal(kernel, zeros({1, 1}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 1}, "input_0") |> Axon.dense(1, name: "dense", bias_initializer: :zeros)
+        Axon.input("input_0", shape: {nil, 1})
+        |> Axon.dense(1, name: "dense", bias_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({1}))
@@ -288,69 +342,80 @@ defmodule CompilerTest do
 
     test "computes forward pass" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(1, name: "dense", kernel_initializer: :identity)
 
       input = Nx.iota({1, 1}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.dense(input, kernel, bias))
     end
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(1, name: "dense")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
+      input = Nx.random_uniform({1, 1})
+
       assert %{"dense" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1})])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.dense(1, name: "dense")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.dense(1, name: "dense")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
-      model = Axon.input({nil, 2}, "input") |> Axon.dense(1, name: "dense", use_bias: false)
+      model =
+        Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"dense" => %{"kernel" => _} = dense_params} = init_fn.(%{})
+      input = Nx.random_uniform({1, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"dense" => %{"kernel" => _} = dense_params} = init_fn.(input, %{})
       assert Map.has_key?(dense_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
-      model = Axon.input({nil, 2}, "input") |> Axon.dense(1, name: "dense", use_bias: false)
+      model =
+        Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense", use_bias: false)
+
       input = Nx.random_uniform({1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"dense" => %{"kernel" => k}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"dense" => %{"kernel" => k}} = params = init_fn.(input, %{})
 
       assert_all_close(predict_fn.(params, input), Axon.Layers.dense(input, k, Nx.tensor(0.0)))
     end
@@ -358,12 +423,14 @@ defmodule CompilerTest do
 
   describe "bilinear" do
     test "initializes in default case" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -371,52 +438,60 @@ defmodule CompilerTest do
     end
 
     test "initializes with custom initializers" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model1 = Axon.bilinear(input1, input2, 1, name: "bilinear", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      inputs = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
       assert_equal(kernel, zeros({1, 1, 2}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
       model2 = Axon.bilinear(input1, input2, 1, name: "bilinear", bias_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({1}))
     end
 
     test "computes forward pass" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
 
       input1 = Nx.iota({1, 1}, type: {:f, 32})
       input2 = Nx.iota({1, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      inputs = %{"input_0" => input1, "input_1" => input2}
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
+               params = init_fn.(inputs, %{})
 
       assert_equal(
-        predict_fn.(params, %{"input_0" => input1, "input_1" => input2}),
+        predict_fn.(params, inputs),
         Axon.Layers.bilinear(input1, input2, kernel, bias)
       )
     end
 
     test "computes forward pass with constant" do
-      input1 = Axon.input({nil, 1}, "input_0")
+      input1 = Axon.input("input_0", shape: {nil, 1})
       input2 = Axon.constant(Nx.iota({2, 1}))
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
 
       input1 = Nx.iota({2, 1}, type: {:f, 32})
       input2 = Nx.iota({2, 1}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
+               params = init_fn.(input1, %{})
 
       assert_equal(
         predict_fn.(params, input1),
@@ -425,79 +500,81 @@ defmodule CompilerTest do
     end
 
     test "returns zero gradient for frozen parameters" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear") |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"bilinear" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [
-                 init_fn.(%{}),
-                 %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
-               ])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 2}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
     end
 
     test "initializes with parameter policy" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
+      input = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
 
-      assert Nx.type(
-               predict_fn.(init_fn.(%{}), %{
-                 "input_0" => Nx.random_uniform({1, 1}),
-                 "input_1" => Nx.random_uniform({1, 2})
-               })
-             ) == {:bf, 16}
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"bilinear" => %{"kernel" => _} = bilinear_params} = init_fn.(%{})
+      input = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 2})}
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"bilinear" => %{"kernel" => _} = bilinear_params} = init_fn.(input, %{})
       assert Map.has_key?(bilinear_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
-      input1 = Axon.input({nil, 1}, "input_0")
-      input2 = Axon.input({nil, 2}, "input_1")
+      input1 = Axon.input("input_0", shape: {nil, 1})
+      input2 = Axon.input("input_1", shape: {nil, 2})
       model = Axon.bilinear(input1, input2, 1, name: "bilinear", use_bias: false)
 
       inp1 = Nx.random_uniform({1, 1})
       inp2 = Nx.random_uniform({1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.(%{})
+      input = %{"input_0" => inp1, "input_1" => inp2}
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.(input, %{})
 
       assert_all_close(
-        predict_fn.(params, %{"input_0" => inp1, "input_1" => inp2}),
+        predict_fn.(params, input),
         Axon.Layers.bilinear(inp1, inp2, k, Nx.tensor(0.0))
       )
     end
@@ -505,71 +582,81 @@ defmodule CompilerTest do
 
   describe "embedding" do
     test "initializes in default case" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.embedding(1, 1, name: "embedding")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.embedding(1, 1, name: "embedding")
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
     end
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(input, %{})
       assert_equal(kernel, zeros({1, 1}))
     end
 
     test "computes forward pass" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :identity)
 
       input = Nx.tensor([[0]])
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"embedding" => %{"kernel" => kernel}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"embedding" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.embedding(input, kernel))
     end
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.embedding(1, 1, name: "embedding")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = Nx.tensor([[0]])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"embedding" => %{"kernel" => kernel_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.tensor([[0]])])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.embedding(1, 1, name: "embedding")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.embedding(1, 1, name: "embedding")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(%{})
+      input = Nx.tensor([[0, 1]])
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.embedding(1, 1, name: "embedding")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.embedding(1, 1, name: "embedding")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.tensor([[0, 0]]))) == {:bf, 16}
+      input = Nx.tensor([[0]])
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
@@ -578,10 +665,12 @@ defmodule CompilerTest do
   describe "pooling" do
     test "initializes with no params" do
       for pool <- @pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
       end
     end
 
@@ -589,30 +678,30 @@ defmodule CompilerTest do
       default_options = [kernel_size: 1]
 
       for pool <- @pooling_layers do
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
 
         assert_equal(
           predict_fn.(%{}, input1),
           apply(Axon.Layers, pool, [input1, default_options])
         )
 
-        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}, "input")])
+        model2 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
 
         assert_equal(
           predict_fn.(%{}, input2),
           apply(Axon.Layers, pool, [input2, default_options])
         )
 
-        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}, "input")])
+        model3 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
+        assert {_, predict_fn} = Axon.build(model3)
 
         assert_equal(
           predict_fn.(%{}, input3),
@@ -624,44 +713,48 @@ defmodule CompilerTest do
     test "computes forward pass with custom options" do
       for pool <- @pooling_layers do
         opts1 = [kernel_size: 6]
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input"), opts1])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32}), opts1])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
         assert_equal(predict_fn.(%{}, input1), apply(Axon.Layers, pool, [input1, opts1]))
 
         opts2 = [kernel_size: 2, strides: 2, padding: :same]
-        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}, "input"), opts2])
+        model2 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4}), opts2])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
         assert_equal(predict_fn.(%{}, input2), apply(Axon.Layers, pool, [input2, opts2]))
 
         opts3 = [kernel_size: {2, 1, 2}, strides: [1, 2, 1], padding: [{0, 1}, {1, 1}, {0, 2}]]
-        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}, "input"), opts3])
+        model3 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4, 2}), opts3])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
+        assert {_, predict_fn} = Axon.build(model3)
         assert_equal(predict_fn.(%{}, input3), apply(Axon.Layers, pool, [input3, opts3]))
       end
     end
 
     test "lp_pool computes forward pass with custom norm" do
-      model = Axon.input({nil, 1, 32}, "input") |> Axon.lp_pool(norm: 3)
+      model = Axon.input("input", shape: {nil, 1, 32}) |> Axon.lp_pool(norm: 3)
       input = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, input), Axon.Layers.lp_pool(input, kernel_size: {1}, norm: 3))
     end
 
     test "computes forward pass with output policy" do
       for pool <- @pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), Nx.random_uniform({1, 1, 32}))) ==
+                 {:bf, 16}
       end
     end
 
@@ -669,13 +762,13 @@ defmodule CompilerTest do
       for pool <- @pooling_layers do
         model =
           apply(Axon, pool, [
-            Axon.input({nil, 32, 1}, "input"),
+            Axon.input("input", shape: {nil, 32, 1}),
             [channels: :last, kernel_size: {2}]
           ])
 
         inp = Nx.random_uniform({1, 32, 1})
 
-        assert {_, predict_fn} = Axon.compile(model)
+        assert {_, predict_fn} = Axon.build(model)
 
         assert_equal(
           predict_fn.(%{}, inp),
@@ -683,6 +776,23 @@ defmodule CompilerTest do
         )
       end
     end
+
+    # TODO: Add back in with transform validations
+    # test "fails on bad options" do
+    #   for pool <- @pooling_layers do
+    #     assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+    #       apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 28, 28}), [strides: :foo]])
+    #     end
+
+    #     assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+    #       apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 28, 28}), [kernel_size: :foo]])
+    #     end
+
+    #     assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+    #       apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 28, 28}), [padding: :foo]])
+    #     end
+    #   end
+    # end
   end
 
   @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool, :adaptive_lp_pool]
@@ -690,39 +800,41 @@ defmodule CompilerTest do
   describe "adaptive pooling" do
     test "initializes with no params" do
       for pool <- @adaptive_pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
       end
     end
 
     test "computes forward pass with default options" do
       for pool <- @adaptive_pooling_layers do
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
 
         assert_equal(
           predict_fn.(%{}, input1),
           apply(Axon.Layers, pool, [input1, [output_size: 32]])
         )
 
-        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}, "input")])
+        model2 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
 
         assert_equal(
           predict_fn.(%{}, input2),
           apply(Axon.Layers, pool, [input2, [output_size: {8, 4}]])
         )
 
-        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}, "input")])
+        model3 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
+        assert {_, predict_fn} = Axon.build(model3)
 
         assert_equal(
           predict_fn.(%{}, input3),
@@ -734,36 +846,38 @@ defmodule CompilerTest do
     test "computes forward pass with custom options" do
       for pool <- @adaptive_pooling_layers do
         opts1 = [output_size: 27]
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input"), opts1])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32}), opts1])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
         assert_equal(predict_fn.(%{}, input1), apply(Axon.Layers, pool, [input1, opts1]))
 
         opts2 = [output_size: {2, 3}]
-        model2 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4}, "input"), opts2])
+        model2 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4}), opts2])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
         assert_equal(predict_fn.(%{}, input2), apply(Axon.Layers, pool, [input2, opts2]))
 
         opts3 = [output_size: {4, 3, 1}]
-        model3 = apply(Axon, pool, [Axon.input({nil, 1, 8, 4, 2}, "input"), opts3])
+        model3 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 8, 4, 2}), opts3])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
+        assert {_, predict_fn} = Axon.build(model3)
         assert_equal(predict_fn.(%{}, input3), apply(Axon.Layers, pool, [input3, opts3]))
       end
     end
 
     test "computes forward pass with output policy" do
       for pool <- @adaptive_pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
       end
     end
 
@@ -771,13 +885,13 @@ defmodule CompilerTest do
       for pool <- @adaptive_pooling_layers do
         model =
           apply(Axon, pool, [
-            Axon.input({nil, 32, 1}, "input"),
+            Axon.input("input", shape: {nil, 32, 1}),
             [channels: :last, output_size: {27}]
           ])
 
         inp = Nx.random_uniform({1, 32, 1})
 
-        assert {_, predict_fn} = Axon.compile(model)
+        assert {_, predict_fn} = Axon.build(model)
 
         assert_equal(
           predict_fn.(%{}, inp),
@@ -792,31 +906,33 @@ defmodule CompilerTest do
   describe "global pooling" do
     test "initializes with no params" do
       for pool <- @global_pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 32})])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
       end
     end
 
     test "computes forward pass with default options" do
       for pool <- @global_pooling_layers do
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 4}, "input")])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 4})])
         input1 = Nx.random_uniform({1, 1, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
         assert_equal(predict_fn.(%{}, input1), apply(Axon.Layers, pool, [input1]))
 
-        model2 = apply(Axon, pool, [Axon.input({nil, 1, 2, 2}, "input")])
+        model2 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 2, 2})])
         input2 = Nx.random_uniform({1, 1, 2, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
         assert_equal(predict_fn.(%{}, input2), apply(Axon.Layers, pool, [input2]))
 
-        model3 = apply(Axon, pool, [Axon.input({nil, 1, 2, 2, 1}, "input")])
+        model3 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 2, 2, 1})])
         input3 = Nx.random_uniform({1, 1, 2, 2, 1}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3)
+        assert {_, predict_fn} = Axon.build(model3)
         assert_equal(predict_fn.(%{}, input3), apply(Axon.Layers, pool, [input3]))
       end
     end
@@ -824,22 +940,24 @@ defmodule CompilerTest do
     test "computes forward pass with custom options" do
       for pool <- @global_pooling_layers do
         opts1 = [keep_axes: true]
-        model1 = apply(Axon, pool, [Axon.input({nil, 1, 2}, "input"), opts1])
+        model1 = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 2}), opts1])
         input1 = Nx.random_uniform({1, 1, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
         assert_equal(predict_fn.(%{}, input1), apply(Axon.Layers, pool, [input1, opts1]))
       end
     end
 
     test "computes forward pass with output policy" do
       for pool <- @global_pooling_layers do
-        model = apply(Axon, pool, [Axon.input({nil, 1, 2}, "input")])
+        model = apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 2})])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
       end
     end
 
@@ -847,26 +965,26 @@ defmodule CompilerTest do
       for pool <- @global_pooling_layers do
         model1 =
           apply(Axon, pool, [
-            Axon.input({nil, 32, 1}, "input"),
+            Axon.input("input", shape: {nil, 32, 1}),
             [channels: :last, keep_axes: true]
           ])
 
         model2 =
           apply(Axon, pool, [
-            Axon.input({nil, 32, 1}, "input"),
+            Axon.input("input", shape: {nil, 32, 1}),
             [channels: :last, keep_axes: false]
           ])
 
         inp = Nx.random_uniform({1, 32, 1})
 
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
 
         assert_equal(
           predict_fn.(%{}, inp),
           apply(Axon.Layers, pool, [inp, [keep_axes: true, channels: :last]])
         )
 
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
 
         assert_equal(
           predict_fn.(%{}, inp),
@@ -881,39 +999,41 @@ defmodule CompilerTest do
   describe "dropout" do
     test "initializes with no params" do
       for dropout <- @dropout_layers do
-        model = apply(Axon, dropout, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model)
-        assert %{} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
       end
     end
 
     test "computes forward pass with default options" do
       for dropout <- @dropout_layers do
-        model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32}, "input")])
+        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1, mode: :train)
+        assert {_, predict_fn} = Axon.build(model1, mode: :train)
         %{prediction: result1} = predict_fn.(%{}, input1)
 
         assert Nx.shape(result1) == {1, 1, 32}
         assert Nx.type(result1) == {:f, 32}
         assert_not_equal(result1, input1)
 
-        model2 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4}, "input")])
+        model2 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model2, mode: :train)
+        assert {_, predict_fn} = Axon.build(model2, mode: :train)
         %{prediction: result2} = predict_fn.(%{}, input2)
 
         assert Nx.shape(result2) == {1, 1, 8, 4}
         assert Nx.type(result2) == {:f, 32}
         assert_not_equal(result2, input2)
 
-        model3 = apply(Axon, dropout, [Axon.input({nil, 1, 8, 4, 2}, "input")])
+        model3 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model3, mode: :train)
+        assert {_, predict_fn} = Axon.build(model3, mode: :train)
         %{prediction: result3} = predict_fn.(%{}, input3)
 
         assert Nx.shape(result3) == {1, 1, 8, 4, 2}
@@ -925,10 +1045,10 @@ defmodule CompilerTest do
     test "computes forward pass with custom options" do
       for dropout <- @dropout_layers do
         opts1 = [rate: 0.25]
-        model1 = apply(Axon, dropout, [Axon.input({nil, 1, 32}, "input"), opts1])
+        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32}), opts1])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.compile(model1, mode: :train)
+        assert {_, predict_fn} = Axon.build(model1, mode: :train)
 
         %{prediction: result} = predict_fn.(%{}, input1)
 
@@ -940,18 +1060,20 @@ defmodule CompilerTest do
 
     test "computes forward pass with output policy" do
       for dropout <- @dropout_layers do
-        model = apply(Axon, dropout, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
       end
     end
 
     test "not present in inference mode" do
       for dropout <- @dropout_layers do
-        model = apply(Axon, dropout, [Axon.input({nil, 1, 32}, "input")])
+        model = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
         input = Nx.random_uniform({1, 1, 32})
 
         assert_equal(Axon.predict(model, %{}, input), input)
@@ -961,10 +1083,12 @@ defmodule CompilerTest do
 
   describe "convolution" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3, 32, 32}, "input") |> Axon.conv(64, name: "conv")
+      model = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.conv(64, name: "conv")
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.template({1, 3, 32, 32}, {:f, 32})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {64, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {64}
@@ -973,46 +1097,48 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3, 32, 32}, "input")
+        Axon.input("input", shape: {nil, 3, 32, 32})
         |> Axon.conv(32, name: "conv", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.template({1, 3, 32, 32}, {:f, 32})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert_equal(kernel, zeros({32, 3, 1, 1}))
       assert Nx.shape(bias) == {32}
       assert Nx.type(bias) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 32, 32}, "input")
+        Axon.input("input", shape: {nil, 3, 32, 32})
         |> Axon.conv(32, name: "conv", bias_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({32}))
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 1, 2}, "input") |> Axon.conv(2, name: "conv")
+      model1 = Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv(2, name: "conv")
       input1 = Nx.random_uniform({1, 1, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
       assert_equal(predict_fn.(params, input1), Axon.Layers.conv(input1, kernel, bias))
 
-      model2 = Axon.input({nil, 1, 2, 2}, "input") |> Axon.conv(3, name: "conv")
+      model2 = Axon.input("input", shape: {nil, 1, 2, 2}) |> Axon.conv(3, name: "conv")
       input2 = Nx.random_uniform({1, 1, 2, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
       assert_equal(predict_fn.(params, input2), Axon.Layers.conv(input2, kernel, bias))
 
-      model3 = Axon.input({nil, 1, 2, 2, 2}, "input") |> Axon.conv(4, name: "conv")
+      model3 = Axon.input("input", shape: {nil, 1, 2, 2, 2}) |> Axon.conv(4, name: "conv")
       input3 = Nx.random_uniform({1, 1, 2, 2, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias))
     end
 
@@ -1020,111 +1146,156 @@ defmodule CompilerTest do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
       model1 =
-        Axon.input({nil, 1, 2}, "input") |> Axon.conv(2, [name: "conv", kernel_size: 2] ++ opts1)
+        Axon.input("input", shape: {nil, 1, 2})
+        |> Axon.conv(2, [name: "conv", kernel_size: 2] ++ opts1)
 
       input1 = Nx.random_uniform({1, 1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
       assert_equal(predict_fn.(params, input1), Axon.Layers.conv(input1, kernel, bias, opts1))
 
       opts2 = [strides: [1, 2], padding: [{0, 1}, {1, 2}], kernel_dilation: 2]
 
       model2 =
-        Axon.input({nil, 1, 4, 4}, "input")
+        Axon.input("input", shape: {nil, 1, 4, 4})
         |> Axon.conv(2, [name: "conv", kernel_size: 2] ++ opts2)
 
       input2 = Nx.random_uniform({1, 1, 4, 4})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
       assert_equal(predict_fn.(params, input2), Axon.Layers.conv(input2, kernel, bias, opts2))
 
       opts3 = [strides: [2, 1, 1]]
 
       model3 =
-        Axon.input({nil, 1, 2, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2, 2, 2})
         |> Axon.conv(4, [name: "conv", kernel_size: {2, 1, 1}] ++ opts3)
 
       input3 = Nx.random_uniform({1, 1, 2, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias, opts3))
     end
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1, 32}, "input")
+        Axon.input("input", shape: {nil, 1, 32})
         |> Axon.conv(1, name: "conv")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      input = Nx.random_uniform({1, 1, 32})
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 32})])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 1, 32}, "input") |> Axon.conv(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 32}) |> Axon.conv(1, name: "conv")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.template({1, 1, 32}, {:f, 32})
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 32}, "input") |> Axon.conv(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 32}) |> Axon.conv(1, name: "conv")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 32}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 32})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.conv(1, name: "conv", use_bias: false)
+      model =
+        Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv(1, name: "conv", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(input, %{})
       assert Map.has_key?(conv_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.conv(1, name: "conv", use_bias: false)
+      model =
+        Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv(1, name: "conv", use_bias: false)
+
       input = Nx.random_uniform({1, 1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.conv(input, k, Nx.tensor(0)))
     end
 
     test "computes forward pass with channels last" do
-      model = Axon.input({nil, 3, 3, 6}, "input") |> Axon.conv(2, name: "conv", channels: :last)
+      model =
+        Axon.input("input", shape: {nil, 3, 3, 6}) |> Axon.conv(2, name: "conv", channels: :last)
+
       input = Nx.random_uniform({1, 3, 3, 6})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.conv(input, k, b, channels: :last))
     end
+
+    # TODO: Add these back in with deftransform validations
+    # so the error message is more clear
+    # test "raises on bad options" do
+    #   assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+    #     model = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(128, kernel_size: :foo)
+    #     Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+    #     model = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(128, strides: :foo)
+    #     Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+    #   end
+
+    #   assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+    #     model = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(128, padding: :foo)
+    #     Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
+    #     model = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(128, input_dilation: :foo)
+    #     Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
+    #     model = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(128, kernel_dilation: :foo)
+    #     Axon.init(model, Nx.template({1, 1, 28, 28}, :f32))
+    #   end
+    # end
   end
 
   describe "depthwise convolution" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3, 2, 2}, "input") |> Axon.depthwise_conv(3, name: "conv")
+      model = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.depthwise_conv(3, name: "conv")
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {9, 1, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {9}
@@ -1133,46 +1304,50 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 2})
         |> Axon.depthwise_conv(3, name: "conv", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert_equal(kernel, zeros({9, 1, 1, 1}))
       assert Nx.shape(bias) == {9}
       assert Nx.type(bias) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 2})
         |> Axon.depthwise_conv(3, name: "conv", bias_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {9, 1, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({9}))
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 1, 8}, "input") |> Axon.depthwise_conv(3, name: "conv")
+      model1 = Axon.input("input", shape: {nil, 1, 8}) |> Axon.depthwise_conv(3, name: "conv")
       input1 = Nx.random_uniform({1, 1, 8}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
       assert_equal(predict_fn.(params, input1), Axon.Layers.depthwise_conv(input1, kernel, bias))
 
-      model2 = Axon.input({nil, 1, 2, 2}, "input") |> Axon.depthwise_conv(4, name: "conv")
+      model2 = Axon.input("input", shape: {nil, 1, 2, 2}) |> Axon.depthwise_conv(4, name: "conv")
       input2 = Nx.random_uniform({1, 1, 2, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
       assert_equal(predict_fn.(params, input2), Axon.Layers.depthwise_conv(input2, kernel, bias))
 
-      model3 = Axon.input({nil, 1, 2, 2, 2}, "input") |> Axon.depthwise_conv(5, name: "conv")
+      model3 =
+        Axon.input("input", shape: {nil, 1, 2, 2, 2}) |> Axon.depthwise_conv(5, name: "conv")
+
       input3 = Nx.random_uniform({1, 1, 2, 2, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
       assert_equal(predict_fn.(params, input3), Axon.Layers.depthwise_conv(input3, kernel, bias))
     end
 
@@ -1180,13 +1355,13 @@ defmodule CompilerTest do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
       model1 =
-        Axon.input({nil, 1, 8}, "input")
+        Axon.input("input", shape: {nil, 1, 8})
         |> Axon.depthwise_conv(1, [name: "conv", kernel_size: 2] ++ opts1)
 
       input1 = Nx.random_uniform({1, 1, 8})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
 
       assert_equal(
         predict_fn.(params, input1),
@@ -1196,13 +1371,13 @@ defmodule CompilerTest do
       opts2 = [strides: [1, 2], padding: [{0, 1}, {1, 2}], kernel_dilation: 2]
 
       model2 =
-        Axon.input({nil, 1, 4, 4}, "input")
+        Axon.input("input", shape: {nil, 1, 4, 4})
         |> Axon.depthwise_conv(8, [name: "conv", kernel_size: 2] ++ opts2)
 
       input2 = Nx.random_uniform({1, 1, 4, 4})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
 
       assert_equal(
         predict_fn.(params, input2),
@@ -1212,13 +1387,13 @@ defmodule CompilerTest do
       opts3 = [strides: [2, 1, 1]]
 
       model3 =
-        Axon.input({nil, 1, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 3, 2, 2})
         |> Axon.depthwise_conv(2, [name: "conv", kernel_size: {2, 1, 1}] ++ opts3)
 
       input3 = Nx.random_uniform({1, 1, 3, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
 
       assert_equal(
         predict_fn.(params, input3),
@@ -1228,86 +1403,121 @@ defmodule CompilerTest do
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2})
         |> Axon.depthwise_conv(1, name: "conv")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 2})])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.depthwise_conv(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 2}) |> Axon.depthwise_conv(1, name: "conv")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.depthwise_conv(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 2}) |> Axon.depthwise_conv(1, name: "conv")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 1, 2}, "input") |> Axon.depthwise_conv(1, name: "conv", use_bias: false)
+        Axon.input("input", shape: {nil, 1, 2})
+        |> Axon.depthwise_conv(1, name: "conv", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(input, %{})
       assert Map.has_key?(conv_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 1, 2}, "input") |> Axon.depthwise_conv(1, name: "conv", use_bias: false)
+        Axon.input("input", shape: {nil, 1, 2})
+        |> Axon.depthwise_conv(1, name: "conv", use_bias: false)
 
       input = Nx.random_uniform({1, 1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.depthwise_conv(input, k, Nx.tensor(0)))
     end
 
     test "computes forward pass with channels last" do
       model =
-        Axon.input({nil, 3, 3, 6}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 6})
         |> Axon.depthwise_conv(2, name: "conv", channels: :last)
 
       input = Nx.random_uniform({1, 3, 3, 6})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.depthwise_conv(input, k, b, channels: :last)
       )
     end
+
+    # TODO: Validate at layer level and bring these back
+    # test "fails on bad options" do
+    #   assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3, kernel_size: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3, strides: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3, padding: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3, input_dilation: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3, kernel_dilation: :foo)
+    #   end
+    # end
   end
 
   describe "convolution transpose" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3, 2, 2}, "input") |> Axon.conv_transpose(32, name: "conv")
+      model = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.conv_transpose(32, name: "conv")
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {32}
@@ -1316,46 +1526,50 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 2})
         |> Axon.conv_transpose(32, name: "conv", kernel_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert_equal(kernel, zeros({32, 3, 1, 1}))
       assert Nx.shape(bias) == {32}
       assert Nx.type(bias) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 32, 32}, "input")
+        Axon.input("input", shape: {nil, 3, 32, 32})
         |> Axon.conv_transpose(32, name: "conv", bias_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.shape(kernel) == {32, 3, 1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({32}))
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 1, 4}, "input") |> Axon.conv_transpose(3, name: "conv")
+      model1 = Axon.input("input", shape: {nil, 1, 4}) |> Axon.conv_transpose(3, name: "conv")
       input1 = Nx.random_uniform({1, 1, 4}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
       assert_equal(predict_fn.(params, input1), Axon.Layers.conv_transpose(input1, kernel, bias))
 
-      model2 = Axon.input({nil, 1, 4, 4}, "input") |> Axon.conv_transpose(4, name: "conv")
+      model2 = Axon.input("input", shape: {nil, 1, 4, 4}) |> Axon.conv_transpose(4, name: "conv")
       input2 = Nx.random_uniform({1, 1, 4, 4}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
       assert_equal(predict_fn.(params, input2), Axon.Layers.conv_transpose(input2, kernel, bias))
 
-      model3 = Axon.input({nil, 1, 2, 2, 2}, "input") |> Axon.conv_transpose(5, name: "conv")
+      model3 =
+        Axon.input("input", shape: {nil, 1, 2, 2, 2}) |> Axon.conv_transpose(5, name: "conv")
+
       input3 = Nx.random_uniform({1, 1, 2, 2, 2}, type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv_transpose(input3, kernel, bias))
     end
 
@@ -1363,13 +1577,13 @@ defmodule CompilerTest do
       opts1 = [strides: 2, kernel_dilation: 1]
 
       model1 =
-        Axon.input({nil, 1, 4}, "input")
+        Axon.input("input", shape: {nil, 1, 4})
         |> Axon.conv_transpose(1, [name: "conv", kernel_size: 2] ++ opts1)
 
       input1 = Nx.random_uniform({1, 1, 4})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input1, %{})
 
       assert_equal(
         predict_fn.(params, input1),
@@ -1379,13 +1593,13 @@ defmodule CompilerTest do
       opts2 = [strides: [1, 2], padding: [{0, 1}, {1, 2}], kernel_dilation: 2]
 
       model2 =
-        Axon.input({nil, 1, 4, 4}, "input")
+        Axon.input("input", shape: {nil, 1, 4, 4})
         |> Axon.conv_transpose(8, [name: "conv", kernel_size: 2] ++ opts2)
 
       input2 = Nx.random_uniform({1, 1, 4, 4})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input2, %{})
 
       assert_equal(
         predict_fn.(params, input2),
@@ -1395,13 +1609,13 @@ defmodule CompilerTest do
       opts3 = [strides: [2, 1, 1]]
 
       model3 =
-        Axon.input({nil, 1, 2, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2, 2, 2})
         |> Axon.conv_transpose(2, [name: "conv", kernel_size: {2, 1, 1}] ++ opts3)
 
       input3 = Nx.random_uniform({1, 1, 2, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model3)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model3)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input3, %{})
 
       assert_equal(
         predict_fn.(params, input3),
@@ -1411,72 +1625,82 @@ defmodule CompilerTest do
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2})
         |> Axon.conv_transpose(1, name: "conv")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"conv" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 2})])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 1}))
       assert_equal(bias_grad, Nx.broadcast(0.0, {1}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.conv_transpose(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv_transpose(1, name: "conv")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"conv" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 2}, "input") |> Axon.conv_transpose(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv_transpose(1, name: "conv")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 1, 2}, "input") |> Axon.conv_transpose(1, name: "conv", use_bias: false)
+        Axon.input("input", shape: {nil, 1, 2})
+        |> Axon.conv_transpose(1, name: "conv", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => _} = conv_params} = init_fn.(input, %{})
       assert Map.has_key?(conv_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 1, 2}, "input") |> Axon.conv_transpose(1, name: "conv", use_bias: false)
+        Axon.input("input", shape: {nil, 1, 2})
+        |> Axon.conv_transpose(1, name: "conv", use_bias: false)
 
       input = Nx.random_uniform({1, 1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k}} = params = init_fn.(input, %{})
       assert_equal(predict_fn.(params, input), Axon.Layers.conv_transpose(input, k, Nx.tensor(0)))
     end
 
     test "computes forward pass with channels last" do
       model =
-        Axon.input({nil, 3, 3, 6}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 6})
         |> Axon.conv_transpose(2, name: "conv", channels: :last)
 
       input = Nx.random_uniform({1, 3, 3, 6})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel" => k, "bias" => b}} = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1487,9 +1711,11 @@ defmodule CompilerTest do
 
   describe "separable convolution 2d" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3, 2, 2}, "input") |> Axon.separable_conv2d(3, name: "conv")
+      model = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.separable_conv2d(3, name: "conv")
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1498,7 +1724,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.shape(k1) == {9, 1, 1, 1}
       assert Nx.type(k1) == {:f, 32}
@@ -1512,10 +1738,12 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 2})
         |> Axon.separable_conv2d(3, name: "conv", kernel_initializer: :zeros)
 
-      assert {init_fn, _} = Axon.compile(model1)
+      input = Nx.random_uniform({1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model1)
 
       assert %{
                "conv" => %{
@@ -1524,7 +1752,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(k1, zeros({9, 1, 1, 1}))
       assert_equal(k2, zeros({9, 1, 1, 1}))
@@ -1534,10 +1762,10 @@ defmodule CompilerTest do
       assert Nx.type(b2) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 2})
         |> Axon.separable_conv2d(3, name: "conv", bias_initializer: :zeros)
 
-      assert {init_fn, _} = Axon.compile(model2)
+      assert {init_fn, _} = Axon.build(model2)
 
       assert %{
                "conv" => %{
@@ -1546,7 +1774,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(b1, zeros({9}))
       assert_equal(b2, zeros({9}))
@@ -1557,10 +1785,10 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 3, 2, 2}, "input") |> Axon.separable_conv2d(3, name: "conv")
+      model = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.separable_conv2d(3, name: "conv")
       input = Nx.random_uniform({1, 3, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1569,7 +1797,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1581,12 +1809,12 @@ defmodule CompilerTest do
       opts = [strides: [2, 1], input_dilation: [1, 2], kernel_dilation: 1, padding: :same]
 
       model =
-        Axon.input({nil, 3, 3, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 2})
         |> Axon.separable_conv2d(3, [name: "conv", kernel_size: {2, 2}] ++ opts)
 
       input = Nx.random_uniform({1, 3, 3, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1595,7 +1823,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1605,11 +1833,13 @@ defmodule CompilerTest do
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1, 3, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 3, 2})
         |> Axon.separable_conv2d(1, name: "conv")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 1, 3, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
@@ -1622,7 +1852,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2_grad,
                  "bias_2" => b2_grad
                }
-             } = Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 3, 2})])
+             } = apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(k1_grad, Nx.broadcast(0.0, {1, 1, 1, 1}))
       assert_equal(b1_grad, Nx.broadcast(0.0, {1}))
@@ -1631,11 +1861,13 @@ defmodule CompilerTest do
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 1, 3, 2}, "input") |> Axon.separable_conv2d(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 3, 2}) |> Axon.separable_conv2d(1, name: "conv")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
+      input = Nx.random_uniform({1, 1, 3, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
 
       assert %{
                "conv" => %{
@@ -1644,7 +1876,7 @@ defmodule CompilerTest do
                  "kernel_2" => k2,
                  "bias_2" => b2
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.type(k1) == {:bf, 16}
       assert Nx.type(b1) == {:bf, 16}
@@ -1653,34 +1885,38 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 3, 2}, "input") |> Axon.separable_conv2d(1, name: "conv")
+      model = Axon.input("input", shape: {nil, 1, 3, 2}) |> Axon.separable_conv2d(1, name: "conv")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 3, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 3, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 1, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2, 2})
         |> Axon.separable_conv2d(1, name: "conv", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{"conv" => %{"kernel_1" => _, "kernel_2" => _} = conv_params} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{"conv" => %{"kernel_1" => _, "kernel_2" => _} = conv_params} = init_fn.(input, %{})
       assert Map.has_key?(conv_params, "bias_1") == false
       assert Map.has_key?(conv_params, "bias_2") == false
     end
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 1, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 2, 2})
         |> Axon.separable_conv2d(1, name: "conv", use_bias: false)
 
       input = Nx.random_uniform({1, 1, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2}} = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1690,28 +1926,54 @@ defmodule CompilerTest do
 
     test "computes forward pass with channels last" do
       model =
-        Axon.input({nil, 3, 3, 6}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 6})
         |> Axon.separable_conv2d(2, name: "conv", channels: :last)
 
       input = Nx.random_uniform({1, 3, 3, 6})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2, "bias_1" => b1, "bias_2" => b2}} =
-               params = init_fn.(%{})
+               params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.separable_conv2d(input, k1, b1, k2, b2, channels: :last)
       )
     end
+
+    # TODO: Add these back in with validations
+    # test "fails on bad options" do
+    #   assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3, kernel_size: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3, strides: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3, padding: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3, input_dilation: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3, kernel_dilation: :foo)
+    #   end
+    # end
   end
 
   describe "separable convolution 3d" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3, 3, 2, 2}, "input") |> Axon.separable_conv3d(3, name: "conv")
+      model =
+        Axon.input("input", shape: {nil, 3, 3, 2, 2}) |> Axon.separable_conv3d(3, name: "conv")
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 3, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1722,7 +1984,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.shape(k1) == {9, 1, 1, 1, 1}
       assert Nx.type(k1) == {:f, 32}
@@ -1740,10 +2002,12 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 2, 2})
         |> Axon.separable_conv3d(3, name: "conv", kernel_initializer: :zeros)
 
-      assert {init_fn, _} = Axon.compile(model1)
+      input = Nx.random_uniform({1, 3, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model1)
 
       assert %{
                "conv" => %{
@@ -1754,7 +2018,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(k1, zeros({9, 1, 1, 1, 1}))
       assert_equal(k2, zeros({9, 1, 1, 1, 1}))
@@ -1769,10 +2033,10 @@ defmodule CompilerTest do
       assert Nx.type(b3) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 2, 2})
         |> Axon.separable_conv3d(3, name: "conv", bias_initializer: :zeros)
 
-      assert {init_fn, _} = Axon.compile(model2)
+      assert {init_fn, _} = Axon.build(model2)
 
       assert %{
                "conv" => %{
@@ -1783,7 +2047,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(b1, zeros({9}))
       assert_equal(b2, zeros({9}))
@@ -1799,10 +2063,12 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 3, 2, 2, 2}, "input") |> Axon.separable_conv3d(3, name: "conv")
+      model =
+        Axon.input("input", shape: {nil, 3, 2, 2, 2}) |> Axon.separable_conv3d(3, name: "conv")
+
       input = Nx.random_uniform({1, 3, 2, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1813,7 +2079,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1825,12 +2091,12 @@ defmodule CompilerTest do
       opts = [strides: [2, 1, 1], input_dilation: [1, 2, 1], kernel_dilation: 1, padding: :same]
 
       model =
-        Axon.input({nil, 3, 2, 3, 3}, "input")
+        Axon.input("input", shape: {nil, 3, 2, 3, 3})
         |> Axon.separable_conv3d(3, [name: "conv", kernel_size: {2, 2, 1}] ++ opts)
 
       input = Nx.random_uniform({1, 3, 2, 3, 3})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1841,7 +2107,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1851,11 +2117,13 @@ defmodule CompilerTest do
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 1, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 3, 2, 2})
         |> Axon.separable_conv3d(1, name: "conv")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 1, 3, 2, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
@@ -1870,7 +2138,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3_grad,
                  "bias_3" => b3_grad
                }
-             } = Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 3, 2, 2})])
+             } = apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(k1_grad, Nx.broadcast(0.0, {1, 1, 1, 1, 1}))
       assert_equal(b1_grad, Nx.broadcast(0.0, {1}))
@@ -1881,11 +2149,15 @@ defmodule CompilerTest do
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 1, 3, 2, 2}, "input") |> Axon.separable_conv3d(1, name: "conv")
+      model =
+        Axon.input("input", shape: {nil, 1, 3, 2, 2}) |> Axon.separable_conv3d(1, name: "conv")
+
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
+      input = Nx.random_uniform({1, 1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
 
       assert %{
                "conv" => %{
@@ -1896,7 +2168,7 @@ defmodule CompilerTest do
                  "kernel_3" => k3,
                  "bias_3" => b3
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.type(k1) == {:bf, 16}
       assert Nx.type(b1) == {:bf, 16}
@@ -1907,23 +2179,29 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 3, 2, 2}, "input") |> Axon.separable_conv3d(1, name: "conv")
+      model =
+        Axon.input("input", shape: {nil, 1, 3, 2, 2}) |> Axon.separable_conv3d(1, name: "conv")
+
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 3, 2, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 3, 2, 2})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 1, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 3, 2, 2})
         |> Axon.separable_conv3d(1, name: "conv", use_bias: false)
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 1, 3, 2, 2})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{"conv" => %{"kernel_1" => _, "kernel_2" => _, "kernel_3" => _} = conv_params} =
-               init_fn.(%{})
+               init_fn.(input, %{})
 
       assert Map.has_key?(conv_params, "bias_1") == false
       assert Map.has_key?(conv_params, "bias_2") == false
@@ -1932,15 +2210,15 @@ defmodule CompilerTest do
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 1, 3, 2, 2}, "input")
+        Axon.input("input", shape: {nil, 1, 3, 2, 2})
         |> Axon.separable_conv3d(1, name: "conv", use_bias: false)
 
       input = Nx.random_uniform({1, 1, 3, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{"conv" => %{"kernel_1" => k1, "kernel_2" => k2, "kernel_3" => k3}} =
-               params = init_fn.(%{})
+               params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
@@ -1958,12 +2236,12 @@ defmodule CompilerTest do
 
     test "computes forward pass with channels last" do
       model =
-        Axon.input({nil, 3, 3, 3, 6}, "input")
+        Axon.input("input", shape: {nil, 3, 3, 3, 6})
         |> Axon.separable_conv3d(2, name: "conv", channels: :last)
 
       input = Nx.random_uniform({1, 3, 3, 3, 6})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "conv" => %{
@@ -1974,13 +2252,37 @@ defmodule CompilerTest do
                  "bias_2" => b2,
                  "bias_3" => b3
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.separable_conv3d(input, k1, b1, k2, b2, k3, b3, channels: :last)
       )
     end
+
+    # TODO: Bring these back with layer-level validations
+    # test "fails on bad options" do
+    #   assert_raise ArgumentError, ~r/expected :kernel_size to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, kernel_size: {1, 1})
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :strides to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, strides: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/invalid padding mode/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, padding: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :input_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3, input_dilation: :foo)
+    #   end
+
+    #   assert_raise ArgumentError, ~r/expected :kernel_dilation to be/, fn ->
+    #     Axon.input("input", shape: {nil, 1, 28, 28, 3})
+    #     |> Axon.separable_conv3d(3, kernel_dilation: [1, 1])
+    #   end
+    # end
   end
 
   @normalization_with_stats_layers [:batch_norm, :instance_norm]
@@ -1989,22 +2291,26 @@ defmodule CompilerTest do
     test "initializes in default case" do
       for norm <- @normalization_with_stats_layers do
         if norm != :instance_norm do
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"]])
+          model1 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"]])
 
-          assert {init_fn, _predict_fn} = Axon.compile(model1)
-          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+          input = Nx.random_uniform({1, 2})
+
+          assert {init_fn, _predict_fn} = Axon.build(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
           assert Nx.shape(gamma) == {2}
           assert Nx.type(gamma) == {:f, 32}
           assert Nx.shape(beta) == {2}
           assert Nx.type(beta) == {:f, 32}
         end
 
-        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}, "input"), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model2)
+        input = Nx.random_uniform({1, 3, 2, 2})
+
+        assert {init_fn, _predict_fn} = Axon.build(model2)
 
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                 init_fn.(%{})
+                 init_fn.(input, %{})
 
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
@@ -2022,14 +2328,16 @@ defmodule CompilerTest do
         if norm != :instance_norm do
           model1 =
             apply(Axon, norm, [
-              Axon.input({nil, 2}, "input"),
+              Axon.input("input", shape: {nil, 2}),
               [name: "norm", gamma_initializer: :zeros]
             ])
 
-          assert {init_fn, _predict_fn} = Axon.compile(model1)
+          input = Nx.random_uniform({1, 2})
+
+          assert {init_fn, _predict_fn} = Axon.build(model1)
 
           assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                   init_fn.(%{})
+                   init_fn.(input, %{})
 
           assert_equal(gamma, zeros({2}))
           assert Nx.shape(beta) == {2}
@@ -2042,14 +2350,16 @@ defmodule CompilerTest do
 
         model2 =
           apply(Axon, norm, [
-            Axon.input({nil, 3, 2, 2}, "input"),
+            Axon.input("input", shape: {nil, 3, 2, 2}),
             [name: "norm", beta_initializer: :zeros]
           ])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model2)
+        input = Nx.random_uniform({1, 3, 2, 2})
+
+        assert {init_fn, _predict_fn} = Axon.build(model2)
 
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                 init_fn.(%{})
+                 init_fn.(input, %{})
 
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
@@ -2064,13 +2374,13 @@ defmodule CompilerTest do
     test "computes forward pass with default options" do
       for norm <- @normalization_with_stats_layers do
         if norm != :instance_norm do
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"]])
+          model1 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"]])
           input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
 
-          assert {init_fn, predict_fn} = Axon.compile(model1)
+          assert {init_fn, predict_fn} = Axon.build(model1)
 
           assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                   params = init_fn.(%{})
+                   params = init_fn.(input1, %{})
 
           assert_equal(
             predict_fn.(params, input1),
@@ -2078,13 +2388,13 @@ defmodule CompilerTest do
           )
         end
 
-        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}, "input"), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
         input2 = Nx.random_uniform({1, 3, 2, 2}, type: {:f, 32})
 
-        assert {init_fn, predict_fn} = Axon.compile(model2)
+        assert {init_fn, predict_fn} = Axon.build(model2)
 
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                 params = init_fn.(%{})
+                 params = init_fn.(input2, %{})
 
         assert_equal(
           predict_fn.(params, input2),
@@ -2097,13 +2407,16 @@ defmodule CompilerTest do
       for norm <- @normalization_with_stats_layers do
         if norm != :instance_norm do
           opts1 = [channel_index: 1, epsilon: 1.0e-3]
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"] ++ opts1])
+
+          model1 =
+            apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"] ++ opts1])
+
           input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
 
-          assert {init_fn, predict_fn} = Axon.compile(model1)
+          assert {init_fn, predict_fn} = Axon.build(model1)
 
           assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                   params = init_fn.(%{})
+                   params = init_fn.(input1, %{})
 
           assert_equal(
             predict_fn.(params, input1),
@@ -2112,13 +2425,16 @@ defmodule CompilerTest do
         end
 
         opts2 = [channel_index: 3, epsilon: 1.0e-4]
-        model2 = apply(Axon, norm, [Axon.input({nil, 2, 2, 3}, "input"), [name: "norm"] ++ opts2])
+
+        model2 =
+          apply(Axon, norm, [Axon.input("input", shape: {nil, 2, 2, 3}), [name: "norm"] ++ opts2])
+
         input2 = Nx.random_uniform({1, 2, 2, 3}, type: {:f, 32})
 
-        assert {init_fn, predict_fn} = Axon.compile(model2)
+        assert {init_fn, predict_fn} = Axon.build(model2)
 
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta, "mean" => mean, "var" => var}} =
-                 params = init_fn.(%{})
+                 params = init_fn.(input2, %{})
 
         assert_equal(
           predict_fn.(params, input2),
@@ -2130,17 +2446,19 @@ defmodule CompilerTest do
     test "returns zero gradient for frozen parameters" do
       for norm <- @normalization_with_stats_layers do
         model =
-          apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+          apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
           |> Axon.freeze()
 
-        assert {init_fn, predict_fn} = Axon.compile(model)
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, predict_fn} = Axon.build(model)
 
         backward = fn params, input ->
           Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
         end
 
         assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-                 Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 2})])
+                 apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
         assert_equal(gamma_grad, Nx.broadcast(0.0, {1}))
         assert_equal(beta_grad, Nx.broadcast(0.0, {1}))
@@ -2149,12 +2467,14 @@ defmodule CompilerTest do
 
     test "initializes with parameter policy" do
       for norm <- @normalization_with_stats_layers do
-        model = apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+        model = apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
         policy = AMP.create_policy(params: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, _} = Axon.compile(mp_model)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, _} = Axon.build(mp_model)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
         assert Nx.type(gamma) == {:bf, 16}
         assert Nx.type(beta) == {:bf, 16}
       end
@@ -2162,12 +2482,14 @@ defmodule CompilerTest do
 
     test "computes forward pass with output policy" do
       for norm <- @normalization_with_stats_layers do
-        model = apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+        model = apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
       end
     end
   end
@@ -2178,20 +2500,24 @@ defmodule CompilerTest do
     test "initializes in default case" do
       for norm <- @normalization_layers do
         if norm != :instance_norm do
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"]])
+          model1 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"]])
 
-          assert {init_fn, _predict_fn} = Axon.compile(model1)
-          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+          input = Nx.random_uniform({1, 2})
+
+          assert {init_fn, _predict_fn} = Axon.build(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
           assert Nx.shape(gamma) == {2}
           assert Nx.type(gamma) == {:f, 32}
           assert Nx.shape(beta) == {2}
           assert Nx.type(beta) == {:f, 32}
         end
 
-        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}, "input"), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model2)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+        input = Nx.random_uniform({1, 3, 2, 2})
+
+        assert {init_fn, _predict_fn} = Axon.build(model2)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
         assert Nx.shape(beta) == {3}
@@ -2204,12 +2530,14 @@ defmodule CompilerTest do
         if norm != :instance_norm do
           model1 =
             apply(Axon, norm, [
-              Axon.input({nil, 2}, "input"),
+              Axon.input("input", shape: {nil, 2}),
               [name: "norm", gamma_initializer: :zeros]
             ])
 
-          assert {init_fn, _predict_fn} = Axon.compile(model1)
-          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+          input = Nx.random_uniform({1, 2})
+
+          assert {init_fn, _predict_fn} = Axon.build(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
           assert_equal(gamma, zeros({2}))
           assert Nx.shape(beta) == {2}
           assert Nx.type(beta) == {:f, 32}
@@ -2217,12 +2545,14 @@ defmodule CompilerTest do
 
         model2 =
           apply(Axon, norm, [
-            Axon.input({nil, 3, 2, 2}, "input"),
+            Axon.input("input", shape: {nil, 3, 2, 2}),
             [name: "norm", beta_initializer: :zeros]
           ])
 
-        assert {init_fn, _predict_fn} = Axon.compile(model2)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+        input = Nx.random_uniform({1, 3, 2, 2})
+
+        assert {init_fn, _predict_fn} = Axon.build(model2)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
         assert Nx.shape(gamma) == {3}
         assert Nx.type(gamma) == {:f, 32}
         assert_equal(beta, zeros({3}))
@@ -2232,11 +2562,11 @@ defmodule CompilerTest do
     test "computes forward pass with default options" do
       for norm <- @normalization_layers do
         if norm != :instance_norm do
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"]])
+          model1 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"]])
           input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
 
-          assert {init_fn, predict_fn} = Axon.compile(model1)
-          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+          assert {init_fn, predict_fn} = Axon.build(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input1, %{})
 
           assert_equal(
             predict_fn.(params, input1),
@@ -2244,11 +2574,11 @@ defmodule CompilerTest do
           )
         end
 
-        model2 = apply(Axon, norm, [Axon.input({nil, 3, 2, 2}, "input"), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
         input2 = Nx.random_uniform({1, 3, 2, 2}, type: {:f, 32})
 
-        assert {init_fn, predict_fn} = Axon.compile(model2)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+        assert {init_fn, predict_fn} = Axon.build(model2)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input2, %{})
         assert_equal(predict_fn.(params, input2), apply(Axon.Layers, norm, [input2, gamma, beta]))
       end
     end
@@ -2257,11 +2587,14 @@ defmodule CompilerTest do
       for norm <- @normalization_layers do
         if norm != :instance_norm do
           opts1 = [channel_index: 1, epsilon: 1.0e-3]
-          model1 = apply(Axon, norm, [Axon.input({nil, 2}, "input"), [name: "norm"] ++ opts1])
+
+          model1 =
+            apply(Axon, norm, [Axon.input("input", shape: {nil, 2}), [name: "norm"] ++ opts1])
+
           input1 = Nx.random_uniform({1, 2}, type: {:f, 32})
 
-          assert {init_fn, predict_fn} = Axon.compile(model1)
-          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+          assert {init_fn, predict_fn} = Axon.build(model1)
+          assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input1, %{})
 
           assert_equal(
             predict_fn.(params, input1),
@@ -2270,11 +2603,14 @@ defmodule CompilerTest do
         end
 
         opts2 = [channel_index: 3, epsilon: 1.0e-4]
-        model2 = apply(Axon, norm, [Axon.input({nil, 2, 2, 3}, "input"), [name: "norm"] ++ opts2])
+
+        model2 =
+          apply(Axon, norm, [Axon.input("input", shape: {nil, 2, 2, 3}), [name: "norm"] ++ opts2])
+
         input2 = Nx.random_uniform({1, 2, 2, 3}, type: {:f, 32})
 
-        assert {init_fn, predict_fn} = Axon.compile(model2)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+        assert {init_fn, predict_fn} = Axon.build(model2)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input2, %{})
 
         assert_equal(
           predict_fn.(params, input2),
@@ -2286,17 +2622,19 @@ defmodule CompilerTest do
     test "returns zero gradient for frozen parameters" do
       for norm <- @normalization_layers do
         model =
-          apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+          apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
           |> Axon.freeze()
 
-        assert {init_fn, predict_fn} = Axon.compile(model)
+        assert {init_fn, predict_fn} = Axon.build(model)
+
+        input = Nx.random_uniform({1, 1, 2})
 
         backward = fn params, input ->
           Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
         end
 
         assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-                 Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 1, 2})])
+                 apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
         assert_equal(gamma_grad, Nx.broadcast(0.0, {1}))
         assert_equal(beta_grad, Nx.broadcast(0.0, {1}))
@@ -2305,12 +2643,14 @@ defmodule CompilerTest do
 
     test "initializes with parameter policy" do
       for norm <- @normalization_layers do
-        model = apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+        model = apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
         policy = AMP.create_policy(params: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, _} = Axon.compile(mp_model)
-        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, _} = Axon.build(mp_model)
+        assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
         assert Nx.type(gamma) == {:bf, 16}
         assert Nx.type(beta) == {:bf, 16}
       end
@@ -2318,22 +2658,26 @@ defmodule CompilerTest do
 
     test "computes forward pass with output policy" do
       for norm <- @normalization_layers do
-        model = apply(Axon, norm, [Axon.input({nil, 1, 2}, "input"), [name: "norm"]])
+        model = apply(Axon, norm, [Axon.input("input", shape: {nil, 1, 2}), [name: "norm"]])
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
 
-        assert {init_fn, predict_fn} = Axon.compile(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 2}))) == {:bf, 16}
+        input = Nx.random_uniform({1, 1, 2})
+
+        assert {init_fn, predict_fn} = Axon.build(mp_model)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
       end
     end
   end
 
   describe "group normalization" do
     test "initializes in default case" do
-      model = Axon.input({nil, 3}, "input") |> Axon.group_norm(3, name: "norm")
+      model = Axon.input("input", shape: {nil, 3}) |> Axon.group_norm(3, name: "norm")
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
       assert Nx.shape(gamma) == {3}
       assert Nx.type(gamma) == {:f, 32}
       assert Nx.shape(beta) == {3}
@@ -2342,246 +2686,279 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 3}, "input")
+        Axon.input("input", shape: {nil, 3})
         |> Axon.group_norm(3, name: "norm", gamma_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
       assert_equal(gamma, zeros({3}))
       assert Nx.shape(beta) == {3}
       assert Nx.type(beta) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 3, 3}, "input")
+        Axon.input("input", shape: {nil, 3, 3})
         |> Axon.group_norm(3, name: "norm", beta_initializer: :zeros)
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 3})
+
+      assert {init_fn, _predict_fn} = Axon.build(model2)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
       assert_equal(beta, zeros({3}))
       assert Nx.shape(gamma) == {3}
       assert Nx.type(gamma) == {:f, 32}
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 2}, "input") |> Axon.group_norm(2, name: "norm")
+      model1 = Axon.input("input", shape: {nil, 2}) |> Axon.group_norm(2, name: "norm")
       input1 = Nx.random_uniform({1, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model1)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input1, %{})
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Layers.group_norm(input1, gamma, beta, group_size: 2)
+        Axon.Layers.group_norm(input1, gamma, beta, num_groups: 2)
       )
 
-      model2 = Axon.input({nil, 3, 2, 2}, "input") |> Axon.group_norm(3, name: "norm")
+      model2 = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.group_norm(3, name: "norm")
       input2 = Nx.random_uniform({1, 3, 2, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model2)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input2, %{})
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Layers.group_norm(input2, gamma, beta, group_size: 3)
+        Axon.Layers.group_norm(input2, gamma, beta, num_groups: 3)
       )
     end
 
     test "computes forward pass with custom options" do
       opts = [epsilon: 1.0e-3, channel_index: 3]
-      model = Axon.input({nil, 2, 2, 3}, "input") |> Axon.group_norm(3, [name: "norm"] ++ opts)
+
+      model =
+        Axon.input("input", shape: {nil, 2, 2, 3}) |> Axon.group_norm(3, [name: "norm"] ++ opts)
+
       input = Nx.random_uniform({1, 2, 2, 3})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(%{})
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Layers.group_norm(input, gamma, beta, [group_size: 3] ++ opts)
+        Axon.Layers.group_norm(input, gamma, beta, [num_groups: 3] ++ opts)
       )
     end
 
     test "returns zero gradient for frozen parameters" do
       model =
-        Axon.input({nil, 2}, "input")
+        Axon.input("input", shape: {nil, 2})
         |> Axon.group_norm(1, name: "norm")
         |> Axon.freeze()
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      input = Nx.random_uniform({1, 2})
 
       backward = fn params, input ->
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
       assert %{"norm" => %{"gamma" => gamma_grad, "beta" => beta_grad}} =
-               Nx.Defn.jit(backward, [init_fn.(%{}), Nx.random_uniform({1, 2})])
+               apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(gamma_grad, Nx.broadcast(0.0, {2}))
       assert_equal(beta_grad, Nx.broadcast(0.0, {2}))
     end
 
     test "initializes with parameter policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.group_norm(1, name: "norm")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.group_norm(1, name: "norm")
       policy = AMP.create_policy(params: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, _} = Axon.compile(mp_model)
-      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(%{})
+      input = Nx.random_uniform({1, 2})
+
+      assert {init_fn, _} = Axon.build(mp_model)
+      assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
       assert Nx.type(gamma) == {:bf, 16}
       assert Nx.type(beta) == {:bf, 16}
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 2}, "input") |> Axon.group_norm(1, name: "norm")
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.group_norm(1, name: "norm")
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 2}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 3})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
   describe "flatten" do
     test "initializes with no params" do
-      model = Axon.input({nil, 32}, "input_0") |> Axon.flatten()
+      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.flatten()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      input = Nx.random_uniform({1, 32})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 32}, "input_0") |> Axon.flatten()
+      model1 = Axon.input("input_0", shape: {nil, 32}) |> Axon.flatten()
       input1 = Nx.random_uniform({1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
       assert_equal(predict_fn.(%{}, input1), Axon.Layers.flatten(input1))
 
-      model2 = Axon.input({nil, 3, 32, 32}, "input") |> Axon.flatten()
+      model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.flatten()
       input2 = Nx.random_uniform({1, 3, 32, 32})
 
-      assert {_, predict_fn} = Axon.compile(model2)
+      assert {_, predict_fn} = Axon.build(model2)
       assert_equal(predict_fn.(%{}, input2), Axon.Layers.flatten(input2))
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 32}, "input_0") |> Axon.flatten()
+      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.flatten()
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 32}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 3})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
   describe "transpose" do
     test "initializes with no params" do
-      model = Axon.input({nil, 3, 32}, "input") |> Axon.transpose([1, 0])
+      model = Axon.input("input", shape: {nil, 3, 32}) |> Axon.transpose([1, 0])
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      input = Nx.random_uniform({1, 3, 32})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 32}, "input_0") |> Axon.transpose([0])
+      model1 = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0])
       input1 = Nx.random_uniform({1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
       assert_equal(predict_fn.(%{}, input1), Nx.transpose(input1, axes: [0, 1]))
 
-      model2 = Axon.input({nil, 3, 32, 32}, "input") |> Axon.transpose([1, 0, 2])
+      model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.transpose([1, 0, 2])
       input2 = Nx.random_uniform({1, 3, 32, 32})
 
-      assert {_, predict_fn} = Axon.compile(model2)
+      assert {_, predict_fn} = Axon.build(model2)
       assert_equal(predict_fn.(%{}, input2), Nx.transpose(input2, axes: [0, 2, 1, 3]))
     end
 
     test "computes forward pass with constant" do
       model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0], ignore_batch?: false)
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.transpose(Nx.iota({1, 2, 3}, type: {:f, 32})))
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 32}, "input_0") |> Axon.transpose([0])
+      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0])
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 32}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 32})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
   describe "reshape" do
     test "initializes with no params" do
-      model = Axon.input({nil, 1, 32}, "input") |> Axon.reshape({16, 2})
+      model = Axon.input("input", shape: {nil, 1, 32}) |> Axon.reshape({16, 2})
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 32})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 32}, "input_0") |> Axon.reshape({16, 2})
+      model1 = Axon.input("input_0", shape: {nil, 32}) |> Axon.reshape({16, 2})
       input1 = Nx.random_uniform({1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
       assert_equal(predict_fn.(%{}, input1), Nx.reshape(input1, {1, 16, 2}))
 
-      model2 = Axon.input({nil, 3, 32, 32}, "input") |> Axon.reshape({3, 16, 2, 32})
+      model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.reshape({3, 16, 2, 32})
       input2 = Nx.random_uniform({1, 3, 32, 32})
 
-      assert {_, predict_fn} = Axon.compile(model2)
+      assert {_, predict_fn} = Axon.build(model2)
       assert_equal(predict_fn.(%{}, input2), Nx.reshape(input2, {1, 3, 16, 2, 32}))
     end
 
     test "computes forward pass with constant input" do
       model = Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.tensor([[[0, 1, 2], [3, 4, 5]]], type: {:f, 32}))
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 32}, "input_0") |> Axon.reshape({2, 16})
+      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.reshape({2, 16})
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 32}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 32})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
   describe "resize" do
     test "initializes with no params" do
-      model = Axon.input({nil, 1, 3, 3}, "input") |> Axon.resize({4, 4})
+      model = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
-      assert %{} = init_fn.(%{})
+      input = Nx.random_uniform({1, 1, 3, 3})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 1, 3, 3}, "input") |> Axon.resize({4, 4})
+      model1 = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       input1 = Nx.random_uniform({1, 1, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(model1)
-      assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, to: {4, 4}))
+      assert {_, predict_fn} = Axon.build(model1)
+      assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, size: {4, 4}))
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 1, 3, 3}, "input") |> Axon.resize({4, 4})
+      model = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
-      assert {init_fn, predict_fn} = Axon.compile(mp_model)
-      assert Nx.type(predict_fn.(init_fn.(%{}), Nx.random_uniform({1, 1, 3, 3}))) == {:bf, 16}
+      input = Nx.random_uniform({1, 1, 3, 3})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
     end
   end
 
   describe "lstm" do
     test "initializes in default case" do
       model =
-        Axon.input({nil, 32, 10}, "input") |> Axon.lstm(64, name: "lstm") |> Axon.container()
+        Axon.input("input", shape: {nil, 32, 10})
+        |> Axon.lstm(64, name: "lstm")
+        |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 32, 10})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
 
       assert %{
                "lstm" => %{
@@ -2589,7 +2966,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       # Input kernel
       assert Nx.shape(wii) == {10, 64}
@@ -2624,11 +3001,13 @@ defmodule CompilerTest do
 
     test "initializes with custom initializers" do
       model1 =
-        Axon.input({nil, 32, 10}, "input")
+        Axon.input("input", shape: {nil, 32, 10})
         |> Axon.lstm(64, name: "lstm", kernel_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      input = Nx.random_uniform({1, 32, 10})
+
+      assert {init_fn, _predict_fn} = Axon.build(model1)
 
       assert %{
                "lstm" => %{
@@ -2636,7 +3015,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       # Input kernel
       assert_equal(wii, zeros({10, 64}))
@@ -2661,11 +3040,11 @@ defmodule CompilerTest do
       assert Nx.type(bo) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 32, 10}, "input")
+        Axon.input("input", shape: {nil, 32, 10})
         |> Axon.lstm(64, name: "lstm", bias_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
+      assert {init_fn, _predict_fn} = Axon.build(model2)
 
       assert %{
                "lstm" => %{
@@ -2673,7 +3052,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       # Input kernel
       assert Nx.shape(wii) == {10, 64}
@@ -2704,7 +3083,7 @@ defmodule CompilerTest do
 
     test "computes forward pass with default options" do
       model =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.lstm(2, name: "lstm", recurrent_initializer: :zeros)
         |> Axon.container()
 
@@ -2712,7 +3091,7 @@ defmodule CompilerTest do
 
       init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "lstm" => %{
@@ -2720,7 +3099,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
@@ -2728,8 +3107,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(
-          &Axon.Recurrent.lstm_cell/5,
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.lstm_cell/5,
           input,
           init_carry,
           k,
@@ -2741,7 +3120,7 @@ defmodule CompilerTest do
 
     test "computes forward pass with custom options" do
       model1 =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.lstm(2,
           name: "lstm",
           recurrent_initializer: :zeros,
@@ -2755,7 +3134,7 @@ defmodule CompilerTest do
       init_carry1 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.lstm_cell(
+        Axon.Layers.lstm_cell(
           i,
           c,
           k,
@@ -2766,7 +3145,7 @@ defmodule CompilerTest do
         )
       end
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert {init_fn, predict_fn} = Axon.build(model1)
 
       assert %{
                "lstm" => %{
@@ -2774,7 +3153,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input1, %{})
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
@@ -2782,11 +3161,11 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
       )
 
       model2 =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.lstm(2, name: "lstm", unroll: :static, recurrent_initializer: :zeros)
         |> Axon.container()
 
@@ -2794,9 +3173,9 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
-      cell_fn2 = &Axon.Recurrent.lstm_cell/5
+      cell_fn2 = &Axon.Layers.lstm_cell/5
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
+      assert {init_fn, predict_fn} = Axon.build(model2)
 
       assert %{
                "lstm" => %{
@@ -2804,7 +3183,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whi, whf, whg, who},
                  "bias" => {bi, bf, bg, bo}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input2, %{})
 
       k = {wii, wif, wig, wio}
       h = {whi, whf, whg, who}
@@ -2812,17 +3191,17 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
       )
     end
 
     test "computes forward pass with hidden state" do
-      seq = Axon.input({nil, 8, 2}, "input")
-      {carry, _} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
+      seq = Axon.input("input", shape: {nil, 8, 2})
+      {_, carry} = seq |> Axon.lstm(2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.lstm(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       equiv_fn = fn inp, enc, dec ->
         {ei, eh, eb} = enc
@@ -2830,10 +3209,10 @@ defmodule CompilerTest do
 
         init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
-        {carr, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, init_carry, ei, eh, eb)
+        {_, carry} =
+          Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, init_carry, ei, eh, eb)
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, inp, carr, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, carry, di, dh, db)
       end
 
       assert %{
@@ -2847,7 +3226,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => dh,
                  "bias" => db
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       enc = {ek, eh, eb}
       dec = {dk, dh, db}
@@ -2861,11 +3240,13 @@ defmodule CompilerTest do
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 2, 1}, "input")
+        Axon.input("input", shape: {nil, 2, 1})
         |> Axon.lstm(2, name: "lstm", use_bias: false)
         |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 2, 1})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{
                "lstm" =>
@@ -2873,34 +3254,34 @@ defmodule CompilerTest do
                    "input_kernel" => {_, _, _, _},
                    "hidden_kernel" => {_, _, _, _}
                  } = lstm_params
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Map.has_key?(lstm_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 2, 1}, "input")
+        Axon.input("input", shape: {nil, 2, 1})
         |> Axon.lstm(2, name: "lstm", use_bias: false, recurrent_initializer: :zeros)
         |> Axon.container()
 
       input = Nx.random_uniform({1, 2, 1})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "lstm" => %{
                  "input_kernel" => k,
                  "hidden_kernel" => h
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
       c = {zeros({1, 1, 2}), zeros({1, 1, 2})}
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, input, c, k, h, b)
       )
     end
 
@@ -2925,11 +3306,13 @@ defmodule CompilerTest do
       out_channel_n = 4
 
       model =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm")
         |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model)
+      input = Nx.random_uniform({1, 10, 3, 6, 6})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
 
       assert %{
                "convlstm" => %{
@@ -2937,7 +3320,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       # Input kernel
       assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
@@ -2961,14 +3344,16 @@ defmodule CompilerTest do
         _heigth = 6
       }
 
+      input = Nx.random_uniform({1, 10, 3, 6, 6})
+
       out_channel_n = 4
 
       model1 =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", kernel_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model1)
+      assert {init_fn, _predict_fn} = Axon.build(model1)
 
       assert %{
                "convlstm" => %{
@@ -2976,7 +3361,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(wi, zeros({4 * out_channel_n, in_channel_n, 1, 1}))
       assert_equal(wh, zeros({4 * out_channel_n, out_channel_n, 1, 1}))
@@ -2986,11 +3371,11 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
 
       model2 =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", bias_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _predict_fn} = Axon.compile(model2)
+      assert {init_fn, _predict_fn} = Axon.build(model2)
 
       assert %{
                "convlstm" => %{
@@ -2998,7 +3383,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       # Input kernel
       assert Nx.shape(wi) == {4 * out_channel_n, in_channel_n, 1, 1}
@@ -3021,12 +3406,12 @@ defmodule CompilerTest do
         height = 6
       }
 
-      out_channel_n = 3
+      out_channel_n = 4
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
         |> Axon.container()
 
@@ -3037,7 +3422,7 @@ defmodule CompilerTest do
 
       init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "convlstm" => %{
@@ -3045,7 +3430,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       k = {wi}
       h = {wh}
@@ -3053,8 +3438,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(
-          &Axon.Recurrent.conv_lstm_cell/5,
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.conv_lstm_cell/5,
           input,
           init_carry,
           k,
@@ -3078,7 +3463,7 @@ defmodule CompilerTest do
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n,
           name: "convlstm",
           recurrent_initializer: :zeros,
@@ -3093,7 +3478,7 @@ defmodule CompilerTest do
 
       init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "convlstm" => %{
@@ -3101,7 +3486,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       k = {wi}
       h = {wh}
@@ -3109,8 +3494,8 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.static_unroll(
-          &Axon.Recurrent.conv_lstm_cell/5,
+        Axon.Layers.static_unroll(
+          &Axon.Layers.conv_lstm_cell/5,
           input,
           init_carry,
           k,
@@ -3136,7 +3521,7 @@ defmodule CompilerTest do
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model1 =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n, name: "convlstm", recurrent_initializer: :zeros)
         |> Axon.container()
 
@@ -3148,7 +3533,7 @@ defmodule CompilerTest do
       init_carry1 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.conv_lstm_cell(
+        Axon.Layers.conv_lstm_cell(
           i,
           c,
           k,
@@ -3157,7 +3542,7 @@ defmodule CompilerTest do
         )
       end
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert {init_fn, predict_fn} = Axon.build(model1)
 
       assert %{
                "convlstm" => %{
@@ -3165,7 +3550,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input1, %{})
 
       k = {wi}
       h = {wh}
@@ -3173,11 +3558,11 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
       )
 
       model2 =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n,
           name: "convlstm",
           unroll: :static,
@@ -3192,9 +3577,9 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      cell_fn2 = &Axon.Recurrent.conv_lstm_cell/5
+      cell_fn2 = &Axon.Layers.conv_lstm_cell/5
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
+      assert {init_fn, predict_fn} = Axon.build(model2)
 
       assert %{
                "convlstm" => %{
@@ -3202,7 +3587,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {wh},
                  "bias" => {b}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input2, %{})
 
       k = {wi}
       h = {wh}
@@ -3210,7 +3595,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
       )
     end
 
@@ -3226,9 +3611,9 @@ defmodule CompilerTest do
       out_channel_n = 3
       batch_real = 1
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
-      seq = Axon.input(input_shape, "input")
+      seq = Axon.input("input", shape: input_shape)
 
-      {carry, _} =
+      {_, carry} =
         seq
         |> Axon.conv_lstm(out_channel_n, name: "encode", recurrent_initializer: :zeros)
 
@@ -3241,7 +3626,7 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       equiv_fn = fn inp, enc, dec ->
         {ei, eh, eb} = enc
@@ -3249,9 +3634,9 @@ defmodule CompilerTest do
 
         init_carry = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-        {carr, _} =
-          Axon.Recurrent.dynamic_unroll(
-            &Axon.Recurrent.conv_lstm_cell/5,
+        {_, carry} =
+          Axon.Layers.dynamic_unroll(
+            &Axon.Layers.conv_lstm_cell/5,
             inp,
             init_carry,
             ei,
@@ -3259,7 +3644,7 @@ defmodule CompilerTest do
             eb
           )
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, inp, carr, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, inp, carry, di, dh, db)
       end
 
       assert %{
@@ -3273,7 +3658,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {dh},
                  "bias" => {db}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       enc = {{ei}, {eh}, {eb}}
       dec = {{di}, {dh}, {db}}
@@ -3299,7 +3684,7 @@ defmodule CompilerTest do
       hidden_shape_real = {batch_real, 1, out_channel_n, width, height}
 
       model =
-        Axon.input(input_shape, "input")
+        Axon.input("input", shape: input_shape)
         |> Axon.conv_lstm(out_channel_n,
           name: "convlstm",
           use_bias: false,
@@ -3312,14 +3697,14 @@ defmodule CompilerTest do
         |> put_elem(0, batch_real)
         |> Nx.random_uniform(type: {:f, 32})
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "convlstm" => %{
                  "input_kernel" => k,
                  "hidden_kernel" => h
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       b = {Nx.broadcast(0, 4 * out_channel_n)}
 
@@ -3327,16 +3712,19 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.conv_lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, input, c, k, h, b)
       )
     end
   end
 
   describe "gru" do
     test "initializes in default case" do
-      model = Axon.input({nil, 32, 10}, "input") |> Axon.gru(64, name: "gru") |> Axon.container()
+      model =
+        Axon.input("input", shape: {nil, 32, 10}) |> Axon.gru(64, name: "gru") |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 32, 10})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{
                "gru" => %{
@@ -3344,7 +3732,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whr, whz, whn},
                  "bias" => {br, bz, bhn, bin}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.shape(wir) == {10, 64}
       assert Nx.type(wir) == {:f, 32}
@@ -3369,12 +3757,14 @@ defmodule CompilerTest do
     end
 
     test "initializes with custom initializers" do
+      input = Nx.random_uniform({1, 32, 10})
+
       model1 =
-        Axon.input({nil, 32, 10}, "input")
+        Axon.input("input", shape: {nil, 32, 10})
         |> Axon.gru(64, name: "gru", kernel_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model1)
+      assert {init_fn, _} = Axon.build(model1)
 
       assert %{
                "gru" => %{
@@ -3382,7 +3772,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whr, whz, whn},
                  "bias" => {br, bz, bhn, bin}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert_equal(wir, zeros({10, 64}))
       assert_equal(wiz, zeros({10, 64}))
@@ -3400,11 +3790,11 @@ defmodule CompilerTest do
       assert Nx.type(bin) == {:f, 32}
 
       model2 =
-        Axon.input({nil, 32, 10}, "input")
+        Axon.input("input", shape: {nil, 32, 10})
         |> Axon.gru(64, name: "gru", bias_initializer: :zeros)
         |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model2)
+      assert {init_fn, _} = Axon.build(model2)
 
       assert %{
                "gru" => %{
@@ -3412,7 +3802,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whr, whz, whn},
                  "bias" => {br, bz, bhn, bin}
                }
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Nx.shape(wir) == {10, 64}
       assert Nx.type(wir) == {:f, 32}
@@ -3434,14 +3824,14 @@ defmodule CompilerTest do
 
     test "computes forward pass with default options" do
       model =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros)
         |> Axon.container()
 
       input = Nx.random_uniform({1, 8, 2})
       carry = {zeros({1, 1, 2})}
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "gru" => %{
@@ -3449,17 +3839,17 @@ defmodule CompilerTest do
                  "hidden_kernel" => h,
                  "bias" => b
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, carry, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, carry, k, h, b)
       )
     end
 
     test "computes forward pass with custom options" do
       model1 =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.gru(2,
           name: "gru",
           recurrent_initializer: :zeros,
@@ -3472,7 +3862,7 @@ defmodule CompilerTest do
       carry1 = {zeros({1, 1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
-        Axon.Recurrent.gru_cell(
+        Axon.Layers.gru_cell(
           i,
           c,
           k,
@@ -3483,7 +3873,7 @@ defmodule CompilerTest do
         )
       end
 
-      assert {init_fn, predict_fn} = Axon.compile(model1)
+      assert {init_fn, predict_fn} = Axon.build(model1)
 
       assert %{
                "gru" => %{
@@ -3491,7 +3881,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whr, whz, whn},
                  "bias" => {br, bz, bhn, bin}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input1, %{})
 
       k = {wir, wiz, win}
       h = {whr, whz, whn}
@@ -3499,18 +3889,18 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Recurrent.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
       )
 
       model2 =
-        Axon.input({nil, 8, 2}, "input")
+        Axon.input("input", shape: {nil, 8, 2})
         |> Axon.gru(2, name: "gru", recurrent_initializer: :zeros, unroll: :static)
         |> Axon.container()
 
       input2 = Nx.random_uniform({1, 8, 2})
       carry2 = {zeros({1, 1, 2})}
 
-      assert {init_fn, predict_fn} = Axon.compile(model2)
+      assert {init_fn, predict_fn} = Axon.build(model2)
 
       assert %{
                "gru" => %{
@@ -3518,7 +3908,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {whr, whz, whn},
                  "bias" => {br, bz, bhn, bin}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input2, %{})
 
       k = {wir, wiz, win}
       h = {whr, whz, whn}
@@ -3526,13 +3916,13 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Recurrent.static_unroll(&Axon.Recurrent.gru_cell/5, input2, carry2, k, h, b)
+        Axon.Layers.static_unroll(&Axon.Layers.gru_cell/5, input2, carry2, k, h, b)
       )
     end
 
     test "computes forward pass with hidden state" do
-      seq = Axon.input({nil, 8, 2}, "input")
-      {carry, _} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
+      seq = Axon.input("input", shape: {nil, 8, 2})
+      {_, carry} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.gru(seq, carry, 2, name: "decode") |> Axon.container()
       input = Nx.random_uniform({1, 8, 2})
       carry = {zeros({1, 1, 2})}
@@ -3541,13 +3931,12 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        {carry, _} =
-          Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, ei, eh, eb)
+        {_, carry} = Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, ei, eh, eb)
 
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, inp, carry, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, di, dh, db)
       end
 
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "encode" => %{
@@ -3560,7 +3949,7 @@ defmodule CompilerTest do
                  "hidden_kernel" => {dhr, dhz, dhn},
                  "bias" => {dbr, dbz, dbhn, dbin}
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       enc = {{eir, eiz, ein}, {ehr, ehz, ehn}, {ebr, ebz, ebin, ebhn}}
       dec = {{dir, diz, din}, {dhr, dhz, dhn}, {dbr, dbz, dbin, dbhn}}
@@ -3570,11 +3959,13 @@ defmodule CompilerTest do
 
     test "initializes with use_bias false" do
       model =
-        Axon.input({nil, 2, 1}, "input")
+        Axon.input("input", shape: {nil, 2, 1})
         |> Axon.gru(2, name: "gru", use_bias: false)
         |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model)
+      input = Nx.random_uniform({1, 2, 1})
+
+      assert {init_fn, _} = Axon.build(model)
 
       assert %{
                "gru" =>
@@ -3582,33 +3973,33 @@ defmodule CompilerTest do
                    "input_kernel" => {_, _, _},
                    "hidden_kernel" => {_, _, _}
                  } = gru_params
-             } = init_fn.(%{})
+             } = init_fn.(input, %{})
 
       assert Map.has_key?(gru_params, "bias") == false
     end
 
     test "computes forward pass with use_bias false" do
       model =
-        Axon.input({nil, 2, 1}, "input")
+        Axon.input("input", shape: {nil, 2, 1})
         |> Axon.gru(2, name: "gru", use_bias: false, recurrent_initializer: :zeros)
         |> Axon.container()
 
       input = Nx.random_uniform({1, 2, 1})
-      assert {init_fn, predict_fn} = Axon.compile(model)
+      assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
                "gru" => %{
                  "input_kernel" => k,
                  "hidden_kernel" => h
                }
-             } = params = init_fn.(%{})
+             } = params = init_fn.(input, %{})
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
       c = {zeros({1, 1, 2})}
 
       assert_all_close(
         predict_fn.(params, input),
-        Axon.Recurrent.dynamic_unroll(&Axon.Recurrent.gru_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, c, k, h, b)
       )
     end
 
@@ -3629,21 +4020,32 @@ defmodule CompilerTest do
     test "initializes with no params" do
       for op <- @binary_layers do
         model =
-          apply(Axon, op, [Axon.input({nil, 32}, "input_0"), Axon.input({nil, 32}, "input_1")])
+          apply(Axon, op, [
+            Axon.input("input_0", shape: {nil, 32}),
+            Axon.input("input_1", shape: {nil, 32})
+          ])
 
-        assert {init_fn, _} = Axon.compile(model)
-        assert %{} == init_fn.(%{})
+        input = %{
+          "input_0" => Nx.random_uniform({1, 32}),
+          "input_1" => Nx.random_uniform({1, 32})
+        }
+
+        assert {init_fn, _} = Axon.build(model)
+        assert %{} == init_fn.(input, %{})
       end
     end
 
     test "computes forward pass with default options" do
       for op <- @binary_layers do
         model1 =
-          apply(Axon, op, [Axon.input({nil, 32}, "input_0"), Axon.input({nil, 32}, "input_1")])
+          apply(Axon, op, [
+            Axon.input("input_0", shape: {nil, 32}),
+            Axon.input("input_1", shape: {nil, 32})
+          ])
 
         input1_1 = Nx.random_uniform({1, 32})
         input1_2 = Nx.random_uniform({1, 32})
-        assert {_, predict_fn} = Axon.compile(model1)
+        assert {_, predict_fn} = Axon.build(model1)
 
         assert_all_close(
           predict_fn.(%{}, %{"input_0" => input1_1, "input_1" => input1_2}),
@@ -3653,16 +4055,16 @@ defmodule CompilerTest do
         model2 =
           apply(Axon, op, [
             [
-              Axon.input({nil, 32}, "input_0"),
-              Axon.input({nil, 32}, "input_1"),
-              Axon.input({nil, 32}, "input_2")
+              Axon.input("input_0", shape: {nil, 32}),
+              Axon.input("input_1", shape: {nil, 32}),
+              Axon.input("input_2", shape: {nil, 32})
             ]
           ])
 
         input2_1 = Nx.random_uniform({1, 32})
         input2_2 = Nx.random_uniform({1, 32})
         input2_3 = Nx.random_uniform({1, 32})
-        assert {_, predict_fn} = Axon.compile(model2)
+        assert {_, predict_fn} = Axon.build(model2)
 
         assert_all_close(
           predict_fn.(%{}, %{"input_0" => input2_1, "input_1" => input2_2, "input_2" => input2_3}),
@@ -3674,7 +4076,10 @@ defmodule CompilerTest do
     test "computes forward pass with output policy" do
       for op <- @binary_layers do
         model =
-          apply(Axon, op, [Axon.input({nil, 32}, "input_0"), Axon.input({nil, 32}, "input_1")])
+          apply(Axon, op, [
+            Axon.input("input_0", shape: {nil, 32}),
+            Axon.input("input_1", shape: {nil, 32})
+          ])
 
         policy = AMP.create_policy(output: {:bf, 16})
         mp_model = AMP.apply_policy(model, policy)
@@ -3684,7 +4089,7 @@ defmodule CompilerTest do
           "input_1" => Nx.random_uniform({1, 32})
         }
 
-        assert {_, predict_fn} = Axon.compile(mp_model)
+        assert {_, predict_fn} = Axon.build(mp_model)
         assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
       end
     end
@@ -3695,9 +4100,12 @@ defmodule CompilerTest do
 
       for op <- @binary_layers do
         model =
-          apply(Axon, op, [Axon.input({nil, 1}, "input_0"), Axon.input({nil, 2}, "input_1")])
+          apply(Axon, op, [
+            Axon.input("input_0", shape: {nil, 1}),
+            Axon.input("input_1", shape: {nil, 2})
+          ])
 
-        assert {_, predict_fn} = Axon.compile(model)
+        assert {_, predict_fn} = Axon.build(model)
 
         assert_equal(
           predict_fn.(%{}, %{"input_0" => inp1, "input_1" => inp2}),
@@ -3705,23 +4113,49 @@ defmodule CompilerTest do
         )
       end
     end
+
+    test "raises on bad shapes" do
+      for op <- @binary_layers do
+        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
+          inp1 = Nx.random_uniform({1, 32})
+          inp2 = Nx.random_uniform({1, 64})
+
+          model =
+            apply(Axon, op, [
+              [Axon.input("input_0", shape: {nil, 32}), Axon.input("input_1", shape: {nil, 64})]
+            ])
+
+          Axon.predict(model, %{}, %{"input_0" => inp1, "input_1" => inp2})
+        end
+      end
+    end
   end
 
   describe "concatenate" do
     test "initializes with no params" do
-      model = Axon.concatenate(Axon.input({nil, 32}, "input_0"), Axon.input({nil, 32}, "input_1"))
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{} == init_fn.(%{})
+      model =
+        Axon.concatenate(
+          Axon.input("input_0", shape: {nil, 32}),
+          Axon.input("input_1", shape: {nil, 32})
+        )
+
+      input = %{"input_0" => Nx.random_uniform({1, 32}), "input_1" => Nx.random_uniform({1, 32})}
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{} == init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
       model1 =
-        Axon.concatenate(Axon.input({nil, 32}, "input_0"), Axon.input({nil, 32}, "input_1"))
+        Axon.concatenate(
+          Axon.input("input_0", shape: {nil, 32}),
+          Axon.input("input_1", shape: {nil, 32})
+        )
 
       input1_1 = Nx.random_uniform({1, 32})
       input1_2 = Nx.random_uniform({1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
 
       assert_equal(
         predict_fn.(%{}, %{"input_0" => input1_1, "input_1" => input1_2}),
@@ -3730,16 +4164,16 @@ defmodule CompilerTest do
 
       model2 =
         Axon.concatenate([
-          Axon.input({nil, 32}, "input_0"),
-          Axon.input({nil, 32}, "input_1"),
-          Axon.input({nil, 32}, "input_2")
+          Axon.input("input_0", shape: {nil, 32}),
+          Axon.input("input_1", shape: {nil, 32}),
+          Axon.input("input_2", shape: {nil, 32})
         ])
 
       input2_1 = Nx.random_uniform({1, 32})
       input2_2 = Nx.random_uniform({1, 32})
       input2_3 = Nx.random_uniform({1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model2)
+      assert {_, predict_fn} = Axon.build(model2)
 
       assert_equal(
         predict_fn.(%{}, %{"input_0" => input2_1, "input_1" => input2_2, "input_2" => input2_3}),
@@ -3749,14 +4183,16 @@ defmodule CompilerTest do
 
     test "computes forward pass with custom options" do
       model1 =
-        Axon.concatenate(Axon.input({nil, 1, 32}, "input_0"), Axon.input({nil, 1, 32}, "input_1"),
+        Axon.concatenate(
+          Axon.input("input_0", shape: {nil, 1, 32}),
+          Axon.input("input_1", shape: {nil, 1, 32}),
           axis: 1
         )
 
       input1_1 = Nx.random_uniform({1, 1, 32})
       input1_2 = Nx.random_uniform({1, 1, 32})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
 
       assert_equal(
         predict_fn.(%{}, %{"input_0" => input1_1, "input_1" => input1_2}),
@@ -3766,7 +4202,9 @@ defmodule CompilerTest do
 
     test "computes forward pass with output policy" do
       model1 =
-        Axon.concatenate(Axon.input({nil, 1, 32}, "input_0"), Axon.input({nil, 1, 32}, "input_1"),
+        Axon.concatenate(
+          Axon.input("input_0", shape: {nil, 1, 32}),
+          Axon.input("input_1", shape: {nil, 1, 32}),
           axis: 1
         )
 
@@ -3775,7 +4213,7 @@ defmodule CompilerTest do
       input1_1 = Nx.random_uniform({1, 1, 32})
       input1_2 = Nx.random_uniform({1, 1, 32})
 
-      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert {_, predict_fn} = Axon.build(mp_model)
 
       assert Nx.type(predict_fn.(%{}, %{"input_0" => input1_1, "input_1" => input1_2})) ==
                {:bf, 16}
@@ -3784,36 +4222,38 @@ defmodule CompilerTest do
 
   describe "pad" do
     test "initializes with no params" do
-      model = Axon.input({nil, 3, 3}, "input") |> Axon.pad([{1, 0}])
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{} == init_fn.(%{})
+      model = Axon.input("input", shape: {nil, 3, 3}) |> Axon.pad([{1, 0}])
+      input = Nx.random_uniform({1, 3, 3})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{} == init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input({nil, 3, 3}, "input") |> Axon.pad([{1, 0}])
+      model1 = Axon.input("input", shape: {nil, 3, 3}) |> Axon.pad([{1, 0}])
       input1 = Nx.random_uniform({1, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(model1)
+      assert {_, predict_fn} = Axon.build(model1)
 
       assert_equal(
         predict_fn.(%{}, input1),
         Nx.pad(input1, 0, [{0, 0, 0}, {0, 0, 0}, {1, 0, 0}])
       )
 
-      model2 = Axon.input({nil, 3, 3, 3}, "input") |> Axon.pad([{0, 1}, {0, 1}])
+      model2 = Axon.input("input", shape: {nil, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}])
       input2 = Nx.random_uniform({1, 3, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(model2)
+      assert {_, predict_fn} = Axon.build(model2)
 
       assert_equal(
         predict_fn.(%{}, input2),
         Nx.pad(input2, 0, [{0, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 0}])
       )
 
-      model3 = Axon.input({nil, 3, 3, 3, 3}, "input") |> Axon.pad([{0, 1}, {0, 1}, {1, 0}])
+      model3 = Axon.input("input", shape: {nil, 3, 3, 3, 3}) |> Axon.pad([{0, 1}, {0, 1}, {1, 0}])
       input3 = Nx.random_uniform({1, 3, 3, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(model3)
+      assert {_, predict_fn} = Axon.build(model3)
 
       assert_equal(
         predict_fn.(%{}, input3),
@@ -3822,10 +4262,10 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with custom options" do
-      model = Axon.input({nil, 3, 3}, "input") |> Axon.pad([{1, 0}], 2)
+      model = Axon.input("input", shape: {nil, 3, 3}) |> Axon.pad([{1, 0}], 2)
       input = Nx.random_uniform({1, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
 
       assert_equal(
         predict_fn.(%{}, input),
@@ -3834,40 +4274,42 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input({nil, 3, 3}, "input") |> Axon.pad([{1, 0}])
+      model = Axon.input("input", shape: {nil, 3, 3}) |> Axon.pad([{1, 0}])
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
       input = Nx.random_uniform({1, 3, 3})
 
-      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert {_, predict_fn} = Axon.build(mp_model)
       assert Nx.type(predict_fn.(%{}, input)) == {:bf, 16}
     end
   end
 
   describe "nx" do
     test "computes special nx functions" do
-      model = Axon.input({nil, 10}, "input") |> Axon.nx(&Nx.sin/1)
+      model = Axon.input("input", shape: {nil, 10}) |> Axon.nx(&Nx.sin/1)
       input = Nx.random_uniform({1, 10})
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_all_close(predict_fn.(%{}, input), Nx.sin(input))
     end
   end
 
   describe "cond" do
     test "initializes with no params" do
-      inp = Axon.input({nil, 1}, "input_0")
+      inp = Axon.input("input_0", shape: {nil, 1})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
       cond_fn = fn x -> Nx.all(x) end
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert %{} == init_fn.(%{})
+      input = Nx.tensor([[1.0]])
+
+      assert {init_fn, _} = Axon.build(model)
+      assert %{} == init_fn.(input, %{})
     end
 
     test "computes forward pass with default options" do
-      inp = Axon.input({nil, 2}, "input")
+      inp = Axon.input("input", shape: {nil, 2})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
       cond_fn = fn x -> Nx.all(x) end
@@ -3877,13 +4319,13 @@ defmodule CompilerTest do
 
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, input_1), Axon.Activations.relu(input_1))
       assert_equal(predict_fn.(%{}, input_2), Axon.Activations.sigmoid(input_2))
     end
 
     test "computes forward pass with output policy" do
-      inp = Axon.input({nil, 1, 32}, "input")
+      inp = Axon.input("input", shape: {nil, 1, 32})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
       cond_fn = fn x -> Nx.all(x) end
@@ -3893,12 +4335,12 @@ defmodule CompilerTest do
 
       input1_1 = Nx.random_uniform({1, 1, 32})
 
-      assert {_, predict_fn} = Axon.compile(mp_model)
+      assert {_, predict_fn} = Axon.build(mp_model)
       assert Nx.type(predict_fn.(%{}, input1_1)) == {:bf, 16}
     end
 
     test "raises on bad condition" do
-      inp = Axon.input({nil, 1, 10}, "input")
+      inp = Axon.input("input", shape: {nil, 1, 10})
       on_true = Axon.relu(inp)
       on_false = Axon.sigmoid(inp)
       cond_fn = fn x -> Nx.equal(x, 1) end
@@ -3906,7 +4348,7 @@ defmodule CompilerTest do
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
       assert_raise ArgumentError, ~r/cond_fn must return a scalar/, fn ->
-        {_, predict_fn} = Axon.compile(model)
+        {_, predict_fn} = Axon.build(model)
         predict_fn.(%{}, Nx.random_uniform({1, 1, 10}))
       end
     end
@@ -3914,17 +4356,19 @@ defmodule CompilerTest do
 
   describe "split" do
     test "initializes with no parameters" do
-      model = Axon.input({nil, 10}, "input") |> Axon.split(5) |> Axon.container()
+      model = Axon.input("input", shape: {nil, 10}) |> Axon.split(5) |> Axon.container()
 
-      assert {init_fn, _} = Axon.compile(model)
-      assert init_fn.(%{}) == %{}
+      input = Nx.random_uniform({1, 10})
+
+      assert {init_fn, _} = Axon.build(model)
+      assert init_fn.(input, %{}) == %{}
     end
 
     test "computes forward pass with default options" do
-      model = Axon.input({nil, 10}, "input") |> Axon.split(5) |> Axon.container()
+      model = Axon.input("input", shape: {nil, 10}) |> Axon.split(5) |> Axon.container()
       input = Nx.iota({1, 10}, type: {:f, 32})
 
-      assert {_, predict_fn} = Axon.compile(model)
+      assert {_, predict_fn} = Axon.build(model)
 
       assert_equal(
         predict_fn.(%{}, input),
@@ -3942,11 +4386,12 @@ defmodule CompilerTest do
   describe "hooks" do
     test "initialize hook", config do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(1, kernel_initializer: :ones)
         |> Axon.attach_hook(fn x -> send(config.test, x) end, on: :initialize)
 
-      Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+      init_fn.(Nx.tensor([[1.0]]), %{})
       assert_receive %{"kernel" => kernel, "bias" => bias}
       assert_equal(kernel, Nx.tensor([[1.0]]))
       assert_equal(bias, Nx.tensor([0.0]))
@@ -3954,7 +4399,7 @@ defmodule CompilerTest do
 
     test "pre forward hook", config do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.relu()
         |> Axon.attach_hook(fn x -> send(config.test, {x, :from_relu}) end, on: :pre_forward)
 
@@ -3968,7 +4413,7 @@ defmodule CompilerTest do
 
     test "forward hook", config do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.attach_hook(fn x -> send(config.test, {x, :from_input}) end, on: :forward)
         |> Axon.relu()
 
@@ -3982,7 +4427,7 @@ defmodule CompilerTest do
 
     test "backward hook", config do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(10)
         |> Axon.attach_hook(fn x -> send(config.test, {x, :from_dense}) end, on: :backward)
         |> Axon.relu()
@@ -3990,10 +4435,12 @@ defmodule CompilerTest do
         |> Axon.sigmoid()
         |> Axon.attach_hook(fn x -> send(config.test, {x, :from_sigmoid}) end, on: :backward)
 
-      params = Axon.init(model)
-      inp = Nx.random_uniform({1, 1})
+      {init_fn, predict_fn} = Axon.build(model)
 
-      axon_loss = fn params -> Nx.sum(Axon.predict(model, params, inp)) end
+      inp = Nx.random_uniform({1, 1})
+      params = init_fn.(inp, %{})
+
+      axon_loss = fn params -> Nx.sum(predict_fn.(params, inp)) end
 
       loss = fn params ->
         inp
@@ -4003,8 +4450,8 @@ defmodule CompilerTest do
         |> Nx.sum()
       end
 
-      axon_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end, [params])
-      actual_grad_params = Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end, [params])
+      axon_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end), [params])
+      actual_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end), [params])
 
       assert_all_close(
         axon_grad_params["dense_0"]["kernel"],
@@ -4025,11 +4472,15 @@ defmodule CompilerTest do
   describe "integrated models" do
     test "basic feed forward model initializes correctly" do
       model =
-        Axon.input({nil, 2}, "input")
+        Axon.input("input", shape: {nil, 2})
         |> Axon.dense(8)
         |> Axon.dense(1)
 
-      assert %{"dense_0" => dense_0_params, "dense_1" => dense_1_params} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 2})
+
+      assert %{"dense_0" => dense_0_params, "dense_1" => dense_1_params} = init_fn.(inp, %{})
 
       assert %{"kernel" => k0, "bias" => b0} = dense_0_params
       assert %{"kernel" => k1, "bias" => b1} = dense_1_params
@@ -4040,12 +4491,16 @@ defmodule CompilerTest do
     end
 
     test "recurrent model initializes correctly" do
-      input = Axon.input({nil, 8, 2}, "input")
+      input = Axon.input("input", shape: {nil, 8, 2})
 
-      {state, _} = input |> Axon.lstm(4)
-      {_, out} = input |> Axon.lstm(state, 8)
+      {_, state} = input |> Axon.lstm(8)
+      {out, _} = input |> Axon.lstm(state, 8)
 
-      assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = Axon.init(out)
+      {init_fn, _} = Axon.build(out)
+
+      inp = Nx.template({1, 8, 2}, {:f, 32})
+
+      assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = init_fn.(inp, %{})
 
       assert %{
                "input_kernel" => {wii_0, wif_0, wig_0, wio_0},
@@ -4053,18 +4508,18 @@ defmodule CompilerTest do
                "bias" => {bi_0, bf_0, bg_0, bo_0}
              } = lstm_0_params
 
-      assert Nx.shape(wii_0) == {2, 4}
-      assert Nx.shape(wif_0) == {2, 4}
-      assert Nx.shape(wig_0) == {2, 4}
-      assert Nx.shape(wio_0) == {2, 4}
-      assert Nx.shape(whi_0) == {4, 4}
-      assert Nx.shape(whf_0) == {4, 4}
-      assert Nx.shape(whg_0) == {4, 4}
-      assert Nx.shape(who_0) == {4, 4}
-      assert Nx.shape(bi_0) == {4}
-      assert Nx.shape(bf_0) == {4}
-      assert Nx.shape(bg_0) == {4}
-      assert Nx.shape(bo_0) == {4}
+      assert Nx.shape(wii_0) == {2, 8}
+      assert Nx.shape(wif_0) == {2, 8}
+      assert Nx.shape(wig_0) == {2, 8}
+      assert Nx.shape(wio_0) == {2, 8}
+      assert Nx.shape(whi_0) == {8, 8}
+      assert Nx.shape(whf_0) == {8, 8}
+      assert Nx.shape(whg_0) == {8, 8}
+      assert Nx.shape(who_0) == {8, 8}
+      assert Nx.shape(bi_0) == {8}
+      assert Nx.shape(bf_0) == {8}
+      assert Nx.shape(bg_0) == {8}
+      assert Nx.shape(bo_0) == {8}
 
       assert %{
                "input_kernel" => {wii_1, wif_1, wig_1, wio_1},
@@ -4089,49 +4544,65 @@ defmodule CompilerTest do
 
   describe "custom layers" do
     test "initializes with no parameters" do
-      model = Axon.layer(fn x, _opts -> x end, [Axon.input({nil, 1}, "input_0")])
-      assert Enum.empty?(Axon.init(model))
+      model = Axon.layer(fn x, _opts -> x end, [Axon.input("input_0", shape: {nil, 1})])
+      inp = Nx.random_uniform({1, 1})
+
+      {init_fn, _} = Axon.build(model)
+      assert Enum.empty?(init_fn.(inp, %{}))
     end
 
     test "initializes with parameters" do
-      kernel_param = Axon.param("kernel", {1, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       model =
-        Axon.layer(fn x, _kernel, _opts -> x end, [Axon.input({nil, 1}, "input_0"), kernel_param],
+        Axon.layer(
+          fn x, _kernel, _opts -> x end,
+          [Axon.input("input_0", shape: {nil, 1}), kernel_param],
           name: "layer_0"
         )
 
-      assert %{"layer_0" => %{"kernel" => kernel}} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert %{"layer_0" => %{"kernel" => kernel}} = init_fn.(inp, %{})
 
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(kernel) == {1, 1}
     end
 
     test "initializes with two custom layers and no op_name" do
-      k1 = Axon.param("kernel", {1, 1})
-      k2 = Axon.param("kernel", {1, 1})
+      k1 = Axon.param("kernel", fn shape -> shape end)
+      k2 = Axon.param("kernel", fn shape -> shape end)
 
       layer = fn x, k -> Axon.layer(fn y, _kernel, _opts -> y end, [x, k]) end
 
-      input = Axon.input({nil, 1}, "input_0")
+      input = Axon.input("input_0", shape: {nil, 1})
 
       model = input |> layer.(k1) |> layer.(k2)
 
-      assert %{"custom_0" => %{"kernel" => _}, "custom_1" => %{"kernel" => _}} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert %{"custom_0" => %{"kernel" => _}, "custom_1" => %{"kernel" => _}} =
+               init_fn.(inp, %{})
     end
 
     test "computes forward pass with parameters" do
-      input = Axon.input({nil, 1}, "input_0")
-      kernel_param = Axon.param("kernel", {1, 1})
+      input = Axon.input("input_0", shape: {nil, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       model =
         Axon.layer(fn x, kernel, _opts -> Nx.multiply(x, kernel) end, [input, kernel_param],
           name: "layer_0"
         )
 
+      {init_fn, _} = Axon.build(model)
+
       input = Nx.random_uniform({1, 1})
 
-      assert %{"layer_0" => %{"kernel" => kernel}} = params = Axon.init(model)
+      assert %{"layer_0" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model, params, input), Nx.multiply(input, kernel))
     end
@@ -4147,27 +4618,31 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with options" do
-      kernel_param = Axon.param("kernel", {1, 1})
+      kernel_param = Axon.param("kernel", fn shape -> shape end)
 
       input = Nx.random_uniform({1, 1})
 
       model1 =
-        Axon.layer(&layer_with_options/3, [Axon.input({nil, 1}, "input_0"), kernel_param],
+        Axon.layer(&layer_with_options/3, [Axon.input("input_0", shape: {nil, 1}), kernel_param],
           name: "add",
           add: true
         )
 
-      assert %{"add" => %{"kernel" => kernel}} = params = Axon.init(model1)
+      {init_fn, _} = Axon.build(model1)
+
+      assert %{"add" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model1, params, input), Nx.add(input, kernel))
 
       model2 =
-        Axon.layer(&layer_with_options/3, [Axon.input({nil, 1}, "input_0"), kernel_param],
+        Axon.layer(&layer_with_options/3, [Axon.input("input_0", shape: {nil, 1}), kernel_param],
           name: "multiply",
           add: false
         )
 
-      assert %{"multiply" => %{"kernel" => kernel}} = params = Axon.init(model2)
+      {init_fn, _} = Axon.build(model2)
+
+      assert %{"multiply" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model2, params, input), Nx.multiply(input, kernel))
     end
@@ -4175,9 +4650,13 @@ defmodule CompilerTest do
 
   describe "namespace" do
     test "initializes correctly with single namespace" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("model")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
 
-      assert %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = init_fn.(inp, %{})
 
       assert Nx.shape(k) == {1, 2}
       assert Nx.type(k) == {:f, 32}
@@ -4187,13 +4666,17 @@ defmodule CompilerTest do
 
     test "initializes correctly with nested namespace" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(2)
         |> Axon.namespace("model")
         |> Axon.namespace("nested")
 
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
       assert %{"nested" => %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}}} =
-               Axon.init(model)
+               init_fn.(inp, %{})
 
       assert Nx.shape(k) == {1, 2}
       assert Nx.type(k) == {:f, 32}
@@ -4202,28 +4685,42 @@ defmodule CompilerTest do
     end
 
     test "initializes correclty with single namespace no params" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.namespace("model")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.namespace("model")
 
-      assert %{} == Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert Enum.empty?(init_fn.(inp, %{}))
     end
 
     test "initializes correctly with nested namespace no params" do
       model =
-        Axon.input({nil, 1}, "input_0") |> Axon.namespace("model") |> Axon.namespace("nested")
+        Axon.input("input_0", shape: {nil, 1})
+        |> Axon.namespace("model")
+        |> Axon.namespace("nested")
 
-      assert %{} == Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert Enum.empty?(init_fn.(inp, %{}))
     end
 
     test "initializes correctly with multiple single namespaces" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input({nil, 1}, "input_1") |> Axon.dense(2) |> Axon.namespace("y")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
+
+      inp = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 1})}
 
       model = Axon.add(x, y)
+
+      {init_fn, _} = Axon.build(model)
 
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "y" => %{"dense_0" => %{"kernel" => k2, "bias" => b2}}
-             } = Axon.init(model)
+             } = init_fn.(inp, %{})
 
       assert Nx.shape(k1) == {1, 2}
       assert Nx.type(k1) == {:f, 32}
@@ -4236,20 +4733,24 @@ defmodule CompilerTest do
     end
 
     test "initializes correctly single and nested namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
 
       z =
-        Axon.input({nil, 1}, "input_1")
+        Axon.input("input_1", shape: {nil, 1})
         |> Axon.dense(2)
         |> Axon.namespace("y")
         |> Axon.namespace("z")
 
+      inp = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 1})}
+
       model = Axon.add(x, z)
+
+      {init_fn, _} = Axon.build(model)
 
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "z" => %{"y" => %{"dense_0" => %{"kernel" => k2, "bias" => b2}}}
-             } = Axon.init(model)
+             } = init_fn.(inp, %{})
 
       assert Nx.shape(k1) == {1, 2}
       assert Nx.type(k1) == {:f, 32}
@@ -4262,15 +4763,19 @@ defmodule CompilerTest do
     end
 
     test "initializes correctly with single namespace and no namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input({nil, 1}, "input_1") |> Axon.dense(2)
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2)
+
+      inp = %{"input_0" => Nx.random_uniform({1, 1}), "input_1" => Nx.random_uniform({1, 1})}
 
       model = Axon.add(x, y)
+
+      {init_fn, _} = Axon.build(model)
 
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "dense_0" => %{"kernel" => k2, "bias" => b2}
-             } = Axon.init(model)
+             } = init_fn.(inp, %{})
 
       assert Nx.shape(k1) == {1, 2}
       assert Nx.type(k1) == {:f, 32}
@@ -4283,11 +4788,14 @@ defmodule CompilerTest do
     end
 
     test "initializes correctly reusing namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
 
+      inp = Nx.random_uniform({1, 1})
       model = Axon.add(x, x)
 
-      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = init_fn.(inp, %{})
 
       assert Nx.shape(k) == {1, 2}
       assert Nx.type(k) == {:f, 32}
@@ -4295,9 +4803,22 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
     end
 
+    test "initializes correctly with layers after namespace, re-using params" do
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      model = Axon.dense(x, 2)
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %{"x" => x_params_1} = init_params = init_fn.(Nx.tensor([[1]]), %{})
+
+      assert %{"x" => x_params_2, "dense_0" => _} = init_fn.(Nx.tensor([[1]]), init_params)
+
+      assert_equal(x_params_1, x_params_2)
+    end
+
     # TODO: I actually don't know what the correct behavior is here?
     # test "initializes correctly re-using part of inner namespace" do
-    #   inner = Axon.input({nil, 1}, "input_0") |> Axon.dense(2)
+    #   inner = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2)
     #   x = Axon.namespace(inner, "x")
 
     #   model = Axon.add(inner, x)
@@ -4311,17 +4832,19 @@ defmodule CompilerTest do
     # end
 
     test "predicts correctly with single namespace" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("model")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
       input = Nx.random_uniform({1, 1})
 
+      {init_fn, _} = Axon.build(model)
+
       assert %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
-               params = Axon.init(model)
+               params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model, params, input), Axon.Layers.dense(input, k, b))
     end
 
     test "predicts correctly with single namespace no parameters" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.namespace("model")
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.namespace("model")
       input = Nx.random_uniform({1, 1})
 
       assert_equal(Axon.predict(model, %{}, input), input)
@@ -4329,22 +4852,26 @@ defmodule CompilerTest do
 
     test "predicts correctly with nested namespace" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(2)
         |> Axon.namespace("model")
         |> Axon.namespace("nested")
 
+      {init_fn, _} = Axon.build(model)
+
       input = Nx.random_uniform({1, 1})
 
       assert %{"nested" => %{"model" => %{"dense_0" => %{"kernel" => k, "bias" => b}}}} =
-               params = Axon.init(model)
+               params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model, params, input), Axon.Layers.dense(input, k, b))
     end
 
     test "predicts correctly with nested namespace and no params" do
       model =
-        Axon.input({nil, 1}, "input_0") |> Axon.namespace("model") |> Axon.namespace("nested")
+        Axon.input("input_0", shape: {nil, 1})
+        |> Axon.namespace("model")
+        |> Axon.namespace("nested")
 
       input = Nx.random_uniform({1, 1})
 
@@ -4352,10 +4879,12 @@ defmodule CompilerTest do
     end
 
     test "predicts correctly with multiple single namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input({nil, 1}, "input_1") |> Axon.dense(2) |> Axon.namespace("y")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
 
       model = Axon.add(x, y)
+
+      {init_fn, _} = Axon.build(model)
 
       input_0 = Nx.random_uniform({1, 1})
       input_1 = Nx.random_uniform({1, 1})
@@ -4364,22 +4893,24 @@ defmodule CompilerTest do
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "y" => %{"dense_0" => %{"kernel" => k2, "bias" => b2}}
-             } = params = Axon.init(model)
+             } = params = init_fn.(inputs, %{})
 
       expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
       assert_equal(Axon.predict(model, params, inputs), expected)
     end
 
     test "predicts correctly with single and nested namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
 
       z =
-        Axon.input({nil, 1}, "input_1")
+        Axon.input("input_1", shape: {nil, 1})
         |> Axon.dense(2)
         |> Axon.namespace("y")
         |> Axon.namespace("z")
 
       model = Axon.add(x, z)
+
+      {init_fn, _} = Axon.build(model)
 
       input_0 = Nx.random_uniform({1, 1})
       input_1 = Nx.random_uniform({1, 1})
@@ -4388,17 +4919,20 @@ defmodule CompilerTest do
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "z" => %{"y" => %{"dense_0" => %{"kernel" => k2, "bias" => b2}}}
-             } = params = Axon.init(model)
+             } = params = init_fn.(inputs, %{})
 
       expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
       assert_equal(Axon.predict(model, params, inputs), expected)
     end
 
     test "predicts correctly with single and no namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input({nil, 1}, "input_1") |> Axon.dense(2)
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2)
 
       model = Axon.add(x, y)
+
+      {init_fn, _} = Axon.build(model)
+
       input_0 = Nx.random_uniform({1, 1})
       input_1 = Nx.random_uniform({1, 1})
       inputs = %{"input_0" => input_0, "input_1" => input_1}
@@ -4406,19 +4940,21 @@ defmodule CompilerTest do
       assert %{
                "x" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}},
                "dense_0" => %{"kernel" => k2, "bias" => b2}
-             } = params = Axon.init(model)
+             } = params = init_fn.(inputs, %{})
 
       expected = Nx.add(Axon.Layers.dense(input_0, k1, b1), Axon.Layers.dense(input_1, k2, b2))
       assert_equal(Axon.predict(model, params, inputs), expected)
     end
 
     test "predicts correctly re-using namespace" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
 
       model = Axon.add(x, x)
+      {init_fn, _} = Axon.build(model)
       input = Nx.random_uniform({1, 1})
 
-      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
+      assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+               params = init_fn.(input, %{})
 
       expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
       assert_equal(Axon.predict(model, params, input), expected)
@@ -4426,7 +4962,7 @@ defmodule CompilerTest do
 
     # TODO: I actually don't know what the correct behavior is here?
     # test "predicts correctly re-using part of inner namespace" do
-    #   inner = Axon.input({nil, 1}, "input_0") |> Axon.dense(2)
+    #   inner = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2)
     #   x = Axon.namespace(inner, "x")
 
     #   model = Axon.add(inner, x)
@@ -4442,7 +4978,7 @@ defmodule CompilerTest do
   describe "initializers" do
     test "work with functions" do
       model =
-        Axon.input({nil, 1}, "input_0")
+        Axon.input("input_0", shape: {nil, 1})
         |> Axon.dense(2,
           kernel_initializer:
             Axon.Initializers.variance_scaling(
@@ -4452,7 +4988,11 @@ defmodule CompilerTest do
             )
         )
 
-      assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = Axon.init(model)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.tensor([[1.0]])
+
+      assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = init_fn.(inp, %{})
       assert Nx.shape(k) == {1, 2}
       assert Nx.shape(b) == {2}
     end
@@ -4460,30 +5000,50 @@ defmodule CompilerTest do
 
   describe "initialize from fixed model" do
     test "initializes entire model from start point" do
-      model = Axon.input({nil, 1}, "input_0") |> Axon.dense(2)
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2)
 
-      params_1 = Axon.init(model)
-      params_2 = Axon.init(model, params_1)
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.tensor([[1.0]])
+
+      params_1 = init_fn.(inp, %{})
+      params_2 = init_fn.(inp, params_1)
 
       assert_equal(params_1, params_2)
     end
 
     test "initializes partial model from start point" do
-      x = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input({nil, 1}, "input_0") |> Axon.dense(2) |> Axon.namespace("y")
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
       model = Axon.add(x, y)
 
-      {init_fn, _} = Axon.compile(model)
+      input = %{"input_0" => Nx.tensor([[1.0]]), "input_1" => Nx.tensor([[2.0]])}
 
-      %{"x" => x_params_1} = init_fn.(%{})
+      {init_fn, _} = Axon.build(model)
 
-      assert %{"x" => x_params_2, "y" => y_params_1} = init_fn.(%{"x" => x_params_1})
+      %{"x" => x_params_1} = init_fn.(input, %{})
+
+      assert %{"x" => x_params_2, "y" => y_params_1} = init_fn.(input, %{"x" => x_params_1})
       assert_equal(x_params_1, x_params_2)
 
       # This exercises that a namespace will always have the same
       # parameter names regardless of where it appears in a model
-      assert %{"y" => y_params_2} = init_fn.(%{"y" => y_params_1})
+      assert %{"y" => y_params_2} = init_fn.(input, %{"y" => y_params_1})
       assert_equal(y_params_1, y_params_2)
+    end
+
+    test "raises when unknown parameters are passed" do
+      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2, name: "dense_1")
+
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.random_uniform({1, 1})
+
+      assert_raise ArgumentError,
+                   ~s{found unexpected key in the initial parameters map: "dense_2"},
+                   fn ->
+                     init_fn.(inp, %{"dense_2" => %{"kernel" => Nx.tensor([[2.0]])}})
+                   end
     end
   end
 
@@ -4493,8 +5053,8 @@ defmodule CompilerTest do
       input2 = Nx.random_uniform({1, 2})
       inputs = %{"input_0" => input1, "input_1" => input2}
 
-      inp1 = Axon.input({nil, 1}, "input_0")
-      inp2 = Axon.input({nil, 2}, "input_1")
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 2})
       tuple_model = Axon.container({inp1, inp2})
       first_elem = Axon.nx(tuple_model, &elem(&1, 0))
       second_elem = Axon.nx(tuple_model, &elem(&1, 1))
@@ -4520,12 +5080,24 @@ defmodule CompilerTest do
 
   describe "edge cases" do
     test "raises clean error on missing parameter" do
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       input = Nx.tensor([[1.0]])
 
       assert_raise ArgumentError, ~r/parameter "kernel" for layer:/, fn ->
         Axon.predict(model, %{}, input)
       end
+    end
+
+    test "initializes a non-linear model" do
+      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2, name: "dense_0")
+      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2, name: "dense_1")
+      model = Axon.add(x, y)
+
+      {init_fn, _} = Axon.build(model)
+
+      input = %{"input_0" => Nx.tensor([[1.0]]), "input_1" => Nx.tensor([[2.0]])}
+
+      assert %{"dense_0" => _, "dense_1" => _} = init_fn.(input, %{})
     end
   end
 
@@ -4533,17 +5105,22 @@ defmodule CompilerTest do
     @describetag :capture_log
 
     test "predict logs debug utilities when debug true" do
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
+
+      {init_fn, _} = Axon.build(model, debug: true)
 
       assert capture_log(fn ->
-               Axon.init(model, %{}, debug: true)
+               init_fn.(Nx.tensor([[1.0]]), %{})
              end) =~ "Axon finished init"
     end
 
     test "init logs debug utilities when debug true" do
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       input = Nx.tensor([[1.0]])
-      params = Axon.init(model)
+
+      {init_fn, _} = Axon.build(model)
+
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
 
       assert capture_log(fn ->
                Axon.predict(model, params, input, debug: true)
@@ -4551,16 +5128,16 @@ defmodule CompilerTest do
     end
 
     test "compile logs debug utilities when debug true" do
-      model = Axon.input({nil, 1}, "input") |> Axon.dense(2)
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       input = Nx.tensor([[1.0]])
 
-      {init_fn, predict_fn} = Axon.compile(model, debug: true)
+      {init_fn, predict_fn} = Axon.build(model, debug: true)
 
       assert capture_log(fn ->
-               init_fn.(%{})
+               init_fn.(input, %{})
              end) =~ "Axon finished init"
 
-      params = init_fn.(%{})
+      params = init_fn.(input, %{})
 
       assert capture_log(fn ->
                predict_fn.(params, input)

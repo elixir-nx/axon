@@ -32,8 +32,8 @@ First, we need to build a model.  It contains an input layer with two inputs cre
 
 ```elixir
 defp build_model(input_shape1, input_shape2) do
-  inp1 = Axon.input(input_shape1, "x1")
-  inp2 = Axon.input(input_shape2, "x2")
+  inp1 = Axon.input("x1", shape: input_shape1)
+  inp2 = Axon.input("x2", shape: input_shape2)
 
   inp1
   |> Axon.concatenate(inp2)
@@ -103,8 +103,8 @@ defmodule XOR do
   require Axon
 
   defp build_model(input_shape1, input_shape2) do
-    inp1 = Axon.input(input_shape1, "x1")
-    inp2 = Axon.input(input_shape2, "x2")
+    inp1 = Axon.input("x1", shape: input_shape1)
+    inp2 = Axon.input("x2", shape: input_shape2)
 
     inp1
     |> Axon.concatenate(inp2)

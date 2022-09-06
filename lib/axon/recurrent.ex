@@ -1,29 +1,6 @@
 defmodule Axon.Recurrent do
-  @moduledoc """
-  Functional implementations of common recurrent neural network
-  routines.
+  @moduledoc false
 
-  Recurrent Neural Networks are commonly used for working with
-  sequences of data where there is some level of dependence between
-  outputs at different timesteps.
-
-  This module contains 3 RNN Cell functions and methods to "unroll"
-  cells over an entire sequence. Each cell function returns a tuple:
-
-      {new_carry, output}
-
-  Where `new_carry` is an updated carry state and `output` is the output
-  for a singular timestep. In order to apply an RNN across multiple timesteps,
-  you need to use either `static_unroll` or `dynamic_unroll` (coming soon).
-
-  Unrolling an RNN is equivalent to a `map_reduce` or `scan` starting
-  from an initial carry state and ending with a final carry state and
-  an output sequence.
-
-  All of the functions in this module are implemented as
-  numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` compiler.
-  """
   import Nx.Defn
   import Axon.Layers
 
@@ -37,6 +14,7 @@ defmodule Axon.Recurrent do
 
   * [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](https://arxiv.org/pdf/1412.3555v1.pdf)
   """
+  @deprecated "Use Axon.Layers.gru_cell/7 instead"
   defn gru_cell(
          input,
          carry,
@@ -70,6 +48,7 @@ defmodule Axon.Recurrent do
 
   * [Long Short-Term Memory](http://www.bioinf.jku.at/publications/older/2604.pdf)
   """
+  @deprecated "Use Axon.Layers.lstm_cell/7 instead"
   defn lstm_cell(
          input,
          carry,
@@ -96,32 +75,6 @@ defmodule Axon.Recurrent do
     {{new_c, new_h}, new_h}
   end
 
-  defnp rank_down(rnn_data) do
-    transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] =
-        for tensor <- [cell, hidden, input] do
-          Nx.squeeze(tensor, axes: [1])
-        end
-
-      {{cell, hidden}, input}
-    end)
-  end
-
-  defnp rank_up(rnn_data) do
-    transform(rnn_data, fn {{cell, hidden}, input} ->
-      [cell, hidden, input] =
-        for tensor <- [cell, hidden, input] do
-          new_shape =
-            Nx.shape(tensor)
-            |> Tuple.insert_at(1, 1)
-
-          Nx.reshape(tensor, new_shape)
-        end
-
-      {{cell, hidden}, input}
-    end)
-  end
-
   @doc """
   ConvLSTM Cell.
 
@@ -138,6 +91,7 @@ defmodule Axon.Recurrent do
 
     * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
+  @deprecated "Use Axon.Layers.conv_lstm_cell/6 instead"
   defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
@@ -178,6 +132,32 @@ defmodule Axon.Recurrent do
     end)
   end
 
+  defnp rank_down(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          Nx.squeeze(tensor, axes: [1])
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
+  defnp rank_up(rnn_data) do
+    transform(rnn_data, fn {{cell, hidden}, input} ->
+      [cell, hidden, input] =
+        for tensor <- [cell, hidden, input] do
+          new_shape =
+            Nx.shape(tensor)
+            |> Tuple.insert_at(1, 1)
+
+          Nx.reshape(tensor, new_shape)
+        end
+
+      {{cell, hidden}, input}
+    end)
+  end
+
   @doc """
   Dynamically unrolls an RNN.
 
@@ -189,14 +169,18 @@ defmodule Axon.Recurrent do
   This function will make use of an `defn` while-loop such and thus
   may be more efficient for long sequences.
   """
+  @deprecated "Use Axon.Layers.dynamic_unroll/6 instead"
   defn dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     time_steps = transform(Nx.shape(input_sequence), &elem(&1, 1))
 
     feature_dims = transform(Nx.rank(input_sequence), &List.duplicate(0, &1 - 2))
 
     initial_shape =
-      transform({Nx.shape(input_sequence), Nx.shape(elem(input_kernel, 0))}, fn {shape, kernel} ->
-        put_elem(shape, 2, elem(kernel, 1))
+      transform({cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias}, fn
+        {cell_fn, inp, carry, inp_kernel, hid_kernel, bias} ->
+          seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
+          {_, seq} = cell_fn.(seq, carry, inp_kernel, hid_kernel, bias)
+          put_elem(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
       end)
 
     init_sequence = Nx.broadcast(0.0, initial_shape)
@@ -227,6 +211,7 @@ defmodule Axon.Recurrent do
   the entire operation appears as a part of the compilation graph.
   This makes it suitable for shorter sequences.
   """
+  @deprecated "Use Axon.Layers.static_unroll/6 instead"
   defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
     transform(
       {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias},

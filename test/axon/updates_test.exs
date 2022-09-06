@@ -669,6 +669,115 @@ defmodule Axon.UpdatesTest do
     end
   end
 
+  describe "scale_by_state" do
+    test "constructs a stateful transformation" do
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
+      assert {init_fn, update_fn} = scale_by_state(1.0e-3)
+      assert is_function(init_fn, 1)
+      assert is_function(update_fn, 3)
+      assert {state} = init_fn.(params)
+      assert %{scale: scale} = state
+      assert scale == Nx.tensor(1.0e-3)
+    end
+
+    test "composes with itself" do
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
+      assert {init_fn, update_fn} = scale_by_state(1.0e-3) |> scale_by_state(1.0e-2)
+      assert is_function(init_fn, 1)
+      assert is_function(update_fn, 3)
+      assert {state_1, state_2} = init_fn.(params)
+      assert %{scale: scale_1} = state_1
+      assert scale_1 == Nx.tensor(1.0e-2)
+      assert %{scale: scale_2} = state_2
+      assert scale_2 == Nx.tensor(1.0e-3)
+    end
+
+    test "composes with stateless transformation" do
+      params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
+      assert {init_fn, update_fn} = scale_by_state(1.0e-3) |> scale(1.0e-2)
+      assert is_function(init_fn, 1)
+      assert is_function(update_fn, 3)
+      assert {state} = init_fn.(params)
+      assert %{scale: scale} = state
+      assert scale == Nx.tensor(1.0e-3)
+    end
+
+    test "matches optax with simple container" do
+      assert {init_fn, update_fn} = scale_by_state(1.0e-2)
+      params = %{a: Nx.tensor([0.29887561, 0.70429164, 0.43314898])}
+      updates = %{a: Nx.tensor([0.2584395, 0.35890494, 0.84845509])}
+      state = init_fn.(params)
+
+      expected_a = Nx.tensor([0.00258439, 0.00358905, 0.00848455])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert %{a: actual_a} = new_updates
+      assert {%{scale: scale}} = new_state
+      assert_all_close(actual_a, expected_a)
+      assert_all_close(scale, Nx.tensor(1.0e-2))
+    end
+
+    test "matches optax with nested container" do
+      assert {init_fn, update_fn} = scale_by_state(1.0e-2)
+
+      params = %{
+        a: %{
+          b: Nx.tensor([0.58813851, 0.27981229, 0.17335737]),
+          c: %{d: %{}, e: Nx.tensor([0.21444265, 0.63923396, 0.12755156])}
+        }
+      }
+
+      updates = %{
+        a: %{
+          b: Nx.tensor([0.48363215, 0.7147937, 0.32252682]),
+          c: %{d: %{}, e: Nx.tensor([0.09518468, 0.38613084, 0.20729078])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.00483632, 0.00714794, 0.00322527])
+      expected_e = Nx.tensor([0.00095185, 0.00386131, 0.00207291])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert %{a: %{b: actual_b, c: %{d: %{}, e: actual_e}}} = new_updates
+      assert {%{scale: scale}} = new_state
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(scale, Nx.tensor(1.0e-2))
+    end
+
+    test "supports generic container" do
+      assert {init_fn, update_fn} = scale_by_state(1.0e-2)
+
+      params = {
+        {
+          Nx.tensor([0.58813851, 0.27981229, 0.17335737]),
+          {{}, Nx.tensor([0.21444265, 0.63923396, 0.12755156])}
+        }
+      }
+
+      updates = {
+        {
+          Nx.tensor([0.48363215, 0.7147937, 0.32252682]),
+          {{}, Nx.tensor([0.09518468, 0.38613084, 0.20729078])}
+        }
+      }
+
+      state = init_fn.(params)
+
+      expected_b = Nx.tensor([0.00483632, 0.00714794, 0.00322527])
+      expected_e = Nx.tensor([0.00095185, 0.00386131, 0.00207291])
+
+      assert {new_updates, new_state} = update_fn.(updates, state, params)
+      assert {{actual_b, {{}, actual_e}}} = new_updates
+      assert {%{scale: scale}} = new_state
+      assert_all_close(actual_b, expected_b)
+      assert_all_close(actual_e, expected_e)
+      assert_all_close(scale, Nx.tensor(1.0e-2))
+    end
+  end
+
   describe "scale_by_adam" do
     test "constructs a stateful transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}

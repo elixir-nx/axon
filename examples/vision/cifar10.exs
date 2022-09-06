@@ -30,7 +30,7 @@ defmodule Cifar do
   end
 
   defp build_model(input_shape) do
-    Axon.input(input_shape, "input")
+    Axon.input("input", shape: input_shape)
     |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
     |> Axon.batch_norm()
     |> Axon.max_pool(kernel_size: {2, 2})
