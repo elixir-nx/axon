@@ -2,7 +2,7 @@ Mix.install([
   {:axon, "~> 0.1.0"},
   {:exla, "~> 0.2.2"},
   {:nx, "~> 0.2.1"},
-  {:explorer, "~> 0.1.1"}
+  {:explorer, "~> 0.2.0"}
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
@@ -11,11 +11,11 @@ defmodule CreditCardFraud do
   alias Axon.Loop.State
 
   # Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
-  @fname "examples/structured/creditcard.csv"
+  @file_name "examples/structured/creditcard.csv"
 
   defp data() do
-    IO.puts("Loading #{@fname}")
-    df = Explorer.DataFrame.read_csv!(@fname, dtypes: [{"Time", :float}])
+    IO.puts("Loading #{@file_name}")
+    df = Explorer.DataFrame.from_csv!(@file_name, dtypes: [{"Time", :float}])
 
     {train_df, test_df} = split_train_test(df, 0.8)
 
@@ -53,7 +53,20 @@ defmodule CreditCardFraud do
   end
 
   defp normalize(name),
-    do: fn df -> Explorer.Series.divide(df[name], Explorer.Series.max(df[name])) end
+    do: fn df ->
+      Explorer.Series.divide(
+        df[name],
+        Explorer.Series.max(
+          Explorer.Series.transform(df[name], fn x ->
+            if x >= 0 do
+              x
+            else
+              -x
+            end
+          end)
+        )
+      )
+    end
 
   defp normalize_data(df) do
     df
@@ -145,7 +158,7 @@ defmodule CreditCardFraud do
     IO.puts("% fraudlent transactions (train): #{100 * (fraud / (legit + fraud))}%")
     IO.write("\n\n")
 
-    model = build_model(30)
+    model = build_model(elem(train_inputs.shape, 1))
 
     loss =
       &Axon.Losses.binary_cross_entropy(
