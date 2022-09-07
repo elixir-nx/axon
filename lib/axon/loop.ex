@@ -1344,7 +1344,6 @@ defmodule Axon.Loop do
           sample_data,
           init_state,
           attached_state,
-          metric_fns,
           max_epochs,
           max_iterations,
           jit_compile?,
@@ -1352,15 +1351,22 @@ defmodule Axon.Loop do
         )
       end)
 
+    epoch_start = loop_state.epoch
+    epoch_end = max_epochs + epoch_start - 1
+
     if debug? do
       Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
     end
 
     final_metrics_map =
-      for i <- 0..(max_epochs - 1) do
+      for i <- epoch_start..epoch_end do
         {i, Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)}
       end
       |> Map.new()
+      |> Map.merge(loop_state.metrics)
+
+    zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, 0} end)
+    loop_state = %{loop_state | metrics: zero_metrics}
 
     {status, final_metrics, state} =
       case fire_event(:started, handler_fns, loop_state, debug?) do
@@ -1372,7 +1378,7 @@ defmodule Axon.Loop do
 
         {:continue, state} ->
           Enum.reduce_while(
-            0..(max_epochs - 1)//1,
+            epoch_start..epoch_end//1,
             {:completed, final_metrics_map, state},
             fn epoch, {_, final_metrics_map, loop_state} ->
               case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
@@ -1451,7 +1457,6 @@ defmodule Axon.Loop do
          sample_data,
          init_state,
          attached_state,
-         metric_fns,
          max_epochs,
          max_iterations,
          jit_compile?,
@@ -1459,10 +1464,9 @@ defmodule Axon.Loop do
        ) do
     case attached_state do
       %State{} = state ->
-        state
+        %{state | max_epoch: max_epochs + state.epoch}
 
       nil ->
-        metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)
         step_state = maybe_jit(init_fn, [sample_data, init_state], jit_compile?, jit_opts)
 
         %State{
@@ -1471,7 +1475,7 @@ defmodule Axon.Loop do
           iteration: 0,
           max_iteration: max_iterations,
           step_state: step_state,
-          metrics: metrics,
+          metrics: %{},
           times: %{}
         }
     end
