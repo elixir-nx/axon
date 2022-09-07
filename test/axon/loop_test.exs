@@ -488,4 +488,35 @@ defmodule Axon.LoopTest do
                File.ls!("checkpoint") |> Enum.sort()
     end
   end
+
+  describe "from_state" do
+    test "resumes training from state" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state1 =
+          model
+          |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+          # TODO: Make this an actual function or configurable
+          |> Map.put(:output_transform, & &1)
+          |> Axon.Loop.run(data, %{}, epochs: 3, iterations: 5)
+
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.from_state(state1)
+        |> Axon.Loop.handle(:epoch_completed, fn %{epoch: epoch} = state ->
+          assert epoch >= 3
+          {:continue, state}
+        end)
+        |> Axon.Loop.run(data, epochs: 5, iterations: 5)
+      end)
+    end
+  end
 end
