@@ -2835,7 +2835,7 @@ defmodule CompilerTest do
 
   describe "transpose" do
     test "initializes with no params" do
-      model = Axon.input("input", shape: {nil, 3, 32}) |> Axon.transpose([1, 0])
+      model = Axon.input("input", shape: {nil, 3, 32}) |> Axon.transpose()
 
       input = Nx.random_uniform({1, 3, 32})
 
@@ -2844,13 +2844,13 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with default options" do
-      model1 = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0])
+      model1 = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0, 1])
       input1 = Nx.random_uniform({1, 32})
 
       assert {_, predict_fn} = Axon.build(model1)
       assert_equal(predict_fn.(%{}, input1), Nx.transpose(input1, axes: [0, 1]))
 
-      model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.transpose([1, 0, 2])
+      model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.transpose([0, 2, 1, 3])
       input2 = Nx.random_uniform({1, 3, 32, 32})
 
       assert {_, predict_fn} = Axon.build(model2)
@@ -2858,14 +2858,14 @@ defmodule CompilerTest do
     end
 
     test "computes forward pass with constant" do
-      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0], ignore_batch?: false)
+      model = Axon.constant(Nx.iota({1, 2, 3})) |> Axon.transpose([2, 1, 0])
 
       assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.transpose(Nx.iota({1, 2, 3}, type: {:f, 32})))
     end
 
     test "computes forward pass with output policy" do
-      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0])
+      model = Axon.input("input_0", shape: {nil, 32}) |> Axon.transpose([0, 1])
       policy = AMP.create_policy(output: {:bf, 16})
       mp_model = AMP.apply_policy(model, policy)
 
@@ -2905,6 +2905,15 @@ defmodule CompilerTest do
 
       assert {_, predict_fn} = Axon.build(model)
       assert_equal(predict_fn.(%{}, {}), Nx.tensor([[[0, 1, 2], [3, 4, 5]]], type: {:f, 32}))
+    end
+
+    test "computes forward pass with magic :batch and :auto" do
+      model = Axon.input("input") |> Axon.reshape({:batch, 3, :auto})
+
+      assert {_, predict_fn} = Axon.build(model)
+
+      input = Nx.random_uniform({2, 4, 6})
+      assert_equal(predict_fn.(%{}, input), Nx.reshape(input, {2, 3, 8}))
     end
 
     test "computes forward pass with output policy" do
