@@ -3455,7 +3455,7 @@ defmodule Axon do
             " such as &Axon.Layers.dense/3"
         )
 
-      :external ->
+      {:type, :external} ->
         :ok
     end
   end
