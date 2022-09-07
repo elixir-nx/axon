@@ -1,5 +1,20 @@
 # ONNX To Axon
 
+```elixir
+Mix.install(
+  [
+    {:nx, "~> 0.3"},
+    {:axon, "~> 0.2"},
+    {:exla, "~> 0.3"},
+    {:axon_onnx, "~> 0.2"},
+    {:stb_image, "~> 0.5"},
+    {:kino, "~> 0.6.2"}
+  ],
+  # change to "cuda111" for Nvidia GPU
+  system_env: %{"XLA_TARGET" => xla_target}
+)
+```
+
 ## Converting an ONNX model into Axon
 
 Axon is a new machine learning capability, specific to Elixir.  We would like to take
@@ -34,43 +49,32 @@ in Elixir.
 
 <!-- livebook:{"break_markdown":true} -->
 
-We need access to the Nx library but we can use the general Nx capability rather than EXLA or 
-TorchX.  We won't be running the models just yet.  We'll convert from an ONNX 
-model into an Axon model using [`axon_onnx`](https://github.com/elixir-nx/axon_onnx).
+Axon runs on top of [Nx (Numerical Elixir)](https://hexdocs.pm/nx). Nx has backends for
+both Google's XLA (via EXLA) and PyTorch (via Torchx).  In this guide, we will use EXLA.
+We'll also convert from an ONNX  model into an Axon model using
+[`axon_onnx`](https://github.com/elixir-nx/axon_onnx).
 
-We'll also need local access to ONNX files.  For this notebook, the models/onnx folder contains the ONNX model file.  This notebook assumes the output file location will be in models/axon. 
-Copy your ONNX model files into the models/onnx folder.
-
-Let's install the needed modules.
+You can find all dependencies in the installation cell at the top of the notebook.
+In there, you will also find the `XLA_TARGET` environment variable whick you can set
+to "cuda111" or "rocm" if you have any of those GPUs available.  Let's also configure
+Nx to store tensors in EXLA by default:
 
 ```elixir
-Mix.install(
-  [
-    {:nx, "~> 0.2.1"},
-    {:axon, "~> 0.1.0"},
-    {:exla, "~> 0.2.2"},
-    {:axon_onnx, "~> 0.1.0"},
-    {:stb_image, "~> 0.5.2"},
-    {:kino, "~> 0.6.2"}
-  ],
-  # Only needed when running on Nvidia GPU
-  system_env: %{"XLA_TARGET" => "cuda111"}
-)
-
-EXLA.set_as_nx_default(
-  [:cuda, :tpu, :rocm, :host],
-  run_options: [keep_on_device: true]
-)
+Nx.default_backend(EXLA.Backend)
 ```
 
+We'll also need local access to ONNX files.  For this notebook, the models/onnx folder
+contains the ONNX model file.  This notebook assumes the output file location will be
+in models axon.  Copy your ONNX model files into the models/onnx folder.
+
 This opinionated module presents a simple API for loading in an ONNX file and saving
-the converted Axon model in the provided directory.  This API will allow us to
+the converted Axon model in the provided directory. This API will allow us to
 save multiple models pretty quickly.
 
 ```elixir
 defmodule OnnxToAxon do
   @moduledoc """
-  Documentation for `OnnxToAxon`.
+  Helper module from ONNX to Axon.
   """
 
   @doc """
@@ -85,34 +89,13 @@ defmodule OnnxToAxon do
     axon_name = axon_name_from_onnx_path(path_to_onnx_file)
     path_to_axon = Path.join(path_to_axon_dir, axon_name)
 
-    if File.exists?(path_to_axon) do
-      File.rm!(path_to_axon)
-    end
-
-    {model, parameters} = load_onnx(path_to_onnx_file)
-    save_axon(model, parameters, path_to_axon)
-
-    if File.exists?(path_to_axon) do
-      IO.puts("Successfully saved axon model")
-    else
-      IO.puts("Warning:: Could not save axon model")
-    end
-  end
-
-  defp load_onnx(onnx_path) do
-    AxonOnnx.Deserialize.__import__(onnx_path)
-  end
-
-  defp save_axon(model, parameters, axon_path) do
+    {model, parameters} = AxonOnnx.import(path_to_onnx_file)
     model_bytes = Axon.serialize(model, parameters)
-    File.write!(axon_path, model_bytes)
+    File.write!(path_to_axon, model_bytes)
   end
 
   defp axon_name_from_onnx_path(onnx_path) do
-    model_root =
-      Path.basename(onnx_path)
-      |> Path.rootname()
-
+    model_root = onnx_path |> Path.basename() |> Path.rootname()
     "#{model_root}.axon"
   end
 end
@@ -120,7 +103,7 @@ end
 
 ## ONNX model
 
-For this example, we'll use a couple ONNX models that have been saved in the Huggingface Hub.   %%More info on how to get the models and save them to the models/onnx folder%%
+For this example, we'll use a couple ONNX models that have been saved in the Huggingface Hub.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -134,7 +117,11 @@ To repeat this notebook, the onnx files for this notebook can be found on huggin
 * https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX
 * https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX
 
-Download the files and place them in the model/onnx folder to use the notebook as written.
+Download the files and place them in a directory of your choice.  By default, we will assume you downloaded them to the same directory as the notebook:
+
+```elixir
+File.cd!(__DIR__)
+```
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -177,10 +164,14 @@ File.read!("data/oxford-iiit-pet/images/havanese_71.jpg")
 |> Kino.Image.new(:jpeg)
 ```
 
+To manipulate the images, we will use the `StbImage` library:
+
 ```elixir
 {:ok, img} = StbImage.read_file("data/oxford-iiit-pet/images/havanese_71.jpg")
 %StbImage{data: binary, shape: shape, type: type} = StbImage.resize(img, 224, 224)
 ```
+
+Now let's work on a batch of images and convert them to tensors. Here are the images we will work with:
 
 ```elixir
 file_names = [
@@ -197,10 +188,11 @@ file_names = [
 ]
 ```
 
+Next we resize the images:
+
 ```elixir
 resized_images =
-  file_names
-  |> Enum.map(fn file_name ->
+  Enum.map(file_names, fn file_name ->
     ("data/oxford-iiit-pet/images/" <> file_name)
     |> IO.inspect(label: file_name)
     |> StbImage.read_file!()
@@ -208,28 +200,18 @@ resized_images =
   end)
 ```
 
-```elixir
-{_, combined_binary} =
-  Enum.map_reduce(resized_images, <<>>, fn stb_image, acc_binary ->
-    {nil, acc_binary <> stb_image.data}
-  end)
-```
+And finally convert them into tensors by using `StbImage.to_nx/1`. The created tensor will have three axes, named `:height`, `:width`, and `:channel` respectively. Our goal is to stack the tensors, then normalize and transpose their axes to the order expected by the neural network:
 
 ```elixir
 img_tensors =
-  combined_binary
-  |> Nx.from_binary({:u, 8})
+  resized_images
+  |> Enum.map(&StbImage.to_nx/1)
+  |> Nx.stack(name: :index)
   |> Nx.divide(255.0)
-  |> Nx.reshape({10, 224, 224, 3}, names: [:index, :x, :y, :z])
-  |> Nx.transpose(axes: [:index, :z, :x, :y])
+  |> Nx.transpose(axes: [:index, :channels, :height, :width])
 ```
 
-```elixir
-dog_cat_vocabulary = [
-  "dog",
-  "cat"
-]
-```
+With our input data, it is finally time to work on predictions. First let's define a helper module:
 
 ```elixir
 defmodule Predictions do
@@ -243,45 +225,43 @@ defmodule Predictions do
       ["dog", "cat", "dog"]
   
   """
-  def single_label_classification(prediction_tensor, vocabulary) do
-    IO.inspect(Nx.shape(prediction_tensor), label: "prediction tensor shape")
-    rows = elem(Nx.shape(prediction_tensor), 0)
+  def single_label_classification(predictions_batch, vocabulary) do
+    IO.inspect(Nx.shape(predictions_batch), label: "predictions batch shape")
 
-    Enum.map(0..(rows - 1), fn index ->
-      Nx.to_flat_list(prediction_tensor[index])
-    end)
-    |> prediction_with_vocab(vocabulary)
-    |> largest_prediction()
-  end
+    for prediction_tensor <- Nx.to_batched(predictions_batch) do
+      {_prediction_value, prediction_label} =
+        prediction_tensor
+        |> Nx.to_flat_list()
+        |> Enum.zip(vocabulary)
+        |> Enum.max()
 
-  defp prediction_with_vocab(predictions, vocabulary) do
-    Enum.map(predictions, fn target_prediction ->
-      Enum.zip(target_prediction, vocabulary)
-    end)
-  end
-
-  defp largest_prediction(predictions_with_vocab) do
-    Enum.map(predictions_with_vocab, fn row_predicts_vocab ->
-      sorted_pred =
-        Enum.sort(row_predicts_vocab, fn x, y ->
-          elem(x, 0) > elem(y, 0)
-        end)
-
-      elem(Enum.at(sorted_pred, 0), 1)
-    end)
+      prediction_label
+    end
   end
 end
 ```
+
+Now we deserialize the model
 
 ```elixir
 {cats_v_dogs_model, cats_v_dogs_params} = Axon.deserialize(cats_v_dogs)
 ```
 
-```elixir
-tensor_of_predictions = Axon.predict(cats_v_dogs_model, cats_v_dogs_params, img_tensors)
-```
+run a prediction using the `EXLA` compiler for performance
 
 ```elixir
+tensor_of_predictions =
+  Axon.predict(cats_v_dogs_model, cats_v_dogs_params, img_tensors, compiler: EXLA)
+```
+
+and finally retrieve the predicted label
+
+```elixir
+dog_cat_vocabulary = [
+  "dog",
+  "cat"
+]
+
 Predictions.single_label_classification(tensor_of_predictions, dog_cat_vocabulary)
 ```
 
