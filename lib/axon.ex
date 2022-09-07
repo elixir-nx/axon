@@ -1791,18 +1791,13 @@ defmodule Axon do
 
     * `:name` - layer name.
 
-    * `:ignore_batch?` - whether to ignore batch dimension in
-      transpose operation. Defaults to `true`.
-
   """
   @doc type: :shape
-  def flatten(%Axon{op: op} = x, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
-    ignore_batch? = opts[:ignore_batch?]
+  def flatten(%Axon{} = x, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
 
     layer(:flatten, [x],
       name: opts[:name],
-      ignore_batch?: ignore_batch?,
       op_name: :flatten
     )
   end
@@ -1811,30 +1806,24 @@ defmodule Axon do
   Adds a reshape layer to the network.
 
   This layer implements a special case of `Nx.reshape` which accounts
-  for possible batch dimensions in the input tensor. If the input contains
-  batch dimensions, the reshape operation is performed on all non-batch
-  dimensions of the input - preserving the original batch size.
+  for possible batch dimensions in the input tensor. You may pass the
+  magic dimension `:batch` as a placeholder for dynamic batch sizes.
+  You can use `:batch` seamlessly with `:auto` dimension sizes.
 
   If the input is an Axon constant, the reshape behavior matches that of
-  `Nx.reshape`.
+  `Nx.reshape/2`.
 
   ## Options
 
     * `:name` - layer name.
-
-    * `:ignore_batch?` - whether to ignore batch dimension in transpose
-      operation. Defaults to `true`.
-
   """
   @doc type: :shape
-  def reshape(%Axon{op: op} = x, new_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
-    ignore_batch? = opts[:ignore_batch?]
+  def reshape(%Axon{} = x, new_shape, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
 
     layer(:reshape, [x],
       name: opts[:name],
       shape: new_shape,
-      ignore_batch?: ignore_batch?,
       op_name: :reshape
     )
   end
@@ -1846,19 +1835,14 @@ defmodule Axon do
 
     * `:name` - layer name.
 
-    * `:ignore_batch?` - whether to ignore batch dimension in transpose
-      operation. Defaults to true.
-
   """
   @doc type: :shape
-  def transpose(%Axon{op: op} = x, permutation \\ nil, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, ignore_batch?: op != :constant])
-    ignore_batch? = opts[:ignore_batch?]
+  def transpose(%Axon{} = x, permutation \\ nil, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
 
     layer(:transpose, [x],
       name: opts[:name],
       axes: permutation,
-      ignore_batch?: ignore_batch?,
       op_name: :transpose
     )
   end

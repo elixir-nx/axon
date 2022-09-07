@@ -582,13 +582,13 @@ defmodule AxonTest do
 
   describe "transpose" do
     test "works with batch input" do
-      assert %Axon{} = Axon.input("input", shape: {nil, 2, 1}) |> Axon.transpose([1, 0])
+      assert %Axon{} = Axon.input("input", shape: {nil, 2, 1}) |> Axon.transpose([0, 2, 1])
     end
 
     test "works with constant input" do
       assert %Axon{} =
                Axon.constant(Nx.iota({3, 2, 1}))
-               |> Axon.transpose([2, 1, 0], ignore_batch?: false)
+               |> Axon.transpose([2, 1, 0])
     end
   end
 

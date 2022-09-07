@@ -1929,13 +1929,8 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :shape
-  defn flatten(x, opts \\ []) do
-    opts = keyword!(opts, ignore_batch?: true, mode: :inference)
-
-    new_shape =
-      transform({Nx.shape(x), opts[:ignore_batch?]}, fn {shape, ignore} ->
-        Axon.Shape.flatten(shape, ignore)
-      end)
+  defn flatten(x, _opts \\ []) do
+    new_shape = transform(Nx.shape(x), &Axon.Shape.flatten/1)
 
     Nx.reshape(x, new_shape)
   end
@@ -1944,14 +1939,21 @@ defmodule Axon.Layers do
   # Internal version of Nx.reshape for constructing reshape layers
   # without worrying about a batch dimension
   defn reshape(x, opts \\ []) do
-    opts = keyword!(opts, [:shape, ignore_batch?: true, mode: :inference])
+    opts = keyword!(opts, [:shape, mode: :inference])
 
-    transform({opts[:shape], opts[:ignore_batch?]}, fn
-      {shape, true} ->
-        Nx.reshape(x, Tuple.insert_at(shape, 0, elem(Nx.shape(x), 0)))
+    transform({opts[:shape], x}, fn {shape, x} ->
+      batch_size = Nx.axis_size(x, 0)
 
-      {shape, false} ->
-        Nx.reshape(x, shape)
+      new_shape =
+        shape
+        |> Tuple.to_list()
+        |> Enum.map(fn
+          :batch -> batch_size
+          val -> val
+        end)
+        |> List.to_tuple()
+
+      Nx.reshape(x, new_shape)
     end)
   end
 
@@ -1977,17 +1979,14 @@ defmodule Axon.Layers do
   # Internal version of Nx.transpose for constructing a transpose layer
   # without worrying about a batch dimension
   defn transpose(x, opts \\ []) do
-    opts = keyword!(opts, [:axes, ignore_batch?: true, mode: :inference])
+    opts = keyword!(opts, [:axes, mode: :inference])
 
     axes =
-      transform({Nx.shape(x), opts[:axes], opts[:ignore_batch?]}, fn
-        {shape, nil, _} ->
+      transform({Nx.shape(x), opts[:axes]}, fn
+        {shape, nil} ->
           Nx.axes(shape) |> Enum.reverse()
 
-        {_, axes, true} ->
-          [0 | Enum.map(axes, &(&1 + 1))]
-
-        {_, axes, false} ->
+        {_, axes} ->
           axes
       end)
 

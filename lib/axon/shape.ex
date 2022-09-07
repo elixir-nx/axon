@@ -815,28 +815,19 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.flatten({nil, 1, 28, 28}, true)
+      iex> Axon.Shape.flatten({nil, 1, 28, 28})
       {nil, 784}
 
-      iex> Axon.Shape.flatten({32, 128}, true)
+      iex> Axon.Shape.flatten({32, 128})
       {32, 128}
 
-      iex> Axon.Shape.flatten({nil, 10, 10}, true)
+      iex> Axon.Shape.flatten({nil, 10, 10})
       {nil, 100}
   """
-  def flatten(shape, ignore_batch?) do
-    out_units =
-      if ignore_batch? do
-        Nx.size(Tuple.delete_at(shape, 0))
-      else
-        Nx.size(shape)
-      end
+  def flatten(shape) do
+    out_units = Nx.size(Tuple.delete_at(shape, 0))
 
-    if ignore_batch? do
-      {elem(shape, 0), out_units}
-    else
-      {out_units}
-    end
+    {elem(shape, 0), out_units}
   end
 
   @doc """
