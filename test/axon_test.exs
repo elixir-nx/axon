@@ -23,10 +23,6 @@ defmodule AxonTest do
       assert_raise ArgumentError, ~r/value passed to constant/, fn ->
         Axon.constant(:foo)
       end
-
-      assert_raise ArgumentError, ~r/value passed to constant/, fn ->
-        Axon.constant(1)
-      end
     end
   end
 
