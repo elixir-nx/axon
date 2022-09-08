@@ -238,8 +238,10 @@ defmodule Axon.LossesTest do
       y_pred = Nx.tensor([[1.0, 0.0], [1.0, 1.0]])
       eps = 1.0e-3
 
-      assert Axon.Losses.cosine_similarity(y_true, y_pred, eps: eps) ==
-               Nx.tensor([0.0, 1.0000001192092896])
+      assert_all_close(
+        Axon.Losses.cosine_similarity(y_true, y_pred, eps: eps) ==
+          Nx.tensor([0.0, 1.0])
+      )
     end
 
     test "supports axes" do
@@ -247,8 +249,10 @@ defmodule Axon.LossesTest do
       y_pred = Nx.tensor([[1.0, 0.0], [1.0, 1.0]])
       axes = [0]
 
-      assert Axon.Losses.cosine_similarity(y_true, y_pred, axes: axes) ==
-               Nx.tensor([0.7071067690849304, 0.7071067690849304])
+      assert_all_close(
+        Axon.Losses.cosine_similarity(y_true, y_pred, axes: axes) ==
+          Nx.tensor([0.7071067690849304, 0.7071067690849304])
+      )
     end
   end
 end
