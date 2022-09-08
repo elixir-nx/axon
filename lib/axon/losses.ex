@@ -906,7 +906,7 @@ defmodule Axon.Losses do
       iex> Axon.Losses.cosine_similarity(y_true, y_pred)
       #Nx.Tensor<
         f32[2]
-        [0.0, 1.0]
+        [0.0, 1.0000001192092896]
       >
   """
 
