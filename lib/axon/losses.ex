@@ -883,6 +883,55 @@ defmodule Axon.Losses do
   end
 
   @doc ~S"""
+  Cosine Similarity error loss function.
+
+  $$l_i = \sum_i (\hat{y_i} - y_i)^2$$
+
+  ## Argument Shapes
+
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
+
+  ## Options
+
+    * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
+      Defaults to `:none`.
+    * `:axes` - Defaults to `[1]`.
+    * `:eps` - Defaults to `1.0e-6`.
+
+  ## Examples
+
+      iex> y_pred = Nx.tensor([[1.0, 0.0], [1.0, 1.0]])
+      iex> y_true = Nx.tensor([[0.0, 1.0], [1.0, 1.0]])
+      iex> Axon.Losses.cosine_similarity(y_true, y_pred)
+      #Nx.Tensor<
+        f32[2]
+        [0.0, 1.0000001192092896]
+      >
+  """
+
+  defn cosine_similarity(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, axes: [1], eps: 1.0e-6, reduction: :none)
+    axes = opts[:axes]
+    eps = opts[:eps]
+
+    w12 = Nx.sum(y_true * y_pred, axes: axes)
+    w1 = Nx.LinAlg.norm(y_true, axes: axes)
+    w2 = Nx.LinAlg.norm(y_pred, axes: axes)
+    n12 = Nx.max(w1 * w2, eps)
+    loss = w12 / n12
+
+    transform(
+      {opts[:reduction], loss},
+      fn
+        {:mean, loss} -> Nx.mean(loss)
+        {:sum, loss} -> Nx.sum(loss)
+        {:none, loss} -> loss
+      end
+    )
+  end
+
+  @doc ~S"""
   Poisson loss function.
 
   $$l_i = \frac{1}{C} \sum_i^C y_i - (\hat{y_i} \cdot \log(y_i))$$
