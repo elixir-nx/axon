@@ -180,7 +180,7 @@ defmodule Axon do
   pass a specific compiler to `Axon.build/2`:
 
       EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
-      
+
       {init_fn, predict_fn} = Axon.build(model, compiler: EXLA, mode: :train)
 
       init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
@@ -1276,6 +1276,7 @@ defmodule Axon do
     {:hard_tanh, "Hard hyperbolic tangent", "a"},
     {:leaky_relu, "Leaky rectified linear unit", "a"},
     {:linear, "Linear", "a"},
+    {:log_sumexp, "Log-sumexp", "a"},
     {:log_sigmoid, "Log-sigmoid", "a"},
     {:log_softmax, "Log-softmax", "a"},
     {:mish, "Mish", "a"},
