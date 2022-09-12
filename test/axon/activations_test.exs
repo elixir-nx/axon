@@ -4,9 +4,7 @@ defmodule Axon.ActivationsTest do
   # Do not doctest if USE_EXLA or USE_TORCHX is set, because
   # that will check for absolute equality and both will trigger
   # failures
-  unless @exla || @torchx do
-    doctest Axon.Activations
-  end
+  doctest Axon.Activations, tags: [skip_torchx: true, skip_exla: true]
 
   describe "celu" do
     test "forward matches jax for rank 1 and type {:f, 32}" do
@@ -816,10 +814,7 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual)
     end
 
-    if @torchx do
-      @tag :skip
-    end
-
+    @tag :skip_torchx
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
@@ -1346,10 +1341,7 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual)
     end
 
-    if @torchx do
-      @tag :skip
-    end
-
+    @tag :skip_torchx
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([

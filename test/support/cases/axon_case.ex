@@ -5,9 +5,6 @@ defmodule Axon.Case do
     quote do
       import Nx.Defn
       import AxonTestUtil
-
-      @torchx !!System.get_env("USE_TORCHX")
-      @exla !!System.get_env("USE_EXLA")
     end
   end
 

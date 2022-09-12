@@ -472,8 +472,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with constant" do
       input1 = Axon.input("input_0", shape: {nil, 1})
       input2 = Axon.constant(Nx.iota({2, 1}))
@@ -1136,8 +1135,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1243,8 +1241,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.conv(input, k, Nx.tensor(0)))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6}) |> Axon.conv(2, name: "conv", channels: :last)
@@ -1349,8 +1346,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.depthwise_conv(input3, kernel, bias))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1470,8 +1466,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.depthwise_conv(input, k, Nx.tensor(0)))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -1575,8 +1570,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv_transpose(input3, kernel, bias))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, kernel_dilation: 1]
 
@@ -1696,8 +1690,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.conv_transpose(input, k, Nx.tensor(0)))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -1811,8 +1804,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1], input_dilation: [1, 2], kernel_dilation: 1, padding: :same]
 
@@ -1932,8 +1924,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -2097,8 +2088,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1, 1], input_dilation: [1, 2, 1], kernel_dilation: 1, padding: :same]
 
@@ -2246,8 +2236,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 3, 6})
@@ -2952,8 +2941,7 @@ defmodule CompilerTest do
       assert %{} = init_fn.(input, %{})
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with default options" do
       model1 = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       input1 = Nx.random_uniform({1, 1, 3, 3})
@@ -2962,8 +2950,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, size: {4, 4}))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with output policy" do
       model = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       policy = AMP.create_policy(output: {:bf, 16})
@@ -3424,8 +3411,7 @@ defmodule CompilerTest do
       assert_equal(b, zeros({4 * out_channel_n}))
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with dynamic unroll and equal number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3478,8 +3464,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with static unroll and different number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3538,8 +3523,7 @@ defmodule CompilerTest do
 
     # First part fails by conv_lstm_cell:
     # no support for custom gate and activation functions
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with custom options" do
       input_shape = {
         _batch = nil,
@@ -3632,8 +3616,7 @@ defmodule CompilerTest do
       )
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with hidden state" do
       input_shape = {
         _batch = nil,
@@ -3705,8 +3688,7 @@ defmodule CompilerTest do
     # test "returns zero gradient for frozen parameters" do
     # end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "computes forward pass with use_bias false" do
       input_shape = {
         _batch = nil,
@@ -4462,8 +4444,7 @@ defmodule CompilerTest do
       assert_equal(from_inp, inp)
     end
 
-    if @torchx, do: @tag(:skip)
-
+    @tag :skip_torchx
     test "backward hook", config do
       model =
         Axon.input("input_0", shape: {nil, 1})
