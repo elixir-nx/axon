@@ -408,9 +408,8 @@ defmodule Axon.Activations do
     res =
       stable_exp
       |> Nx.sum(axes: axes, keep_axes: true)
-      |> Nx.log
+      |> Nx.log()
   end
-
 
   @doc ~S"""
   Log-sigmoid activation.
