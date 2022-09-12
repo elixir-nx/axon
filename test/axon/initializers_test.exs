@@ -1,7 +1,5 @@
 defmodule Axon.InitializersTest do
-  use ExUnit.Case, async: true
-
-  import AxonTestUtil
+  use Axon.Case, async: true
 
   doctest Axon.Initializers
 
@@ -25,17 +23,18 @@ defmodule Axon.InitializersTest do
 
       identity_left_t2 = t2 |> Nx.transpose() |> Nx.dot(t2)
 
-      assert Nx.all_close(identity_left_t2, Nx.eye(identity_left_t2), atol: 1.0e-3, rtol: 1.0e-3) ==
-               Nx.tensor(1, type: {:u, 8})
+      assert_all_close(identity_left_t2, Nx.eye(identity_left_t2), atol: 1.0e-3, rtol: 1.0e-3)
 
       # Since the matrix is "tall", it's transpose will only be it's left inverse
       identity_right_t2 = t2 |> Nx.dot(Nx.transpose(t2))
 
-      assert Nx.all_close(identity_right_t2, Nx.eye(identity_right_t2),
-               atol: 1.0e-3,
-               rtol: 1.0e-3
-             ) ==
-               Nx.tensor(0, type: {:u, 8})
+      assert_equal(
+        Nx.all_close(identity_right_t2, Nx.eye(identity_right_t2),
+          atol: 1.0e-3,
+          rtol: 1.0e-3
+        ),
+        Nx.tensor(0, type: {:u, 8})
+      )
     end
 
     test "raises on input rank less than 2" do
