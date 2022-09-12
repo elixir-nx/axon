@@ -1,10 +1,9 @@
 defmodule Axon.SchedulesTest do
-  use ExUnit.Case
+  use Axon.Case
   doctest Axon.Schedules
 
   import Axon.Schedules
   import Nx.Defn
-  import AxonTestUtil
 
   describe "exponential_decay" do
     test "returns arity-1 function with defaults" do

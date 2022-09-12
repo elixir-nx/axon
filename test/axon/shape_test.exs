@@ -1,4 +1,4 @@
 defmodule Axon.ShapeTest do
-  use ExUnit.Case
+  use Axon.Case
   doctest Axon.Shape
 end
