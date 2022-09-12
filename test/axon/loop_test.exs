@@ -1,15 +1,9 @@
 defmodule Axon.LoopTest do
-  use ExUnit.Case, async: true
+  use Axon.Case, async: true
   import ExUnit.CaptureLog
-  import AxonTestUtil
 
   alias Axon.Loop
   alias Axon.Loop.State
-
-  setup do
-    Nx.Defn.default_options(compiler: test_compiler())
-    :ok
-  end
 
   describe "factories" do
     test "loop/3 creates a basic loop with defaults" do
