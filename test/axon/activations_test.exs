@@ -1,10 +1,7 @@
 defmodule Axon.ActivationsTest do
   use Axon.Case, async: true
 
-  # Do not doctest if USE_EXLA or USE_TORCHX is set, because
-  # that will check for absolute equality and both will trigger
-  # failures
-  doctest Axon.Activations, tags: [skip_torchx: true, skip_exla: true]
+  doctest Axon.Activations
 
   describe "celu" do
     test "forward matches jax for rank 1 and type {:f, 32}" do
@@ -1338,7 +1335,7 @@ defmodule Axon.ActivationsTest do
 
       expected = Nx.tensor([[0.0, 0.0], [0.0, 0.0]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-7)
     end
 
     @tag :skip_torchx
@@ -1351,7 +1348,7 @@ defmodule Axon.ActivationsTest do
 
       expected = Nx.tensor([[[0.0, 0.0]], [[0.0, 0.0]]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-7)
     end
   end
 
