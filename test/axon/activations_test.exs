@@ -4,7 +4,7 @@ defmodule Axon.ActivationsTest do
   # Do not doctest if USE_EXLA or USE_TORCHX is set, because
   # that will check for absolute equality and both will trigger
   # failures
-  unless System.get_env("USE_EXLA") || @torchx do
+  unless @exla || @torchx do
     doctest Axon.Activations
   end
 
