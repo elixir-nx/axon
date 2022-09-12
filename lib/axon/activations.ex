@@ -358,13 +358,13 @@ defmodule Axon.Activations do
 
   ## Examples
 
-      iex> Axon.Activations.logsumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
+      iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
         [0.45776283740997314]
       >
 
-      iex> Axon.Activations.logsumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
+      iex> Axon.Activations.log_sumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
          bf16[batch: 2][data: 1]
         [
@@ -378,11 +378,6 @@ defmodule Axon.Activations do
     opts = keyword!(opts, axis: -1)
     axes = transform(opts[:axis], &List.wrap/1)
 
-    transform({x, axes}, fn {x, axes} ->
-      Enum.each(axes, fn axis ->
-        Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
-      end)
-    end)
 
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
@@ -408,7 +403,9 @@ defmodule Axon.Activations do
     res =
       stable_exp
       |> Nx.sum(axes: axes, keep_axes: true)
-      |> Nx.log()
+      |> Nx.log
+
+    res
   end
 
   @doc ~S"""
