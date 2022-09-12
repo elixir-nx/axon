@@ -1,9 +1,23 @@
 defmodule Axon.ActivationsTest do
   use ExUnit.Case, async: true
-  doctest Axon.Activations
+
+  @torchx !!System.get_env("USE_TORCHX")
+  # Do not doctest if USE_EXLA or USE_TORCHX is set, because
+  # that will check for absolute equality and both will trigger
+  # failures
+  unless System.get_env("USE_EXLA") || @torchx do
+    doctest Axon.Activations
+  end
 
   import Nx.Defn
   import AxonTestUtil
+
+  setup config do
+    Nx.Defn.default_options(compiler: test_compiler())
+    Nx.default_backend(test_backend())
+    Process.register(self(), config.test)
+    :ok
+  end
 
   describe "celu" do
     test "forward matches jax for rank 1 and type {:f, 32}" do
@@ -813,6 +827,10 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual)
     end
 
+    if @torchx do
+      @tag :skip
+    end
+
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
@@ -1337,6 +1355,10 @@ defmodule Axon.ActivationsTest do
       expected = Nx.tensor([[0.0, 0.0], [0.0, 0.0]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
       assert_all_close(expected, actual)
+    end
+
+    if @torchx do
+      @tag :skip
     end
 
     test "backward matches jax for rank 3 and type {:f, 32}" do

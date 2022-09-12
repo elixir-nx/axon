@@ -6,6 +6,11 @@ defmodule AxonTestUtil do
     if use_exla?, do: EXLA, else: Nx.Defn.Evaluator
   end
 
+  def test_backend do
+    use_torchx? = System.get_env("USE_TORCHX")
+    if use_torchx?, do: Torchx.Backend, else: Nx.BinaryBackend
+  end
+
   def check_optimizer!(optimizer, loss, x0, num_steps) do
     check_optimizer_functions!(optimizer)
     check_optimizer_run!(optimizer, loss, x0, num_steps)
