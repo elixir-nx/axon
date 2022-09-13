@@ -197,7 +197,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "conv" do
-    @tag :skip_torchx
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -410,7 +409,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "depthwise conv" do
-    @tag :skip_torchx
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -449,7 +447,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "separable_conv2d" do
-    @tag :skip_torchx
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -491,7 +488,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "separable_conv3d" do
-    @tag :skip_torchx
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 3, 8, 8, 8})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 4, 1])

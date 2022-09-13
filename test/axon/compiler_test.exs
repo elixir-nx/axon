@@ -1241,7 +1241,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.conv(input, k, Nx.tensor(0)))
     end
 
-    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6}) |> Axon.conv(2, name: "conv", channels: :last)
@@ -1466,7 +1465,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.depthwise_conv(input, k, Nx.tensor(0)))
     end
 
-    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -1690,7 +1688,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), Axon.Layers.conv_transpose(input, k, Nx.tensor(0)))
     end
 
-    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -1924,7 +1921,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 6})
@@ -2236,7 +2232,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
     test "computes forward pass with channels last" do
       model =
         Axon.input("input", shape: {nil, 3, 3, 3, 6})
