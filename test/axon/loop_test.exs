@@ -324,7 +324,13 @@ defmodule Axon.LoopTest do
 
       assert %Loop{metrics: %{"tp" => {sum_tp_fun, _}}} = loop
 
-      output = {Nx.tensor([1, 0, 1]), Nx.tensor([0, 1, 1])}
+      # the type for torchx needs to be signed because u64 is not supported there
+      type =
+        if Nx.default_backend() == Torchx.Backend do
+          {:s, 8}
+        end
+
+      output = {Nx.tensor([1, 0, 1], type: type), Nx.tensor([0, 1, 1], type: type)}
       cur_sum = 25
       i = 10
 

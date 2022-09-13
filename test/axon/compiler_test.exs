@@ -2936,7 +2936,6 @@ defmodule CompilerTest do
       assert %{} = init_fn.(input, %{})
     end
 
-    @tag :skip_torchx
     test "computes forward pass with default options" do
       model1 = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       input1 = Nx.random_uniform({1, 1, 3, 3})
@@ -2945,7 +2944,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(%{}, input1), Axon.Layers.resize(input1, size: {4, 4}))
     end
 
-    @tag :skip_torchx
     test "computes forward pass with output policy" do
       model = Axon.input("input", shape: {nil, 1, 3, 3}) |> Axon.resize({4, 4})
       policy = AMP.create_policy(output: {:bf, 16})

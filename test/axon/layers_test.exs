@@ -531,7 +531,6 @@ defmodule Axon.LayersTest do
 
   describe "max_pool" do
     @tag :skip_exla
-    @tag :skip_torchx
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -539,7 +538,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.max_pool(input, kernel_size: {2, 2})
       last = Axon.Layers.max_pool(t_input, kernel_size: {2, 2}, channels: :last)
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     @tag :skip_exla
