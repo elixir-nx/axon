@@ -1,9 +1,7 @@
 defmodule Axon.ActivationsTest do
-  use ExUnit.Case, async: true
-  doctest Axon.Activations
+  use Axon.Case, async: true
 
-  import Nx.Defn
-  import AxonTestUtil
+  doctest Axon.Activations
 
   describe "celu" do
     test "forward matches jax for rank 1 and type {:f, 32}" do
@@ -813,6 +811,7 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual)
     end
 
+    @tag :skip_torchx
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
@@ -1336,9 +1335,10 @@ defmodule Axon.ActivationsTest do
 
       expected = Nx.tensor([[0.0, 0.0], [0.0, 0.0]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-7)
     end
 
+    @tag :skip_torchx
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
@@ -1348,7 +1348,7 @@ defmodule Axon.ActivationsTest do
 
       expected = Nx.tensor([[[0.0, 0.0]], [[0.0, 0.0]]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-7)
     end
   end
 

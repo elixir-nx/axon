@@ -33,6 +33,19 @@ jobs:
         run: mix deps.get
       - name: Run tests against EXLA
         run: MIX_ENV=test USE_EXLA=true mix do compile --warnings-as-errors, test
+  torchx_check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Erlang & Elixir
+        uses: erlef/setup-elixir@v1
+        with:
+          otp-version: '24.0'
+          elixir-version: '1.13.0'
+      - name: Install mix dependencies
+        run: mix deps.get
+      - name: Run tests against EXLA
+        run: MIX_ENV=test USE_TORCHX=true mix do compile --warnings-as-errors, test
   onnx_check:
     runs-on: ubuntu-latest
     steps:

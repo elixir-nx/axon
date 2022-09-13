@@ -1,4 +1,4 @@
 defmodule Axon.MetricsTest do
-  use ExUnit.Case
+  use Axon.Case
   doctest Axon.Metrics
 end

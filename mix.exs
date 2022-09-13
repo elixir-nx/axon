@@ -38,6 +38,7 @@ defmodule Axon.MixProject do
       # EXLA is a test-only dependency for testing models and training
       # under JIT
       {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.3.0", [only: :test] ++ torchx_opts()},
       {:nx, "~> 0.3.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1"}
@@ -65,6 +66,14 @@ defmodule Axon.MixProject do
       [path: path]
     else
       []
+    end
+  end
+
+  defp torchx_opts do
+    if path = System.get_env("AXON_TORCHX_PATH") do
+      [path: path]
+    else
+      [github: "elixir-nx/nx", sparse: "torchx", branch: "main"]
     end
   end
 

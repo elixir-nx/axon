@@ -1,15 +1,9 @@
 defmodule Axon.LoopTest do
-  use ExUnit.Case, async: true
+  use Axon.Case, async: true
   import ExUnit.CaptureLog
-  import AxonTestUtil
 
   alias Axon.Loop
   alias Axon.Loop.State
-
-  setup do
-    Nx.Defn.default_options(compiler: test_compiler())
-    :ok
-  end
 
   describe "factories" do
     test "loop/3 creates a basic loop with defaults" do
@@ -301,6 +295,7 @@ defmodule Axon.LoopTest do
              end) =~ "Metric accuracy declared twice in loop."
     end
 
+    @tag :skip_torchx
     test "computes running average by default with supervised output transform" do
       step_fn = fn _, _ -> 1 end
 
@@ -318,6 +313,7 @@ defmodule Axon.LoopTest do
       assert_equal(avg_acc_fun.(cur_avg_acc, List.wrap(output), i), Nx.tensor(0.75))
     end
 
+    @tag :skip_torchx
     test "computes a running sum with custom output transform" do
       step_fn = fn _, _ -> 1 end
 
@@ -328,7 +324,13 @@ defmodule Axon.LoopTest do
 
       assert %Loop{metrics: %{"tp" => {sum_tp_fun, _}}} = loop
 
-      output = {Nx.tensor([1, 0, 1]), Nx.tensor([0, 1, 1])}
+      # the type for torchx needs to be signed because u64 is not supported there
+      type =
+        if Nx.default_backend() == Torchx.Backend do
+          {:s, 8}
+        end
+
+      output = {Nx.tensor([1, 0, 1], type: type), Nx.tensor([0, 1, 1], type: type)}
       cur_sum = 25
       i = 10
 

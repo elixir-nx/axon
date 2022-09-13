@@ -1,5 +1,5 @@
 defmodule MixedPrecisionTest do
-  use ExUnit.Case, async: true
+  use Axon.Case, async: true
 
   alias Axon.MixedPrecision.Policy
   alias Axon.MixedPrecision, as: AMP
