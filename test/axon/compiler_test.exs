@@ -3404,7 +3404,6 @@ defmodule CompilerTest do
       assert_equal(b, zeros({4 * out_channel_n}))
     end
 
-    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with dynamic unroll and equal number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3457,7 +3456,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with static unroll and different number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3516,7 +3514,6 @@ defmodule CompilerTest do
 
     # First part fails by conv_lstm_cell:
     # no support for custom gate and activation functions
-    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with custom options" do
       input_shape = {
         _batch = nil,
@@ -3609,7 +3606,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with hidden state" do
       input_shape = {
         _batch = nil,
@@ -3681,7 +3677,6 @@ defmodule CompilerTest do
     # test "returns zero gradient for frozen parameters" do
     # end
 
-    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with use_bias false" do
       input_shape = {
         _batch = nil,
