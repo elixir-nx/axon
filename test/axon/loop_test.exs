@@ -295,7 +295,7 @@ defmodule Axon.LoopTest do
              end) =~ "Metric accuracy declared twice in loop."
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :u64
     test "computes running average by default with supervised output transform" do
       step_fn = fn _, _ -> 1 end
 
@@ -306,14 +306,20 @@ defmodule Axon.LoopTest do
 
       assert %Loop{metrics: %{"accuracy" => {avg_acc_fun, _}}} = loop
 
-      output = %{foo: 1, y_true: Nx.tensor([1, 0, 1]), y_pred: Nx.tensor([0.8, 0.2, 0.8])}
+      # Torchx cannot compute u64-output sum, so we need to force a signed type
+      output = %{
+        foo: 1,
+        y_true: Nx.tensor([1, 0, 1]),
+        y_pred: Nx.tensor([0.8, 0.2, 0.8])
+      }
+
       cur_avg_acc = 0.5
       i = 1
 
       assert_equal(avg_acc_fun.(cur_avg_acc, List.wrap(output), i), Nx.tensor(0.75))
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :u64
     test "computes a running sum with custom output transform" do
       step_fn = fn _, _ -> 1 end
 

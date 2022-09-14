@@ -472,7 +472,7 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :no_clause_matching
     test "computes forward pass with constant" do
       input1 = Axon.input("input_0", shape: {nil, 1})
       input2 = Axon.constant(Nx.iota({2, 1}))
@@ -1135,7 +1135,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias))
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1345,7 +1345,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.depthwise_conv(input3, kernel, bias))
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1568,7 +1568,7 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv_transpose(input3, kernel, bias))
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, kernel_dilation: 1]
 
@@ -1801,7 +1801,7 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1], input_dilation: [1, 2], kernel_dilation: 1, padding: :same]
 
@@ -2084,7 +2084,7 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1, 1], input_dilation: [1, 2, 1], kernel_dilation: 1, padding: :same]
 
@@ -3404,7 +3404,7 @@ defmodule CompilerTest do
       assert_equal(b, zeros({4 * out_channel_n}))
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with dynamic unroll and equal number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3457,7 +3457,7 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with static unroll and different number of input and output channels" do
       input_shape = {
         _batch = nil,
@@ -3516,7 +3516,7 @@ defmodule CompilerTest do
 
     # First part fails by conv_lstm_cell:
     # no support for custom gate and activation functions
-    @tag :skip_torchx
+    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with custom options" do
       input_shape = {
         _batch = nil,
@@ -3609,7 +3609,7 @@ defmodule CompilerTest do
       )
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with hidden state" do
       input_shape = {
         _batch = nil,
@@ -3681,7 +3681,7 @@ defmodule CompilerTest do
     # test "returns zero gradient for frozen parameters" do
     # end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :shape_mismatch
     test "computes forward pass with use_bias false" do
       input_shape = {
         _batch = nil,
@@ -4437,7 +4437,7 @@ defmodule CompilerTest do
       assert_equal(from_inp, inp)
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :incompatible_implementations
     test "backward hook", config do
       model =
         Axon.input("input_0", shape: {nil, 1})

@@ -121,7 +121,7 @@ defmodule OptimizersTest do
   end
 
   describe "fromage" do
-    @tag :skip_torchx
+    @tag skip_torchx: :incompatible_implementations
     test "correctly optimizes simple loss and default options" do
       optimizer = Axon.Optimizers.fromage(@learning_rate)
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
@@ -131,7 +131,7 @@ defmodule OptimizersTest do
       check_optimizer!(optimizer, loss_fn, x0, num_steps)
     end
 
-    @tag :skip_torchx
+    @tag skip_torchx: :incompatible_implementations
     test "correctly optimizes simple loss and custom options" do
       optimizer = Axon.Optimizers.fromage(@learning_rate, min_norm: 0.1)
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
