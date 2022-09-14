@@ -11,6 +11,6 @@
   "nimble_parsec": {:hex, :nimble_parsec, "1.2.3", "244836e6e3f1200c7f30cb56733fd808744eca61fd182f731eac4af635cc6d0b", [:mix], [], "hexpm", "c8d789e39b9131acf7b99291e93dae60ab48ef14a7ee9d58c6964f59efb570b0"},
   "nx": {:hex, :nx, "0.3.0", "12448769619ed1442e22bd198faf4629ae3d0ee3ed565e42be49829cc42bf35f", [:mix], [{:complex, "~> 0.4.2", [hex: :complex, repo: "hexpm", optional: false]}], "hexpm", "d08d8962f4379ade54281aad84c45cb7eb0118b406fc836f07b94acc40df5859"},
   "table_rex": {:hex, :table_rex, "3.1.1", "0c67164d1714b5e806d5067c1e96ff098ba7ae79413cc075973e17c38a587caa", [:mix], [], "hexpm", "678a23aba4d670419c23c17790f9dcd635a4a89022040df7d5d772cb21012490"},
-  "torchx": {:git, "https://github.com/elixir-nx/nx.git", "25be584722fa82137b240b6c6bc03d1eb2d1b7c8", [sparse: "torchx", branch: "main"]},
+  "torchx": {:git, "https://github.com/elixir-nx/nx.git", "ecf912bb14ef885f3acace9fccaa2c5799e36732", [sparse: "torchx", branch: "main"]},
   "xla": {:hex, :xla, "0.3.0", "7f40d3d799447bd745e6e61985c922821e355eca37c25754bac299d11f137f2e", [:make, :mix], [{:elixir_make, "~> 0.4", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "0de304f5624ea2f2ae1afdcbd72d33855364be36fed2cc5de8d6d2ec8950926e"},
 }

@@ -9,7 +9,7 @@ exclude_doctests = if torchx? or exla?, do: [test_type: :doctest], else: []
 torchx_tests =
   if torchx? do
     [
-      skip_torchx: :shape_mismatch,
+      skip_torchx: :broadcast,
       skip_torchx: :no_clause_matching,
       skip_torchx: :input_dilation,
       skip_torchx: :incompatible_implementations,

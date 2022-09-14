@@ -811,7 +811,7 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual)
     end
 
-    @tag skip_torchx: :shape_mismatch
+    @tag skip_torchx: :broadcast
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
@@ -1338,7 +1338,7 @@ defmodule Axon.ActivationsTest do
       assert_all_close(expected, actual, atol: 1.0e-7)
     end
 
-    @tag skip_torchx: :shape_mismatch
+    @tag skip_torchx: :broadcast
     test "backward matches jax for rank 3 and type {:f, 32}" do
       a =
         Nx.tensor([
