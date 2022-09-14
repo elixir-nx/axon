@@ -352,6 +352,62 @@ defmodule Axon.Activations do
   defn linear(x), do: x
 
   @doc ~S"""
+  Logsumexp activation.
+
+  $$\log(sum e^x_i)$$
+
+  ## Examples
+
+      iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
+      #Nx.Tensor<
+        f32[data: 1]
+        [0.45776283740997314]
+      >
+
+      iex> Axon.Activations.log_sumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
+      #Nx.Tensor<
+        bf16[batch: 2][data: 1]
+        [
+          [0.404296875],
+          [0.404296875]
+        ]
+      >
+
+  """
+  defn log_sumexp(x, opts \\ []) do
+    opts = keyword!(opts, axis: -1)
+    axes = transform(opts[:axis], &List.wrap/1)
+
+    # This is a scaling term designed to prevent over/under flow when x is very
+    # large. Consider cases where the intermediate value e^x with large positive
+    # x, e^x tends towards infinity or 0. This poisons the rest of the
+    # calculation which would otherwise be normalized with the division by sum(e^x).
+    # Thus we can scale by the max value in the tensor which guarantees all values
+    # are smaller than 0.
+    #
+    # Given the expression is essentially:
+    #
+    # e^(x - C) / sum(e^(x - C))
+    #
+    # We are essentially treating the max value as a constant term, C. Thus there
+    # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
+    # for a note on performance.
+    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
+
+    stable_exp =
+      x
+      |> Nx.subtract(max_val)
+      |> Nx.exp()
+
+    res =
+      stable_exp
+      |> Nx.sum(axes: axes, keep_axes: true)
+      |> Nx.log()
+
+    res
+  end
+
+  @doc ~S"""
   Log-sigmoid activation.
 
   $$f(x_i) = \log(\sigmoid(x))$$
@@ -619,7 +675,7 @@ defmodule Axon.Activations do
 
   $$\frac{e^{x_i}}{\sum_i e^{x_i}}$$
 
-  **Implementation Note: Sigmoid logits are cached as metadata
+  **Implementation Note: Softmax logits are cached as metadata
   in the expression and can be used in calculations later on.
   For example, they are used in cross-entropy calculations for
   better stability.**
