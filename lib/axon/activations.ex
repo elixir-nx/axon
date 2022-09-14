@@ -360,7 +360,7 @@ defmodule Axon.Activations do
 
       iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
-        f32[data: 7]
+        f32[data: 1]
         [0.45776283740997314]
       >
 
