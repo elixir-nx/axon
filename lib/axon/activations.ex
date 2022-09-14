@@ -378,7 +378,6 @@ defmodule Axon.Activations do
     opts = keyword!(opts, axis: -1)
     axes = transform(opts[:axis], &List.wrap/1)
 
-
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
     # x, e^x tends towards infinity or 0. This poisons the rest of the
@@ -403,7 +402,7 @@ defmodule Axon.Activations do
     res =
       stable_exp
       |> Nx.sum(axes: axes, keep_axes: true)
-      |> Nx.log
+      |> Nx.log()
 
     res
   end
