@@ -472,7 +472,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :no_clause_matching
     test "computes forward pass with constant" do
       input1 = Axon.input("input_0", shape: {nil, 1})
       input2 = Axon.constant(Nx.iota({2, 1}))

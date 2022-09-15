@@ -295,7 +295,6 @@ defmodule Axon.LoopTest do
              end) =~ "Metric accuracy declared twice in loop."
     end
 
-    @tag skip_torchx: :u64
     test "computes running average by default with supervised output transform" do
       step_fn = fn _, _ -> 1 end
 
@@ -319,7 +318,6 @@ defmodule Axon.LoopTest do
       assert_equal(avg_acc_fun.(cur_avg_acc, List.wrap(output), i), Nx.tensor(0.75))
     end
 
-    @tag skip_torchx: :u64
     test "computes a running sum with custom output transform" do
       step_fn = fn _, _ -> 1 end
 
