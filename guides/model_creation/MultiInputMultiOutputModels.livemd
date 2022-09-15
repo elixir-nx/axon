@@ -1,0 +1,107 @@
+# Multi-Input / Multi-Output Models
+
+```elixir
+Mix.install([
+  {:axon, path: "."},
+  {:nx, "~> 0.3.0", override: true},
+  {:kino, "~> 0.6.2"}
+])
+```
+
+## Creating multi-input models
+
+Sometimes your application necessitates the use of multiple inputs. To use multiple inputs in an Axon model, you just need to declare multiple inputs in your graph:
+
+```elixir
+input_1 = Axon.input("input_1")
+input_2 = Axon.input("input_2")
+
+out = Axon.add(input_1, input_2)
+```
+
+Notice when you inspect the model, it tells you what your models inputs are up front. You can also get metadata about your model inputs programmatically with `Axon.get_inputs/1`:
+
+```elixir
+Axon.get_inputs(out)
+```
+
+Each input is uniquely named, so you can pass inputs by-name into inspection and execution functions with a map:
+
+```elixir
+inputs = %{
+  "input_1" => Nx.template({2, 8}, :f32),
+  "input_2" => Nx.template({2, 8}, :f32)
+}
+
+Axon.Display.as_graph(out, inputs)
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(inputs, %{})
+```
+
+```elixir
+inputs = %{
+  "input_1" => Nx.iota({2, 8}, type: :f32),
+  "input_2" => Nx.iota({2, 8}, type: :f32)
+}
+
+predict_fn.(params, inputs)
+```
+
+If you forget a required input, Axon will raise:
+
+```elixir
+predict_fn.(params, %{"input_1" => Nx.iota({2, 8}, type: :f32)})
+```
+
+## Creating multi-output models
+
+Depending on your application, you might also want your model to have multiple outputs. You can achieve this by using `Axon.container/2` to wrap multiple nodes into any supported Nx container:
+
+```elixir
+inp = Axon.input("data")
+
+x1 = inp |> Axon.dense(32) |> Axon.relu()
+x2 = inp |> Axon.dense(64) |> Axon.relu()
+
+out = Axon.container({x1, x2})
+```
+
+```elixir
+template = Nx.template({2, 8}, :f32)
+Axon.Display.as_graph(out, template)
+```
+
+When executed, containers will return a data structure which matches their input structure:
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(template, %{})
+predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```
+
+You can output maps as well:
+
+```elixir
+out = Axon.container(%{x1: x1, x2: x2})
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(template, %{})
+predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```
+
+Containers even support arbitrary nesting:
+
+```elixir
+out = Axon.container({%{x1: {x1, x2}, x2: %{x1: x1, x2: {x2}}}})
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(template, %{})
+predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```

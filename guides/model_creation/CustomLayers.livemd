@@ -1,0 +1,145 @@
+# Custom Layers
+
+```elixir
+Mix.install([
+  {:axon, path: "."},
+  {:nx, "~> 0.3.0", override: true},
+  {:kino, "~> 0.6.2"}
+])
+```
+
+## Creating custom layers
+
+While Axon has a plethora of built-in layers, more than likely you'll run into a case where you need something not provided by the framework. In these instances, you can use *custom layers*.
+
+To Axon, layers are really just `defn` implementations with special Axon inputs. Every layer in Axon (including the built-in layers), are implemented with the `Axon.layer/3` function. The API of `Axon.layer/3` intentionally mirrors the API of `Kernel.apply/2`. To declare a custom layer you need 2 things:
+
+1. A `defn` implementation
+2. Inputs
+
+The `defn` implementation looks like any other `defn` you'd write; however, it must always account for additional `opts` as an argument:
+
+```elixir
+defmodule CustomLayers do
+  import Nx.Defn
+
+  defn my_layer(input, opts \\ []) do
+    opts = keyword!(opts, mode: :train, alpha: 1.0)
+
+    input
+    |> Nx.sin()
+    |> Nx.multiply(opts[:alpha])
+  end
+end
+```
+
+Regardless of the options you configure your layer to accept, the `defn` implementation will always receive a `:mode` option indicating whether or not the model is running in training or inference mode. You can customize the behavior of your layer depending on the mode.
+
+With an implementation defined, you need only to call `Axon.layer/3` to apply our custom layer to an Axon input:
+
+```elixir
+input = Axon.input("data")
+
+out = Axon.layer(&CustomLayers.my_layer/2, [input])
+```
+
+Now you can inspect and execute your model as normal:
+
+```elixir
+template = Nx.template({2, 8}, :f32)
+Axon.Display.as_graph(out, template)
+```
+
+Notice that by default custom layers render with a default operation marked as `:custom`. This can make it difficult to determine which layer is which during inspection. You can control the rendering by passing `:op_name` to `Axon.layer/3`:
+
+```elixir
+out = Axon.layer(&CustomLayers.my_layer/2, [input], op_name: :my_layer)
+
+Axon.Display.as_graph(out, template)
+```
+
+You can also control the name of your layer via the `:name` option. All other options are forwarded to the layer implementation function:
+
+```elixir
+out =
+  Axon.layer(&CustomLayers.my_layer/2, [input],
+    name: "layer",
+    op_name: :my_layer,
+    alpha: 2.0
+  )
+
+Axon.Display.as_graph(out, template)
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(template, %{})
+```
+
+```elixir
+predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```
+
+Notice that this model does not have any trainable parameters because none of the layers have trainable parameters. You can introduce trainable parameters by passing inputs created with `Axon.param/3` to `Axon.layer/3`. For example, you can modify your original custom layer to take an additional trainable parameter:
+
+```elixir
+defmodule CustomLayers do
+  import Nx.Defn
+
+  defn my_layer(input, alpha, _opts \\ []) do
+    input
+    |> Nx.sin()
+    |> Nx.multiply(alpha)
+  end
+end
+```
+
+And then construct the layer with a regular Axon input and a trainable parameter:
+
+```elixir
+alpha = Axon.param("alpha", fn _ -> {} end)
+
+out = Axon.layer(&CustomLayers.my_layer/3, [input, alpha], op_name: :my_layer)
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(out)
+params = init_fn.(template, %{})
+```
+
+Notice how your model now initializes with a trainable parameter `"alpha"` for your custom layer. Each parameter requires a unique (per-layer) string name and a function which determines the parameter's shape from the layer's input shapes.
+
+<!-- livebook:{"break_markdown":true} -->
+
+If you plan on re-using custom layers in many locations, it's recommended that you wrap them in an Elixir function as an interface:
+
+```elixir
+defmodule CustomLayers do
+  import Nx.Defn
+
+  def my_layer(%Axon{} = input, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name])
+    alpha = Axon.param("alpha", fn _ -> {} end)
+
+    Axon.layer(&my_layer_impl/3, [input, alpha], name: opts[:name], op_name: :my_layer)
+  end
+
+  defnp my_layer_impl(input, alpha, _opts \\ []) do
+    input
+    |> Nx.sin()
+    |> Nx.multiply(alpha)
+  end
+end
+```
+
+```elixir
+out =
+  input
+  |> CustomLayers.my_layer()
+  |> CustomLayers.my_layer()
+  |> Axon.dense(1)
+```
+
+```elixir
+Axon.Display.as_graph(out, template)
+```

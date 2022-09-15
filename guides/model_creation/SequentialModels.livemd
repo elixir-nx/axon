@@ -1,0 +1,66 @@
+# Sequential Models
+
+```elixir
+Mix.install([
+  # TODO: Update me on release
+  {:axon, path: "."},
+  {:nx, "~> 0.3.0", override: true},
+  {:kino, "~> 0.6.2"}
+])
+```
+
+## Creating a sequential model
+
+In the [last guide](YourFirstAxonModel.livemd), you created a simple identity model which just returned the input. Of course, you would never actually use Axon for such purposes. You want to create real neural networks!
+
+In equivalent frameworks in the Python ecosystem such as Keras and PyTorch, there is a concept of *sequential models*. Sequential models are named after the sequential nature in which data flows through them. Sequential models transform the input with sequential, successive transformations.
+
+If you're an experienced Elixir programmer, this paradigm of sequential transformations might sound a lot like what happens when using the pipe (`|>`) operator. In Elixir, it's common to see code blocks like:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+list
+|> Enum.map(fn x -> x + 1 end)
+|> Enum.filter(&rem(&1, 2) == 0)
+|> Enum.count()
+```
+
+The snippet above passes `list` through a sequence of transformations. You can apply this same paradigm in Axon to create sequential models. In fact, creating sequential models is so natural with Elixir's pipe operator, that Axon does not need a distinct *sequential* construct. To create a sequential model, you just pass Axon models through successive transformations in the Axon API:
+
+```elixir
+model =
+  Axon.input("data")
+  |> Axon.dense(32)
+  |> Axon.activation(:relu)
+  |> Axon.dropout(rate: 0.5)
+  |> Axon.dense(1)
+  |> Axon.activation(:softmax)
+```
+
+If you visualize this model, it's easy to see how data flows sequentially through it:
+
+```elixir
+template = Nx.template({2, 16}, :f32)
+Axon.Display.as_graph(model, template)
+```
+
+Your model is more involved and as a result so is the execution graph! Now, using the same constructs from the last section, you can build and run your model:
+
+```elixir
+{init_fn, predict_fn} = Axon.build(model)
+```
+
+```elixir
+params = init_fn.(template, %{})
+```
+
+Wow! Notice that this model actually has trainable parameters. You can see that the parameter map is just a regular Elixir map. Each top-level entry maps to a layer with a key corresponding to that layer's name and a value corresponding to that layer's trainable parameters. Each layer's individual trainable parameters are given layer-specific names and map directly to Nx tensors.
+
+Now you can use these `params` with your `predict_fn`:
+
+```elixir
+predict_fn.(params, Nx.iota({2, 16}, type: :f32))
+```
+
+And voila! You've successfully created and used a sequential model in Axon!

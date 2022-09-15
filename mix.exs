@@ -85,10 +85,16 @@ defmodule Axon.MixProject do
       extras: [
         "notebooks/mnist.livemd",
         "notebooks/fashionmnist_autoencoder.livemd",
-        "notebooks/multi_input_example.livemd"
+        "notebooks/multi_input_example.livemd",
+        "guides/model_creation/YourFirstAxonModel.livemd",
+        "guides/model_creation/SequentialModels.livemd",
+        "guides/model_creation/ComplexModels.livemd",
+        "guides/model_creation/MultiInputMultiOutputModels.livemd",
+        "guides/model_creation/CustomLayers.livemd",
       ],
       groups_for_extras: [
-        "Axon Examples": Path.wildcard("notebooks/*.livemd")
+        "Axon Examples": Path.wildcard("notebooks/*.livemd"),
+        "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd")
       ],
       groups_for_functions: [
         # Axon
