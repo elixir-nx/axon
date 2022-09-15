@@ -265,8 +265,7 @@ defmodule Axon.Display do
       deep_map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
 
     name = name_fn.(:container, op_counts)
-    # node_shape = Axon.get_output_shape(axon, templates)
-    node_shape = {}
+    node_shape = Axon.get_output_shape(axon, templates)
     to_node = %{axon: :axon, id: id, op: :container, name: name, shape: node_shape}
 
     new_edgelist =
@@ -286,8 +285,7 @@ defmodule Axon.Display do
       Enum.map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
 
     name = name_fn.(op, op_counts)
-    # node_shape = Axon.get_output_shape(axon, templates)
-    node_shape = {}
+    node_shape = Axon.get_output_shape(axon, templates)
     to_node = %{axon: :axon, id: id, op: op, name: name, shape: node_shape}
 
     new_edgelist =
