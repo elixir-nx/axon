@@ -37,7 +37,7 @@ defmodule Axon.MixProject do
     [
       {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
       {:torchx, "~> 0.3.0", [only: :test] ++ torchx_opts()},
-      {:nx, "~> 0.3.0", nx_opts()},
+      {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.6.2", optional: true}
