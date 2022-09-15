@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.2.0"
+  @version "0.3.0"
 
   def project do
     [
@@ -37,7 +37,7 @@ defmodule Axon.MixProject do
     [
       {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
       {:torchx, "~> 0.3.0", [only: :test] ++ torchx_opts()},
-      {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
+      {:nx, "~> 0.3.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.6.2", optional: true}
