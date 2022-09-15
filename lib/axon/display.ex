@@ -6,9 +6,28 @@ defmodule Axon.Display do
   import Axon.Shared
   alias Axon.Parameter
 
+  alias Kino.Markdown
+
   @doc """
-  Displays the given Axon model with the given input shapes
-  as a table.
+  Traces execution of the given Axon model with the given
+  inputs, rendering the execution flow as a table.
+
+  You must include [table_rex](https://hex.pm/packages/table_rex) as
+  a dependency in your project to make use of this function.
+
+  ## Examples
+
+  Given an Axon model:
+
+      model = Axon.input("input") |> Axon.dense(32)
+
+  You can define input templates for each input:
+
+      input = Nx.template({1, 16}, :f32)
+
+  And then display the execution flow of the model:
+
+      Axon.Display.as_table(model, input)
   """
   def as_table(%Axon{} = axon, input_templates) do
     title = "Model"
@@ -181,4 +200,119 @@ defmodule Axon.Display do
     |> Enum.map(fn n -> "[#{n}]" end)
     |> Enum.join("")
   end
+
+  @doc """
+  Traces execution of the given Axon model with the given
+  inputs, rendering the execution flow as a mermaid flowchart.
+
+  You must include [kino](https://hex.pm/packages/kino) as
+  a dependency in your project to make use of this function.
+
+  ## Options
+
+    * `:direction` - defines the direction of the graph visual. The
+      value can either be `:top_down` or `:left_right`. Defaults to `:top_down`.
+
+  ## Examples
+
+  Given an Axon model:
+
+      model = Axon.input("input") |> Axon.dense(32)
+
+  You can define input templates for each input:
+
+      input = Nx.template({1, 16}, :f32)
+
+  And then display the execution flow of the model:
+
+      Axon.Display.as_graph(model, input, direction: :top_down)
+  """
+  def as_graph(%Axon{} = axon, input_templates, opts \\ []) do
+    direction = direction_from_opts(opts)
+
+    {_root_node, {_, _, edgelist}} = axon_to_edges(axon, input_templates, {%{}, %{}, []})
+
+    edges = Enum.map_join(edgelist, "\n", &generate_mermaid_entry/1)
+
+    Markdown.new("""
+    ```mermaid
+    graph #{direction};
+    #{edges}
+    ```
+    """)
+  end
+
+  defp axon_to_edges(%{id: id, op_name: op} = axon, input_templates, {cache, op_counts, edgelist}) do
+    case cache do
+      %{^id => entry} ->
+        {entry, {cache, op_counts, edgelist}}
+
+      %{} ->
+        {entry, {cache, op_counts, edgelist}} =
+          recur_axon_to_edges(axon, input_templates, {cache, op_counts, edgelist})
+
+        op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+        {entry, {Map.put(cache, id, entry), op_counts, edgelist}}
+    end
+  end
+
+  defp recur_axon_to_edges(
+         %Axon{id: id, op: :container, name: name_fn, parent: [parents]} = axon,
+         templates,
+         cache_counts_edgelist
+       ) do
+    {node_inputs, {cache, op_counts, edgelist}} =
+      deep_map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
+
+    name = name_fn.(:container, op_counts)
+    node_shape = Axon.get_output_shape(axon, templates)
+    to_node = %{axon: :axon, id: id, op: :container, name: name, shape: node_shape}
+
+    new_edgelist =
+      deep_reduce(node_inputs, edgelist, fn from_node, acc ->
+        [{from_node, to_node} | acc]
+      end)
+
+    {to_node, {cache, op_counts, new_edgelist}}
+  end
+
+  defp recur_axon_to_edges(
+         %Axon{id: id, op_name: op, name: name_fn, parent: parents} = axon,
+         templates,
+         cache_counts_edgelist
+       ) do
+    {node_inputs, {cache, op_counts, edgelist}} =
+      Enum.map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
+
+    name = name_fn.(op, op_counts)
+    node_shape = Axon.get_output_shape(axon, templates)
+    to_node = %{axon: :axon, id: id, op: op, name: name, shape: node_shape}
+
+    new_edgelist =
+      Enum.reduce(node_inputs, edgelist, fn from_node, acc ->
+        [{from_node, to_node} | acc]
+      end)
+
+    {to_node, {cache, op_counts, new_edgelist}}
+  end
+
+  defp generate_mermaid_entry({from_node, to_node}) do
+    "#{graph_node(from_node)} --> #{graph_node(to_node)};"
+  end
+
+  defp graph_node(%{id: id, op: op, name: name, shape: shape}) do
+    "#{id}[\"#{name} ( #{inspect(op)} ) #{inspect(shape)}\"]"
+  end
+
+  defp direction_from_opts(opts) do
+    opts
+    |> Keyword.get(:direction, :top_down)
+    |> convert_direction()
+  end
+
+  defp convert_direction(:top_down), do: "TD"
+  defp convert_direction(:left_right), do: "LR"
+
+  defp convert_direction(invalid_direction),
+    do: raise(ArgumentError, "expected a valid direction, got: #{inspect(invalid_direction)}")
 end

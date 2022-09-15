@@ -229,6 +229,9 @@ defmodule Axon.Shared do
       %Nx.Tensor{} = val ->
         fun.(val, acc)
 
+      %{axon: :axon} = val ->
+        fun.(val, acc)
+
       val ->
         deep_reduce(val, acc, fun)
     end
