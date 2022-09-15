@@ -4,17 +4,17 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.4">
+    <meta name="generator" content="ExDoc v0.28.5">
     <meta name="project" content="Axon v0.2.0">
 
     <title>Axon.Display — Axon v0.2.0</title>
-    <link rel="stylesheet" href="dist/elixir-b6f1ed5df9b1d42a7309.css" />
+    <link rel="stylesheet" href="dist/elixir-64c5e2b63575bddb1c5b.css" />
 
-    <script src="dist/sidebar_items-0b70695d32.js"></script>
+    <script src="dist/sidebar_items-0b8427cb4e.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/app-bd1cb213813bf4825aa2.js"></script>
+    <script async src="dist/app-b5f3440501744dc8be3d.js"></script>
 
 
   </head>
@@ -130,12 +130,23 @@ Axon
 
       <div class="summary-row">
         <div class="summary-signature">
+          <a href="#as_graph/3" translate="no">as_graph(axon, input_templates, opts \\ [])</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Traces execution of the given Axon model with the given
+inputs, rendering the execution flow as a mermaid flowchart.</p></div>
+
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-signature">
           <a href="#as_table/2" translate="no">as_table(axon, input_templates)</a>
 
         </div>
 
-          <div class="summary-synopsis"><p>Displays the given Axon model with the given input shapes
-as a table.</p></div>
+          <div class="summary-synopsis"><p>Traces execution of the given Axon model with the given
+inputs, rendering the execution flow as a table.</p></div>
 
       </div>
 
@@ -153,16 +164,18 @@ as a table.</p></div>
 Functions
     </h1>
     <div class="functions-list">
-<section class="detail" id="as_table/2">
+<section class="detail" id="as_graph/3">
+
+    <span id="as_graph/2"></span>
 
   <div class="detail-header">
-    <a href="#as_table/2" class="detail-link" title="Link to this function">
+    <a href="#as_graph/3" class="detail-link" title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature" translate="no">as_table(axon, input_templates)</h1>
+    <h1 class="signature" translate="no">as_graph(axon, input_templates, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/display.ex#L13" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/display.ex#L230" class="view-source" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -172,8 +185,52 @@ Functions
 
   <section class="docstring">
 
-<p>Displays the given Axon model with the given input shapes
-as a table.</p>
+<p>Traces execution of the given Axon model with the given
+inputs, rendering the execution flow as a mermaid flowchart.</p><p>You must include <a href="https://hex.pm/packages/kino">kino</a> as
+a dependency in your project to make use of this function.</p><h2 id="as_graph/3-options" class="section-heading">
+  <a href="#as_graph/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<ul><li><code class="inline">:direction</code> - defines the direction of the graph visual. The
+value can either be <code class="inline">:top_down</code> or <code class="inline">:left_right</code>. Defaults to <code class="inline">:top_down</code>.</li></ul><h2 id="as_graph/3-examples" class="section-heading">
+  <a href="#as_graph/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
+  Examples
+</h2>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6279741468-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="6279741468-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6279741468-2">(</span><span class="mi">32</span><span class="p" data-group-id="6279741468-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="3486431442-1">(</span><span class="p" data-group-id="3486431442-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3486431442-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="3486431442-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="9293994080-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="9293994080-1">)</span></code></pre>
+  </section>
+</section>
+<section class="detail" id="as_table/2">
+
+  <div class="detail-header">
+    <a href="#as_table/2" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">as_table(axon, input_templates)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/display.ex#L32" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Traces execution of the given Axon model with the given
+inputs, rendering the execution flow as a table.</p><p>You must include <a href="https://hex.pm/packages/table_rex">table_rex</a> as
+a dependency in your project to make use of this function.</p><h2 id="as_table/2-examples" class="section-heading">
+  <a href="#as_table/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">examples</p>
+  </a>
+  Examples
+</h2>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7951017206-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="7951017206-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7951017206-2">(</span><span class="mi">32</span><span class="p" data-group-id="7951017206-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="5136415856-1">(</span><span class="p" data-group-id="5136415856-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5136415856-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="5136415856-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="5604069316-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="5604069316-1">)</span></code></pre>
   </section>
 </section>
 
@@ -200,7 +257,7 @@ as a table.</p>
 
         <p>
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.4) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.5) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
