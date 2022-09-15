@@ -2160,7 +2160,7 @@ defmodule Axon do
   LSTMs apply `Axon.Layers.lstm_cell/7` over an entire input
   sequence and return:
 
-      {{new_cell, new_hidden}, output_sequence}
+      {output_sequence, {new_cell, new_hidden}}
 
   You can use the output state as the hidden state of another
   LSTM layer.
