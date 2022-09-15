@@ -3428,6 +3428,7 @@ defmodule Axon do
 
   """
   @doc type: :model
+<<<<<<< HEAD
   def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
     Logger.warning(
       "Attempting to serialize an Axon model. Serialiation is discouraged" <>
