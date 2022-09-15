@@ -6,7 +6,7 @@ defmodule Axon.Display do
   import Axon.Shared
   alias Axon.Parameter
 
-  alias Kino.Markdown
+  @compile {:no_warn_undefined, TableRex.Table}
 
   @doc """
   Traces execution of the given Axon model with the given
@@ -30,6 +30,8 @@ defmodule Axon.Display do
       Axon.Display.as_table(model, input)
   """
   def as_table(%Axon{} = axon, input_templates) do
+    assert_table_rex!("ax_table/2")
+
     title = "Model"
     header = ["Layer", "Input Shape", "Output Shape", "Options", "Parameters"]
     model_info = %{num_params: 0, total_param_byte_size: 0}
@@ -54,6 +56,20 @@ defmodule Axon.Display do
     )
     |> then(&(&1 <> "Total Parameters: #{model_info.num_params}\n"))
     |> then(&(&1 <> "Total Parameters Memory: #{model_info.total_param_byte_size} bytes\n"))
+  end
+
+  defp assert_table_rex!(fn_name) do
+    unless Code.ensure_loaded?(TableRex) do
+      raise RuntimeError, """
+      #{fn_name} depends on the :table_rex package.
+
+      You can install it by adding
+
+          {:table_rex, "~> 3.1.1"}
+
+      to your dependency list.
+      """
+    end
   end
 
   defp axon_to_rows(%{id: id, op_name: op_name} = graph, templates, cache, op_counts, model_info) do
@@ -201,6 +217,8 @@ defmodule Axon.Display do
     |> Enum.join("")
   end
 
+  @compile {:no_warn_undefined, {Kino.Markdown, :new, 1}}
+
   @doc """
   Traces execution of the given Axon model with the given
   inputs, rendering the execution flow as a mermaid flowchart.
@@ -228,18 +246,34 @@ defmodule Axon.Display do
       Axon.Display.as_graph(model, input, direction: :top_down)
   """
   def as_graph(%Axon{} = axon, input_templates, opts \\ []) do
+    assert_kino!("as_graph/3")
+
     direction = direction_from_opts(opts)
 
     {_root_node, {_, _, edgelist}} = axon_to_edges(axon, input_templates, {%{}, %{}, []})
 
     edges = Enum.map_join(edgelist, "\n", &generate_mermaid_entry/1)
 
-    Markdown.new("""
+    Kino.Markdown.new("""
     ```mermaid
     graph #{direction};
     #{edges}
     ```
     """)
+  end
+
+  defp assert_kino!(fn_name) do
+    unless Code.ensure_loaded?(Kino) do
+      raise RuntimeError, """
+      #{fn_name} depends on the :kino package.
+
+      You can install it by adding
+
+          {:kino, "~> 0.6.2"}
+
+      to your dependency list.
+      """
+    end
   end
 
   defp axon_to_edges(%{id: id, op_name: op} = axon, input_templates, {cache, op_counts, edgelist}) do
