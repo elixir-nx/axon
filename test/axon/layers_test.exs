@@ -64,7 +64,6 @@ defmodule Axon.LayersTest do
       assert_all_close(actual, expected)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-2" do
       inp = Nx.tensor([[0.0335058]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
@@ -87,7 +86,6 @@ defmodule Axon.LayersTest do
       assert_all_close(actual_b_grad, expected_b_grad)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-3" do
       inp = Nx.tensor([[[0.29668367], [0.7820021]], [[0.75896287], [0.651641]]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
@@ -110,7 +108,6 @@ defmodule Axon.LayersTest do
       assert_all_close(actual_b_grad, expected_b_grad)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-4" do
       inp = Nx.tensor([[[[0.5623027], [0.41169107]]], [[[0.86306655], [0.14902902]]]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])

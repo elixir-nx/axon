@@ -4426,7 +4426,6 @@ defmodule CompilerTest do
       assert_equal(from_inp, inp)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward hook", config do
       model =
         Axon.input("input_0", shape: {nil, 1})
