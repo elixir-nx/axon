@@ -773,6 +773,13 @@ defmodule Axon.Updates do
     decay = opts[:decay]
 
     transform({updates, params, decay}, fn {updates, params, decay} ->
+      # this breaks otherwise passing tests
+      decay =
+        case decay do
+          %Nx.Tensor{data: %Nx.Defn.Expr{}} = d -> d
+          d -> Nx.backend_copy(d)
+        end
+
       deep_merge(updates, params, fn g, p -> g + decay * p end)
     end)
   end
