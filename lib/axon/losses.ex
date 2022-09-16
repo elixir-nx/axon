@@ -1032,9 +1032,12 @@ defmodule Axon.Losses do
         # Iterate node tree backwards.
         s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
 
-        {loss_b, _, _} =
-          while {loss_b = 0.0, s = st_lims[0][0], s_pred0}, s <= st_lims[0][1] do
-            {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0}
+        s = st_lims[0][0]
+
+        {loss_b, _, _, _} =
+          while {loss_b = 0.0, xyz = s, abc = s_pred0, abobrinha = st_lims},
+                xyz <= abobrinha[0][1] do
+            {Nx.add(loss_b, Nx.exp(abc[xyz])), xyz + 1, abc, abobrinha}
           end
 
         loss_b =
@@ -1058,15 +1061,15 @@ defmodule Axon.Losses do
   defnp get_limits(y_true, s_max, t_max) do
     st_max = Nx.concatenate([Nx.tensor([1]), Nx.broadcast(s_max, {t_max})])
     # Iterate target to get upper boundary values for each sequence step.
-    {st_max, _, t_fin, _} =
-      while {st_max, s = 1, t = 1, y_true}, t <= t_max and s <= s_max - 2 do
+    {st_max, _, t_fin, _, _, _} =
+      while {st_max, s = 1, t = 1, y_true, t_max, s_max}, t <= t_max and s <= s_max - 2 do
         s =
           cond do
             y_true[s] != y_true[s + 2] -> s + 2
             true -> s + 1
           end
 
-        {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true}
+        {Nx.put_slice(st_max, [t], Nx.reshape(s, {1})), s, t + 1, y_true, t_max, s_max}
       end
 
     st_min =
@@ -1077,10 +1080,10 @@ defmodule Axon.Losses do
         true ->
           st_min = Nx.broadcast(0, {t_max + 1})
 
-          {st_min, _, _} =
-            while {st_min, dt = 1, st_max}, dt <= t_fin do
+          {st_min, _, _, _} =
+            while {st_min, dt = 1, st_max, t_fin}, dt <= t_fin do
               {Nx.put_slice(st_min, [t_max - dt + 1], Nx.reshape(st_max[t_fin - dt], {1})),
-               dt + 1, st_max}
+               dt + 1, st_max, t_fin}
             end
 
           st_min
@@ -1117,8 +1120,8 @@ defmodule Axon.Losses do
   defnp get_prob(prob_prev, s_lims, s_lims_prev, y_true, y_pred) do
     eps = Nx.tensor(1.0e-7)
     # Process nodes one-by-one from lower to upper bound.
-    {t_prob, _, _, _, _} =
-      while {prob_prev, s = s_lims[0], y_true, y_pred, s_lims_prev}, s <= s_lims[1] do
+    {t_prob, _, _, _, _, _} =
+      while {prob_prev, s = s_lims[0], y_true, y_pred, s_lims_prev, s_lims}, s <= s_lims[1] do
         # Get `node transition` part
         path_prob =
           get_path_prob(s, y_true, prob_prev, s_lims_prev)
@@ -1131,7 +1134,7 @@ defmodule Axon.Losses do
           Nx.add(y_pred[y_true[s]], path_prob)
           |> Nx.reshape({1})
 
-        {Nx.put_slice(prob_prev, [s], s_prob), s + 1, y_true, y_pred, s_lims_prev}
+        {Nx.put_slice(prob_prev, [s], s_prob), s + 1, y_true, y_pred, s_lims_prev, s_lims}
       end
 
     t_prob
