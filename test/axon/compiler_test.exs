@@ -1134,7 +1134,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1344,7 +1343,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.depthwise_conv(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1567,7 +1565,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv_transpose(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, kernel_dilation: 1]
 
@@ -1800,7 +1797,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1], input_dilation: [1, 2], kernel_dilation: 1, padding: :same]
 
@@ -2083,7 +2079,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1, 1], input_dilation: [1, 2, 1], kernel_dilation: 1, padding: :same]
 

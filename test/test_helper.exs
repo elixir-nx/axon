@@ -9,10 +9,8 @@ exclude_doctests = if torchx? or exla?, do: [test_type: :doctest], else: []
 torchx_tests =
   if torchx? do
     [
-      skip_torchx: :input_dilation,
       skip_torchx: :incompatible_implementations,
-      skip_torchx: :window_dilations,
-      skip_torchx: :padding
+      skip_torchx: :slice_out_of_range
     ]
   else
     []

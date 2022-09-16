@@ -152,7 +152,7 @@ defmodule Axon.LossesTest do
 
   describe "ctcloss" do
     @tag :skip_exla
-    @tag skip_torchx: :padding
+    @tag skip_torchx: :slice_out_of_range
     test "value for basic case" do
       y_true =
         Nx.tensor([
@@ -168,7 +168,7 @@ defmodule Axon.LossesTest do
     end
 
     @tag :skip_exla
-    @tag skip_torchx: :padding
+    @tag skip_torchx: :slice_out_of_range
     test "oversize don't contribute" do
       y_true1 =
         Nx.tensor([
@@ -192,7 +192,7 @@ defmodule Axon.LossesTest do
     end
 
     @tag :skip_exla
-    @tag skip_torchx: :padding
+    @tag skip_torchx: :slice_out_of_range
     test "value for complex case" do
       y_true = Nx.tensor([[2, 3, 4, 1]])
       l_true = Nx.tensor([4])
