@@ -100,6 +100,15 @@ defmodule Axon.Updates do
     transform(
       {x, step},
       fn {updates, step} ->
+        step =
+          case step do
+            %Nx.Tensor{data: %Nx.Defn.Expr{}} ->
+              step
+
+            s ->
+              Nx.backend_copy(s, Nx.Defn.Expr)
+          end
+
         deep_new(updates, fn v -> Nx.multiply(v, step) end)
       end
     )
