@@ -13,13 +13,15 @@ jobs:
         uses: erlef/setup-beam@v1
         with:
           otp-version: '24.0'
-          elixir-version: '1.13.0'
+          elixir-version: '1.14.0'
       - name: Install mix dependencies
         run: mix deps.get
       - name: Check formatting
         run: mix format --check-formatted
+      - name: Compile without optional deps
+        run: mix compile --skip-optional-deps --warnings-as-errors
       - name: Run tests
-        run: MIX_ENV=test mix do compile --warnings-as-errors, test
+        run: mix test
   exla_check:
     runs-on: ubuntu-latest
     steps:
@@ -44,7 +46,7 @@ jobs:
           elixir-version: '1.13.0'
       - name: Install mix dependencies
         run: mix deps.get
-      - name: Run tests against EXLA
+      - name: Run tests against Torchx
         run: MIX_ENV=test USE_TORCHX=true mix do compile --warnings-as-errors, test
   onnx_check:
     runs-on: ubuntu-latest
