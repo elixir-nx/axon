@@ -313,7 +313,6 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag :skip_exla
     test "correct with same padding, strides" do
       inp = Nx.iota({1, 3, 2, 2}, type: {:f, 32})
       kernel = Nx.iota({4, 3, 1, 2}, type: {:f, 32})
@@ -527,7 +526,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "max_pool" do
-    @tag :skip_exla
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -538,7 +536,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -577,7 +574,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -616,7 +612,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
