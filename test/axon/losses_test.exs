@@ -218,7 +218,7 @@ defmodule Axon.LossesTest do
     end
 
     @tag :skip_exla
-    @tag skip_torchx: :padding
+    @tag skip_torchx: :slice_out_of_range
     test ":mean reduction" do
       y_true =
         Nx.tensor([
