@@ -759,7 +759,7 @@ defmodule Axon.Updates do
     stateless(combinator, fn updates, params ->
       opts = Nx.Defn.Kernel.keyword!(opts, decay: 0.0)
       # Decay can be a tensor, that's why we preprocess it before-hand
-      # and pass it as argument to defn instead of as an optioh.
+      # and pass it as argument to defn instead of as an option.
       apply_weight_decay(updates, params, opts[:decay])
     end)
   end
