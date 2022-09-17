@@ -91,6 +91,7 @@ defmodule Axon.MixProject do
         "guides/model_creation/complex_models.livemd",
         "guides/model_creation/multi_input_multi_output_models.livemd",
         "guides/model_creation/custom_layers.livemd",
+        "guides/model_creation/model_hooks.livemd",
         "guides/model_execution/accelerating_axon.livemd",
         "guides/training_and_evaluation/your_first_training_loop.livemd",
         "guides/training_and_evaluation/custom_models_loss_optimizers.livemd"
