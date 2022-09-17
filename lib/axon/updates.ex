@@ -100,15 +100,6 @@ defmodule Axon.Updates do
     transform(
       {x, step},
       fn {updates, step} ->
-        step =
-          case step do
-            %Nx.Tensor{data: %Nx.Defn.Expr{}} ->
-              step
-
-            s ->
-              Nx.backend_copy(s, Nx.Defn.Expr)
-          end
-
         deep_new(updates, fn v -> Nx.multiply(v, step) end)
       end
     )
@@ -765,21 +756,16 @@ defmodule Axon.Updates do
 
   def add_decayed_weights({init_fn, apply_fn} = combinator, opts)
       when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
-    stateless(combinator, &apply_weight_decay(&1, &2, opts))
+    stateless(combinator, fn updates, params ->
+      opts = Nx.Defn.Kernel.keyword!(opts, decay: 0.0)
+      # Decay can be a tensor, that's why we preprocess it before-hand
+      # and pass it as argument to defn instead of as an optioh.
+      apply_weight_decay(updates, params, opts[:decay])
+    end)
   end
 
-  defnp apply_weight_decay(updates, params, opts \\ []) do
-    opts = keyword!(opts, decay: 0.0)
-    decay = opts[:decay]
-
+  defnp apply_weight_decay(updates, params, decay) do
     transform({updates, params, decay}, fn {updates, params, decay} ->
-      # this breaks otherwise passing tests
-      decay =
-        case decay do
-          %Nx.Tensor{data: %Nx.Defn.Expr{}} = d -> d
-          d -> Nx.backend_copy(d)
-        end
-
       deep_merge(updates, params, fn g, p -> g + decay * p end)
     end)
   end

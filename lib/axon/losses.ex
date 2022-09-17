@@ -1032,12 +1032,9 @@ defmodule Axon.Losses do
         # Iterate node tree backwards.
         s_pred0 = iterate_tree(y_true[b], y_pred[b], st_lims, t_max)
 
-        s = st_lims[0][0]
-
         {loss_b, _, _, _} =
-          while {loss_b = 0.0, xyz = s, abc = s_pred0, abobrinha = st_lims},
-                xyz <= abobrinha[0][1] do
-            {Nx.add(loss_b, Nx.exp(abc[xyz])), xyz + 1, abc, abobrinha}
+          while {loss_b = 0.0, s = st_lims[0][0], s_pred0, st_lims}, s <= st_lims[0][1] do
+            {Nx.add(loss_b, Nx.exp(s_pred0[s])), s + 1, s_pred0, st_lims}
           end
 
         loss_b =

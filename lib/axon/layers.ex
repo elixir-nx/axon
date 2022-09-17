@@ -105,29 +105,6 @@ defmodule Axon.Layers do
   defn dense(input, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.dense", "input", input, 2)
 
-    {input, kernel} =
-      transform({input, kernel}, fn {i, k} ->
-        i =
-          case i do
-            %Nx.Tensor{data: %Nx.Defn.Expr{}} ->
-              i
-
-            t ->
-              Nx.backend_copy(t, Nx.Defn.Expr)
-          end
-
-        k =
-          case k do
-            %Nx.Tensor{data: %Nx.Defn.Expr{}} ->
-              k
-
-            t ->
-              Nx.backend_copy(t, Nx.Defn.Expr)
-          end
-
-        {i, k}
-      end)
-
     input
     |> Nx.dot([Nx.rank(input) - 1], kernel, [0])
     |> Nx.add(bias)
