@@ -557,8 +557,8 @@ defmodule Axon.Loop do
 
     case type do
       t when t in [:s, :u] -> "#{name}: #{Nx.to_number(val)}"
-      :f -> "#{name}: #{float_format('~.7f', Nx.to_number(val))}"
-      :bf -> "#{name}: #{float_format('~.3f', Nx.to_number(val))}"
+      :f -> "#{name}: #{float_format(~c"~.7f", Nx.to_number(val))}"
+      :bf -> "#{name}: #{float_format(~c"~.3f", Nx.to_number(val))}"
       _ -> "#{name}: unsupported type of metric #{inspect(type)}"
     end
   end

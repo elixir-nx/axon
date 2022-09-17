@@ -4441,9 +4441,9 @@ defmodule CompilerTest do
       inp = Nx.random_uniform({1, 1})
       params = init_fn.(inp, %{})
 
-      axon_loss = fn params -> Nx.sum(predict_fn.(params, inp)) end
+      axon_loss = fn inp, params -> Nx.sum(predict_fn.(params, inp)) end
 
-      loss = fn params ->
+      loss = fn inp, params ->
         inp
         |> Axon.Layers.dense(params["dense_0"]["kernel"], params["dense_0"]["bias"])
         |> Axon.Activations.relu()
@@ -4451,8 +4451,11 @@ defmodule CompilerTest do
         |> Nx.sum()
       end
 
-      axon_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end), [params])
-      actual_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end), [params])
+      axon_grad_params =
+        Nx.Defn.jit(fn inp, x -> Nx.Defn.grad(x, &axon_loss.(inp, &1)) end).(inp, params)
+
+      actual_grad_params =
+        Nx.Defn.jit(fn inp, x -> Nx.Defn.grad(x, &loss.(inp, &1)) end).(inp, params)
 
       assert_all_close(
         axon_grad_params["dense_0"]["kernel"],
