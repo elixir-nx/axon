@@ -5,8 +5,11 @@ defmodule AxonTestUtil do
   end
 
   def test_backend do
-    use_torchx? = System.get_env("USE_TORCHX")
-    if use_torchx?, do: Torchx.Backend, else: Nx.BinaryBackend
+    cond do
+      System.get_env("USE_TORCHX") -> Torchx.Backend
+      System.get_env("USE_EXLA") -> EXLA.Backend
+      true -> Nx.BinaryBackend
+    end
   end
 
   def check_optimizer!(optimizer, loss, x0, num_steps) do

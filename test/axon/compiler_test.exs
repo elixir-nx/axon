@@ -1134,7 +1134,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1344,7 +1343,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.depthwise_conv(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, padding: :same, input_dilation: 2]
 
@@ -1567,7 +1565,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input3), Axon.Layers.conv_transpose(input3, kernel, bias))
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts1 = [strides: 2, kernel_dilation: 1]
 
@@ -1800,7 +1797,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1], input_dilation: [1, 2], kernel_dilation: 1, padding: :same]
 
@@ -2083,7 +2079,6 @@ defmodule CompilerTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "computes forward pass with custom options" do
       opts = [strides: [2, 1, 1], input_dilation: [1, 2, 1], kernel_dilation: 1, padding: :same]
 
@@ -4431,7 +4426,6 @@ defmodule CompilerTest do
       assert_equal(from_inp, inp)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward hook", config do
       model =
         Axon.input("input_0", shape: {nil, 1})
@@ -4447,9 +4441,9 @@ defmodule CompilerTest do
       inp = Nx.random_uniform({1, 1})
       params = init_fn.(inp, %{})
 
-      axon_loss = fn params -> Nx.sum(predict_fn.(params, inp)) end
+      axon_loss = fn inp, params -> Nx.sum(predict_fn.(params, inp)) end
 
-      loss = fn params ->
+      loss = fn inp, params ->
         inp
         |> Axon.Layers.dense(params["dense_0"]["kernel"], params["dense_0"]["bias"])
         |> Axon.Activations.relu()
@@ -4457,8 +4451,11 @@ defmodule CompilerTest do
         |> Nx.sum()
       end
 
-      axon_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, axon_loss) end), [params])
-      actual_grad_params = apply(Nx.Defn.jit(fn x -> Nx.Defn.grad(x, loss) end), [params])
+      axon_grad_params =
+        Nx.Defn.jit(fn inp, x -> Nx.Defn.grad(x, &axon_loss.(inp, &1)) end).(inp, params)
+
+      actual_grad_params =
+        Nx.Defn.jit(fn inp, x -> Nx.Defn.grad(x, &loss.(inp, &1)) end).(inp, params)
 
       assert_all_close(
         axon_grad_params["dense_0"]["kernel"],

@@ -64,21 +64,17 @@ defmodule Axon.LayersTest do
       assert_all_close(actual, expected)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-2" do
       inp = Nx.tensor([[0.0335058]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[0.0335058, 0.0335058, 0.0335058, 0.0335058]])
       actual_b_grad = Nx.tensor([1.0, 1.0, 1.0, 1.0])
@@ -87,21 +83,17 @@ defmodule Axon.LayersTest do
       assert_all_close(actual_b_grad, expected_b_grad)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-3" do
       inp = Nx.tensor([[[0.29668367], [0.7820021]], [[0.75896287], [0.651641]]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[2.4892898, 2.4892898, 2.4892898, 2.4892898]])
       actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
@@ -110,21 +102,17 @@ defmodule Axon.LayersTest do
       assert_all_close(actual_b_grad, expected_b_grad)
     end
 
-    @tag skip_torchx: :incompatible_implementations
     test "backward matches tensorflow with input rank-4" do
       inp = Nx.tensor([[[[0.5623027], [0.41169107]]], [[[0.86306655], [0.14902902]]]])
       kernel = Nx.tensor([[0.4994787, -0.22126544, -0.21329808, 0.87104976]])
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[1.9860893, 1.9860893, 1.9860893, 1.9860893]])
       actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
@@ -252,7 +240,6 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "correct with valid padding, strides" do
       inp = Nx.iota({1, 1, 2, 2}, type: {:f, 32})
       kernel = Nx.iota({3, 1, 2, 2}, type: {:f, 32})
@@ -270,7 +257,6 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "correct with 3 spatial dimensions" do
       inp = Nx.iota({1, 1, 2, 2, 1}, type: {:f, 32})
       kernel = Nx.iota({3, 1, 2, 2, 1}, type: {:f, 32})
@@ -315,22 +301,22 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag :skip_exla
-    @tag skip_torchx: :input_dilation
     test "correct with same padding, strides" do
       inp = Nx.iota({1, 3, 2, 2}, type: {:f, 32})
       kernel = Nx.iota({4, 3, 1, 2}, type: {:f, 32})
       bias = 0.0
 
-      assert Axon.Layers.conv_transpose(inp, kernel, bias, padding: :same, strides: [2, 1]) ==
-               Nx.tensor([
-                 [
-                   [[52.0, 101.0], [0.0, 0.0], [70.0, 131.0], [0.0, 0.0]],
-                   [[124.0, 263.0], [0.0, 0.0], [178.0, 365.0], [0.0, 0.0]],
-                   [[196.0, 425.0], [0.0, 0.0], [286.0, 599.0], [0.0, 0.0]],
-                   [[268.0, 587.0], [0.0, 0.0], [394.0, 833.0], [0.0, 0.0]]
-                 ]
-               ])
+      assert_equal(
+        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :same, strides: [2, 1]),
+        Nx.tensor([
+          [
+            [[52.0, 101.0], [0.0, 0.0], [70.0, 131.0], [0.0, 0.0]],
+            [[124.0, 263.0], [0.0, 0.0], [178.0, 365.0], [0.0, 0.0]],
+            [[196.0, 425.0], [0.0, 0.0], [286.0, 599.0], [0.0, 0.0]],
+            [[268.0, 587.0], [0.0, 0.0], [394.0, 833.0], [0.0, 0.0]]
+          ]
+        ])
+      )
     end
 
     test "correct with custom padding, no strides" do
@@ -344,7 +330,6 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "correct with custom padding, strides" do
       inp = Nx.iota({1, 1, 2, 2}, type: {:f, 32})
       kernel = Nx.iota({1, 1, 2, 1}, type: {:f, 32})
@@ -367,7 +352,6 @@ defmodule Axon.LayersTest do
       )
     end
 
-    @tag skip_torchx: :input_dilation
     test "correct with kernel dilation" do
       inp = Nx.iota({1, 1, 2, 4}, type: {:f, 32})
       kernel = Nx.iota({1, 1, 2, 3}, type: {:f, 32})
@@ -530,7 +514,6 @@ defmodule Axon.LayersTest do
   end
 
   describe "max_pool" do
-    @tag :skip_exla
     test "channels last same as channels first" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -541,8 +524,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
-    @tag skip_torchx: :window_dilations
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -556,7 +537,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "raises on input rank less than 3" do
@@ -581,8 +562,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
-    @tag skip_torchx: :window_dilations
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -596,7 +575,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "raises on input rank less than 3" do
@@ -621,8 +600,6 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
-    @tag :skip_exla
-    @tag skip_torchx: :window_dilations
     test "channels last same as channels first with dilation" do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
@@ -636,7 +613,7 @@ defmodule Axon.LayersTest do
           channels: :last
         )
 
-      assert first == Nx.transpose(last, axes: [0, 3, 1, 2])
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
     test "raises on input rank less than 3" do

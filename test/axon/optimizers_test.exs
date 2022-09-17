@@ -120,34 +120,6 @@ defmodule OptimizersTest do
     end
   end
 
-  describe "fromage" do
-    @tag skip_torchx: :incompatible_implementations
-    test "correctly optimizes simple loss and default options" do
-      optimizer = Axon.Optimizers.fromage(@learning_rate)
-      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
-      num_steps = @iterations
-      x0 = %{"x0" => Nx.tensor([1.0])}
-
-      check_optimizer!(optimizer, loss_fn, x0, num_steps)
-    end
-
-    @tag skip_torchx: :incompatible_implementations
-    test "correctly optimizes simple loss and custom options" do
-      optimizer = Axon.Optimizers.fromage(@learning_rate, min_norm: 0.1)
-      loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
-      num_steps = @iterations
-      x0 = %{"x0" => Nx.tensor([1.0])}
-
-      check_optimizer!(optimizer, loss_fn, x0, num_steps)
-    end
-
-    test "raises with schedule" do
-      assert_raise ArgumentError, ~r/fromage/, fn ->
-        Axon.Optimizers.fromage(Axon.Schedules.constant(init_value: @learning_rate))
-      end
-    end
-  end
-
   describe "lamb" do
     test "correctly optimizes simple loss with default options" do
       optimizer = Axon.Optimizers.lamb(@learning_rate)
