@@ -144,6 +144,7 @@ defmodule Axon.Compiler do
          _
        ) do
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
+
     tensor = Nx.backend_copy(tensor, Nx.Defn.Expr)
 
     predict_fun = fn _params, _inputs, state, _cache, result_cache ->
