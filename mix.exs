@@ -94,7 +94,8 @@ defmodule Axon.MixProject do
         "guides/model_creation/model_hooks.livemd",
         "guides/model_execution/accelerating_axon.livemd",
         "guides/training_and_evaluation/your_first_training_loop.livemd",
-        "guides/training_and_evaluation/custom_models_loss_optimizers.livemd"
+        "guides/training_and_evaluation/instrumenting_loops_with_metrics.livemd",
+        "guides/training_and_evaluation/custom_models_loss_optimizers.livemd",
       ],
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
