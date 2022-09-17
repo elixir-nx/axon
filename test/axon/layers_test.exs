@@ -70,14 +70,11 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[0.0335058, 0.0335058, 0.0335058, 0.0335058]])
       actual_b_grad = Nx.tensor([1.0, 1.0, 1.0, 1.0])
@@ -92,14 +89,11 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[2.4892898, 2.4892898, 2.4892898, 2.4892898]])
       actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
@@ -114,14 +108,11 @@ defmodule Axon.LayersTest do
       bias = Nx.tensor([0.0, 0.0, 0.0, 0.0])
 
       {expected_k_grad, expected_b_grad} =
-        apply(
-          jit(fn kernel, bias ->
-            grad({kernel, bias}, fn {k, b} ->
-              Nx.sum(Axon.Layers.dense(inp, k, b))
-            end)
-          end),
-          [kernel, bias]
-        )
+        jit(fn kernel, bias, inp ->
+          grad({kernel, bias}, fn {k, b} ->
+            Nx.sum(Axon.Layers.dense(inp, k, b))
+          end)
+        end).(kernel, bias, inp)
 
       actual_k_grad = Nx.tensor([[1.9860893, 1.9860893, 1.9860893, 1.9860893]])
       actual_b_grad = Nx.tensor([4.0, 4.0, 4.0, 4.0])
