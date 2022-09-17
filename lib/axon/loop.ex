@@ -251,7 +251,6 @@ defmodule Axon.Loop do
     :adagrad,
     :adam,
     :adamw,
-    :fromage,
     :lamb,
     :noisy_sgd,
     :radam,

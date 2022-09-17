@@ -129,31 +129,6 @@ defmodule Axon.Optimizers do
   end
 
   @doc """
-  Fromage optimizer.
-
-  ## Options
-
-    * `:min_norm` - minimum norm value. Defaults to `0.0`.
-
-  ## References
-
-    * [On the distance between two neural networks and the stability of learning](https://proceedings.neurips.cc/paper/2020/file/f4b31bee138ff5f7b84ce1575a738f95-Paper.pdf)
-  """
-  def fromage(learning_rate \\ 1.0e-2, opts \\ []) do
-    if is_function(learning_rate) do
-      raise ArgumentError,
-            "fromage optimizer does not support learning rate schedule," <>
-              " please provide a scalar learning rate"
-    end
-
-    mult = Nx.divide(1, Nx.sqrt(Nx.add(1, Nx.power(learning_rate, 2))))
-
-    Updates.scale_by_trust_ratio(opts)
-    |> Updates.scale(Nx.multiply(-learning_rate, mult))
-    |> Updates.add_decayed_weights(decay: Nx.subtract(mult, 1))
-  end
-
-  @doc """
   Lamb optimizer.
 
   ## Options
