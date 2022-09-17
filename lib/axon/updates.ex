@@ -96,13 +96,8 @@ defmodule Axon.Updates do
     stateless(combinator, &apply_scale(&1, &2, step_size))
   end
 
-  defnp apply_scale(x, _params, step) do
-    transform(
-      {x, step},
-      fn {updates, step} ->
-        deep_new(updates, fn v -> Nx.multiply(v, step) end)
-      end
-    )
+  defnp apply_scale(updates, _params, step) do
+    deep_new(updates, fn v -> Nx.multiply(v, step) end)
   end
 
   @doc ~S"""
@@ -189,11 +184,7 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x =
-      transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        deep_merge(mu_hat, nu_hat, fn z, t -> z / (Nx.sqrt(t + eps_root) + eps) end)
-      end)
-
+    x = deep_merge(mu_hat, nu_hat, fn z, t -> z / (Nx.sqrt(t + eps_root) + eps) end)
     {x, %{mu: mu, nu: nu, count: count + 1}}
   end
 
@@ -236,27 +227,16 @@ defmodule Axon.Updates do
     opts = keyword!(opts, eps: 1.0e-7)
     eps = opts[:eps]
 
-    sum_of_squares =
-      transform({x, sum_of_squares}, fn {x, sum_of_squares} ->
-        deep_merge(x, sum_of_squares, fn g, z -> Nx.power(g, 2) + z end)
-      end)
+    sum_of_squares = deep_merge(x, sum_of_squares, fn g, z -> Nx.power(g, 2) + z end)
 
-    inv_sqrt_squares =
-      transform({sum_of_squares, eps}, fn {sum_of_squares, eps} ->
-        deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
-      end)
+    inv_sqrt_squares = deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
 
     inv_sqrt_x_square =
-      transform({sum_of_squares, inv_sqrt_squares}, fn {sum_of_squares, inv_sqrt_squares} ->
-        deep_merge(sum_of_squares, inv_sqrt_squares, fn z, t ->
-          Nx.select(Nx.greater(z, 0), t, 0.0)
-        end)
+      deep_merge(sum_of_squares, inv_sqrt_squares, fn z, t ->
+        Nx.select(Nx.greater(z, 0), t, 0.0)
       end)
 
-    x =
-      transform({x, inv_sqrt_x_square}, fn {x, inv_sqrt_x_square} ->
-        deep_merge(x, inv_sqrt_x_square, fn g, t -> g * t end)
-      end)
+    x = deep_merge(x, inv_sqrt_x_square, fn g, t -> g * t end)
 
     {x, %{sum_of_squares: sum_of_squares}}
   end
@@ -309,10 +289,7 @@ defmodule Axon.Updates do
 
     nu = update_moment(x, nu, decay, 2)
 
-    x =
-      transform({x, nu, eps}, fn {x, nu, eps} ->
-        deep_merge(x, nu, fn g, t -> Nx.rsqrt(t + eps) * g end)
-      end)
+    x = deep_merge(x, nu, fn g, t -> Nx.rsqrt(t + eps) * g end)
 
     {x, %{nu: nu}}
   end
@@ -375,10 +352,7 @@ defmodule Axon.Updates do
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    x =
-      transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        deep_merge(mu_hat, nu_hat, fn z, t -> 1 / (Nx.sqrt(t + eps_root) + eps) * z end)
-      end)
+    x = deep_merge(mu_hat, nu_hat, fn z, t -> 1 / (Nx.sqrt(t + eps_root) + eps) * z end)
 
     {x, %{mu: mu, nu: nu, count: count + 1}}
   end
@@ -433,15 +407,12 @@ defmodule Axon.Updates do
     mu = update_moment(x, mu, decay, 1)
     nu = update_moment(x, nu, decay, 2)
 
-    x =
-      transform({x, mu, nu, eps}, fn {x, mu, nu, eps} ->
-        mu_nu =
-          deep_merge(mu, nu, fn m, n ->
-            Nx.rsqrt(-Nx.power(m, 2) + n + eps)
-          end)
-
-        deep_merge(x, mu_nu, fn g, mn -> g * mn end)
+    mu_nu =
+      deep_merge(mu, nu, fn m, n ->
+        Nx.rsqrt(-Nx.power(m, 2) + n + eps)
       end)
+
+    x = deep_merge(x, mu_nu, fn g, mn -> g * mn end)
 
     {x, %{mu: mu, nu: nu}}
   end
@@ -469,10 +440,7 @@ defmodule Axon.Updates do
   defnp apply_scale_by_schedule(x, %{count: count}, _params, schedule_fn) do
     step_size = schedule_fn.(count)
 
-    updates =
-      transform({x, step_size}, fn {x, step_size} ->
-        deep_new(x, fn x -> x * step_size end)
-      end)
+    updates = deep_new(x, fn x -> x * step_size end)
 
     {updates, %{count: count + 1}}
   end
@@ -604,19 +572,14 @@ defmodule Axon.Updates do
     opts = keyword!(opts, decay: 0.9, nesterov: false)
     decay = opts[:decay]
 
-    update_trace =
-      transform({x, trace, decay}, fn {x, trace, decay} ->
-        deep_merge(x, trace, fn g, t -> t * decay + g end)
-      end)
+    update_trace = deep_merge(x, trace, fn g, t -> t * decay + g end)
 
     x =
-      transform({x, update_trace, decay, opts}, fn {x, trace, decay, opts} ->
-        if opts[:nesterov] do
-          deep_merge(x, trace, fn g, t -> t * decay + g end)
-        else
-          trace
-        end
-      end)
+      if opts[:nesterov] do
+        deep_merge(x, update_trace, fn g, t -> t * decay + g end)
+      else
+        update_trace
+      end
 
     {x, %{trace: update_trace}}
   end
@@ -649,9 +612,7 @@ defmodule Axon.Updates do
     opts = keyword!(opts, delta: 2.0)
     delta = opts[:delta]
 
-    transform({x, delta}, fn {x, delta} ->
-      deep_new(x, fn g -> Nx.clip(g, -delta, delta) end)
-    end)
+    deep_new(x, fn g -> Nx.clip(g, -delta, delta) end)
   end
 
   @doc """
@@ -682,23 +643,18 @@ defmodule Axon.Updates do
     opts = keyword!(opts, max_norm: 1.0)
     max_norm = opts[:max_norm]
 
-    g_norm =
-      transform(x, fn x ->
-        sum_gs =
-          deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
-            leaf
-            |> Nx.power(2)
-            |> Nx.sum()
-            |> Nx.add(acc)
-          end)
-
-        Nx.sqrt(sum_gs)
+    sum_gs =
+      deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
+        leaf
+        |> Nx.power(2)
+        |> Nx.sum()
+        |> Nx.add(acc)
       end)
 
-    transform({x, g_norm, max_norm}, fn {x, g_norm, max_norm} ->
-      deep_new(x, fn z ->
-        Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)
-      end)
+    g_norm = Nx.sqrt(sum_gs)
+
+    deep_new(x, fn z ->
+      Nx.select(Nx.less(g_norm, max_norm), z, z / g_norm * max_norm)
     end)
   end
 
@@ -765,9 +721,7 @@ defmodule Axon.Updates do
   end
 
   defnp apply_weight_decay(updates, params, decay) do
-    transform({updates, params, decay}, fn {updates, params, decay} ->
-      deep_merge(updates, params, fn g, p -> g + decay * p end)
-    end)
+    deep_merge(updates, params, fn g, p -> g + decay * p end)
   end
 
   @doc """
@@ -796,27 +750,29 @@ defmodule Axon.Updates do
 
   def scale_by_trust_ratio({init_fn, apply_fn} = combinator, opts)
       when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
-    stateless(combinator, &apply_scale_by_trust_ratio(&1, &2, opts))
+    stateless(combinator, fn update, params ->
+      opts = Nx.Defn.Kernel.keyword!(opts, min_norm: 0.0, trust_coefficient: 1.0, eps: 0.0)
+
+      apply_scale_by_trust_ratio(
+        update,
+        params,
+        opts[:min_norm],
+        opts[:trust_coefficient],
+        opts[:eps]
+      )
+    end)
   end
 
-  defnp apply_scale_by_trust_ratio(x, params, opts \\ []) do
-    opts = keyword!(opts, min_norm: 0.0, trust_coefficient: 1.0, eps: 0.0)
-    min_norm = opts[:min_norm]
-    trust_coefficient = opts[:trust_coefficient]
-    eps = opts[:eps]
+  defnp apply_scale_by_trust_ratio(updates, params, min_norm, trust_coefficient, eps) do
+    deep_merge(updates, params, fn g, p ->
+      param_norm = safe_norm(p, min_norm)
+      update_norm = safe_norm(g, min_norm)
 
-    transform({x, params}, fn {updates, params} ->
-      deep_merge(updates, params, fn g, p ->
-        param_norm = safe_norm(p, min_norm)
-        update_norm = safe_norm(g, min_norm)
+      trust_ratio = trust_coefficient * param_norm / (update_norm + eps)
 
-        trust_ratio = trust_coefficient * param_norm / (update_norm + eps)
-
-        zero_norm = Nx.logical_or(Nx.equal(param_norm, 0.0), Nx.equal(update_norm, 0.0))
-        safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
-
-        Nx.multiply(g, safe_trust_ratio)
-      end)
+      zero_norm = param_norm == 0.0 or update_norm == 0.0
+      safe_trust_ratio = Nx.select(zero_norm, 1, trust_ratio)
+      g * safe_trust_ratio
     end)
   end
 
@@ -855,15 +811,9 @@ defmodule Axon.Updates do
     opts = keyword!(opts, eta: 0.01, gamma: 0.55)
     var = opts[:eta] / Nx.power(count + 1, opts[:gamma])
 
-    noise =
-      transform(x, fn x ->
-        deep_new(x, fn z -> Nx.random_normal(z) end)
-      end)
+    noise = deep_new(x, fn z -> Nx.random_normal(z) end)
 
-    updates =
-      transform({x, noise, var}, fn {x, noise, var} ->
-        deep_merge(x, noise, fn g, n -> g + var * n end)
-      end)
+    updates = deep_merge(x, noise, fn g, n -> g + var * n end)
 
     {updates, %{count: count + 1}}
   end
@@ -927,19 +877,14 @@ defmodule Axon.Updates do
     mu = update_moment(x, mu, b1, 1)
 
     nu =
-      transform({x, nu, b2}, fn {x, nu, b2} ->
-        deep_merge(x, nu, fn g, v ->
-          v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
-        end)
+      deep_merge(x, nu, fn g, v ->
+        v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
       end)
 
     mu_hat = bias_correction(mu, b1, count + 1)
     nu_hat = bias_correction(nu, b2, count + 1)
 
-    updates =
-      transform({mu_hat, nu_hat, eps, eps_root}, fn {mu_hat, nu_hat, eps, eps_root} ->
-        deep_merge(mu_hat, nu_hat, fn m, v -> m / (Nx.sqrt(v + eps_root) + eps) end)
-      end)
+    updates = deep_merge(mu_hat, nu_hat, fn m, v -> m / (Nx.sqrt(v + eps_root) + eps) end)
 
     {updates, %{mu: mu, nu: nu, count: count + 1}}
   end
@@ -1034,10 +979,8 @@ defmodule Axon.Updates do
   """
   defn apply_updates(params, updates, state \\ nil) do
     new_params =
-      transform({params, updates}, fn {params, updates} ->
-        deep_merge(params, updates, fn x, u ->
-          Nx.add(x, Nx.as_type(u, Nx.type(x)))
-        end)
+      deep_merge(params, updates, fn x, u ->
+        Nx.add(x, Nx.as_type(u, Nx.type(x)))
       end)
 
     transform({new_params, state}, fn
@@ -1054,15 +997,11 @@ defmodule Axon.Updates do
   ## Helpers
 
   defnp update_moment(x, moment, decay, order) do
-    transform({x, moment, decay, order}, fn {x, moment, decay, order} ->
-      deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
-    end)
+    deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
   end
 
   defnp bias_correction(moment, decay, count) do
-    transform({moment, decay, count}, fn {moment, decay, count} ->
-      deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
-    end)
+    deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
   end
 
   defnp safe_norm(g, min_norm) do
