@@ -86,15 +86,21 @@ defmodule Axon.MixProject do
         "notebooks/mnist.livemd",
         "notebooks/fashionmnist_autoencoder.livemd",
         "notebooks/multi_input_example.livemd",
-        "guides/model_creation/YourFirstAxonModel.livemd",
-        "guides/model_creation/SequentialModels.livemd",
-        "guides/model_creation/ComplexModels.livemd",
-        "guides/model_creation/MultiInputMultiOutputModels.livemd",
-        "guides/model_creation/CustomLayers.livemd",
+        "guides/model_creation/your_first_axon_model.livemd",
+        "guides/model_creation/sequential_models.livemd",
+        "guides/model_creation/complex_models.livemd",
+        "guides/model_creation/multi_input_multi_output_models.livemd",
+        "guides/model_creation/custom_layers.livemd",
+        "guides/model_execution/accelerating_axon.livemd",
+        "guides/training_and_evaluation/your_first_training_loop.livemd",
+        "guides/training_and_evaluation/custom_models_loss_optimizers.livemd"
       ],
       groups_for_extras: [
+        "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
+        "Guides: Model Execution": Path.wildcard("guides/model_execution/*.livemd"),
+        "Guides: Training and Evalutaion": Path.wildcard("guides/training_and_evaluation/*.livemd"),
+        "Guides: Serialization": Path.wildcard("guides/serialization/*.livemd"),
         "Axon Examples": Path.wildcard("notebooks/*.livemd"),
-        "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd")
       ],
       groups_for_functions: [
         # Axon
