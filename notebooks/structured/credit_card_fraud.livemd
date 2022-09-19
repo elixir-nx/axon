@@ -1,4 +1,4 @@
-# Credit card fraud
+# Classifying fraudulent transactions
 
 ## General overview
 

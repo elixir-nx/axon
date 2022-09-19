@@ -1,4 +1,4 @@
-# Humans or horses
+# Classifying humans and horses
 
 ## General overview
 

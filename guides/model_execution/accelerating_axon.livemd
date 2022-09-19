@@ -1,0 +1,493 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Accelerating Axon
+
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:exla, "~> 0.3.0"},
+  {:torchx, github: "elixir-nx/nx", sparse: "torchx"},
+  {:nx, "~> 0.3.0", override: true},
+  {:benchee, git: "https://github.com/akoutmos/benchee.git", branch: :adding_table_support},
+  {:kino_benchee, github: "livebook-dev/kino_benchee"},
+  {:kino, git: "https://github.com/livebook-dev/kino.git", branch: :main, override: true}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+* Updating axon (https://github.com/elixir-nx/axon.git)
+origin/HEAD set to main
+* Updating torchx (https://github.com/elixir-nx/nx.git)
+origin/HEAD set to main
+* Updating benchee (https://github.com/akoutmos/benchee.git - origin/adding_table_support)
+* Updating kino_benchee (https://github.com/livebook-dev/kino_benchee.git)
+origin/HEAD set to main
+* Getting kino (https://github.com/livebook-dev/kino.git - origin/main)
+remote: Enumerating objects: 1540, done.        
+remote: Counting objects: 100% (613/613), done.        
+remote: Compressing objects: 100% (309/309), done.        
+remote: Total 1540 (delta 452), reused 327 (delta 302), pack-reused 927        
+Receiving objects: 100% (1540/1540), 488.41 KiB | 6.43 MiB/s, done.
+Resolving deltas: 100% (887/887), done.
+Resolving Hex dependencies...
+Dependency resolution completed:
+New:
+  complex 0.4.2
+  deep_merge 1.0.0
+  dll_loader_helper 0.1.7
+  elixir_make 0.6.3
+  exla 0.3.0
+  kino_vega_lite 0.1.3
+  nx 0.3.0
+  statistex 1.0.0
+  table 0.1.2
+  vega_lite 0.1.6
+  xla 0.3.0
+* Getting exla (Hex package)
+* Getting nx (Hex package)
+* Getting table (Hex package)
+* Getting kino_vega_lite (Hex package)
+* Getting vega_lite (Hex package)
+* Getting deep_merge (Hex package)
+* Getting statistex (Hex package)
+* Getting complex (Hex package)
+* Getting dll_loader_helper (Hex package)
+* Getting elixir_make (Hex package)
+* Getting xla (Hex package)
+==> deep_merge
+Compiling 2 files (.ex)
+Generated deep_merge app
+==> table
+Compiling 5 files (.ex)
+Generated table app
+==> vega_lite
+Compiling 5 files (.ex)
+Generated vega_lite app
+==> kino
+Compiling 35 files (.ex)
+Generated kino app
+==> kino_vega_lite
+Compiling 4 files (.ex)
+Generated kino_vega_lite app
+==> statistex
+Compiling 3 files (.ex)
+Generated statistex app
+==> complex
+Compiling 2 files (.ex)
+Generated complex app
+==> nx
+Compiling 24 files (.ex)
+Generated nx app
+==> axon
+Compiling 22 files (.ex)
+Generated axon app
+==> benchee
+Compiling 44 files (.ex)
+Generated benchee app
+==> dll_loader_helper
+Compiling 1 file (.erl)
+Compiling 1 file (.ex)
+Generated dll_loader_helper app
+==> kino_benchee
+Compiling 1 file (.ex)
+Generated kino_benchee app
+==> elixir_make
+Compiling 1 file (.ex)
+Generated elixir_make app
+==> xla
+Compiling 2 files (.ex)
+Generated xla app
+==> exla
+Unpacking /root/.cache/xla/0.3.0/cache/download/xla_extension-x86_64-linux-cpu.tar.gz into /root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/deps/exla/cache
+g++ -fPIC -I/usr/lib/erlang/erts-13.0.4/include -Icache/xla_extension/include -O3 -Wall -Wno-sign-compare -Wno-unused-parameter -Wno-missing-field-initializers -Wno-comment -shared -std=c++14 c_src/exla/exla.cc c_src/exla/exla_nif_util.cc c_src/exla/exla_client.cc -o cache/libexla.so -Lcache/xla_extension/lib -lxla_extension -Wl,-rpath,'$ORIGIN/lib'
+Compiling 21 files (.ex)
+Generated exla app
+==> torchx
+-- The C compiler identification is GNU 9.3.0
+-- The CXX compiler identification is GNU 9.3.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Found Torch: /root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/deps/torchx/torchx/cache/libtorch-1.10.2-cpu/lib/libtorch.so  
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake
+make[1]: Entering directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+make[2]: Entering directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+make[3]: Entering directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+Scanning dependencies of target torchx
+make[3]: Leaving directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+make[3]: Entering directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+[ 50%] Building CXX object CMakeFiles/torchx.dir/c_src/torchx.cpp.o
+[100%] Linking CXX shared library torchx.so
+make[3]: Leaving directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+[100%] Built target torchx
+make[2]: Leaving directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+make[1]: Leaving directory '/root/.cache/mix/installs/elixir-1.13.4-erts-13.0.4/acd27f31d2fffd79874fb015a8015a96/_build/dev/lib/torchx/cmake'
+Compiling 3 files (.ex)
+Generated torchx app
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Using Nx Compilers in Axon
+
+Axon is built entirely on top of Nx's numerical definitions `defn`. Functions declared with `defn` tell Nx to use *just-in-time compilation* to compile and execute the given numerical definition with an available Nx compiler. Numerical definitions enable acceleration on CPU/GPU/TPU via pluggable compilers. At the time of this writing, Nx has 2 officially supported compiler/backends on top of the default `BinaryBackend`:
+
+1. EXLA - Acceleration via Google's [XLA project](https://www.tensorflow.org/xla)
+2. TorchX - Bindings to [LibTorch](https://pytorch.org/cppdocs/)
+
+By default, Nx and Axon run all computations using the `BinaryBackend` which is a pure Elixir implementation of various numerical routines. The `BinaryBackend` is guaranteed to run wherever an Elixir installation runs; however, it is **very** slow. Due to the computational expense of neural networks, you should basically never use the `BinaryBackend` and instead opt for one of the available accelerated libraries.
+
+There are several ways to make use of Nx compilers from within Axon. First, create a simple model for benchmarking purposes:
+
+```elixir
+model =
+  Axon.input("data")
+  |> Axon.dense(32)
+  |> Axon.relu()
+  |> Axon.dense(1)
+  |> Axon.softmax()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "softmax_0"
+  nodes: 5
+>
+```
+
+By default, Axon will respect the default `defn` compilation options. You can set compilation options globally or per-process:
+
+```elixir
+# Sets the global compilation options
+Nx.Defn.global_default_options(compiler: EXLA)
+# Sets the process-level compilation options
+Nx.Defn.default_options(compiler: EXLA)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[compiler: EXLA]
+```
+
+When you call `Axon.build/2`, Axon automatically marks your initialization and forward functions as JIT compiled functions. When you invoke them, they will compile a specialized version of the function using your default compiler options:
+
+```elixir
+inputs = Nx.random_uniform({2, 128})
+{init_fn, predict_fn} = Axon.build(model)
+params = init_fn.(inputs, %{})
+predict_fn.(params, inputs)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+
+10:34:02.503 [info]  XLA service 0x7fbd5468c170 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+
+10:34:02.785 [info]    StreamExecutor device (0): Host, Default Version
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][1]
+  EXLA.Backend<host:0, 0.184501844.1168769032.259095>
+  [
+    [1.0],
+    [1.0]
+  ]
+>
+```
+
+Notice that the inspected tensor indicates the computation has been dispatched to EXLA and the tensor's data points to an EXLA buffer.
+
+<!-- livebook:{"break_markdown":true} -->
+
+If you feel like setting the global or process-level compilation options is too intrusive, you can opt for more explicit behavior in a few ways. First, you can specify the JIT compiler when you build the model:
+
+```elixir
+# Set back to defaults
+Nx.Defn.global_default_options([])
+Nx.Defn.default_options([])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[compiler: EXLA]
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(model, compiler: EXLA)
+params = init_fn.(inputs, %{})
+predict_fn.(params, inputs)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][1]
+  EXLA.Backend<host:0, 0.184501844.1168769032.259101>
+  [
+    [1.0],
+    [1.0]
+  ]
+>
+```
+
+You can also instead JIT compile functions explicitly via the `Nx.Defn.jit` or compiler-specific JIT APIs. This is useful when running benchmarks against various backends:
+
+```elixir
+{init_fn, predict_fn} = Axon.build(model)
+
+# These will both JIT compile with EXLA
+exla_init_fn = Nx.Defn.jit(init_fn, compiler: EXLA)
+exla_predict_fn = EXLA.jit(predict_fn)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>
+```
+
+```elixir
+Benchee.run(
+  %{
+    "elixir init" => fn -> init_fn.(inputs, %{}) end,
+    "exla init" => fn -> exla_init_fn.(inputs, %{}) end
+  },
+  time: 10,
+  memory_time: 5,
+  warmup: 2
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Warning: the benchmark elixir init is using an evaluated function.
+  Evaluated functions perform slower than compiled functions.
+  You can move the Benchee caller to a function in a module and invoke `Mod.fun()` instead.
+  Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
+
+Warning: the benchmark exla init is using an evaluated function.
+  Evaluated functions perform slower than compiled functions.
+  You can move the Benchee caller to a function in a module and invoke `Mod.fun()` instead.
+  Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
+
+Operating System: Linux
+CPU Information: Intel(R) Core(TM) i7-7600U CPU @ 2.80GHz
+Number of Available Cores: 4
+Available memory: 24.95 GB
+Elixir 1.13.4
+Erlang 25.0.4
+
+Benchmark suite executing with the following configuration:
+warmup: 2 s
+time: 10 s
+memory time: 5 s
+reduction time: 0 ns
+parallel: 1
+inputs: none specified
+Estimated total run time: 34 s
+
+Benchmarking elixir init ...
+Benchmarking exla init ...
+
+Name                  ips        average  deviation         median         99th %
+exla init          3.79 K        0.26 ms   ±100.40%        0.24 ms        0.97 ms
+elixir init        0.52 K        1.91 ms    ±35.03%        1.72 ms        3.72 ms
+
+Comparison: 
+exla init          3.79 K
+elixir init        0.52 K - 7.25x slower +1.65 ms
+
+Memory usage statistics:
+
+Name           Memory usage
+exla init           9.80 KB
+elixir init       644.63 KB - 65.80x memory usage +634.83 KB
+
+**All measurements for memory usage were the same**
+```
+
+```elixir
+Benchee.run(
+  %{
+    "elixir predict" => fn -> predict_fn.(params, inputs) end,
+    "exla predict" => fn -> exla_predict_fn.(params, inputs) end
+  },
+  time: 10,
+  memory_time: 5,
+  warmup: 2
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Warning: the benchmark elixir predict is using an evaluated function.
+  Evaluated functions perform slower than compiled functions.
+  You can move the Benchee caller to a function in a module and invoke `Mod.fun()` instead.
+  Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
+
+Warning: the benchmark exla predict is using an evaluated function.
+  Evaluated functions perform slower than compiled functions.
+  You can move the Benchee caller to a function in a module and invoke `Mod.fun()` instead.
+  Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
+
+Operating System: Linux
+CPU Information: Intel(R) Core(TM) i7-7600U CPU @ 2.80GHz
+Number of Available Cores: 4
+Available memory: 24.95 GB
+Elixir 1.13.4
+Erlang 25.0.4
+
+Benchmark suite executing with the following configuration:
+warmup: 2 s
+time: 10 s
+memory time: 5 s
+reduction time: 0 ns
+parallel: 1
+inputs: none specified
+Estimated total run time: 34 s
+
+Benchmarking elixir predict ...
+Benchmarking exla predict ...
+
+Name                     ips        average  deviation         median         99th %
+exla predict          2.32 K        0.43 ms   ±147.05%        0.34 ms        1.61 ms
+elixir predict        0.28 K        3.53 ms    ±42.21%        3.11 ms        7.26 ms
+
+Comparison: 
+exla predict          2.32 K
+elixir predict        0.28 K - 8.20x slower +3.10 ms
+
+Memory usage statistics:
+
+Name              Memory usage
+exla predict          10.95 KB
+elixir predict        91.09 KB - 8.32x memory usage +80.14 KB
+
+**All measurements for memory usage were the same**
+```
+
+Notice how calls to EXLA variants are significantly faster than their Elixir counterparts. These speedups become more pronounced with more complex models and workflows.
+
+<!-- livebook:{"break_markdown":true} -->
+
+It's important to note that in order to use a given library as an Nx compiler, it must implement the Nx compilation behaviour. For example, you cannot invoke Torchx as an Nx compiler because it does not support JIT compilation at this time.
+
+## Using Nx Backends in Axon
+
+In addition to JIT-compilation, Axon also supports the usage of Nx backends. Nx backends are slightly different than Nx compilers in the sense that they do not fuse calls within numerical definitions. Backends are more eager, sacrificing a bit of performance for convenience. Torchx and EXLA both support running via backends.
+
+Again, Axon will respect the global and process-level Nx backend configuration options. You can set the default backend using:
+
+```elixir
+# Global default backend
+Nx.global_default_backend(Torchx.Backend)
+# Process default backend
+Nx.default_backend(Torchx.Backend)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{Nx.BinaryBackend, []}
+```
+
+Now when you invoke model functions, it will run them with the given backend:
+
+```elixir
+{init_fn, predict_fn} = Axon.build(model)
+params = init_fn.(inputs, %{})
+predict_fn.(params, inputs)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][1]
+  Torchx.Backend(cpu)
+  [
+    [1.0],
+    [1.0]
+  ]
+>
+```
+
+```elixir
+# Global default backend
+Nx.global_default_backend(EXLA.Backend)
+# Process default backend
+Nx.default_backend(EXLA.Backend)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{Torchx.Backend, []}
+```
+
+```elixir
+{init_fn, predict_fn} = Axon.build(model)
+params = init_fn.(inputs, %{})
+predict_fn.(params, inputs)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][1]
+  EXLA.Backend<host:0, 0.184501844.1169293320.110725>
+  [
+    [1.0],
+    [1.0]
+  ]
+>
+```
+
+Unlike with JIT-compilation, you must set the backend at the top-level in order to invoke it. You should be careful using multiple backends in the same project as attempting to mix tensors between backends may result in strange performance bugs or errors.
+
+With most larger models, using a JIT compiler will be more performant than using a backend.
+
+## A Note on CPUs/GPUs/TPUs
+
+While Nx mostly tries to standardize behavior across compilers and backends, some behaviors are backend-specific. For example, the API for choosing an acceleration platform (e.g. CUDA/ROCm/TPU) is backend-specific. You should refer to your chosen compiler or backend's documentation for information on targeting various accelerators. Typically, you only need to change a few configuration options and your code will run as-is on a chosen accelerator.
