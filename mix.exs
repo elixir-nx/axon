@@ -111,13 +111,14 @@ defmodule Axon.MixProject do
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
         "Guides: Model Execution": Path.wildcard("guides/model_execution/*.livemd"),
-        "Guides: Training and Evalutaion": Path.wildcard("guides/training_and_evaluation/*.livemd"),
+        "Guides: Training and Evalutaion":
+          Path.wildcard("guides/training_and_evaluation/*.livemd"),
         "Guides: Serialization": Path.wildcard("guides/serialization/*.livemd"),
         "Examples: Basics": Path.wildcard("notebooks/basics/*.livemd"),
         "Examples: Vision": Path.wildcard("notebooks/vision/*.livemd"),
         "Examples: Text": Path.wildcard("notebooks/text/*.livemd"),
         "Examples: Structured": Path.wildcard("notebooks/structured/*.livemd"),
-        "Examples: Generative": Path.wildcard("notebooks/generative/*.livemd"),
+        "Examples: Generative": Path.wildcard("notebooks/generative/*.livemd")
       ],
       groups_for_functions: [
         # Axon

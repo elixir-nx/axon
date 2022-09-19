@@ -1606,7 +1606,8 @@ defmodule Axon.Loop do
   defp halt_epoch(handler_fns, final_metrics_map, loop_state, debug?) do
     case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
       {:halt_epoch, state} ->
-        {:cont, {:halted, final_metrics_map, %State{state | epoch: state.epoch + 1, iteration: 0}}}
+        {:cont,
+         {:halted, final_metrics_map, %State{state | epoch: state.epoch + 1, iteration: 0}}}
 
       {:halt_loop, state} ->
         {:halt, {:halted, final_metrics_map, state}}
