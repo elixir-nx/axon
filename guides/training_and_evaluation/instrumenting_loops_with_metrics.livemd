@@ -5,7 +5,7 @@
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0"}
+  {:nx, "~> 0.3.0", override: true}
 ])
 ```
 

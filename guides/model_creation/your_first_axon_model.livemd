@@ -1,12 +1,19 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # Your First Axon Model
 
 ```elixir
 Mix.install([
-  # TODO: Update me on release
-  {:axon, path: "."},
+  {:axon, github: "elixir-nx/axon"},
   {:nx, "~> 0.3.0", override: true},
   {:kino, "~> 0.6.2"}
 ])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Your First Model
@@ -19,6 +26,16 @@ All Axon models start with a declaration of input nodes. These are the root node
 
 ```elixir
 input = Axon.input("data")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "data"
+  nodes: 1
+>
 ```
 
 Technically speaking, `input` is now a valid Axon model which you can inspect, execute, and initialize. You can visualize how data flows through the graph using `Axon.Display.as_graph/2`:
@@ -34,6 +51,13 @@ You can see this in action by actually executing your model. You can build the `
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(input)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>,
+ #Function<136.40088443/2 in Nx.Defn.wrap_arity/2>}
 ```
 
 Notice that `Axon.build/2` returns a tuple of `{init_fn, predict_fn}`. `init_fn` has the signature:
@@ -56,6 +80,12 @@ predict_fn.(params :: map(tensor), input :: map(tensor) | tensor)
 params = init_fn.(Nx.template({1, 8}, :f32), %{})
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+%{}
+```
+
 In this example, you use `Nx.template/2` to create a *template tensor*, which is a placeholder that does not actually consume any memory. Templates are useful for initialization because you don't actually need to know anything about your inputs other than their shape and type.
 
 Notice `init_fn` returned an empty map because your model does not have any trainable parameters. This should make sense because it's just an input layer.
@@ -64,6 +94,17 @@ Now you can pass these trainable parameters to `predict_fn` along with some inpu
 
 ```elixir
 predict_fn.(params, Nx.iota({1, 8}, type: :f32))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[1][8]
+  [
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+  ]
+>
 ```
 
 And your model just returned the given input, as expected!

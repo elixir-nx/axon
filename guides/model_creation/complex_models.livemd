@@ -1,11 +1,19 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # Complex Models
 
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0"},
+  {:nx, "~> 0.3.0", override: true},
   {:kino, "~> 0.6.2"}
 ])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Creating more complex models
@@ -19,6 +27,16 @@ x1 = input |> Axon.dense(32)
 x2 = input |> Axon.dense(64) |> Axon.relu() |> Axon.dense(32)
 
 out = Axon.add(x1, x2)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "add_0"
+  nodes: 7
+>
 ```
 
 In the snippet above, your model branches `input` into `x1` and `x2`. Each branch performs a different set of transformations; however, at the end the branches are merged with an `Axon.add/3`. You might sometimes see layers like `Axon.add/3` called *combinators*. Really they're just layers that operate on multiple Axon models at once---typically to merge some branches together.
@@ -38,9 +56,28 @@ And you can use `Axon.build/2` on `out` as you would any other Axon model:
 {init_fn, predict_fn} = Axon.build(out)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>,
+ #Function<136.40088443/2 in Nx.Defn.wrap_arity/2>}
+```
+
 ```elixir
 params = init_fn.(template, %{})
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][32]
+  [
+    [-0.2968200445175171, 4.7691569328308105, 5.0999298095703125, 2.2875781059265137, -5.814988136291504, 2.703584909439087, -3.9227609634399414, 0.6237327456474304, 3.630375385284424, -3.5704236030578613, 2.0916225910186768, 4.318353652954102, -2.845555305480957, -0.7325705289840698, -2.4092650413513184, 2.6194369792938232, -4.617605686187744, -2.5477466583251953, 0.18894797563552856, 1.570220947265625, -3.4711761474609375, 3.231623888015747, -2.5606627464294434, -1.6640454530715942, -4.052870750427246, -2.3439581394195557, -4.196268558502197, 2.306673288345337, 5.802343845367432, 0.13128826022148132, -2.9200429916381836, -1.7174205780029297],
+    [-0.8317227363586426, 13.533317565917969, 12.997210502624512, 4.376812934875488, -21.34744644165039, 10.634209632873535, -9.0253324508667, 6.228933334350586, 13.02472972869873, -3.7831759452819824, 8.444717407226562, 8.801780700683594, -8.965575218200684, 1.08027982711792, -3.479527711868286, 1.6720714569091797, -12.378510475158691, -10.485688209533691, ...]
+  ]
+>
 ```
 
 As your architectures grow in complexity, you might find yourself reaching for better abstractions to organize your model creation code. For example, PyTorch models are often organized into `nn.Module`. The equivalent of an `nn.Module` in Axon is a regular Elixir function. If you're translating models from PyTorch to Axon, it's natural to create one Elixir function per `nn.Module`.
@@ -61,7 +98,7 @@ defmodule MyModel do
   defp conv_block(input) do
     residual = input
 
-    x = input |> Axon.conv(32, padding: :same) |> Axon.mish()
+    x = input |> Axon.conv(3, padding: :same) |> Axon.mish()
 
     x
     |> Axon.add(residual)
@@ -74,8 +111,24 @@ defmodule MyModel do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, MyModel, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:dense_block, 1}}
+```
+
 ```elixir
 model = MyModel.model()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "dense_2"
+  nodes: 12
+>
 ```
 
 ```elixir

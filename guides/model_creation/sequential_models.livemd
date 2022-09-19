@@ -1,11 +1,19 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # Sequential Models
 
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0"},
+  {:nx, "~> 0.3.0", override: true},
   {:kino, "~> 0.6.2"}
 ])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Creating a sequential model
@@ -37,6 +45,16 @@ model =
   |> Axon.activation(:softmax)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "softmax_0"
+  nodes: 6
+>
+```
+
 If you visualize this model, it's easy to see how data flows sequentially through it:
 
 ```elixir
@@ -50,8 +68,79 @@ Your model is more involved and as a result so is the execution graph! Now, usin
 {init_fn, predict_fn} = Axon.build(model)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>,
+ #Function<136.40088443/2 in Nx.Defn.wrap_arity/2>}
+```
+
 ```elixir
 params = init_fn.(template, %{})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "dense_0" => %{
+    "bias" => #Nx.Tensor<
+      f32[32]
+      [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[16][32]
+      [
+        [0.16814084351062775, 0.22098660469055176, -0.0802609771490097, -0.26945701241493225, -0.16669391095638275, -0.16521741449832916, -0.016656389459967613, -0.07408540695905685, 0.06354179233312607, -0.34764960408210754, -0.13815274834632874, 0.05820384994149208, 0.16470867395401, 0.24525555968284607, -0.22202321887016296, -0.09369609504938126, -0.26106539368629456, 0.2132047712802887, -0.036502428352832794, 0.012593270279467106, -0.005446559749543667, 0.23512926697731018, -0.08232185989618301, 0.22087956964969635, -0.19628290832042694, -0.18031737208366394, -0.05549080669879913, -0.06490166485309601, -0.034711193293333054, 0.23626041412353516, 0.04285908862948418, 0.31614407896995544],
+        [-0.28244638442993164, -0.011798124760389328, 0.27466315031051636, 0.10090769082307816, -0.04200015962123871, 0.0951097160577774, -0.166067436337471, 0.08797762542963028, 0.1505393385887146, -0.1689203679561615, -0.16902239620685577, -0.32886043190956116, 0.2730260193347931, -0.22549018263816833, 0.07605016976594925, ...],
+        ...
+      ]
+    >
+  },
+  "dense_1" => %{
+    "bias" => #Nx.Tensor<
+      f32[1]
+      [0.0]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[32][1]
+      [
+        [0.18331094086170197],
+        [-0.033736228942871094],
+        [0.24104730784893036],
+        [0.1135050505399704],
+        [-0.06302439421415329],
+        [-0.3334289789199829],
+        [0.1992550790309906],
+        [0.4016658663749695],
+        [-0.14776311814785004],
+        [-0.0587850958108902],
+        [-0.3063175082206726],
+        [0.263816773891449],
+        [0.07269442826509476],
+        [-0.3508087992668152],
+        [-0.10359223932027817],
+        [0.21326684951782227],
+        [-0.1554422676563263],
+        [-0.11513436585664749],
+        [-0.10199863463640213],
+        [-0.4148044288158417],
+        [0.14354249835014343],
+        [0.27921468019485474],
+        [0.08831259608268738],
+        [0.3277941942214966],
+        [-0.009221052750945091],
+        [-0.2149011492729187],
+        [0.3797019124031067],
+        [-0.32121261954307556],
+        [-0.36806604266166687],
+        [0.14640845358371735],
+        [0.012994646094739437],
+        [0.42028477787971497]
+      ]
+    >
+  }
+}
 ```
 
 Wow! Notice that this model actually has trainable parameters. You can see that the parameter map is just a regular Elixir map. Each top-level entry maps to a layer with a key corresponding to that layer's name and a value corresponding to that layer's trainable parameters. Each layer's individual trainable parameters are given layer-specific names and map directly to Nx tensors.
@@ -60,6 +149,18 @@ Now you can use these `params` with your `predict_fn`:
 
 ```elixir
 predict_fn.(params, Nx.iota({2, 16}, type: :f32))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][1]
+  [
+    [1.0],
+    [1.0]
+  ]
+>
 ```
 
 And voila! You've successfully created and used a sequential model in Axon!

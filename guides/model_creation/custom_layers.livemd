@@ -1,11 +1,19 @@
+<!-- livebook:{"persist_outputs":true} -->
+
 # Custom Layers
 
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0"},
+  {:nx, "~> 0.3.0", override: true},
   {:kino, "~> 0.6.2"}
 ])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
 ```
 
 ## Creating custom layers
@@ -33,6 +41,12 @@ defmodule CustomLayers do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:my_layer, 2}}
+```
+
 Regardless of the options you configure your layer to accept, the `defn` implementation will always receive a `:mode` option indicating whether or not the model is running in training or inference mode. You can customize the behavior of your layer depending on the mode.
 
 With an implementation defined, you need only to call `Axon.layer/3` to apply our custom layer to an Axon input:
@@ -41,6 +55,16 @@ With an implementation defined, you need only to call `Axon.layer/3` to apply ou
 input = Axon.input("data")
 
 out = Axon.layer(&CustomLayers.my_layer/2, [input])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "custom_0"
+  nodes: 2
+>
 ```
 
 Now you can inspect and execute your model as normal:
@@ -76,8 +100,26 @@ Axon.Display.as_graph(out, template)
 params = init_fn.(template, %{})
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+%{}
+```
+
 ```elixir
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][8]
+  [
+    [0.0, 1.6829419136047363, 1.8185948133468628, 0.28224000334739685, -1.513604998588562, -1.9178485870361328, -0.558830976486206, 1.3139731884002686],
+    [1.978716492652893, 0.8242369890213013, -1.0880422592163086, -1.9999804496765137, -1.073145866394043, 0.8403340578079224, 1.9812147617340088, 1.3005757331848145]
+  ]
+>
 ```
 
 Notice that this model does not have any trainable parameters because none of the layers have trainable parameters. You can introduce trainable parameters by passing inputs created with `Axon.param/3` to `Axon.layer/3`. For example, you can modify your original custom layer to take an additional trainable parameter:
@@ -94,6 +136,12 @@ defmodule CustomLayers do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:my_layer, 3}}
+```
+
 And then construct the layer with a regular Axon input and a trainable parameter:
 
 ```elixir
@@ -102,9 +150,32 @@ alpha = Axon.param("alpha", fn _ -> {} end)
 out = Axon.layer(&CustomLayers.my_layer/3, [input, alpha], op_name: :my_layer)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "my_layer_0"
+  nodes: 2
+>
+```
+
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
 params = init_fn.(template, %{})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "my_layer_0" => %{
+    "alpha" => #Nx.Tensor<
+      f32
+      -0.38638609647750854
+    >
+  }
+}
 ```
 
 Notice how your model now initializes with a trainable parameter `"alpha"` for your custom layer. Each parameter requires a unique (per-layer) string name and a function which determines the parameter's shape from the layer's input shapes.
@@ -132,12 +203,28 @@ defmodule CustomLayers do
 end
 ```
 
+<!-- livebook:{"output":true} -->
+
+```
+{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:my_layer_impl, 3}}
+```
+
 ```elixir
 out =
   input
   |> CustomLayers.my_layer()
   |> CustomLayers.my_layer()
   |> Axon.dense(1)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon<
+  inputs: %{"data" => nil}
+  outputs: "dense_0"
+  nodes: 4
+>
 ```
 
 ```elixir
