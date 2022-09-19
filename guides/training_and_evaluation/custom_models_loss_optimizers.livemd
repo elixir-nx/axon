@@ -372,7 +372,7 @@ Epoch: 0, Batch: 1000, loss: 0.1098235
 
 ## Using Custom Optimizers in Training Loops
 
-As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the [Optimization Deep Dive](optimization_deep_dive.livemd), you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
+As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Axon.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
 
 You likely won't have to implement a custom optimizer; however, you should know how to construct optimizers with different hyperparameters and how to apply different modifiers to different optimizers to customize the optimization process.
 

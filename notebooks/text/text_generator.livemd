@@ -1,4 +1,4 @@
-# Text Generation with LSTM in Axon
+# Generating text with an LSTM
 
 ```elixir
 Mix.install([

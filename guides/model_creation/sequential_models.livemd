@@ -2,16 +2,15 @@
 
 ```elixir
 Mix.install([
-  # TODO: Update me on release
-  {:axon, path: "."},
-  {:nx, "~> 0.3.0", override: true},
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0"},
   {:kino, "~> 0.6.2"}
 ])
 ```
 
 ## Creating a sequential model
 
-In the [last guide](YourFirstAxonModel.livemd), you created a simple identity model which just returned the input. Of course, you would never actually use Axon for such purposes. You want to create real neural networks!
+In the [last guide](your_first_axon_model.livemd), you created a simple identity model which just returned the input. Of course, you would never actually use Axon for such purposes. You want to create real neural networks!
 
 In equivalent frameworks in the Python ecosystem such as Keras and PyTorch, there is a concept of *sequential models*. Sequential models are named after the sequential nature in which data flows through them. Sequential models transform the input with sequential, successive transformations.
 

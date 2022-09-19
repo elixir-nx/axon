@@ -1,0 +1,186 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Your First Evaluation Loop
+
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0"}
+])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Creating an Axon evaluation loop
+
+Once you have a trained model, it's necessary to test the trained model on some test data. Axon's loop abstraction is general enough to work for both training and evaluating models. Just as Axon implements a canned `Axon.Loop.trainer/3` factory, it also implements a canned `Axon.Loop.evaluator/1` factory.
+
+`Axon.Loop.evaluator/1` creates an evaluation loop which you can instrument with metrics to measure the performance of a trained model on test data. First, you need a trained model:
+
+```elixir
+model =
+  Axon.input("data")
+  |> Axon.dense(8)
+  |> Axon.relu()
+  |> Axon.dense(4)
+  |> Axon.relu()
+  |> Axon.dense(1)
+
+train_loop = Axon.Loop.trainer(model, :mean_squared_error, :sgd)
+
+data =
+  Stream.repeatedly(fn ->
+    xs = Nx.random_normal({8, 1})
+    ys = Nx.sin(xs)
+    {xs, ys}
+  end)
+
+trained_model_state = Axon.Loop.run(train_loop, data, %{}, iterations: 1000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Epoch: 0, Batch: 1000, loss: 0.0348526
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "dense_0" => %{
+    "bias" => #Nx.Tensor<
+      f32[8]
+      [0.12334823608398438, 0.23830991983413696, 0.07463178038597107, -0.18479900062084198, -0.2544017434120178, -0.1100262850522995, 0.04137010499835014, 0.22781872749328613]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[1][8]
+      [
+        [-0.7397015690803528, 0.8709579110145569, -0.33129510283470154, -0.4521639347076416, -0.5752679109573364, 0.5516160726547241, -0.1265108585357666, -0.5665484666824341]
+      ]
+    >
+  },
+  "dense_1" => %{
+    "bias" => #Nx.Tensor<
+      f32[4]
+      [7.311657827813178e-5, -0.027584673836827278, 0.20344746112823486, 0.1330498605966568]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[8][4]
+      [
+        [-0.19199007749557495, 0.15660767257213593, 0.5446576476097107, 0.07457015663385391],
+        [0.034533075988292694, -0.10262273252010345, 0.05103863775730133, 0.5708968639373779],
+        [-0.4212855398654938, -0.47742989659309387, 0.18940746784210205, -0.40659299492836],
+        [0.2127801775932312, -0.07477620989084244, -0.11274989694356918, 0.4552466869354248],
+        [-0.13839538395404816, 0.09832656383514404, -0.16157560050487518, 0.7074514627456665],
+        [-0.6366024017333984, 0.3754875361919403, -0.6808919906616211, -0.209626242518425],
+        [0.595952033996582, 0.6973875164985657, 0.4453340172767639, 0.6247327327728271],
+        [-0.6312451958656311, 0.33275362849235535, 0.5079866051673889, -0.2508215010166168]
+      ]
+    >
+  },
+  "dense_2" => %{
+    "bias" => #Nx.Tensor<
+      f32[1]
+      [0.17476916313171387]
+    >,
+    "kernel" => #Nx.Tensor<
+      f32[4][1]
+      [
+        [0.8893225193023682],
+        [-0.4548797905445099],
+        [-0.8288624286651611],
+        [0.8321414589881897]
+      ]
+    >
+  }
+}
+```
+
+Running loops with `Axon.Loop.trainer/3` returns a trained model state which you can use to evaluate your model. To construct an evaluation loop, you just call `Axon.Loop.evaluator/1` with your pre-trained model:
+
+```elixir
+test_loop = Axon.Loop.evaluator(model)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon.Loop<
+  handlers: %{
+    completed: [],
+    epoch_completed: [],
+    epoch_halted: [],
+    epoch_started: [],
+    halted: [],
+    iteration_completed: [
+      {#Function<23.20267452/1 in Axon.Loop.log/5>,
+       #Function<5.20267452/1 in Axon.Loop.build_filter_fn/1>}
+    ],
+    iteration_started: [],
+    started: []
+  },
+  metrics: %{},
+  ...
+>
+```
+
+Next, you'll need to instrument your test loop with the metrics you'd like to aggregate:
+
+```elixir
+test_loop = test_loop |> Axon.Loop.metric(:mean_absolute_error)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Axon.Loop<
+  handlers: %{
+    completed: [],
+    epoch_completed: [],
+    epoch_halted: [],
+    epoch_started: [],
+    halted: [],
+    iteration_completed: [
+      {#Function<23.20267452/1 in Axon.Loop.log/5>,
+       #Function<5.20267452/1 in Axon.Loop.build_filter_fn/1>}
+    ],
+    iteration_started: [],
+    started: []
+  },
+  metrics: %{
+    "mean_absolute_error" => {#Function<12.6031754/3 in Axon.Metrics.running_average/1>,
+     :mean_absolute_error}
+  },
+  ...
+>
+```
+
+Finally, you can run your loop on test data. Because you want to test your trained model, you need to provide your model's initial state to the test loop:
+
+```elixir
+Axon.Loop.run(test_loop, data, trained_model_state, iterations: 1000)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Batch: 1000, mean_absolute_error: 0.0955574
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  0 => %{
+    "mean_absolute_error" => #Nx.Tensor<
+      f32
+      0.09555738419294357
+    >
+  }
+}
+```

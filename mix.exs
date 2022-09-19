@@ -83,9 +83,7 @@ defmodule Axon.MixProject do
       logo: "logo.png",
       source_url: @source_url,
       extras: [
-        "notebooks/mnist.livemd",
-        "notebooks/fashionmnist_autoencoder.livemd",
-        "notebooks/multi_input_example.livemd",
+        # Guides
         "guides/model_creation/your_first_axon_model.livemd",
         "guides/model_creation/sequential_models.livemd",
         "guides/model_creation/complex_models.livemd",
@@ -93,16 +91,33 @@ defmodule Axon.MixProject do
         "guides/model_creation/custom_layers.livemd",
         "guides/model_creation/model_hooks.livemd",
         "guides/model_execution/accelerating_axon.livemd",
+        "guides/model_execution/training_and_inference_mode.livemd",
         "guides/training_and_evaluation/your_first_training_loop.livemd",
         "guides/training_and_evaluation/instrumenting_loops_with_metrics.livemd",
+        "guides/training_and_evaluation/your_first_evaluation_loop.livemd",
+        "guides/training_and_evaluation/using_loop_event_handlers.livemd",
         "guides/training_and_evaluation/custom_models_loss_optimizers.livemd",
+        "guides/training_and_evaluation/writing_custom_metrics.livemd",
+        "guides/training_and_evaluation/writing_custom_event_handlers.livemd",
+        "guides/serialization/onnx_to_axon.livemd",
+        # Examples
+        "notebooks/basics/multi_input_example.livemd",
+        "notebooks/vision/mnist.livemd",
+        "notebooks/vision/humans_or_horses.livemd",
+        "notebooks/text/text_generator.livemd",
+        "notebooks/structured/credit_card_fraud.livemd",
+        "notebooks/generative/fashionmnist_autoencoder.livemd"
       ],
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
         "Guides: Model Execution": Path.wildcard("guides/model_execution/*.livemd"),
         "Guides: Training and Evalutaion": Path.wildcard("guides/training_and_evaluation/*.livemd"),
         "Guides: Serialization": Path.wildcard("guides/serialization/*.livemd"),
-        "Axon Examples": Path.wildcard("notebooks/*.livemd"),
+        "Examples: Basics": Path.wildcard("notebooks/basics/*.livemd"),
+        "Examples: Vision": Path.wildcard("notebooks/vision/*.livemd"),
+        "Examples: Text": Path.wildcard("notebooks/text/*.livemd"),
+        "Examples: Structured": Path.wildcard("notebooks/structured/*.livemd"),
+        "Examples: Generative": Path.wildcard("notebooks/generative/*.livemd"),
       ],
       groups_for_functions: [
         # Axon

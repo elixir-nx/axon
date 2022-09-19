@@ -2,8 +2,8 @@
 
 ```elixir
 Mix.install([
-  {:axon, path: "."},
-  {:nx, "~> 0.3.0", override: true},
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0"},
   {:kino, "~> 0.6.2"}
 ])
 ```
@@ -21,7 +21,7 @@ x2 = input |> Axon.dense(64) |> Axon.relu() |> Axon.dense(32)
 out = Axon.add(x1, x2)
 ```
 
-In the snippet above, your model branches `input` into `x1` and `x2`. Each branch performs a different set of transformations; however, at the end the branches are merged with an `Axon.add/2`. You might sometimes see layers like `Axon.add/2` called *combinators*. Really they're just layers that operate on multiple Axon models at once---typically to merge some branches together.
+In the snippet above, your model branches `input` into `x1` and `x2`. Each branch performs a different set of transformations; however, at the end the branches are merged with an `Axon.add/3`. You might sometimes see layers like `Axon.add/3` called *combinators*. Really they're just layers that operate on multiple Axon models at once---typically to merge some branches together.
 
 `out` represents your final Axon model.
 

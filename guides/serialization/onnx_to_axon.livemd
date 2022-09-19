@@ -1,4 +1,4 @@
-# ONNX To Axon
+# Converting ONNX Models to Axon
 
 ```elixir
 Mix.install(

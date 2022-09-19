@@ -1382,7 +1382,7 @@ defmodule Axon.Loop do
             fn epoch, {_, final_metrics_map, loop_state} ->
               case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
                 {:halt_epoch, state} ->
-                  halt_epoch(handler_fns, state, debug?)
+                  halt_epoch(handler_fns, final_metrics_map, state, debug?)
 
                 {:halt_loop, state} ->
                   {:halt, {:halted, final_metrics_map, state}}
@@ -1406,7 +1406,7 @@ defmodule Axon.Loop do
 
                   case status_and_state do
                     {:halt_epoch, state} ->
-                      halt_epoch(handler_fns, state, debug?)
+                      halt_epoch(handler_fns, final_metrics_map, state, debug?)
 
                     {:halt_loop, state} ->
                       {:halt, {:halted, final_metrics_map, state}}
@@ -1416,7 +1416,7 @@ defmodule Axon.Loop do
 
                       case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
                         {:halt_epoch, state} ->
-                          halt_epoch(handler_fns, state, debug?)
+                          halt_epoch(handler_fns, final_metrics_map, state, debug?)
 
                         {:halt_loop, state} ->
                           {:halt, {:halted, final_metrics_map, state}}
@@ -1603,16 +1603,16 @@ defmodule Axon.Loop do
   end
 
   # Halts an epoch during looping
-  defp halt_epoch(handler_fns, loop_state, debug?) do
+  defp halt_epoch(handler_fns, final_metrics_map, loop_state, debug?) do
     case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
       {:halt_epoch, state} ->
-        {:cont, %State{state | epoch: state.epoch + 1, iteration: 0}}
+        {:cont, {:halted, final_metrics_map, %State{state | epoch: state.epoch + 1, iteration: 0}}}
 
       {:halt_loop, state} ->
-        {:halt, {:halted, state}}
+        {:halt, {:halted, final_metrics_map, state}}
 
       {:continue, state} ->
-        {:cont, state}
+        {:cont, {:halted, final_metrics_map, state}}
     end
   end
 
@@ -1779,7 +1779,7 @@ defmodule Axon.Loop do
             |> then(&apply(Axon.Metrics, metric, &1))
           end
 
-        metric_fn when is_function(metric, 2) ->
+        metric_fn when is_function(metric) ->
           fn output ->
             output
             |> transform_fn.()
@@ -1801,7 +1801,7 @@ defmodule Axon.Loop do
         apply(Axon.Metrics, acc_fun, [metric_fn])
 
       acc_fun when is_function(acc_fun, 3) ->
-        &acc_fun.(&1, metric_fn.(&2), &3)
+        &acc_fun.(&1, apply(metric_fn, &2), &3)
 
       invalid ->
         raise ArgumentError,

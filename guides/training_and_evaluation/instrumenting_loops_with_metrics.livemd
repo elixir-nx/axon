@@ -64,7 +64,7 @@ loop =
 >
 ```
 
-When specifying a metric, you can specify an atom which maps to any of the metrics defined in `Axon.Metrics`. You can also define custom metrics. For more information on custom metrics, see [Custom Handlers and Metrics](custom_handlers_and_metrics.livemd).
+When specifying a metric, you can specify an atom which maps to any of the metrics defined in `Axon.Metrics`. You can also define custom metrics. For more information on custom metrics, see [Writing Custom Metrics](writing_custom_metrics.livemd).
 
 When you run a loop with metrics, Axon will aggregate that metric over the course of the loop execution. For training loops, Axon will also report the aggregate metric in the training logs:
 
