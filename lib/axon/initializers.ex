@@ -211,7 +211,6 @@ defmodule Axon.Initializers do
       {:bf, 16}
 
   """
-  # TODO: Fix
   def normal(opts \\ []) do
     fn shape, type, key ->
       scale = opts[:scale] || 1.0e-2
@@ -220,9 +219,9 @@ defmodule Axon.Initializers do
     end
   end
 
-  defnp normal_impl(_key, opts \\ []) do
+  defnp normal_impl(key, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mean: 0.0])
-    Nx.random_normal(opts[:shape], opts[:mean], opts[:scale], type: opts[:type])
+    Nx.Random.normal(key, opts[:mean], opts[:scale], shape: opts[:shape], type: opts[:type])
   end
 
   @doc """
@@ -708,8 +707,7 @@ defmodule Axon.Initializers do
               Nx.Random.uniform(key, shape: flat_shape, type: type)
 
             :normal ->
-              # TODO: Key
-              Nx.random_normal(flat_shape, type: type)
+              Nx.Random.normal(key, 0.0, 1.0, shape: flat_shape, type: type)
 
             dist ->
               raise ArgumentError,
@@ -728,15 +726,14 @@ defmodule Axon.Initializers do
 
   # Variance scaling branches
 
-  # TODO: Key
-  defnp var_normal(_key, variance, opts \\ []) do
+  defnp var_normal(key, variance, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     shape = opts[:shape]
     type = opts[:type]
 
     sigma = Nx.sqrt(variance)
 
-    Nx.random_normal(shape, 0.0, sigma, type: type)
+    Nx.Random.normal(key, 0.0, sigma, shape: shape, type: type)
   end
 
   defnp var_uniform(key, variance, opts \\ []) do
