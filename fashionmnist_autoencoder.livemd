@@ -1,4 +1,4 @@
-# Fashion MNIST Autoencoder
+# Training an Autoencoder on Fashion MNIST
 
 ## Introduction
 

@@ -1,4 +1,4 @@
-# Multi Input Models
+# Training multi-input models
 
 ## Imports
 

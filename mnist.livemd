@@ -1,4 +1,4 @@
-# MNIST
+# Classifying handwritten digits
 
 ## Introduction
 
