@@ -540,6 +540,8 @@ defmodule Axon do
   # TODO: This should not be duplicated
   defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
 
+  defp deep_new(x, fun) when is_number(x), do: fun.(x)
+
   defp deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
     cont
@@ -645,7 +647,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :dense}
       else
-        {[x, kernel, constant(0)], :dense}
+        {[x, kernel], &Axon.Layers.dense(&1, &2, 0, &3)}
       end
 
     node = layer(op, inputs, name: opts[:name], op_name: :dense)
@@ -3428,7 +3430,6 @@ defmodule Axon do
 
   """
   @doc type: :model
-<<<<<<< HEAD
   def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
     Logger.warning(
       "Attempting to serialize an Axon model. Serialiation is discouraged" <>
@@ -3445,7 +3446,7 @@ defmodule Axon do
 
     model_meta = %{output: id, nodes: nodes, axon: :axon}
     params = Nx.serialize(params, opts)
-    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
+    :erlang.term_to_binary({@file_version, node_list, params}, opts)
   end
 
   # TODO: Raise on next release
@@ -3527,6 +3528,7 @@ defmodule Axon do
 
     case fun_info[:type] do
       :local ->
+        IO.inspect op_name
         Logger.warning(
           "Attempting to deserialize anonymous function in #{inspect(op_name)} layer," <>
             " this will result in errors during deserialization between" <>
@@ -3545,7 +3547,7 @@ defmodule Axon do
     end
   end
 
-  defp validate_deserialized_op!(_name, op) when is_atom(op), do: :ok
+  defp validate_deserialized_op!(_name, op, _op_name) when is_atom(op), do: :ok
 
   ## Helpers
 
