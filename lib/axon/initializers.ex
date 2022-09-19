@@ -180,9 +180,7 @@ defmodule Axon.Initializers do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
     shape = Nx.shape(opts[:shape])
 
-    Nx.Random.uniform(key,
-      min_val: Nx.negate(opts[:scale]),
-      max_val: opts[:scale],
+    Nx.Random.uniform(key, Nx.negate(opts[:scale]), opts[:scale],
       type: opts[:type],
       shape: shape
     )
@@ -747,7 +745,7 @@ defmodule Axon.Initializers do
     type = opts[:type]
 
     limit = Nx.sqrt(3 * variance)
-    Nx.Random.uniform(key, shape: shape, min_val: -limit, max_val: limit, type: type)
+    Nx.Random.uniform(key, -limit, limit, shape: shape, type: type)
   end
 
   # TODO: Key
