@@ -769,7 +769,7 @@ defmodule Axon.LayersTest do
       first = Axon.Layers.global_lp_pool(input)
       last = Axon.Layers.global_lp_pool(t_input, channels: :last)
 
-      assert_equal(first, last)
+      assert_all_close(first, last)
     end
 
     test "raises on input rank less than 3" do
