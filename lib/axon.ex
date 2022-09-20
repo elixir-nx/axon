@@ -2922,7 +2922,7 @@ defmodule Axon do
   Returns a node's immediate parameters.
 
   Note this does not take into account parameters of
-  parent layers---only the parameters which belong to
+  parent layers - only the parameters which belong to
   the immediate layer.
   """
   @doc type: :graph
@@ -2933,7 +2933,7 @@ defmodule Axon do
   parameters.
 
   Note this does not take into account parameters of
-  parent layers---only the parameters which belong to
+  parent layers - only the parameters which belong to
   the immediate layer.
 
   The new parameters must be compatible with the layer's

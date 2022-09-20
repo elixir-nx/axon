@@ -12,35 +12,6 @@ Mix.install([
 <!-- livebook:{"output":true} -->
 
 ```
-* Getting axon (https://github.com/elixir-nx/axon.git)
-remote: Enumerating objects: 7182, done.        
-remote: Counting objects: 100% (1452/1452), done.        
-remote: Compressing objects: 100% (633/633), done.        
-remote: Total 7182 (delta 1098), reused 1117 (delta 811), pack-reused 5730        
-Receiving objects: 100% (7182/7182), 45.78 MiB | 26.57 MiB/s, done.
-Resolving deltas: 100% (5329/5329), done.
-origin/HEAD set to main
-Resolving Hex dependencies...
-Dependency resolution completed:
-New:
-  complex 0.4.2
-  nx 0.3.0
-* Getting nx (Hex package)
-* Getting complex (Hex package)
-==> complex
-Compiling 2 files (.ex)
-Generated complex app
-==> nx
-Compiling 24 files (.ex)
-Generated nx app
-==> axon
-Compiling 22 files (.ex)
-Generated axon app
-```
-
-<!-- livebook:{"output":true} -->
-
-```
 :ok
 ```
 
@@ -64,7 +35,7 @@ loop = Axon.Loop.trainer(model, :mean_squared_error, :sgd)
 
 This example uses an `%Axon{}` struct to represent your `model` to train, and atoms to represent your loss function and optimizer. Some of your problems will require a bit more flexibility than this example affords. Fortunately, `Axon.Loop.trainer/3` is designed for flexibility.
 
-For example, if your model cannot be cleanly represented as an `%Axon{}` model, you can instead opt instead to define custom initialization and forward functions to pass to `Axon.Loop.trainer/3`. Actually, `Axon.Loop.trainer/3` is doing this for you under the hood---the ability to pass an `%Axon{}` struct directly is just a convenience:
+For example, if your model cannot be cleanly represented as an `%Axon{}` model, you can instead opt instead to define custom initialization and forward functions to pass to `Axon.Loop.trainer/3`. Actually, `Axon.Loop.trainer/3` is doing this for you under the hood - the ability to pass an `%Axon{}` struct directly is just a convenience:
 
 ```elixir
 model =
