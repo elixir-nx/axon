@@ -5000,6 +5000,23 @@ defmodule CompilerTest do
       assert Nx.shape(k) == {1, 2}
       assert Nx.shape(b) == {2}
     end
+
+    test "do not initialize same shape to same params" do
+      model =
+        Axon.input("data")
+        |> Axon.dense(10)
+        |> Axon.dense(10)
+
+      {init_fn, _} = Axon.build(model)
+
+      inp = Nx.iota({1, 10})
+
+      assert %{"dense_0" => dense_0, "dense_1" => dense_1} = init_fn.(inp, %{})
+      assert %{"kernel" => k0, "bias" => _} = dense_0
+      assert %{"kernel" => k1, "bias" => _} = dense_1
+
+      assert_not_equal(k0, k1)
+    end
   end
 
   describe "initialize from fixed model" do
