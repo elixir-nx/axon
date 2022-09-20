@@ -250,14 +250,17 @@ defmodule Axon.Display do
 
     direction = direction_from_opts(opts)
 
-    {_root_node, {_, _, edgelist}} = axon_to_edges(axon, input_templates, {%{}, %{}, []})
+    {_root_node, {cache, _, edgelist}} = axon_to_edges(axon, input_templates, {%{}, %{}, []})
+    nodelist = Map.values(cache)
 
-    edges = Enum.map_join(edgelist, "\n", &generate_mermaid_entry/1)
+    nodes = Enum.map_join(nodelist, ";\n", &generate_mermaid_node_entry/1)
+    edges = Enum.map_join(edgelist, ";\n", &generate_mermaid_edge_entry/1)
 
     Kino.Markdown.new("""
     ```mermaid
     graph #{direction};
-    #{edges}
+    #{nodes};
+    #{edges};
     ```
     """)
   end
@@ -330,12 +333,16 @@ defmodule Axon.Display do
     {to_node, {cache, op_counts, new_edgelist}}
   end
 
-  defp generate_mermaid_entry({from_node, to_node}) do
-    "#{graph_node(from_node)} --> #{graph_node(to_node)};"
+  defp generate_mermaid_node_entry(%{id: id, op: :input, name: name, shape: shape}) do
+    ~s'#{id}[/"#{name} (:input) #{inspect(shape)}"/]'
   end
 
-  defp graph_node(%{id: id, op: op, name: name, shape: shape}) do
-    "#{id}[\"#{name} ( #{inspect(op)} ) #{inspect(shape)}\"]"
+  defp generate_mermaid_node_entry(%{id: id, op: op, name: name, shape: shape}) do
+    ~s'#{id}["#{name} (#{inspect(op)}) #{inspect(shape)}"]'
+  end
+
+  defp generate_mermaid_edge_entry({from_node, to_node}) do
+    "#{from_node.id} --> #{to_node.id}"
   end
 
   defp direction_from_opts(opts) do
