@@ -10,8 +10,8 @@ defmodule Axon.Compiler do
   @doc false
   def build(%Axon{} = graph, opts) do
     debug? = Keyword.get(opts, :debug, false)
-    {mode, opts} = Keyword.pop(opts, :mode, :inference)
-    {key, _jit_opts} = Keyword.pop(opts, :key, Nx.Random.key(:erlang.system_time()))
+    mode = Keyword.get(opts, :mode, :inference)
+    key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
     key = Nx.backend_copy(key, Nx.Defn.Expr)
 
     {time, {root_id, {cache, _op_counts}}} =
