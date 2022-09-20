@@ -295,7 +295,7 @@ defmodule Axon.Compiler do
     # All of the children of this namespace belong to it, so
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
-    {parent_id, {cache, namespace_op_counts}} =
+    {parent_id, {cache, namespace_op_counts, key}} =
       to_model_funs(parent, {cache, namespace_op_counts, key}, mode)
 
     # Update the global op_count of input layers, since they
