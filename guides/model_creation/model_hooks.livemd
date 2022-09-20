@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Model Hooks
+# Model hooks
 
 ```elixir
 Mix.install([
@@ -370,7 +370,7 @@ Nx.Defn.grad(fn params -> predict_fn.(params, input) end).(params)
 }
 ```
 
-Finally, you can specify hooks to only run when the model is built in a certain mode such as training and inference mode. You can read more about training an inference mode in [Training and Inference Mode](guides/model_execution/training_and_inference_mode.livemd):
+Finally, you can specify hooks to only run when the model is built in a certain mode such as training and inference mode. You can read more about training an inference mode in [Training and inference mode](guides/model_execution/training_and_inference_mode.livemd):
 
 ```elixir
 model =

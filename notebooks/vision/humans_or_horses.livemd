@@ -21,7 +21,7 @@ EXLA.set_as_nx_default(
 )
 ```
 
-## Notebook Setup
+## Notebook setup
 
 The data for this notebook is found at: https://laurencemoroney.com/datasets.html.  The humans or horses dataset is at https://storage.googleapis.com/laurencemoroney-blog.appspot.com/horse-or-human.zip.
 
@@ -53,7 +53,7 @@ end
 alias HorsesHumans.Config, as: Config
 ```
 
-## Exploratory Analysis
+## Exploratory analysis
 
 We'll do a really quick analysis of our data.  We want to make sure the directories configuration points to the correct directory.  Make sure the output shows something like:
 
@@ -147,7 +147,7 @@ defmodule HorsesHumans.DataProcessing do
 end
 ```
 
-## Building Model
+## Building the model
 
 The next step is creating a model architecture. In the notebook, we choose classic Convolutional Neural Net architecture. Let's dive in to the core components of a CNN.
 

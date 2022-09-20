@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Custom Models, Loss Functions, and Optimizers
+# Custom models, loss functions, and optimizers
 
 ```elixir
 Mix.install([
@@ -15,9 +15,9 @@ Mix.install([
 :ok
 ```
 
-## Using Custom Models in Training Loops
+## Using custom models in training loops
 
-In the [Your First Training Loop](your_first_training_loop.livemd), you learned how to declare a supervised training loop using `Axon.Loop.trainer/3` with a model, loss function, and optimizer. Your overall model and loop declaration looked something like this:
+In the [Your first training loop](your_first_training_loop.livemd), you learned how to declare a supervised training loop using `Axon.Loop.trainer/3` with a model, loss function, and optimizer. Your overall model and loop declaration looked something like this:
 
 <!-- livebook:{"force_markdown":true} -->
 
@@ -173,7 +173,7 @@ Epoch: 0, Batch: 500, loss: 0.3053460
 }
 ```
 
-## Using Custom Loss Functions in Training Loops
+## Using custom loss functions in training loops
 
 Just as `Axon.Loop.trainer/3` allows more flexibility with models, it also supports more flexible loss functions. In most cases, you can get away with using one of Axon's built-in loss functions by specifying an atom. Atoms map directly to a loss-function defined in `Axon.Losses`. Under the hood, `Axon.Loop.trainer/3` is doing something like:
 
@@ -341,7 +341,7 @@ Epoch: 0, Batch: 1000, loss: 0.1098235
 }
 ```
 
-## Using Custom Optimizers in Training Loops
+## Using custom optimizers in training loops
 
 As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Axon.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
 

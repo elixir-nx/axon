@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Writing Custom Metrics
+# Writing custom metrics
 
 ```elixir
 Mix.install([

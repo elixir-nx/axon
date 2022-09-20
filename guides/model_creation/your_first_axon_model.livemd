@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Your First Axon Model
+# Your first Axon model
 
 ```elixir
 Mix.install([
@@ -16,7 +16,7 @@ Mix.install([
 :ok
 ```
 
-## Your First Model
+## Your first model
 
 Axon is a library for creating and training neural networks in Elixir. Everything in Axon centers around the `%Axon{}` struct which represents an instance of an Axon model.
 

@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Your First Evaluation Loop
+# Your first evaluation loop
 
 ```elixir
 Mix.install([

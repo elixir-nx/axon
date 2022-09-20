@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Writing Custom Event Handlers
+# Writing custom event handlers
 
 ```elixir
 Mix.install([
