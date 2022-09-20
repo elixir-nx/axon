@@ -103,7 +103,7 @@ defmodule Axon.MixProject do
         # Examples
         "notebooks/basics/multi_input_example.livemd",
         "notebooks/vision/mnist.livemd",
-        "notebooks/vision/humans_or_horses.livemd",
+        "notebooks/vision/horses_or_humans.livemd",
         "notebooks/text/text_generator.livemd",
         "notebooks/structured/credit_card_fraud.livemd",
         "notebooks/generative/fashionmnist_autoencoder.livemd"

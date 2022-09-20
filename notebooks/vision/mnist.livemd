@@ -1,23 +1,19 @@
 # Classifying handwritten digits
 
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0", override: true},
+  {:exla, "~> 0.3.0"},
+  {:req, "~> 0.3.0"}
+])
+```
+
 ## Introduction
 
 This livebook will walk you through training a basic neural network using Axon, accelerated by the EXLA compiler. We'll be working on the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) dataset which is a dataset of handwritten digits with corresponding labels. The goal is to train a model that correctly classifies these handwritten digits with a single label [0-9].
 
-## Dependencies
-
-First, we'll need to install our dependencies using `Mix.install`. We'll need `Axon` and it's dependencies, as well as the `Req` library for downloading the dataset.
-
-```elixir
-Mix.install([
-  {:req, "~> 0.3.0"},
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"}
-])
-```
-
-## Retrieving and Exploring Dataset
+## Retrieving and exploring the dataset
 
 The MNIST dataset is available for free online. Using `Req` we'll download both training images and training labels. Both `train_images` and `train_labels` are compressed binary data. Fortunately, `Req` takes care of the decompression for us.
 
@@ -53,9 +49,7 @@ In the reshape operation above, we give each dimension of the tensor a name. Thi
 It's common to train neural networks in batches (actually correctly called minibatches, but you'll see batch and minibatch used interchangeably). We can "batch" our images into batches of 32 like this:
 
 ```elixir
-images =
-  images
-  |> Nx.to_batched_list(32)
+images = Nx.to_batched(images, 32)
 ```
 
 Now, we'll need to get our labels into batches as well, but first we need to *one-hot encode* the labels. One-hot encoding converts input data from labels such as `3`, `5`, `7`, etc. into vectors of 0's and a single 1 at the correct labels index. As an example, a label of: `3` gets converted to: `[0, 0, 0, 1, 0, 0, 0, 0, 0, 0]`.
@@ -66,10 +60,10 @@ targets =
   |> Nx.from_binary({:u, 8})
   |> Nx.new_axis(-1)
   |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-  |> Nx.to_batched_list(32)
+  |> Nx.to_batched(32)
 ```
 
-## Defining the Model
+## Defining the model
 
 Let's start by defining a simple model:
 
@@ -85,7 +79,7 @@ All `Axon` models start with an input layer to tell subsequent layers what shape
 
 ## Training
 
-Axon boils the task of training down to defining a training step and passing the step to a training loop. You can use `Axon.Training.step/3` to create a generic training step with a model, a loss function, and an optimizer. In this example, we'll use *categorical cross-entropy* and the *Adam* optimizer. You can then pass this to a training loop with your training data to train the final model. `Axon.Training.train/4` lets you specify some additional options as well, such as the `Nx` compiler to use. In this example we'll train for 10 epochs using the `EXLA` compiler, logging metrics every 100 training steps.
+In Axon we express the task of training using a declarative loop API. First, we need to specify a loss function and optimizer, there are many built-in variants to choose from. In this example, we'll use *categorical cross-entropy* and the *Adam* optimizer. We will also keep track of the *accuracy* metric. Finally, we run training loop passing our batched images and labels. We'll train for 10 epochs using the `EXLA` compiler.
 
 ```elixir
 params =
@@ -101,9 +95,15 @@ Now that we have the parameters from the training step, we can use them for pred
 For this the `Axon.predict` can be used.
 
 ```elixir
-require Axon
+first_batch = Enum.at(images, 0)
 
-[first_batch | _] = images
-
-Axon.predict(model, params, first_batch)
+output = Axon.predict(model, params, first_batch)
 ```
+
+For each image, the model outputs probability distribution. This informs us how certain the model is about its prediction. Let's see the most probable digit for each image:
+
+```elixir
+Nx.argmax(output, axis: 1)
+```
+
+If you look at the original images and you will see the predictions match the data!

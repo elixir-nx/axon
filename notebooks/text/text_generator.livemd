@@ -309,7 +309,7 @@ Inputs: %{"input_chars" => {nil, 100, 1}}
 
 ```
 
-## Training the Network
+## Training the network
 
 To train the network, We will use Axon's Loop API. It is pretty straightforward.
 
@@ -364,7 +364,7 @@ Epoch: 19, Batch: 1200, loss: 2.3668413
 :ok
 ```
 
-## Generating Text
+## Generating text
 
 After last step we will have our trained network parameters so we can start generating text with it. We simply need to give the initial sequence as the input to the network and select the most confident output. `Axon.predict/3` will give us the output layer and then using `Nx.argmax/1` we get the most confident neuron index then simply convert that index back to it's Unicode representation.
 
@@ -422,7 +422,7 @@ cupboards as she fell past it.aty arh a coec to tee it and the project gutenberg
 :ok
 ```
 
-## Multi LSTM Layers
+## Multi LSTM layers
 
 We can improve our network by stacking multiple LSTM layers together. We just need to change our model and re-train our network.
 

@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Your First Training Loop
+# Your first training loop
 
 ```elixir
 Mix.install([

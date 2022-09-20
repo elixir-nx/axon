@@ -1,19 +1,12 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Writing Custom Metrics
+# Writing custom metrics
 
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
   {:nx, "~> 0.3.0", override: true}
 ])
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-==> axon
-Compiling 1 file (.ex)
 ```
 
 <!-- livebook:{"output":true} -->

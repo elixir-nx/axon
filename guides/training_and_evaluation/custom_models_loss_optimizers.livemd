@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Custom Models, Loss Functions, and Optimizers
+# Custom models, loss functions, and optimizers
 
 ```elixir
 Mix.install([
@@ -12,41 +12,12 @@ Mix.install([
 <!-- livebook:{"output":true} -->
 
 ```
-* Getting axon (https://github.com/elixir-nx/axon.git)
-remote: Enumerating objects: 7182, done.        
-remote: Counting objects: 100% (1452/1452), done.        
-remote: Compressing objects: 100% (633/633), done.        
-remote: Total 7182 (delta 1098), reused 1117 (delta 811), pack-reused 5730        
-Receiving objects: 100% (7182/7182), 45.78 MiB | 26.57 MiB/s, done.
-Resolving deltas: 100% (5329/5329), done.
-origin/HEAD set to main
-Resolving Hex dependencies...
-Dependency resolution completed:
-New:
-  complex 0.4.2
-  nx 0.3.0
-* Getting nx (Hex package)
-* Getting complex (Hex package)
-==> complex
-Compiling 2 files (.ex)
-Generated complex app
-==> nx
-Compiling 24 files (.ex)
-Generated nx app
-==> axon
-Compiling 22 files (.ex)
-Generated axon app
-```
-
-<!-- livebook:{"output":true} -->
-
-```
 :ok
 ```
 
-## Using Custom Models in Training Loops
+## Using custom models in training loops
 
-In the [Your First Training Loop](your_first_training_loop.livemd), you learned how to declare a supervised training loop using `Axon.Loop.trainer/3` with a model, loss function, and optimizer. Your overall model and loop declaration looked something like this:
+In the [Your first training loop](your_first_training_loop.livemd), you learned how to declare a supervised training loop using `Axon.Loop.trainer/3` with a model, loss function, and optimizer. Your overall model and loop declaration looked something like this:
 
 <!-- livebook:{"force_markdown":true} -->
 
@@ -64,7 +35,7 @@ loop = Axon.Loop.trainer(model, :mean_squared_error, :sgd)
 
 This example uses an `%Axon{}` struct to represent your `model` to train, and atoms to represent your loss function and optimizer. Some of your problems will require a bit more flexibility than this example affords. Fortunately, `Axon.Loop.trainer/3` is designed for flexibility.
 
-For example, if your model cannot be cleanly represented as an `%Axon{}` model, you can instead opt instead to define custom initialization and forward functions to pass to `Axon.Loop.trainer/3`. Actually, `Axon.Loop.trainer/3` is doing this for you under the hood---the ability to pass an `%Axon{}` struct directly is just a convenience:
+For example, if your model cannot be cleanly represented as an `%Axon{}` model, you can instead opt instead to define custom initialization and forward functions to pass to `Axon.Loop.trainer/3`. Actually, `Axon.Loop.trainer/3` is doing this for you under the hood - the ability to pass an `%Axon{}` struct directly is just a convenience:
 
 ```elixir
 model =
@@ -202,7 +173,7 @@ Epoch: 0, Batch: 500, loss: 0.3053460
 }
 ```
 
-## Using Custom Loss Functions in Training Loops
+## Using custom loss functions in training loops
 
 Just as `Axon.Loop.trainer/3` allows more flexibility with models, it also supports more flexible loss functions. In most cases, you can get away with using one of Axon's built-in loss functions by specifying an atom. Atoms map directly to a loss-function defined in `Axon.Losses`. Under the hood, `Axon.Loop.trainer/3` is doing something like:
 
@@ -370,7 +341,7 @@ Epoch: 0, Batch: 1000, loss: 0.1098235
 }
 ```
 
-## Using Custom Optimizers in Training Loops
+## Using custom optimizers in training loops
 
 As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Axon.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
 

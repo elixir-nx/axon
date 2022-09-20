@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Training and Inference Mode
+# Training and inference mode
 
 ```elixir
 Mix.install([

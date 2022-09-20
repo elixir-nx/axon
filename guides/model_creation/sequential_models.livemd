@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Sequential Models
+# Sequential models
 
 ```elixir
 Mix.install([
