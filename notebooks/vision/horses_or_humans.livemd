@@ -142,7 +142,7 @@ The next step is creating our model. In this notebook, we choose the classic Con
 
 <!-- livebook:{"break_markdown":true} -->
 
-`Axon.conv/3` adds a convolutional layer, which is at the core of a CNN. A convolutional layer applies a filter function throughout the image, sliding a window with shape `:kernel_size`. As opposed to dense layers, a convolutional layer captures spacial information, because it works across multiple axes. This feature is a natural fit for images.
+`Axon.conv/3` adds a convolutional layer, which is at the core of a CNN. A convolutional layer applies a filter function throughout the image, sliding a window with shape `:kernel_size`. As opposed to dense layers, a convolutional layer exploits weight sharing to better model data where locality matters. This feature is a natural fit for images.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -172,7 +172,7 @@ The next step is creating our model. In this notebook, we choose the classic Con
 
 <!-- livebook:{"break_markdown":true} -->
 
-Knowing the relevant building blocks, let's build our network! It will have a convolutional part, composed of convolutional and pooling layers, this part should capture the spacial features of an image. Then at the end, we will add a dense layer with 512 neurons fed with all the spacial features, and a final two-neuron layer for as our classification output.
+Knowing the relevant building blocks, let's build our network! It will have a convolutional part, composed of convolutional and pooling layers, this part should capture the spatial features of an image. Then at the end, we will add a dense layer with 512 neurons fed with all the spatial features, and a final two-neuron layer for as our classification output.
 
 ```elixir
 model =
