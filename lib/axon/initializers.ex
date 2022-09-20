@@ -636,7 +636,7 @@ defmodule Axon.Initializers do
           var_uniform(key, variance, opts)
 
         {key, :truncated_normal, variance, opts} ->
-          var_uniform(key, variance, opts)
+          var_truncated(key, variance, opts)
 
         {_, dist, _, _} ->
           raise ArgumentError,
@@ -755,7 +755,7 @@ defmodule Axon.Initializers do
       |> Nx.sqrt()
       |> Nx.divide(0.87962566103423978)
 
-    Nx.clip(Nx.Random.normal(key, shape: shape, type: type), -2, 2)
+    Nx.clip(Nx.Random.normal(key, 0.0, sigma, shape: shape, type: type), -2, 2)
   end
 
   defp compute_fans(shape) do
