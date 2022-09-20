@@ -33,7 +33,7 @@ EXLA provides JIT compilation to hardware accelerators. We'll start by telling E
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 ```
 
-## Downloading Data
+## Downloading the data
 
 To train and test how our model works, we use one of the most popular data set: MNIST fashion. It consists of small black and white images of clothes. Loading this data set is very simple. Just use ```Scidata.FashionMNIST.download()```.
 

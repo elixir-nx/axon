@@ -97,7 +97,7 @@ defp df_to_tensor(df) do
 end
 ```
 
-## Building Model
+## Building the model
 
 Our model for predicting whether a transaction was fraudulent or not is a dense neural net. It consists of two dense layers with 256 neurons, ReLU activation functions, one dropout layer, and a dense layer with one neuron (since the problem is binary prediction) followed by a sigmoid activation function.
 
@@ -114,7 +114,7 @@ defp build_model(num_features) do
 end
 ```
 
-## Training, Testing & Summary
+## Training, testing & summary
 
 Now since we have both data and model architecture prepared, we design training and test loops. In *train_model*, we pass the loss function and optimizer of our choice and run 30 epochs of the learning process. After the training, there is only one thing left: testing. In *test_model*, we will focus on the number of true positive, true negative, false positive, and false negative values but also on the likelihood of denying legit and fraudulent transactions.
 

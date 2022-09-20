@@ -1,4 +1,4 @@
-# Converting ONNX Models to Axon
+# Converting ONNX models to Axon
 
 ```elixir
 Mix.install(
@@ -18,17 +18,17 @@ Mix.install(
 ## Converting an ONNX model into Axon
 
 Axon is a new machine learning capability, specific to Elixir.  We would like to take
-advantage of a large amount of models that have been written in other languages and 
+advantage of a large amount of models that have been written in other languages and
 machine learning frameworks.  Let's take a look at how we could use a model developed
 in another language.
 
-Converting models developed by data scientists into a production capable implementation is a 
-challenge for all languages and frameworks.  [ONNX](https://onnx.ai/) is an interchange 
-format that allows models written in one language or framework to be converted into 
+Converting models developed by data scientists into a production capable implementation is a
+challenge for all languages and frameworks.  [ONNX](https://onnx.ai/) is an interchange
+format that allows models written in one language or framework to be converted into
 another language and framework.
 
-The source model must use constructs mapped into ONNX.  Also, the destination framework must 
-support the model's ONNX constructs. From an Elixir focus, we are interested in ONNX models 
+The source model must use constructs mapped into ONNX.  Also, the destination framework must
+support the model's ONNX constructs. From an Elixir focus, we are interested in ONNX models
 that [axon_onnx](https://github.com/elixir-nx/axon_onnx) can convert into Axon models.
 
 <!-- livebook:{"break_markdown":true} -->
@@ -156,7 +156,7 @@ cats_v_dogs = File.read!("models/axon/cats_v_dogs.axon")
 {cats_v_dogs_model, cats_v_dogs_params} = Axon.deserialize(cats_v_dogs)
 ```
 
-We need a tensor representation of an image.  Let's start by looking at samples of 
+We need a tensor representation of an image.  Let's start by looking at samples of
 our data.
 
 ```elixir
@@ -216,14 +216,14 @@ With our input data, it is finally time to work on predictions. First let's defi
 ```elixir
 defmodule Predictions do
   @doc """
-  When provided a Tensor of single label predictions, returns the best vocabulary match for 
+  When provided a Tensor of single label predictions, returns the best vocabulary match for
   each row in the prediction tensor.
-  
+
   ## Examples
-  
+
       iex> Predictions.sindle_label_prediction(path_to_onnx_file, path_to_axon_dir)
       ["dog", "cat", "dog"]
-  
+
   """
   def single_label_classification(predictions_batch, vocabulary) do
     IO.inspect(Nx.shape(predictions_batch), label: "predictions batch shape")

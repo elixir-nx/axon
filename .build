@@ -4,7 +4,7 @@
 /home/runner/work/axon/axon/doc/custom_layers.livemd
 /home/runner/work/axon/axon/doc/custom_models_loss_optimizers.livemd
 /home/runner/work/axon/axon/doc/fashionmnist_autoencoder.livemd
-/home/runner/work/axon/axon/doc/humans_or_horses.livemd
+/home/runner/work/axon/axon/doc/horses_or_humans.livemd
 /home/runner/work/axon/axon/doc/instrumenting_loops_with_metrics.livemd
 /home/runner/work/axon/axon/doc/mnist.livemd
 /home/runner/work/axon/axon/doc/model_hooks.livemd
@@ -51,10 +51,10 @@ dist/html/fonts/remixicon.svg
 dist/html/fonts/remixicon.ttf
 dist/html/fonts/remixicon.woff
 dist/html/fonts/remixicon.woff2
-dist/search_items-b254652fb6.js
-dist/sidebar_items-dc91cae1e4.js
+dist/search_items-d8631dbf88.js
+dist/sidebar_items-6168b73512.js
 fashionmnist_autoencoder.html
-humans_or_horses.html
+horses_or_humans.html
 index.html
 instrumenting_loops_with_metrics.html
 mnist.html

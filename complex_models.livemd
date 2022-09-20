@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Complex Models
+# Complex models
 
 ```elixir
 Mix.install([
@@ -39,7 +39,7 @@ out = Axon.add(x1, x2)
 >
 ```
 
-In the snippet above, your model branches `input` into `x1` and `x2`. Each branch performs a different set of transformations; however, at the end the branches are merged with an `Axon.add/3`. You might sometimes see layers like `Axon.add/3` called *combinators*. Really they're just layers that operate on multiple Axon models at once---typically to merge some branches together.
+In the snippet above, your model branches `input` into `x1` and `x2`. Each branch performs a different set of transformations; however, at the end the branches are merged with an `Axon.add/3`. You might sometimes see layers like `Axon.add/3` called *combinators*. Really they're just layers that operate on multiple Axon models at once - typically to merge some branches together.
 
 `out` represents your final Axon model.
 
@@ -82,7 +82,7 @@ predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 
 As your architectures grow in complexity, you might find yourself reaching for better abstractions to organize your model creation code. For example, PyTorch models are often organized into `nn.Module`. The equivalent of an `nn.Module` in Axon is a regular Elixir function. If you're translating models from PyTorch to Axon, it's natural to create one Elixir function per `nn.Module`.
 
-You should write your models as you would write any other Elixir code---you don't need to worry about any framework specific constructs:
+You should write your models as you would write any other Elixir code - you don't need to worry about any framework specific constructs:
 
 ```elixir
 defmodule MyModel do

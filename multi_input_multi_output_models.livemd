@@ -1,6 +1,6 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Multi-Input / Multi-Output Models
+# Multi-input / multi-output models
 
 ```elixir
 Mix.install([
