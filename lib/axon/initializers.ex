@@ -745,8 +745,7 @@ defmodule Axon.Initializers do
     Nx.Random.uniform(key, -limit, limit, shape: shape, type: type)
   end
 
-  # TODO: Key
-  defnp var_truncated(_key, variance, opts \\ []) do
+  defnp var_truncated(key, variance, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}])
     shape = opts[:shape]
     type = opts[:type]
@@ -756,7 +755,7 @@ defmodule Axon.Initializers do
       |> Nx.sqrt()
       |> Nx.divide(0.87962566103423978)
 
-    Nx.clip(Nx.random_normal(shape, 0.0, sigma, type: type), -2, 2)
+    Nx.clip(Nx.Random.normal(key, shape: shape, type: type), -2, 2)
   end
 
   defp compute_fans(shape) do
