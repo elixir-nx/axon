@@ -26,7 +26,7 @@ Following along with the [Fashion MNIST Autoencoder example](https://github.com/
 ```elixir
 # We're not going to use the labels so we'll ignore them
 {train_images, _train_labels} = Scidata.MNIST.download()
-{train_images_binary, _type, shape} = train_images
+{train_images_binary, type, shape} = train_images
 ```
 
 The `shape` tells us we have 60,000 images with a single channel of size 28x28.
@@ -40,7 +40,7 @@ Let's preprocess and normalize the data accordingly.
 ```elixir
 train_images =
   train_images_binary
-  |> Nx.from_binary({:u, 8})
+  |> Nx.from_binary(type)
   # Since pixels are organized row-wise, reshape into rows x columns
   |> Nx.reshape(shape, names: [:images, :channels, :height, :width])
   # Normalize the pixel values to be between 0 and 1
@@ -56,11 +56,11 @@ That looks right! Let's repeat the process for the test set.
 
 ```elixir
 {test_images, _train_labels} = Scidata.MNIST.download_test()
-{test_images_binary, _type, shape} = test_images
+{test_images_binary, type, shape} = test_images
 
 test_images =
   test_images_binary
-  |> Nx.from_binary({:u, 8})
+  |> Nx.from_binary(type)
   # Since pixels are organized row-wise, reshape into rows x columns
   |> Nx.reshape(shape, names: [:images, :channels, :height, :width])
   # Normalize the pixel values to be between 0 and 1
@@ -71,7 +71,9 @@ test_images[[images: 0..2]] |> Nx.to_heatmap()
 
 ## Building the model
 
-An autoencoder is a a network that has the same sized input as output, with a "bottleneck" layer in the middle with far fewer parameters than the input. Its goal is to force the output to reconstruct the input. The bottleneck layer forces the network to learn a compressed representation of the space.
+An autoencoder is a a network that has the same sized input as output, with a "bottleneck" layer in the middle with far fewer parameters than the input. Its goal is to force the output to reconstruct the input. The bottleneck layer forces the network to learn a compressed representation of the input space.
+
+A *denoising* autoencoder is a small tweak on an autoencoder that takes a corrupted input (often corrupted by adding noise or zeroing out pixels) and reconstructs the original input, removing the noise in the process.
 
 The part of the autoencoder that takes the input and compresses it into the bottleneck layer is called the *encoder* and the part that takes the compressed representation and reconstructs the input is called the *decoder*. Usually the decoder mirrors the encoder.
 
@@ -124,35 +126,74 @@ With the model set up, we can now try to train the model. We'll use MSE loss to 
 
 <!-- livebook:{"break_markdown":true} -->
 
-We'll create the training input by turning our image list into batches of size 128 and then using the same image as both the input and the target. For validation data, we'll use the test set and look at how the autoencoder does at reconstructing the test set to make sure we're not overfitting
+We'll create the training input by turning our image list into batches of size 128 and then using the same image as both the input and the target. However, the input image will have noise added to it that the autoencoder will have to remove.
+
+For validation data, we'll use the test set and look at how the autoencoder does at reconstructing the test set to make sure we're not overfitting
+
+<!-- livebook:{"break_markdown":true} -->
+
+The function below adds some noise to the image by adding the image with gaussian noise scaled by a noise factor. We then have to make sure the pixel values are still within the 0..1.0 range
+
+```elixir
+noise_factor = 0.4
+
+add_noise = fn images ->
+  noise_factor
+  |> Nx.multiply(Nx.random_normal(images))
+  |> Nx.add(images)
+  |> Nx.clip(0.0, 1.0)
+end
+```
 
 ```elixir
 batch_size = 128
 
+# The original image which is the target the network will trying to match
 batched_train_images =
   train_images
   |> Nx.to_batched(batch_size)
 
-train_data = Stream.zip(batched_train_images, batched_train_images)
+batched_noisy_train_images =
+  train_images
+  |> add_noise.()
+  |> Nx.to_batched(batch_size)
+
+# The noisy image is the input to the network
+# and the original image is the target it's trying to match
+train_data = Stream.zip(batched_noisy_train_images, batched_train_images)
 
 batched_test_images =
   test_images
   |> Nx.to_batched(batch_size)
 
-test_data = Stream.zip(batched_test_images, batched_test_images)
+batched_noisy_test_images =
+  test_images
+  |> add_noise.()
+  |> Nx.to_batched(batch_size)
+
+test_data = Stream.zip(batched_noisy_test_images, batched_test_images)
 ```
+
+Let's see what an element of the input and target look like
+
+```elixir
+{input_batch, target_batch} = Enum.at(train_data, 0)
+{Nx.to_heatmap(input_batch[images: 0]), Nx.to_heatmap(target_batch[images: 0])}
+```
+
+Looks right (and tricky). Let's see how the model does.
 
 ```elixir
 params =
   model
   |> Axon.Loop.trainer(:mean_squared_error, Axon.Optimizers.adamw(0.001))
   |> Axon.Loop.validate(model, test_data)
-  |> Axon.Loop.run(train_data, %{}, epochs: 5, compiler: EXLA)
+  |> Axon.Loop.run(train_data, %{}, epochs: 20, compiler: EXLA)
 
 :ok
 ```
 
-Now that we have a model that theoretically has learned *something*, let's see what it's learned by running it on some images from the test set. We'll use Kino to allow us to select the image from the test set to run the model against. To avoid losing the params that took a while to train, we'll create another branch so we can experiment with the params and stop execution when needed without having to retrain.
+Now that we have a model that theoretically has learned *something*, we'll see what it's learned by running it on some images from the test set. We'll use Kino to allow us to select the image from the test set to run the model against. To avoid losing the params that took a while to train, we'll create another branch so we can experiment with the params and stop execution when needed without having to retrain.
 
 <!-- livebook:{"branch_parent_index":2} -->
 
@@ -188,7 +229,7 @@ Kino.render(form)
 task =
   Task.start(fn ->
     for %{data: %{test_image_index: image_index}} <- Kino.Control.stream(form) do
-      test_image = test_images[[images: image_index]]
+      test_image = test_images[[images: image_index]] |> add_noise.()
 
       reconstructed_image =
         model
@@ -223,7 +264,7 @@ It'd be nice to see how the model improves as it trains. In this section (also a
 ```elixir
 # A helper function to display the input and output side by side
 combined_input_output = fn params, image_index ->
-  test_image = test_images[[images: image_index]]
+  test_image = test_images[[images: image_index]] |> add_noise.()
   reconstructed_image = Axon.predict(model, params, test_image) |> Nx.squeeze(axes: [0])
   Nx.concatenate([test_image, reconstructed_image], axis: :width)
 end
@@ -250,9 +291,9 @@ params =
   |> Axon.Loop.trainer(:mean_squared_error, Axon.Optimizers.adamw(0.001))
   |> Axon.Loop.handle(:iteration_completed, render_example_handler, every: 450)
   |> Axon.Loop.validate(model, test_data)
-  |> Axon.Loop.run(train_data, %{}, epochs: 5, compiler: EXLA)
+  |> Axon.Loop.run(train_data, %{}, epochs: 20, compiler: EXLA)
 
 :ok
 ```
 
-Awesome! We have a working autoencoder that we can visualize getting better in just 5 epochs!
+Awesome! We have a working denoising autoencoder that we can visualize getting better in 20 epochs!
