@@ -16,7 +16,7 @@ The goal of this notebook is to build an Autoencoder from scratch using Livebook
 
 ## Data loading
 
-An autoencoder learns to recreate it's seen in its dataset. For this notebook, we're going to try something simple: generating images of digits using the MNIST digit recognition dataset.
+An autoencoder learns to recreate data it's seen in the dataset. For this notebook, we're going to try something simple: generating images of digits using the MNIST digit recognition dataset.
 
 <!-- livebook:{"break_markdown":true} -->
 
