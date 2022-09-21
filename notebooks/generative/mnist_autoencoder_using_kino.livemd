@@ -132,17 +132,25 @@ For validation data, we'll use the test set and look at how the autoencoder does
 
 <!-- livebook:{"break_markdown":true} -->
 
-The function below adds some noise to the image by adding the image with gaussian noise scaled by a noise factor. We then have to make sure the pixel values are still within the 0..1.0 range
+The function below adds some noise to the image by adding the image with gaussian noise scaled by a noise factor. We then have to make sure the pixel values are still within the 0..1.0 range.
+
+We have to define this function using `defn` so that `Nx` can optimize it. If we don't do this, adding noise will take a really long time, making our training loop very slow. See [Nx.defn](https://hexdocs.pm/nx/Nx.Defn.html) for more details. `defn` can only be used in a module so we'll define a little module to contain it.
 
 ```elixir
-noise_factor = 0.4
+defmodule Noiser do
+  import Nx.Defn
 
-add_noise = fn images ->
-  noise_factor
-  |> Nx.multiply(Nx.random_normal(images))
-  |> Nx.add(images)
-  |> Nx.clip(0.0, 1.0)
+  @noise_factor 0.4
+
+  defn add_noise(images) do
+    @noise_factor
+    |> Nx.multiply(Nx.random_normal(images))
+    |> Nx.add(images)
+    |> Nx.clip(0.0, 1.0)
+  end
 end
+
+add_noise = Nx.Defn.jit(&Noiser.add_noise/1, compiler: EXLA)
 ```
 
 ```elixir
@@ -155,8 +163,9 @@ batched_train_images =
 
 batched_noisy_train_images =
   train_images
-  |> add_noise.()
   |> Nx.to_batched(batch_size)
+  # goes after to_batched so the noise is different every time
+  |> Stream.map(add_noise)
 
 # The noisy image is the input to the network
 # and the original image is the target it's trying to match
@@ -168,8 +177,8 @@ batched_test_images =
 
 batched_noisy_test_images =
   test_images
-  |> add_noise.()
   |> Nx.to_batched(batch_size)
+  |> Stream.map(add_noise)
 
 test_data = Stream.zip(batched_noisy_test_images, batched_test_images)
 ```
