@@ -238,8 +238,10 @@ end
 Nx.to_heatmap(combined_input_output.(params, 0))
 ```
 
+Once again we'll use `Kino.Frame` for dynamically updating output:
+
 ```elixir
-# Once again we'll use a Kino.Frame for a dynamically updating output
+
 frame = Kino.Frame.new() |> Kino.render()
 
 render_example_handler = fn state ->
