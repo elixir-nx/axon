@@ -1,4 +1,4 @@
-# MNIST Autoencoder using Kino for visualization
+# MNIST Denoising Autoencoder using Kino for visualization
 
 ```elixir
 Mix.install([
@@ -6,13 +6,14 @@ Mix.install([
   {:nx, "~> 0.3.0"},
   {:axon, "~> 0.2.0"},
   {:req, "~> 0.3.1"},
-  {:kino, "~> 0.6.2"}
+  {:kino, "~> 0.6.2"},
+  {:scidata, "~> 0.1.9"}
 ])
 ```
 
 ## Intro
 
-The goal of this notebook is to build an Autoencoder from scratch using Livebook. This notebook is based on [Training an Autoencoder on Fashion MNIST](https://github.com/hanrelan/axon/blob/main/notebooks/generative/fashionmnist_autoencoder.livemd), but includes some tips on using Livebook to train the model and using [Kino](https://hexdocs.pm/kino/Kino.html) (Livebook's interactive widget library) to play with and visualize our results.
+The goal of this notebook is to build a Denoising Autoencoder from scratch using Livebook. This notebook is based on [Training an Autoencoder on Fashion MNIST](https://github.com/hanrelan/axon/blob/main/notebooks/generative/fashionmnist_autoencoder.livemd), but includes some tips on using Livebook to train the model and using [Kino](https://hexdocs.pm/kino/Kino.html) (Livebook's interactive widget library) to play with and visualize our results.
 
 ## Data loading
 
@@ -20,59 +21,48 @@ An autoencoder learns to recreate data it's seen in the dataset. For this notebo
 
 <!-- livebook:{"break_markdown":true} -->
 
-To load the MNIST dataset, I'll use the Axon MNIST tutorial [here](https://github.com/elixir-nx/axon/blob/main/notebooks/mnist.livemd). The steps below are copied over from that tutorial
+Following along with the [Fashion MNIST Autoencoder example](https://github.com/hanrelan/axon/blob/main/notebooks/generative/fashionmnist_autoencoder.livemd), we'll use [Scidata](https://github.com/elixir-nx/scidata) to download the MNIST dataset and then preprocess the data.
 
 ```elixir
-mnist_base_url = "https://storage.googleapis.com/cvdf-datasets/mnist/"
-%{body: train_images} = Req.get!(mnist_base_url <> "train-images-idx3-ubyte.gz")
-# We're not going to use the labels so we won't grab them
-# %{body: train_labels} = Req.get!(base_url <> "train-labels-idx1-ubyte.gz")
-
-<<_::32, n_images::32, n_rows::32, n_cols::32, images::binary>> = train_images
-# Ignore the labels
-# <<_::32, n_labels::32, labels::binary>> = train_labels
+# We're not going to use the labels so we'll ignore them
+{train_images, _train_labels} = Scidata.MNIST.download()
+{train_images_binary, _type, shape} = train_images
 ```
 
-According to [the MNIST websites](http://yann.lecun.com/exdb/mnist/):
+The `shape` tells us we have 60,000 images with a single channel of size 28x28.
+
+According to [the MNIST website](http://yann.lecun.com/exdb/mnist/):
 
 > Pixels are organized row-wise. Pixel values are 0 to 255. 0 means background (white), 255 means foreground (black).
 
-```elixir
-# Let's inspect the data to see what we're working with
-IO.inspect({n_images, n_rows, n_cols})
-# If the pixels are each 1 byte, then these two should match
-IO.inspect({n_images * 28 * 28, byte_size(images)})
-```
+Let's preprocess and normalize the data accordingly.
 
 ```elixir
-images =
-  images
+train_images =
+  train_images_binary
   |> Nx.from_binary({:u, 8})
   # Since pixels are organized row-wise, reshape into rows x columns
-  |> Nx.reshape({n_images, 1, n_rows, n_cols}, names: [:images, :channels, :height, :width])
+  |> Nx.reshape(shape, names: [:images, :channels, :height, :width])
   # Normalize the pixel values to be between 0 and 1
   |> Nx.divide(255)
 ```
 
 ```elixir
 # Make sure they look like numbers
-images[[images: 0..2]] |> Nx.to_heatmap()
+train_images[[images: 0..2]] |> Nx.to_heatmap()
 ```
 
-```elixir
-# Download and prepare the test set
-mnist_base_url = "https://storage.googleapis.com/cvdf-datasets/mnist/"
-%{body: test_images} = Req.get!(mnist_base_url <> "t10k-images-idx3-ubyte.gz")
-# I'm not going to use the labels so we won't grab them
-# %{body: train_labels} = Req.get!(base_url <> "train-labels-idx1-ubyte.gz")
+That looks right! Let's repeat the process for the test set.
 
-<<_::32, n_images::32, n_rows::32, n_cols::32, test_images::binary>> = test_images
+```elixir
+{test_images, _train_labels} = Scidata.MNIST.download_test()
+{test_images_binary, _type, shape} = test_images
 
 test_images =
-  test_images
+  test_images_binary
   |> Nx.from_binary({:u, 8})
   # Since pixels are organized row-wise, reshape into rows x columns
-  |> Nx.reshape({n_images, 1, n_rows, n_cols}, names: [:images, :channels, :height, :width])
+  |> Nx.reshape(shape, names: [:images, :channels, :height, :width])
   # Normalize the pixel values to be between 0 and 1
   |> Nx.divide(255)
 
@@ -139,11 +129,11 @@ We'll create the training input by turning our image list into batches of size 1
 ```elixir
 batch_size = 128
 
-batched_images =
-  images
+batched_train_images =
+  train_images
   |> Nx.to_batched(batch_size)
 
-train_data = Stream.zip(batched_images, batched_images)
+train_data = Stream.zip(batched_train_images, batched_train_images)
 
 batched_test_images =
   test_images
@@ -199,10 +189,13 @@ task =
   Task.start(fn ->
     for %{data: %{test_image_index: image_index}} <- Kino.Control.stream(form) do
       test_image = test_images[[images: image_index]]
+
       reconstructed_image =
         model
         |> Axon.predict(params, test_image)
-        |> Nx.squeeze()
+        # Get rid of the batch dimension
+        |> Nx.squeeze(axes: [0])
+
       combined_image = Nx.concatenate([test_image, reconstructed_image], axis: :width)
       Kino.Frame.render(frame, Nx.to_heatmap(combined_image))
     end
@@ -231,7 +224,7 @@ It'd be nice to see how the model improves as it trains. In this section (also a
 # A helper function to display the input and output side by side
 combined_input_output = fn params, image_index ->
   test_image = test_images[[images: image_index]]
-  reconstructed_image = Axon.predict(model, params, test_image) |> Nx.squeeze()
+  reconstructed_image = Axon.predict(model, params, test_image) |> Nx.squeeze(axes: [0])
   Nx.concatenate([test_image, reconstructed_image], axis: :width)
 end
 
@@ -241,14 +234,13 @@ Nx.to_heatmap(combined_input_output.(params, 0))
 Once again we'll use `Kino.Frame` for dynamically updating output:
 
 ```elixir
-
 frame = Kino.Frame.new() |> Kino.render()
 
 render_example_handler = fn state ->
   Kino.Frame.append(frame, "Epoch: #{state.epoch}, Iteration: #{state.iteration}")
   # state.step_state[:model_state] contains the model params when this event is fired
   params = state.step_state[:model_state]
-  image_index = Enum.random(0..Nx.axis_size(test_images, :images))
+  image_index = Enum.random(0..(Nx.axis_size(test_images, :images) - 1))
   Kino.Frame.append(frame, Nx.to_heatmap(combined_input_output.(params, image_index)))
   {:continue, state}
 end
