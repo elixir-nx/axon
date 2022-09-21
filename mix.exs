@@ -101,10 +101,10 @@ defmodule Axon.MixProject do
         "guides/training_and_evaluation/writing_custom_event_handlers.livemd",
         "guides/serialization/onnx_to_axon.livemd",
         # Examples
-        "notebooks/basics/multi_input_example.livemd",
+        "notebooks/basics/xor.livemd",
         "notebooks/vision/mnist.livemd",
         "notebooks/vision/horses_or_humans.livemd",
-        "notebooks/text/text_generator.livemd",
+        "notebooks/text/lstm_generation.livemd",
         "notebooks/structured/credit_card_fraud.livemd",
         "notebooks/generative/fashionmnist_autoencoder.livemd"
       ],

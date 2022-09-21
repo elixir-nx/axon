@@ -1,4 +1,4 @@
-# Training multi-input models
+# Modeling XOR with a neural network
 
 ```elixir
 Mix.install([
