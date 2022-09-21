@@ -83,7 +83,7 @@ test_images[[images: 0..2]] |> Nx.to_heatmap()
 
 An autoencoder is a a network that has the same sized input as output, with a "bottleneck" layer in the middle with far fewer parameters than the input. Its goal is to force the output to reconstruct the input. The bottleneck layer forces the network to learn a compressed representation of the space.
 
-The part of the autoencder that takes the input and compresses it into the bottleneck layer is called the *encoder* and the part that takes the compressed representation and reconstructs the input is called the *decoder*. Usually the decoder mirrors the encoder.
+The part of the autoencoder that takes the input and compresses it into the bottleneck layer is called the *encoder* and the part that takes the compressed representation and reconstructs the input is called the *decoder*. Usually the decoder mirrors the encoder.
 
 MNIST is a pretty easy dataset, so we're going to try a fairly small autoencoder.
 
