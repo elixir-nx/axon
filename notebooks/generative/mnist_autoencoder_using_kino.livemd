@@ -199,8 +199,10 @@ task =
   Task.start(fn ->
     for %{data: %{test_image_index: image_index}} <- Kino.Control.stream(form) do
       test_image = test_images[[images: image_index]]
-      # [0] removes the batch dimension
-      reconstructed_image = Axon.predict(model, params, test_image)[0]
+      reconstructed_image =
+        model
+        |> Axon.predict(params, test_image)
+        |> Nx.squeeze()
       combined_image = Nx.concatenate([test_image, reconstructed_image], axis: :width)
       Kino.Frame.render(frame, Nx.to_heatmap(combined_image))
     end
