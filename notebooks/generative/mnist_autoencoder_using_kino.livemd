@@ -231,7 +231,7 @@ It'd be nice to see how the model improves as it trains. In this section (also a
 # A helper function to display the input and output side by side
 combined_input_output = fn params, image_index ->
   test_image = test_images[[images: image_index]]
-  reconstructed_image = Axon.predict(model, params, test_image)[0]
+  reconstructed_image = Axon.predict(model, params, test_image) |> Nx.squeeze()
   Nx.concatenate([test_image, reconstructed_image], axis: :width)
 end
 
