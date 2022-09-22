@@ -14,7 +14,7 @@ Mix.install([
 
 ## Introduction
 
-The goal of this notebook is to build a Denoising Autoencoder from scratch using Livebook. This notebook is based on [Training an Autoencoder on Fashion MNIST](https://github.com/hanrelan/axon/blob/main/notebooks/generative/fashionmnist_autoencoder.livemd), but includes some tips on using Livebook to train the model and using [Kino](https://hexdocs.pm/kino/Kino.html) (Livebook's interactive widget library) to play with and visualize our results.
+The goal of this notebook is to build a Denoising Autoencoder from scratch using Livebook. This notebook is based on [Training an Autoencoder on Fashion MNIST](fashionmnist_autoencoder.livemd), but includes some tips on using Livebook to train the model and using [Kino](https://hexdocs.pm/kino/Kino.html) (Livebook's interactive widget library) to play with and visualize our results.
 
 ## Data loading
 
