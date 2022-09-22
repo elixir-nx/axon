@@ -1,0 +1,117 @@
+# Modeling XOR with a neural network
+
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0", override: true},
+  {:exla, "~> 0.3.0"},
+  {:kino_vega_lite, "~> 0.1.3"}
+])
+
+Nx.Defn.default_options(compiler: EXLA)
+
+alias VegaLite, as: Vl
+```
+
+## Introduction
+
+In this notebook we try to create a model and learn it the **logical XOR**.
+
+Even though XOR seems like a trivial operation, it cannot be modeled using a single dense layer ([single-layer perceptron](https://en.wikipedia.org/wiki/Feedforward_neural_network#Single-layer_perceptron)). The underlying reason is that the classes in XOR are not linearly separable. We cannot draw a straight line to separate the points $(0,0)$, $(1,1)$ from the points $(0,1)$, $(1,0)$. To model this properly, we need to turn to deep learning methods. Deep learning is capable of learning non-linear relationships like XOR. 
+
+## The model
+
+Let's start with the model. We need two inputs, since XOR has two operands. We then concatenate them into a single input vector with `Axon.concatenate/3`. Then we have one hidden layer and one output layer, both of them dense.
+
+Note: the model is a sequential neural network. In Axon, we can conveniently create such a model by using the pipe operator (`|>`) to add layers one by one.
+
+```elixir
+x1_input = Axon.input("x1", shape: {nil, 1})
+x2_input = Axon.input("x2", shape: {nil, 1})
+
+model =
+  x1_input
+  |> Axon.concatenate(x2_input)
+  |> Axon.dense(8, activation: :tanh)
+  |> Axon.dense(1, activation: :sigmoid)
+```
+
+## Training data
+
+The next step is to prepare training data. Since we are modeling a well-defined operation, we can just generate random operands and compute the expected XOR result for them.
+
+The training works with batches of examples, so we *repeatedly* generate a whole batch of inputs and the expected result.
+
+```elixir
+batch_size = 32
+
+data =
+  Stream.repeatedly(fn ->
+    x1 = Nx.random_uniform({batch_size, 1}, 0, 2)
+    x2 = Nx.random_uniform({batch_size, 1}, 0, 2)
+    y = Nx.logical_xor(x1, x2)
+
+    {%{"x1" => x1, "x2" => x2}, y}
+  end)
+```
+
+Here's how a sample batch looks:
+
+```elixir
+Enum.at(data, 0)
+```
+
+## Training
+
+It's time to train our model. In this case we use *binary cross entropy* for the loss and *stochastic gradient descent* as the optimizer. We use binary cross entropy because we can consider the task of computing XOR the same as a binary classification problem. We want our output to have a binary label `0` or `1`, and binary cross entropy is typically used in these cases. Having defined our training loop, we run it with `Axon.Loop.run/4`.
+
+```elixir
+epochs = 10
+
+params =
+  model
+  |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+  |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 1000)
+```
+
+## Trying the model
+
+Finally, we can test our model on sample data.
+
+```elixir
+Axon.predict(model, params, %{
+  "x1" => Nx.tensor([[0]]),
+  "x2" => Nx.tensor([[1]])
+})
+```
+
+Try other combinations of $x_1$ and $x_2$ and see what the output is. To improve the model performance, you can increase the number of training epochs.
+
+## Visualizing the model predictions
+
+The original XOR we modeled only works with binary values $0$ and $1$, however our model operates in continuous space. This means that we can give it $x_1 = 0.5$, $x_2 = 0.5$ as input and we expect _some_ output. We can use this to visualize the non-linear relationship between inputs $x_1$, $x_2$ and outputs that our model has learned.
+
+```elixir
+# The number of points per axis, determines the resolution
+n = 50
+
+# We generate coordinates of in the (n x n) grid
+x1 = Nx.iota({n, n}, axis: 0) |> Nx.divide(n) |> Nx.reshape({:auto, 1})
+x2 = Nx.iota({n, n}, axis: 1) |> Nx.divide(n) |> Nx.reshape({:auto, 1})
+
+# The output is also a real number, but we round it into one of the two classes
+y = Axon.predict(model, params, %{"x1" => x1, "x2" => x2}) |> Nx.round()
+
+Vl.new(width: 300, height: 300)
+|> Vl.data_from_values(
+  x1: Nx.to_flat_list(x1),
+  x2: Nx.to_flat_list(x2),
+  y: Nx.to_flat_list(y)
+)
+|> Vl.mark(:circle)
+|> Vl.encode_field(:x, "x1", type: :quantitative)
+|> Vl.encode_field(:y, "x2", type: :quantitative)
+|> Vl.encode_field(:color, "y", type: :nominal)
+```
+
+From the plot we can clearly see that during training our model learnt two clean boundaries to separate $(0,0)$, $(1,1)$ from $(0,1)$, $(1,0)$.

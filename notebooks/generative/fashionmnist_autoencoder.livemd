@@ -1,5 +1,16 @@
 # Training an Autoencoder on Fashion MNIST
 
+```elixir
+Mix.install([
+  {:axon, github: "elixir-nx/axon"},
+  {:nx, "~> 0.3.0", override: true},
+  {:exla, "~> 0.3.0"},
+  {:scidata, "~> 0.1.5"}
+])
+
+Nx.Defn.default_options(compiler: EXLA)
+```
+
 ## Introduction
 
 An autoencoder is a deep learning model which consists of two parts: encoder and decoder. The encoder compresses high dimensional data into a low dimensional representation and feeds it to the decoder. The decoder tries to recreate the original data from the low dimensional representation.
@@ -12,59 +23,38 @@ Autoencoders can be used in the following problems:
 
 Let's walk through a basic autoencoder implementation in Axon to get a better understanding of how they work in practice.
 
-## Imports
-
-First, we have to import some essential packages. `Axon` will be the primary tool to build and train the autoencoder. We also need to import `EXLA` for hardware acceleration, `Nx` for some basic tensor operations, and `Scidata` for downloading training data.
-
-```elixir
-Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.5"}
-])
-```
-
-## Configure platforms precedence
-
-EXLA provides JIT compilation to hardware accelerators. We'll start by telling EXLA which order of accelerators to use. If you have a specific target in mind, such as `:cuda` or `:rocm`, you can adjust the precedence to reflect that. The order of precedence here is `tpu` > `cuda` > `rocm` > `host`:
-
-```elixir
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
-```
-
 ## Downloading the data
 
-To train and test how our model works, we use one of the most popular data set: MNIST fashion. It consists of small black and white images of clothes. Loading this data set is very simple. Just use ```Scidata.FashionMNIST.download()```.
+To train and test how our model works, we use one of the most popular data sets: [Fashion MNIST](https://github.com/zalandoresearch/fashion-mnist). It consists of small black and white images of clothes. Loading this data set is very simple with the help of `Scidata`.
 
 ```elixir
-defmodule DataSource do
-  def get_data() do
-    Scidata.FashionMNIST.download()
-  end
-end
+{image_data, _label_data} = Scidata.FashionMNIST.download()
+{bin, type, shape} = image_data
 ```
 
-## Preprocessing of the images
-
-The next step is image preprocessing. First, we need to load the training data into tensor using ```Nx.from_binary``` and reshape with ```Nx.reshape```. Then normalize the data with ```Nx.divide``` and split the dataset into a list of batches with ```Nx.to_batched_list```.
+We get the data in a raw format, but this is exactly the information we need to build an Nx tensor.
 
 ```elixir
-defmodule Preprocessing do
-  def transform_images({bin, type, shape}) do
-    bin
-    |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-    |> Nx.divide(255.0)
-    |> Nx.backend_copy()
-    |> Nx.to_batched_list(32)
-  end
-end
+train_images =
+  bin
+  |> Nx.from_binary(type)
+  |> Nx.reshape(shape)
+  |> Nx.divide(255.0)
+```
+
+We also normalize pixel values into the range $[0, 1]$.
+
+<!-- livebook:{"break_markdown":true} -->
+
+We can visualize one of the images by looking at the tensor heatmap:
+
+```elixir
+Nx.to_heatmap(train_images[1])
 ```
 
 ## Encoder and decoder
 
-First we need to define the encoder and decoder. Both are one-layer neural nets.
+First we need to define the encoder and decoder. Both are one-layer neural networks.
 
 In the encoder, we start by flattening the input using `Axon.flatten` because initially, the input shape is {batch_size, 1, 28, 28} and we want to pass the input into a dense layer with `Axon.dense`. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` or latent space is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
 
@@ -73,25 +63,53 @@ Next, we pass the output of the encoder to the decoder and try to reconstruct th
 If we just bind the encoder and decoder sequentially, we'll get the desired model. This was pretty smooth, wasn't it?
 
 ```elixir
-defmodule Autoencoder do
-  def encoder(x, latent_dim) do
-    x
-    |> Axon.flatten()
-    |> Axon.dense(latent_dim, activation: :relu)
-  end
-
-  def decoder(x) do
-    x
-    |> Axon.dense(784, activation: :sigmoid)
-    |> Axon.reshape({1, 28, 28})
-  end
-
-  def build_model(input_shape, latent_dim) do
-    Axon.input("input", shape: input_shape)
-    |> encoder(latent_dim)
-    |> decoder()
-  end
+encoder = fn x, latent_dim ->
+  x
+  |> Axon.flatten()
+  |> Axon.dense(latent_dim, activation: :relu)
 end
+
+decoder = fn x ->
+  x
+  |> Axon.dense(784, activation: :sigmoid)
+  |> Axon.reshape({1, 28, 28})
+end
+
+model =
+  Axon.input("input", shape: {nil, 1, 28, 28})
+  |> encoder.(64)
+  |> decoder.()
+```
+
+First we need to define the encoder and decoder. Both are one-layer neural networks.
+
+In the encoder, we start by flattening the input, so we get from shape `{batch_size, 1, 28, 28}` to `{batch_size, 784}` and we pass the input into a dense layer. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` (or the latent space) is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
+
+```elixir
+encoder = fn x, latent_dim ->
+  x
+  |> Axon.flatten()
+  |> Axon.dense(latent_dim, activation: :relu)
+end
+```
+
+Next, we pass the output of the encoder to the decoder and try to reconstruct the compressed data into its original form. Since our original input had a dimensionality of 784, we use a dense layer with 784 neurons. Because our original data was normalized to have pixel values between 0 and 1, we use a `:sigmoid` activation in our dense layer to squeeze output values between 0 and 1. Our original input shape was 28x28, so we use `Axon.reshape` to convert the flattened representation of the outputs into an image with correct the width and height.
+
+```elixir
+decoder = fn x ->
+  x
+  |> Axon.dense(784, activation: :sigmoid)
+  |> Axon.reshape({:batch, 1, 28, 28})
+end
+```
+
+If we just bind the encoder and decoder sequentially, we'll get the desired model. This was pretty smooth, wasn't it?
+
+```elixir
+model =
+  Axon.input("input", shape: {nil, 1, 28, 28})
+  |> encoder.(64)
+  |> decoder.()
 ```
 
 ## Training the model
@@ -99,116 +117,98 @@ end
 Finally, we can train the model. We'll use the `:adam` and `:mean_squared_error` loss with `Axon.Loop.trainer`. Our loss function will measure the aggregate error between pixels of original images and the model's reconstructed images. We'll also `:mean_absolute_error` using `Axon.Loop.metric`. `Axon.Loop.run` trains the model with the given training data.
 
 ```elixir
-defmodule Trainer do
-  def train_model(model, train_images, epochs) do
-    model
-    |> Axon.Loop.trainer(:mean_squared_error, :adam)
-    |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.run(Stream.zip(train_images, train_images), %{}, epochs: epochs, compiler: EXLA)
-  end
+batch_size = 32
+epochs = 5
+
+batched_images = Nx.to_batched(train_images, batch_size)
+train_batches = Stream.zip(batched_images, batched_images)
+
+params =
+  model
+  |> Axon.Loop.trainer(:mean_squared_error, :adam)
+  |> Axon.Loop.metric(:mean_absolute_error, "Error")
+  |> Axon.Loop.run(train_batches, %{}, epochs: epochs, compiler: EXLA)
+```
+
+## Extra: losses
+
+To better understand what is mean absolute error (MAE) and mean square error (MSE) let's go through an example.
+
+```elixir
+# Error definitions for a single sample
+
+mean_square_error = fn y_pred, y ->
+  y_pred
+  |> Nx.subtract(y)
+  |> Nx.power(2)
+  |> Nx.mean()
+end
+
+mean_absolute_erorr = fn y_pred, y ->
+  y_pred
+  |> Nx.subtract(y)
+  |> Nx.abs()
+  |> Nx.mean()
 end
 ```
 
-To better understand what is mean absolute error and mean square error let's go through an example.
+We will work with a sample image of a shoe, a slightly noised version of that image, and also an entirely different image from the dataset.
 
 ```elixir
-defmodule Example do
-  def calculate_mse(y_pred, y) do
-    y_pred
-    |> Nx.subtract(y)
-    |> Nx.power(2)
-    |> Nx.mean(axes: [-1])
-    |> Nx.sum()
-  end
-
-  def calculate_mae(y_pred, y) do
-    y_pred
-    |> Nx.subtract(y)
-    |> Nx.abs()
-    |> Nx.mean(axes: [-1])
-    |> Nx.sum()
-  end
-
-  def run_example do
-    {images, _} = DataSource.get_data()
-
-    train_images = Preprocessing.transform_images(images)
-
-    shoe_image =
-      train_images
-      |> hd()
-      |> Nx.slice_axis(0, 1, 0)
-      |> Nx.reshape({1, 1, 28, 28})
-
-    noised_shoe_image =
-      train_images
-      |> hd()
-      |> Nx.slice_axis(0, 1, 0)
-      |> Nx.reshape({1, 1, 28, 28})
-      |> Nx.add(Nx.random_normal({1, 1, 28, 28}, 0.0, 0.05))
-
-    random_image =
-      train_images
-      |> Enum.at(1)
-      |> Nx.slice_axis(0, 1, 0)
-      |> Nx.reshape({1, 1, 28, 28})
-
-    same_images_mse_error = calculate_mse(shoe_image, shoe_image)
-    similar_images_mse_error = calculate_mse(shoe_image, noised_shoe_image)
-    different_images_mse_error = calculate_mse(shoe_image, random_image)
-
-    same_images_mae_error = calculate_mae(shoe_image, shoe_image)
-    similar_images_mae_error = calculate_mae(shoe_image, noised_shoe_image)
-    different_images_mae_error = calculate_mae(shoe_image, random_image)
-
-    %{
-      same: {[mse: same_images_mse_error], [mae: same_images_mae_error]},
-      similar: {[mse: similar_images_mse_error], [mae: similar_images_mae_error]},
-      different: {[mse: different_images_mse_error], [mae: different_images_mae_error]}
-    }
-  end
-end
-
-Example.run_example()
+shoe_image = train_images[0]
+noised_shoe_image = Nx.add(shoe_image, Nx.random_normal(shoe_image, 0.0, 0.05))
+other_image = train_images[1]
+:ok
 ```
 
-We choose an image of a shoe as a reference. As we can see, the error for the same picture is 0 (both mae and mse). Indeed, when we have two exact copies, there is no pixel with different values, and the error is equal to zero. Noised image has a non-zero mse and mae but is much smaller than the error of two completely different pictures. This fact indicates the level of similarity between images. The small error implies decent prediction values. On the other hand, a large value of loss suggests poor quality of predictions.
-
-## Evaluation of the model
+For the same image both errors should be 0, because when we have two exact copies, there is no pixel difference.
 
 ```elixir
-defmodule Evaluation do
-  require Axon
-
-  def run do
-    {images, _} = DataSource.get_data()
-
-    train_images = Preprocessing.transform_images(images)
-
-    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect()
-
-    model_state = Trainer.train_model(model, train_images, 5)
-
-    sample_image =
-      train_images
-      |> hd()
-      |> Nx.slice_axis(0, 1, 0)
-      |> Nx.reshape({1, 1, 28, 28})
-
-    sample_image |> Nx.to_heatmap() |> IO.inspect()
-
-    model
-    |> Axon.predict(model_state, sample_image, compiler: EXLA)
-    |> Nx.to_heatmap()
-    |> IO.inspect()
-  end
-end
+{
+  mean_square_error.(shoe_image, shoe_image),
+  mean_absolute_erorr.(shoe_image, shoe_image)
+}
 ```
 
-## Results analysis
-
-As we can see, the generated image is similar to the input image. The only difference between them is the absence of a sign in the middle of the second shoe. The model treated the sign as noise and bled this into the plain shoe. To get the outputs run [this code](https://github.com/elixir-nx/axon/blob/main/examples/generative/fashionmnist_autoencoder.exs "Elixir module with Autoencoder").
+Now the noised image:
 
 ```elixir
-Evaluation.run()
+{
+  mean_square_error.(shoe_image, noised_shoe_image),
+  mean_absolute_erorr.(shoe_image, noised_shoe_image)
+}
 ```
+
+And a different image:
+
+```elixir
+{
+  mean_square_error.(shoe_image, other_image),
+  mean_absolute_erorr.(shoe_image, other_image)
+}
+```
+
+As we can see, the noised image has a non-zero MSE and MAE but is much smaller than the error of two completely different pictures. In other words, both of these error types measure the level of similarity between images. A small error implies decent prediction values. On the other hand, a large error value suggests poor quality of predictions.
+
+If you look at our implementation of MAE and MSE, you will notice that they are very similar. MAE and MSE can also be called the $L_1$ and $L_2$ loss respectively for the $L_1$ and $L_2$ norm. The $L_2$ loss (MSE) is typically preferred because it's a smoother function whereas $L_1$ is often difficult to optimize with stochastic gradient descent (SGD).
+
+## Inference
+
+Now, let's see how our model is doing! We will compare a sample image before and after compression.
+
+```elixir
+sample_image = train_images[0..0//1]
+compressed_image = Axon.predict(model, params, sample_image, compiler: EXLA)
+
+sample_image
+|> Nx.to_heatmap()
+|> IO.inspect(label: "Original")
+
+compressed_image
+|> Nx.to_heatmap()
+|> IO.inspect(label: "Compressed")
+
+:ok
+```
+
+As we can see, the generated image is similar to the input image. The only difference between them is the absence of a sign in the middle of the second shoe. The model treated the sign as noise and bled this into the plain shoe.
