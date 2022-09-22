@@ -180,7 +180,7 @@ defmodule Axon.Initializers do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
     shape = Nx.shape(opts[:shape])
 
-    Nx.Random.uniform(key, Nx.negate(opts[:scale]), opts[:scale],
+    Nx.Random.uniform_split(key, Nx.negate(opts[:scale]), opts[:scale],
       type: opts[:type],
       shape: shape
     )
@@ -221,7 +221,7 @@ defmodule Axon.Initializers do
 
   defnp normal_impl(key, opts \\ []) do
     opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mean: 0.0])
-    Nx.Random.normal(key, opts[:mean], opts[:scale], shape: opts[:shape], type: opts[:type])
+    Nx.Random.normal_split(key, opts[:mean], opts[:scale], shape: opts[:shape], type: opts[:type])
   end
 
   @doc """
@@ -704,10 +704,10 @@ defmodule Axon.Initializers do
         random_seed =
           case distribution do
             :uniform ->
-              Nx.Random.uniform(key, shape: flat_shape, type: type)
+              Nx.Random.uniform_split(key, 0.0, 1.0, shape: flat_shape, type: type)
 
             :normal ->
-              Nx.Random.normal(key, 0.0, 1.0, shape: flat_shape, type: type)
+              Nx.Random.normal_split(key, 0.0, 1.0, shape: flat_shape, type: type)
 
             dist ->
               raise ArgumentError,
@@ -733,7 +733,7 @@ defmodule Axon.Initializers do
 
     sigma = Nx.sqrt(variance)
 
-    Nx.Random.normal(key, 0.0, sigma, shape: shape, type: type)
+    Nx.Random.normal_split(key, 0.0, sigma, shape: shape, type: type)
   end
 
   defnp var_uniform(key, variance, opts \\ []) do
@@ -742,7 +742,7 @@ defmodule Axon.Initializers do
     type = opts[:type]
 
     limit = Nx.sqrt(3 * variance)
-    Nx.Random.uniform(key, -limit, limit, shape: shape, type: type)
+    Nx.Random.uniform_split(key, -limit, limit, shape: shape, type: type)
   end
 
   defnp var_truncated(key, variance, opts \\ []) do
@@ -755,7 +755,7 @@ defmodule Axon.Initializers do
       |> Nx.sqrt()
       |> Nx.divide(0.87962566103423978)
 
-    Nx.clip(Nx.Random.normal(key, 0.0, sigma, shape: shape, type: type), -2, 2)
+    Nx.clip(Nx.Random.normal_split(key, 0.0, sigma, shape: shape, type: type), -2, 2)
   end
 
   defp compute_fans(shape) do
