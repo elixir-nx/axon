@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.28.5">
+    <meta name="project" content="Axon v0.2.0">
+
+    <title>Generating text with LSTM — Axon v0.2.0</title>
+    <link rel="stylesheet" href="dist/elixir-64c5e2b63575bddb1c5b.css" />
+
+    <script src="dist/sidebar_items-f3195f5054.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-b5f3440501744dc8be3d.js"></script>
+
+
+  </head>
+  <body data-type="extras">
+    <script>
+
+      try {
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+
+<section class="sidebar">
+  <button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+    <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+  </button>
+
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
+    </button>
+    <label class="search-label">
+      <p class="sr-only">Search</p>
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+
+      <a href="Axon.html">
+        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
+      </a>
+
+    <div class="sidebar-projectDetails">
+      <a href="Axon.html" class="sidebar-projectName" translate="no">
+Axon
+      </a>
+      <strong class="sidebar-projectVersion" translate="no">
+        v0.2.0
+      </strong>
+    </div>
+    <ul class="sidebar-listNav">
+      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+    </ul>
+  </div>
+
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <output role="status" id="toast"></output>
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+<h1>
+<button class="settings display-settings">
+  <i class="ri-settings-3-line"></i>
+  <span class="sr-only">Settings</span>
+</button>
+
+
+    <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/notebooks/text/lstm_generation.livemd#L1" title="View Source" class="view-source" rel="help">
+      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+      <span class="sr-only">View Source</span>
+    </a>
+
+  <span>Generating text with LSTM</span>
+</h1>
+
+  <div class="livebook-badge-container">
+    <a href="#" class="livebook-badge">
+      <img src="https://livebook.dev/badge/v1/blue.svg" alt="Run in Livebook" width="150" />
+    </a>
+  </div>
+
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="0867110022-1">(</span><span class="p" data-group-id="0867110022-2">[</span><span class="w">
+  </span><span class="p" data-group-id="0867110022-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/axon&quot;</span><span class="p" data-group-id="0867110022-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="0867110022-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="0867110022-4">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="0867110022-5">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="0867110022-5">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="0867110022-6">{</span><span class="ss">:req</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="0867110022-6">}</span><span class="w">
+</span><span class="p" data-group-id="0867110022-2">]</span><span class="p" data-group-id="0867110022-1">)</span><span class="w">
+
+</span><span class="nc">Nx.Defn</span><span class="o">.</span><span class="n">default_options</span><span class="p" data-group-id="0867110022-7">(</span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="0867110022-7">)</span><span class="w">
+</span><span class="nc">Nx</span><span class="o">.</span><span class="n">global_default_backend</span><span class="p" data-group-id="0867110022-8">(</span><span class="nc">EXLA.Backend</span><span class="p" data-group-id="0867110022-8">)</span></code></pre><h2 id="introduction" class="section-heading">
+  <a href="#introduction" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">introduction</p>
+  </a>
+  Introduction
+</h2>
+<p>Recurrent Neural Networks (RNNs) can be used as generative models. This means that in addition to being used for predictive models (making predictions) they can learn the sequences of a problem and then generate entirely new plausible sequences for the problem domain.</p><p>Generative models like this are useful not only to study how well a model has learned a problem, but to learn more about the problem domain itself.</p><p>In this example, we will discover how to create a generative model for text, character-by-character using Long Short-Term Memory (LSTM) recurrent neural networks in Elixir with Axon.</p><h2 id="preparation" class="section-heading">
+  <a href="#preparation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">preparation</p>
+  </a>
+  Preparation
+</h2>
+<p>Using <a href="https://www.gutenberg.org/">Project Gutenburg</a> we can download a text books that are no longer protected under copywrite, so we can experiment with them.</p><p>The one that we will use for this experiment is <a href="https://www.gutenberg.org/ebooks/11">Alice's Adventures in Wonderland by Lewis Carroll</a>. You can choose any other text or book that you like for this experiment.</p><pre><code class="makeup elixir" translate="no"><span class="c1"># Change the URL if you&#39;d like to experiment with other books</span><span class="w">
+</span><span class="n">download_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://www.gutenberg.org/files/11/11-0.txt&quot;</span><span class="w">
+
+</span><span class="n">book_text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Req</span><span class="o">.</span><span class="n">get!</span><span class="p" data-group-id="6280312208-1">(</span><span class="n">download_url</span><span class="p" data-group-id="6280312208-1">)</span><span class="o">.</span><span class="n">body</span></code></pre><p>First of all, we need to normalize the content of the book. We are only interested in the sequence of English characters, periods and new lines. Also currently we don't care about the capitalization and things like apostrophe so we can remove all other unknown characters and downcase everything. We can use a regular expression for that.</p><p>We can also convert the string into a list of characters so we can handle them easier. You will understand exactly why a bit further.</p><pre><code class="makeup elixir" translate="no"><span class="n">normalized_book_text</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">book_text</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">downcase</span><span class="p" data-group-id="9100537365-1">(</span><span class="p" data-group-id="9100537365-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">replace</span><span class="p" data-group-id="9100537365-2">(</span><span class="sr">~r/[^a-z </span><span class="se">\.</span><span class="se">\n</span><span class="sr">]/</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p" data-group-id="9100537365-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_charlist</span><span class="p" data-group-id="9100537365-3">(</span><span class="p" data-group-id="9100537365-3">)</span></code></pre><p>We converted the text to a list of characters, where each character is a number (specifically, a Unicode code point). Lowercase English characters are represented with numbers between <code class="inline">97 = a</code> and <code class="inline">122 = z</code>, a space is <code class="inline">32 = [ ]</code>, a new line is <code class="inline">10 = \n</code> and the period is <code class="inline">46 = .</code>.</p><p>So we should have 26 + 3 (= 29) characters in total. Let's see if that's true.</p><pre><code class="makeup elixir" translate="no"><span class="n">normalized_book_text</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">uniq</span><span class="p" data-group-id="0685657082-1">(</span><span class="p" data-group-id="0685657082-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="0685657082-2">(</span><span class="p" data-group-id="0685657082-2">)</span></code></pre><p>Since we want to use this 29 characters as possible values for each input in our neural network, we can re-map them to values between 0 and 28. So each specific neuron will indicate a specific character.</p><pre><code class="makeup elixir" translate="no"><span class="c1"># Extract all then unique characters we have and sort them for clarity</span><span class="w">
+</span><span class="n">characters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">normalized_book_text</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">uniq</span><span class="p" data-group-id="4037152370-1">(</span><span class="p" data-group-id="4037152370-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">sort</span><span class="p" data-group-id="4037152370-2">(</span><span class="p" data-group-id="4037152370-2">)</span><span class="w">
+</span><span class="n">characters_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="4037152370-3">(</span><span class="n">characters</span><span class="p" data-group-id="4037152370-3">)</span><span class="w">
+
+</span><span class="c1"># Create a mapping for every character</span><span class="w">
+</span><span class="n">char_to_idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">characters</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">with_index</span><span class="p" data-group-id="4037152370-4">(</span><span class="p" data-group-id="4037152370-4">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Map</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="4037152370-5">(</span><span class="p" data-group-id="4037152370-5">)</span><span class="w">
+</span><span class="c1"># And a reverse mapping to convert back to characters</span><span class="w">
+</span><span class="n">idx_to_char</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">characters</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">with_index</span><span class="p" data-group-id="4037152370-6">(</span><span class="o">&amp;</span><span class="p" data-group-id="4037152370-7">{</span><span class="ni">&amp;2</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;1</span><span class="p" data-group-id="4037152370-7">}</span><span class="p" data-group-id="4037152370-6">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Map</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="4037152370-8">(</span><span class="p" data-group-id="4037152370-8">)</span><span class="w">
+
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="4037152370-9">(</span><span class="s">&quot;Total book characters: </span><span class="si" data-group-id="4037152370-10">#{</span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="4037152370-11">(</span><span class="n">normalized_book_text</span><span class="p" data-group-id="4037152370-11">)</span><span class="si" data-group-id="4037152370-10">}</span><span class="s">&quot;</span><span class="p" data-group-id="4037152370-9">)</span><span class="w">
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="4037152370-12">(</span><span class="s">&quot;Total unique characters: </span><span class="si" data-group-id="4037152370-13">#{</span><span class="n">characters_count</span><span class="si" data-group-id="4037152370-13">}</span><span class="s">&quot;</span><span class="p" data-group-id="4037152370-12">)</span></code></pre><p>Now we need to create our training and testing data sets. But how?</p><p>Our goal is to teach the machine what comes after a sequence of characters (usually). For example given the following sequence <strong>&quot;Hello, My name i&quot;</strong> the computer should be able to guess that the next character is probably <strong>&quot;s&quot;</strong>.</p><pre><code class="mermaid">graph LR;
+  A[Input: Hello my name i]--&gt;NN[Neural Network]--&gt;B[Output: s];</code></pre><p>Let's choose an arbitrary sequence length and create a data set from the book text. All we need to do is read X amount of characters from the book as the input and then read 1 more as the designated output.</p><p>After doing all that, we also want to convert every character to it's index using the <code class="inline">char_to_idx</code> mapping that we have created before.</p><p>Neural networks work best if you scale your inputs and outputs. In this case we are going to scale everything between 0 and 1 by dividing them by the number of unique characters that we have.</p><p>And for the final step we will reshape it so we can use the data in our LSTM model.</p><pre><code class="makeup elixir" translate="no"><span class="n">sequence_length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w">
+
+</span><span class="n">train_data</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">normalized_book_text</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="9647655192-1">(</span><span class="o">&amp;</span><span class="nc">Map</span><span class="o">.</span><span class="n">fetch!</span><span class="p" data-group-id="9647655192-2">(</span><span class="n">char_to_idx</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;1</span><span class="p" data-group-id="9647655192-2">)</span><span class="p" data-group-id="9647655192-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">chunk_every</span><span class="p" data-group-id="9647655192-3">(</span><span class="n">sequence_length</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">:discard</span><span class="p" data-group-id="9647655192-3">)</span><span class="w">
+  </span><span class="c1"># We don&#39;t want the last chunk since we don&#39;t have a prediction for it.</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">drop</span><span class="p" data-group-id="9647655192-4">(</span><span class="o">-</span><span class="mi">1</span><span class="p" data-group-id="9647655192-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="9647655192-5">(</span><span class="p" data-group-id="9647655192-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="9647655192-6">(</span><span class="n">characters_count</span><span class="p" data-group-id="9647655192-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reshape</span><span class="p" data-group-id="9647655192-7">(</span><span class="p" data-group-id="9647655192-8">{</span><span class="ss">:auto</span><span class="p">,</span><span class="w"> </span><span class="n">sequence_length</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="9647655192-8">}</span><span class="p" data-group-id="9647655192-7">)</span></code></pre><p>For our train results, We will do the same. Drop the first <code class="inline">sequence_length</code> characters and then convert them to the mapping. Additionally, we will do <strong>one-hot encoding</strong>.</p><p>The reason we want to use one-hot encoding is that in our model we don't want to only return a character as the output. We want it to return the probability of each character for the output. This way we can decide if certain probability is good or not or even we can decide between multiple possible outputs or even discard everything if the network is not confident enough.</p><p>In Nx, you can achieve this encoding by using this snippet</p><pre><code class="makeup elixir" translate="no"><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="6629377436-1">(</span><span class="p" data-group-id="6629377436-2">[</span><span class="w">
+  </span><span class="p" data-group-id="6629377436-3">[</span><span class="mi">0</span><span class="p" data-group-id="6629377436-3">]</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6629377436-4">[</span><span class="mi">1</span><span class="p" data-group-id="6629377436-4">]</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6629377436-5">[</span><span class="mi">2</span><span class="p" data-group-id="6629377436-5">]</span><span class="w">
+</span><span class="p" data-group-id="6629377436-2">]</span><span class="p" data-group-id="6629377436-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">equal</span><span class="p" data-group-id="6629377436-6">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="6629377436-7">(</span><span class="p" data-group-id="6629377436-8">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="6629377436-8">}</span><span class="p" data-group-id="6629377436-7">)</span><span class="p" data-group-id="6629377436-6">)</span></code></pre><p>To sum it up, Here is how we generate the train results.</p><pre><code class="makeup elixir" translate="no"><span class="n">train_results</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">normalized_book_text</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">drop</span><span class="p" data-group-id="1656557033-1">(</span><span class="n">sequence_length</span><span class="p" data-group-id="1656557033-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="1656557033-2">(</span><span class="o">&amp;</span><span class="nc">Map</span><span class="o">.</span><span class="n">fetch!</span><span class="p" data-group-id="1656557033-3">(</span><span class="n">char_to_idx</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;1</span><span class="p" data-group-id="1656557033-3">)</span><span class="p" data-group-id="1656557033-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="1656557033-4">(</span><span class="p" data-group-id="1656557033-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reshape</span><span class="p" data-group-id="1656557033-5">(</span><span class="p" data-group-id="1656557033-6">{</span><span class="ss">:auto</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="1656557033-6">}</span><span class="p" data-group-id="1656557033-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">equal</span><span class="p" data-group-id="1656557033-7">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="1656557033-8">(</span><span class="p" data-group-id="1656557033-9">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">characters_count</span><span class="p" data-group-id="1656557033-9">}</span><span class="p" data-group-id="1656557033-8">)</span><span class="p" data-group-id="1656557033-7">)</span></code></pre><h2 id="defining-the-model" class="section-heading">
+  <a href="#defining-the-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">defining-the-model</p>
+  </a>
+  Defining the Model
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="c1"># As the input, we expect the sequence_length characters</span><span class="w">
+
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="9637639541-1">(</span><span class="s">&quot;input_chars&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9637639541-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="n">sequence_length</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="9637639541-2">}</span><span class="p" data-group-id="9637639541-1">)</span><span class="w">
+  </span><span class="c1"># The LSTM layer of our network</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">lstm</span><span class="p" data-group-id="9637639541-3">(</span><span class="mi">256</span><span class="p" data-group-id="9637639541-3">)</span><span class="w">
+  </span><span class="c1"># Selecting only the output from the LSTM Layer</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">then</span><span class="p" data-group-id="9637639541-4">(</span><span class="k" data-group-id="9637639541-5">fn</span><span class="w"> </span><span class="p" data-group-id="9637639541-6">{</span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="9637639541-6">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="k" data-group-id="9637639541-5">end</span><span class="p" data-group-id="9637639541-4">)</span><span class="w">
+  </span><span class="c1"># Since we only want the last sequence in LSTM we will slice it and</span><span class="w">
+  </span><span class="c1"># select the last one</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">nx</span><span class="p" data-group-id="9637639541-7">(</span><span class="k" data-group-id="9637639541-8">fn</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">t</span><span class="p" data-group-id="9637639541-9">[</span><span class="p" data-group-id="9637639541-10">[</span><span class="mi">0</span><span class="o">..</span><span class="o">-</span><span class="mi">1</span><span class="o">//</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p" data-group-id="9637639541-10">]</span><span class="p" data-group-id="9637639541-9">]</span><span class="w"> </span><span class="k" data-group-id="9637639541-8">end</span><span class="p" data-group-id="9637639541-7">)</span><span class="w">
+  </span><span class="c1"># 20% dropout so we will not become too dependent on specific neurons</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9637639541-11">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="9637639541-11">)</span><span class="w">
+  </span><span class="c1"># The output layer. One neuron for each character and using softmax,</span><span class="w">
+  </span><span class="c1"># as activation so every node represents a probability</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9637639541-12">(</span><span class="n">characters_count</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="9637639541-12">)</span></code></pre><h2 id="training-the-network" class="section-heading">
+  <a href="#training-the-network" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">training-the-network</p>
+  </a>
+  Training the network
+</h2>
+<p>To train the network, we will use Axon's Loop API. It is pretty straightforward.</p><p>For the loss function we can use <em>categorical cross-entropy</em> since we are dealing with categories (each character) in our output. For the optimizer we can use <em>Adam</em>.</p><p>We will train our network for 20 epochs. Note that we are working with a fair amount data, so it may take a long time unless you run it on a GPU.</p><pre><code class="makeup elixir" translate="no"><span class="n">batch_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="w">
+</span><span class="n">train_batches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="9113043745-1">(</span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="n">batch_size</span><span class="p" data-group-id="9113043745-1">)</span><span class="w">
+</span><span class="n">result_batches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="9113043745-2">(</span><span class="n">train_results</span><span class="p">,</span><span class="w"> </span><span class="n">batch_size</span><span class="p" data-group-id="9113043745-2">)</span><span class="w">
+
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="9113043745-3">(</span><span class="s">&quot;Total batches: </span><span class="si" data-group-id="9113043745-4">#{</span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="9113043745-5">(</span><span class="n">train_batches</span><span class="p" data-group-id="9113043745-5">)</span><span class="si" data-group-id="9113043745-4">}</span><span class="s">&quot;</span><span class="p" data-group-id="9113043745-3">)</span><span class="w">
+
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="9113043745-6">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="9113043745-7">(</span><span class="mf">0.001</span><span class="p" data-group-id="9113043745-7">)</span><span class="p" data-group-id="9113043745-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="9113043745-8">(</span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="9113043745-9">(</span><span class="n">train_batches</span><span class="p">,</span><span class="w"> </span><span class="n">result_batches</span><span class="p" data-group-id="9113043745-9">)</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9113043745-10">%{</span><span class="p" data-group-id="9113043745-10">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="9113043745-8">)</span><span class="w">
+
+</span><span class="ss">:ok</span></code></pre><h2 id="generating-text" class="section-heading">
+  <a href="#generating-text" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">generating-text</p>
+  </a>
+  Generating text
+</h2>
+<p>Now we have a trained neural network, so we can start generating text with it! We just need to pass the initial sequence as the input to the network and select the most probable output. <a href="Axon.html#predict/3"><code class="inline">Axon.predict/3</code></a> will give us the output layer and then using <a href="https://hexdocs.pm/nx/0.3.0/Nx.html#argmax/1"><code class="inline">Nx.argmax/1</code></a> we get the most confident neuron index, then simply convert that index back to its Unicode representation.</p><pre><code class="makeup elixir" translate="no"><span class="n">generate_fn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="7190165108-1">fn</span><span class="w"> </span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_seq</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+  </span><span class="c1"># The initial sequence that we want the network to complete for us.</span><span class="w">
+  </span><span class="n">init_seq</span><span class="w"> </span><span class="o">=</span><span class="w">
+    </span><span class="n">init_seq</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">trim</span><span class="p" data-group-id="7190165108-2">(</span><span class="p" data-group-id="7190165108-2">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">downcase</span><span class="p" data-group-id="7190165108-3">(</span><span class="p" data-group-id="7190165108-3">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_charlist</span><span class="p" data-group-id="7190165108-4">(</span><span class="p" data-group-id="7190165108-4">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="7190165108-5">(</span><span class="o">&amp;</span><span class="nc">Map</span><span class="o">.</span><span class="n">fetch!</span><span class="p" data-group-id="7190165108-6">(</span><span class="n">char_to_idx</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;1</span><span class="p" data-group-id="7190165108-6">)</span><span class="p" data-group-id="7190165108-5">)</span><span class="w">
+
+  </span><span class="nc">Enum</span><span class="o">.</span><span class="n">reduce</span><span class="p" data-group-id="7190165108-7">(</span><span class="mi">1</span><span class="o">..</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="n">init_seq</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="7190165108-8">fn</span><span class="w"> </span><span class="bp">_</span><span class="p">,</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="n">init_seq</span><span class="w"> </span><span class="o">=</span><span class="w">
+      </span><span class="n">seq</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">take</span><span class="p" data-group-id="7190165108-9">(</span><span class="o">-</span><span class="n">sequence_length</span><span class="p" data-group-id="7190165108-9">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="7190165108-10">(</span><span class="p" data-group-id="7190165108-10">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="7190165108-11">(</span><span class="n">characters_count</span><span class="p" data-group-id="7190165108-11">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reshape</span><span class="p" data-group-id="7190165108-12">(</span><span class="p" data-group-id="7190165108-13">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">sequence_length</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7190165108-13">}</span><span class="p" data-group-id="7190165108-12">)</span><span class="w">
+
+    </span><span class="n">char</span><span class="w"> </span><span class="o">=</span><span class="w">
+      </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="7190165108-14">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_seq</span><span class="p" data-group-id="7190165108-14">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">argmax</span><span class="p" data-group-id="7190165108-15">(</span><span class="p" data-group-id="7190165108-15">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="7190165108-16">(</span><span class="p" data-group-id="7190165108-16">)</span><span class="w">
+
+    </span><span class="n">seq</span><span class="w"> </span><span class="o">++</span><span class="w"> </span><span class="p" data-group-id="7190165108-17">[</span><span class="n">char</span><span class="p" data-group-id="7190165108-17">]</span><span class="w">
+  </span><span class="k" data-group-id="7190165108-8">end</span><span class="p" data-group-id="7190165108-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="7190165108-18">(</span><span class="o">&amp;</span><span class="nc">Map</span><span class="o">.</span><span class="n">fetch!</span><span class="p" data-group-id="7190165108-19">(</span><span class="n">idx_to_char</span><span class="p">,</span><span class="w"> </span><span class="ni">&amp;1</span><span class="p" data-group-id="7190165108-19">)</span><span class="p" data-group-id="7190165108-18">)</span><span class="w">
+</span><span class="k" data-group-id="7190165108-1">end</span><span class="w">
+
+</span><span class="c1"># The initial sequence that we want the network to complete for us.</span><span class="w">
+</span><span class="n">init_seq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;&quot;
+not like to drop the jar for fear
+of killing somebody underneath so managed to put it into one of the
+cupboards as she fell past it.
+&quot;&quot;&quot;</span><span class="w">
+
+</span><span class="n">generate_fn</span><span class="o">.</span><span class="p" data-group-id="7190165108-20">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">init_seq</span><span class="p" data-group-id="7190165108-20">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="7190165108-21">(</span><span class="p" data-group-id="7190165108-21">)</span></code></pre><h2 id="multi-lstm-layers" class="section-heading">
+  <a href="#multi-lstm-layers" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">multi-lstm-layers</p>
+  </a>
+  Multi LSTM layers
+</h2>
+<p>We can improve our network by stacking multiple LSTM layers together. We just need to change our model and re-train our network.</p><pre><code class="makeup elixir" translate="no"><span class="n">new_model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5468819828-1">(</span><span class="s">&quot;input_chars&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5468819828-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="n">sequence_length</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5468819828-2">}</span><span class="p" data-group-id="5468819828-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">lstm</span><span class="p" data-group-id="5468819828-3">(</span><span class="mi">256</span><span class="p" data-group-id="5468819828-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">then</span><span class="p" data-group-id="5468819828-4">(</span><span class="k" data-group-id="5468819828-5">fn</span><span class="w"> </span><span class="p" data-group-id="5468819828-6">{</span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="5468819828-6">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="k" data-group-id="5468819828-5">end</span><span class="p" data-group-id="5468819828-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="5468819828-7">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="5468819828-7">)</span><span class="w">
+  </span><span class="c1"># This time we will pass all of the `out` to the next lstm layer.</span><span class="w">
+  </span><span class="c1"># We just need to slice the last one.</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">lstm</span><span class="p" data-group-id="5468819828-8">(</span><span class="mi">256</span><span class="p" data-group-id="5468819828-8">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">then</span><span class="p" data-group-id="5468819828-9">(</span><span class="k" data-group-id="5468819828-10">fn</span><span class="w"> </span><span class="p" data-group-id="5468819828-11">{</span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="5468819828-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="k" data-group-id="5468819828-10">end</span><span class="p" data-group-id="5468819828-9">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">nx</span><span class="p" data-group-id="5468819828-12">(</span><span class="k" data-group-id="5468819828-13">fn</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">x</span><span class="p" data-group-id="5468819828-14">[</span><span class="p" data-group-id="5468819828-15">[</span><span class="mi">0</span><span class="o">..</span><span class="o">-</span><span class="mi">1</span><span class="o">//</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="p" data-group-id="5468819828-15">]</span><span class="p" data-group-id="5468819828-14">]</span><span class="w"> </span><span class="k" data-group-id="5468819828-13">end</span><span class="p" data-group-id="5468819828-12">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="5468819828-16">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span><span class="p" data-group-id="5468819828-16">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5468819828-17">(</span><span class="n">characters_count</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="5468819828-17">)</span></code></pre><p>Then we can train the network using the exact same code as before</p><pre><code class="makeup elixir" translate="no"><span class="c1"># Using a smaller batch size in this case will give the network more opportunity to learn</span><span class="w">
+</span><span class="n">batch_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="w">
+</span><span class="n">train_batches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="6374566483-1">(</span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="n">batch_size</span><span class="p" data-group-id="6374566483-1">)</span><span class="w">
+</span><span class="n">result_batches</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="6374566483-2">(</span><span class="n">train_results</span><span class="p">,</span><span class="w"> </span><span class="n">batch_size</span><span class="p" data-group-id="6374566483-2">)</span><span class="w">
+
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="6374566483-3">(</span><span class="s">&quot;Total batches: </span><span class="si" data-group-id="6374566483-4">#{</span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="6374566483-5">(</span><span class="n">train_batches</span><span class="p" data-group-id="6374566483-5">)</span><span class="si" data-group-id="6374566483-4">}</span><span class="s">&quot;</span><span class="p" data-group-id="6374566483-3">)</span><span class="w">
+
+</span><span class="n">new_params</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">new_model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="6374566483-6">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="6374566483-7">(</span><span class="mf">0.001</span><span class="p" data-group-id="6374566483-7">)</span><span class="p" data-group-id="6374566483-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="6374566483-8">(</span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="6374566483-9">(</span><span class="n">train_batches</span><span class="p">,</span><span class="w"> </span><span class="n">result_batches</span><span class="p" data-group-id="6374566483-9">)</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6374566483-10">%{</span><span class="p" data-group-id="6374566483-10">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="6374566483-8">)</span><span class="w">
+
+</span><span class="ss">:ok</span></code></pre><h2 id="generate-text-with-the-new-network" class="section-heading">
+  <a href="#generate-text-with-the-new-network" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">generate-text-with-the-new-network</p>
+  </a>
+  Generate text with the new network
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="n">generate_fn</span><span class="o">.</span><span class="p" data-group-id="7089623178-1">(</span><span class="n">new_model</span><span class="p">,</span><span class="w"> </span><span class="n">new_params</span><span class="p">,</span><span class="w"> </span><span class="n">init_seq</span><span class="p" data-group-id="7089623178-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="7089623178-2">(</span><span class="p" data-group-id="7089623178-2">)</span></code></pre><p>As you may see, it improved a lot with this new model and the extensive training. This time it knows about rules like adding a space after period.</p><h2 id="references" class="section-heading">
+  <a href="#references" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">references</p>
+  </a>
+  References
+</h2>
+<p>The above example was written heavily inspired by <a href="https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/">this article</a> by Jason Brownlee.</p>
+<div class="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="horses_or_humans.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+Classifying horses and humans
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="credit_card_fraud.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Classifying fraudulent transactions
+        </span>
+      </a>
+
+  </div>
+</div>
+
+      <footer class="footer">
+
+          <p>
+            On Hex.pm:
+
+            <span class="line">
+              <a href="https://hex.pm/packages/axon/0.2.0" class="line footer-hex-package">Package</a>
+              <a href="https://preview.hex.pm/preview/axon/0.2.0" class="line">Preview</a>
+
+                <a href="https://preview.hex.pm/preview/axon/0.2.0/show/notebooks/text/lstm_generation.livemd">(current file)</a>
+
+            </span>
+
+            <button class="line footer-button display-quick-switch">
+              Search
+            </button>
+          </p>
+
+        <p>
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.5) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+      ]
+    });
+  });
+</script>
+
+  </body>
+</html>

@@ -36,7 +36,7 @@ events = [
 ]
 ```
 
-Axon packages a number of common loop event handlers for you out of the box. These handlers should cover most of the common event handlers you would need to write in practice. Axon also allows for custom event handlers. See [Writing custom event handlers](guides/training_and_evaluation/writing_custom_event_handlers.livemd) for more information.
+Axon packages a number of common loop event handlers for you out of the box. These handlers should cover most of the common event handlers you would need to write in practice. Axon also allows for custom event handlers. See [Writing custom event handlers](writing_custom_event_handlers.livemd) for more information.
 
 An event handler will take the current loop state at the time of the fired event, and alter or use it in someway before returning control back to the main loop execution. You can attach any of Axon's pre-packaged event handlers to a loop by using the function directly. For example, if you want to checkpoint loop state at the end of every epoch, you can use `Axon.Loop.checkpoint/2`:
 
