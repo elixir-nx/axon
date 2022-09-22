@@ -7,7 +7,8 @@ Mix.install([
   {:axon, "~> 0.2.0"},
   {:req, "~> 0.3.1"},
   {:kino, "~> 0.6.2"},
-  {:scidata, "~> 0.1.9"}
+  {:scidata, "~> 0.1.9"},
+  {:stb_image, "~> 0.5.2"}
 ])
 ```
 
@@ -233,28 +234,25 @@ form =
 
 Kino.render(form)
 
-task =
-  Task.start(fn ->
-    for %{data: %{test_image_index: image_index}} <- Kino.Control.stream(form) do
-      test_image = test_images[[images: image_index]] |> add_noise.()
+Kino.Control.stream(form, fn %{data: %{test_image_index: image_index}} ->
+  test_image = test_images[[images: image_index]] |> add_noise.()
 
-      reconstructed_image =
-        model
-        |> Axon.predict(params, test_image)
-        # Get rid of the batch dimension
-        |> Nx.squeeze(axes: [0])
+  reconstructed_image =
+    model
+    |> Axon.predict(params, test_image)
+    # Get rid of the batch dimension
+    |> Nx.squeeze(axes: [0])
 
-      combined_image = Nx.concatenate([test_image, reconstructed_image], axis: :width)
-      Kino.Frame.render(frame, Nx.to_heatmap(combined_image))
-    end
-  end)
+  combined_image = Nx.concatenate([test_image, reconstructed_image], axis: :width)
+  Kino.Frame.render(frame, Nx.to_heatmap(combined_image))
+end)
 
 :ok
 ```
 
 That looks pretty good!
 
-I used a `Task` above to prevent the `Kino.Control.stream` from blocking execution of the rest of the notebook.
+Note we used `Kino.Control.stream/2` which runs asynchronously so we don't block execution of the rest of the notebook.
 
 <!-- livebook:{"branch_parent_index":2} -->
 
@@ -279,6 +277,25 @@ end
 Nx.to_heatmap(combined_input_output.(params, 0))
 ```
 
+It'd also be nice to have a prettier version of the output. Let's convert the heatmap to a png to make that happen.
+
+```elixir
+image_to_kino = fn image ->
+  image
+  |> Nx.multiply(255)
+  |> Nx.as_type(:u8)
+  |> Nx.transpose(axes: [:height, :width, :channels])
+  |> StbImage.from_nx()
+  |> StbImage.resize(200, 400)
+  |> StbImage.to_binary(:png)
+  |> Kino.Image.new(:png)
+end
+
+image_to_kino.(combined_input_output.(params, 0))
+```
+
+Much nicer!
+
 Once again we'll use `Kino.Frame` for dynamically updating output:
 
 ```elixir
@@ -289,7 +306,8 @@ render_example_handler = fn state ->
   # state.step_state[:model_state] contains the model params when this event is fired
   params = state.step_state[:model_state]
   image_index = Enum.random(0..(Nx.axis_size(test_images, :images) - 1))
-  Kino.Frame.append(frame, Nx.to_heatmap(combined_input_output.(params, image_index)))
+  image = combined_input_output.(params, image_index) |> image_to_kino.()
+  Kino.Frame.append(frame, image)
   {:continue, state}
 end
 
