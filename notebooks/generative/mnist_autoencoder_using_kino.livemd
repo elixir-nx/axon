@@ -208,13 +208,11 @@ Now that we have a model that theoretically has learned *something*, we'll see w
 
 ## Evaluation
 
-*A note on branching:*
+**A note on branching**
 
-This section is a branch because "stopping" execution of a cell cause the other cells in the notebook to enter an `Aborted` state and any state created by those cells is lost. This is because stopping execution stops the process that's executing the Livebook cells and holds the corresponing memory.
+By default, everything in Livebook runs sequentially in a single process. Stopping a running cell aborts that process and consequently all its state is lost. A **branching section** copies everything from its parent and runs in a separate process. Thanks to this **isolation**, when we stop a cell in a branching section, only the state within that section is gone.
 
-Since we just spent a bunch of time training the model and don't want to lose that memory state as we continue to experiment, we create a Section "branch". Creating a branch creates a new process with its own memory that's copied from the branch point. Stopping the cell within the branch only stops that the branch process and prevents the notebook from losing the state in the non branched sections.
-
-This does add some memory overhead, but it's worth it so we can experiment without fear.
+Since we just spent a bunch of time training the model and don't want to lose that memory state as we continue to experiment, we create a branching section. This does add some memory overhead, but it's worth it so we can experiment without fear!
 
 <!-- livebook:{"break_markdown":true} -->
 
