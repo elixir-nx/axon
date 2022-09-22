@@ -17,11 +17,11 @@ alias VegaLite, as: Vl
 
 In this notebook we try to create a model and learn it the **logical XOR**.
 
-Even though XOR seems like a trivial operation, it cannot be modeled using a single dense layer ([single-layer perceptron](https://en.wikipedia.org/wiki/Feedforward_neural_network#Single-layer_perceptron)). The underlying reason is that the classes in XOR are not linearly separable. We cannot draw a straight line to separate the points $(0,0)$, $(1,1)$ from the points $(0,1)$, $(1,0)$. To model this properly we need to turn to deep learning methods. They can separate data with much more complicated patterns within the data.
+Even though XOR seems like a trivial operation, it cannot be modeled using a single dense layer ([single-layer perceptron](https://en.wikipedia.org/wiki/Feedforward_neural_network#Single-layer_perceptron)). The underlying reason is that the classes in XOR are not linearly separable. We cannot draw a straight line to separate the points $(0,0)$, $(1,1)$ from the points $(0,1)$, $(1,0)$. To model this properly, we need to turn to deep learning methods. Deep learning is capable of learning non-linear relationships like XOR. 
 
 ## The model
 
-Let's start with the model. We need two inputs, since XOR has two operands, we then concatenate them into a single input vector with `Axon.concatenate/3`. Then we have one hidden layer and one output layer, both of them dense.
+Let's start with the model. We need two inputs, since XOR has two operands. We then concatenate them into a single input vector with `Axon.concatenate/3`. Then we have one hidden layer and one output layer, both of them dense.
 
 Note: the model is a sequential neural network. In Axon, we can conveniently create such a model by using the pipe operator (`|>`) to add layers one by one.
 
@@ -55,7 +55,7 @@ data =
   end)
 ```
 
-Here's how a sample batch looks like:
+Here's how a sample batch looks:
 
 ```elixir
 Enum.at(data, 0)
@@ -76,7 +76,7 @@ params =
 
 ## Trying the model
 
-Finally, we can test our model for sample data.
+Finally, we can test our model on sample data.
 
 ```elixir
 Axon.predict(model, params, %{
@@ -87,9 +87,9 @@ Axon.predict(model, params, %{
 
 Try other combinations of $x_1$ and $x_2$ and see what the output is. To improve the model performance, you can increase the number of training epochs.
 
-## Visualizing the model
+## Visualizing the model predictions
 
-The original XOR we modeled only works with binary values $0$ and $1$, however our model operates in continuous space. This means that we can give it $x_1 = 0.5$, $x_2 = 0.5$ as input and we expect _some_ output. We can use this
+The original XOR we modeled only works with binary values $0$ and $1$, however our model operates in continuous space. This means that we can give it $x_1 = 0.5$, $x_2 = 0.5$ as input and we expect _some_ output. We can use this to visualize the non-linear relationship between inputs $x_1$, $x_2$ and outputs that our model has learned.
 
 ```elixir
 # The number of points per axis, determines the resolution
