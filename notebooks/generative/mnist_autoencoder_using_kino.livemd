@@ -21,7 +21,7 @@ An autoencoder learns to recreate data it's seen in the dataset. For this notebo
 
 <!-- livebook:{"break_markdown":true} -->
 
-Following along with the [Fashion MNIST Autoencoder example](https://github.com/hanrelan/axon/blob/main/notebooks/generative/fashionmnist_autoencoder.livemd), we'll use [Scidata](https://github.com/elixir-nx/scidata) to download the MNIST dataset and then preprocess the data.
+Following along with the [Fashion MNIST Autoencoder example](fashionmnist_autoencoder.livemd), we'll use [Scidata](https://github.com/elixir-nx/scidata) to download the MNIST dataset and then preprocess the data.
 
 ```elixir
 # We're not going to use the labels so we'll ignore them
