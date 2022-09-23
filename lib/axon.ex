@@ -2698,6 +2698,7 @@ defmodule Axon do
 
   defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer) do
     initializer = initializer || :glorot_uniform
+    key = Nx.Random.key(:erlang.system_time()) |> Nx.backend_copy(Nx.Defn.Expr)
 
     name =
       case parent_name do
@@ -2710,7 +2711,7 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    fun = fn inputs, _opts ->
+    fun = fn inputs, opts ->
       shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
 
       case initializer do
@@ -2719,11 +2720,11 @@ defmodule Axon do
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          fun.(shape, {:f, 32})
+          fun.(shape, {:f, 32}, opts[:key])
       end
     end
 
-    layer(fun, [x], name: name, op_name: :recurrent_state)
+    layer(fun, [x], name: name, op_name: :recurrent_state, key: key)
   end
 
   @doc """
@@ -3565,14 +3566,14 @@ defmodule Axon do
     :ok
   end
 
-  defp validate_initializer!(initializer) when is_function(initializer, 2) do
+  defp validate_initializer!(initializer) when is_function(initializer, 3) do
     :ok
   end
 
   defp validate_initializer!(initializer) do
     raise ArgumentError,
           "initializer must be one of #{inspect(@valid_initializers)}," <>
-            " or an arity-2 function accepting initializer shape and type" <>
+            " or an arity-3 function accepting initializer shape, type, and key" <>
             " got #{inspect(initializer)}"
   end
 
