@@ -231,7 +231,8 @@ defmodule Axon do
     :policy,
     :hooks,
     :opts,
-    :op_name
+    :op_name,
+    :stacktrace
   ]
 
   @doc """
@@ -277,6 +278,9 @@ defmodule Axon do
 
     {id, name} = unique_identifiers(op_name, name)
 
+    {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
+      Process.info(self(), :current_stacktrace)
+
     %Axon{
       id: id,
       name: name,
@@ -287,7 +291,8 @@ defmodule Axon do
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
       opts: opts,
-      op_name: op_name
+      op_name: op_name,
+      stacktrace: stacktrace
     }
   end
 
