@@ -533,14 +533,7 @@ defmodule Axon.Compiler do
       # in Axon.Layers. The implication of this is that every function which
       # can be invoked as a layer must have a definition in Axon.Layers even
       # if there is a distinction (e.g. with activations)
-      result =
-        case op do
-          op when is_function(op) ->
-            apply(op, args)
-
-          op when is_atom(op) ->
-            apply(Axon.Layers, op, args)
-        end
+      result = apply_layer(name, op, args)
 
       result =
         case result do
@@ -577,6 +570,45 @@ defmodule Axon.Compiler do
       {out, {state, result_cache}}
     end
   end
+
+  defp apply_layer(name, op, args) do
+    try do
+      case op do
+        op when is_function(op) ->
+          apply(op, args)
+
+        op when is_atom(op) ->
+          apply(Axon.Layers, op, args)
+      end
+    rescue
+      e ->
+        {inside_apply, outside_apply} =
+          Enum.split_while(__STACKTRACE__, fn {mod, fun, _arity, _info} ->
+            mod != __MODULE__ and fun != :apply_layer
+          end)
+
+        info = [file: ~c"expanding Axon layer #{name}"]
+
+        middle =
+          case op do
+            op when is_function(op) ->
+              {:module, module} = Function.info(op, :module)
+              {:name, name} = Function.info(op, :name)
+              {module, name, length(args), info}
+
+            op when is_atom(op) ->
+              {Axon.Layers, op, length(args), info}
+          end
+
+        reraise e, inside_apply ++ [middle | dedup_compiler_stacktrace(outside_apply)]
+    end
+  end
+
+  defp dedup_compiler_stacktrace([{__MODULE__, _, _, _}, {__MODULE__, _, _, _} = h | t]),
+    do: dedup_compiler_stacktrace([h | t])
+
+  defp dedup_compiler_stacktrace(list),
+    do: list
 
   defp layer_init_fun(
          template,

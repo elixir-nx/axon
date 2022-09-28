@@ -99,6 +99,26 @@ defmodule CompilerTest do
       assert Exception.message(exception) =~
                "unable to find input"
     end
+
+    test "raises helpful stacktraces" do
+      input = Axon.input("input")
+      x1 = Axon.dense(input, 32)
+      x2 = Axon.dense(input, 64)
+      model = Axon.add(x1, x2)
+
+      {init_fn, _predict_fn} = Axon.build(model)
+
+      try do
+        init_fn.(Nx.template({1, 16}, :f32), %{})
+        flunk("init should have failed")
+      rescue
+        _ ->
+          assert Enum.find(__STACKTRACE__, fn {module, fun, arity, info} ->
+                   module == Axon.Layers and fun == :add and arity == 2 and
+                     info[:file] == ~c"expanding Axon layer add_0"
+                 end)
+      end
+    end
   end
 
   describe "optional" do
