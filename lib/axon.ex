@@ -231,7 +231,8 @@ defmodule Axon do
     :policy,
     :hooks,
     :opts,
-    :op_name
+    :op_name,
+    :meta
   ]
 
   @doc """
@@ -287,7 +288,8 @@ defmodule Axon do
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
       opts: opts,
-      op_name: op_name
+      op_name: op_name,
+      meta: Process.info(self(), :current_stacktrace)
     }
   end
 
