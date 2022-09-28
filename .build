@@ -22,6 +22,7 @@
 /home/runner/work/axon/axon/doc/your_first_training_loop.livemd
 404.html
 Axon.Activations.html
+Axon.CompileError.html
 Axon.Display.html
 Axon.Initializers.html
 Axon.Layers.html
@@ -51,8 +52,8 @@ dist/html/fonts/remixicon.svg
 dist/html/fonts/remixicon.ttf
 dist/html/fonts/remixicon.woff
 dist/html/fonts/remixicon.woff2
-dist/search_items-9aa2ab05e8.js
-dist/sidebar_items-f3195f5054.js
+dist/search_items-2042cced3f.js
+dist/sidebar_items-3aeee860e4.js
 fashionmnist_autoencoder.html
 horses_or_humans.html
 index.html

@@ -7,7 +7,7 @@
     <meta name="generator" content="ExDoc v0.28.5">
     <meta name="project" content="Axon v0.2.0">
 
-    <title>Axon.StatefulOutput — Axon v0.2.0</title>
+    <title>Axon.CompileError — Axon v0.2.0</title>
     <link rel="stylesheet" href="dist/elixir-64c5e2b63575bddb1c5b.css" />
 
     <script src="dist/sidebar_items-3aeee860e4.js"></script>
@@ -98,32 +98,81 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/stateful_output.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/compiler.ex#L1" title="View Source" class="view-source" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
-  <span translate="no">Axon.StatefulOutput</span> 
+  <span translate="no">Axon.CompileError</span> <small>exception</small>
   <small class="app-vsn" translate="no">(Axon v0.2.0)</small>
 
 </h1>
 
 
-  <section id="moduledoc">
-<p>Container for returning stateful outputs from Axon layers.</p><p>Some layers, such as <a href="Axon.html#batch_norm/2"><code class="inline">Axon.batch_norm/2</code></a>, keep a running internal
-state which is updated continuously at train time and used statically
-at inference time. In order for the Axon compiler to differentiate
-ordinary layer outputs from internal state, you must mark output
-as stateful.</p><p>Stateful Outputs consist of two fields:</p><pre><code class="makeup elixir" translate="no"><span class="ss">:output</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Actual</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">forwarded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="n">layer</span><span class="w">
-</span><span class="ss">:state</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Internal</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">tracked</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">updated</span></code></pre><p><code class="inline">:output</code> is simply forwarded to the next layer. <code class="inline">:state</code> is aggregated
-with other stateful outputs, and then is treated specially by internal
-Axon training functions such that update state parameters reflect returned
-values from stateful outputs.</p><p><code class="inline">:state</code> must be a map with keys that map directly to layer internal
-state names. For example, <code class="inline">Axon.Layers.batch_norm</code> returns StatefulOutput
-with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&quot;</code> and <code class="inline">&quot;var&quot;</code>.</p>
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+      Summary
+    </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#message/1" translate="no">message(exception)</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/elixir/Exception.html#c:message/1"><code class="inline">Exception.message/1</code></a>.</p></div>
+
+      </div>
+
+  </div>
+
   </section>
 
 
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+Functions
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="message/1">
+
+  <div class="detail-header">
+    <a href="#message/1" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">message(exception)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/compiler.ex#L4" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/elixir/Exception.html#c:message/1"><code class="inline">Exception.message/1</code></a>.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
 
       <footer class="footer">
 
@@ -134,7 +183,7 @@ with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&
               <a href="https://hex.pm/packages/axon/0.2.0" class="line footer-hex-package">Package</a>
               <a href="https://preview.hex.pm/preview/axon/0.2.0" class="line">Preview</a>
 
-                <a href="https://preview.hex.pm/preview/axon/0.2.0/show/lib/axon/stateful_output.ex">(current file)</a>
+                <a href="https://preview.hex.pm/preview/axon/0.2.0/show/lib/axon/compiler.ex">(current file)</a>
 
             </span>
 
