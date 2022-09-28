@@ -200,19 +200,6 @@ defmodule KinoAxon do
       |> Kino.VegaLite.new()
       |> Kino.render()
 
-    # |> Vl.layers([
-    #   Vl.new()
-    #   |> Vl.mark(:point, tooltip: true)
-    #   |> Vl.encode_field(:x, "epoch", type: :ordinal)
-    #   |> Vl.encode_field(:y, "loss", type: :quantitative),
-    #   Vl.new()
-    #   |> Vl.mark(:point, tooltip: true)
-    #   |> Vl.encode_field(:x, "epoch", type: :ordinal)
-    #   |> Vl.encode_field(:y, "val_loss", type: :quantitative)
-    # ])
-    # |> Kino.VegaLite.new()
-    # |> Kino.render()
-
     handler = fn state ->
       %Axon.Loop.State{metrics: metrics, epoch: epoch} = state
       loss = metrics["loss"] |> Nx.to_number()
