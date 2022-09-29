@@ -14,6 +14,11 @@ Mix.install([
 ])
 
 alias VegaLite, as: Vl
+
+# This speeds up all our `Nx` operations without having to use `defn`
+Nx.global_default_backend(EXLA.Backend)
+
+:ok
 ```
 
 ## Introduction
@@ -66,11 +71,13 @@ defmodule Data do
   end
 
   @doc """
-  Converts a tensor of images into paired, batched images for model training
+  Converts a tensor of images into random batches of paired images for model training
   """
   def prepare_training_data(images, batch_size) do
-    batched_images = images |> Nx.to_batched(batch_size)
-    Stream.zip(batched_images, batched_images)
+    Stream.flat_map([nil], fn nil ->
+      images |> Nx.shuffle(axis: :images) |> Nx.to_batched(batch_size)
+    end)
+    |> Stream.map(fn batch -> {batch, batch} end)
   end
 end
 ```
