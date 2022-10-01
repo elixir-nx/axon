@@ -1,3 +1,25 @@
+defmodule Axon.CompileError do
+  defexception [:exception, :name, :mfa, :layer_stacktrace, :compile_stacktrace]
+
+  def message(exception) do
+    {module, fun, arity} = exception.mfa
+    formatted_mfa = Exception.format_mfa(module, fun, arity)
+    formatted_msg = Exception.format(:error, exception.exception, exception.compile_stacktrace)
+
+    """
+    exception found when compiling layer #{formatted_mfa} named #{exception.name}:
+
+        #{indent(formatted_msg)}
+    The layer was defined at:
+
+    #{Exception.format_stacktrace(exception.layer_stacktrace)}
+    Compiling of the model was initiated at:
+    """
+  end
+
+  defp indent(msg), do: String.replace(msg, "\n", "\n    ")
+end
+
 defmodule Axon.Compiler do
   @moduledoc false
   require Logger
@@ -22,18 +44,23 @@ defmodule Axon.Compiler do
       Logger.debug("Axon finished graph traversal in #{us_to_ms(time)}ms")
     end
 
-    predict_fn = fn params, inputs ->
+    predict_fun = fn params, inputs ->
+      {:current_stacktrace, [_process_info, _fn | stacktrace]} =
+        Process.info(self(), :current_stacktrace)
+
       {time, result} =
         :timer.tc(fn ->
           case mode do
             :train ->
               {pred_expr, {state_expr, _}} =
-                cache[root_id][:predict].(params, inputs, %{}, cache, %{})
+                cache[root_id][:predict].(params, inputs, %{}, cache, %{}, stacktrace)
 
               %{prediction: pred_expr, state: state_expr}
 
             :inference ->
-              {pred_expr, _} = cache[root_id][:predict].(params, inputs, %{}, cache, %{})
+              {pred_expr, _} =
+                cache[root_id][:predict].(params, inputs, %{}, cache, %{}, stacktrace)
+
               pred_expr
           end
         end)
@@ -52,10 +79,13 @@ defmodule Axon.Compiler do
       result
     end
 
-    init_fn = fn template, init_params ->
+    init_fun = fn template, init_params ->
+      {:current_stacktrace, [_process_info, _fn | stacktrace]} =
+        Process.info(self(), :current_stacktrace)
+
       {time, params} =
         :timer.tc(fn ->
-          {_, {params, _}} = cache[root_id][:init].(template, cache, %{})
+          {_, {params, _}} = cache[root_id][:init].(template, cache, %{}, stacktrace)
           params
         end)
 
@@ -68,7 +98,7 @@ defmodule Axon.Compiler do
       params
     end
 
-    {init_fn, predict_fn}
+    {init_fun, predict_fun}
   end
 
   defp merge_params!(params, init_params) do
@@ -105,7 +135,7 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp call_predict_cache(parent_id, params, inputs, state, cache, result_cache) do
+  defp call_predict_cache(parent_id, params, inputs, state, cache, result_cache, fn_stacktrace) do
     key = {:predict_cache, parent_id}
 
     case result_cache do
@@ -114,13 +144,13 @@ defmodule Axon.Compiler do
 
       %{} ->
         {expr, {state, result_cache}} =
-          cache[parent_id][:predict].(params, inputs, state, cache, result_cache)
+          cache[parent_id][:predict].(params, inputs, state, cache, result_cache, fn_stacktrace)
 
         {expr, {state, Map.put(result_cache, key, {expr, state})}}
     end
   end
 
-  defp call_init_cache(parent_id, template, params, cache, result_cache) do
+  defp call_init_cache(parent_id, template, params, cache, result_cache, fn_stacktrace) do
     key = {:init_cache, parent_id}
 
     {parent_shape, {parent_params, result_cache}} =
@@ -130,7 +160,7 @@ defmodule Axon.Compiler do
 
         %{} ->
           {parent_shape, {parent_params, result_cache}} =
-            cache[parent_id][:init].(template, cache, result_cache)
+            cache[parent_id][:init].(template, cache, result_cache, fn_stacktrace)
 
           {parent_shape,
            {parent_params, Map.put(result_cache, key, {parent_shape, parent_params})}}
@@ -148,12 +178,12 @@ defmodule Axon.Compiler do
 
     tensor = Nx.backend_copy(tensor, Nx.Defn.Expr)
 
-    predict_fun = fn _params, _inputs, state, _cache, result_cache ->
+    predict_fun = fn _params, _inputs, state, _cache, result_cache, _fn_stacktrace ->
       out = safe_as_type(tensor, output)
       {out, {state, result_cache}}
     end
 
-    init_fun = fn _template, _cache, result_cache ->
+    init_fun = fn _template, _cache, result_cache, _fn_stacktrace ->
       {Nx.shape(tensor), {%{}, result_cache}}
     end
 
@@ -176,7 +206,7 @@ defmodule Axon.Compiler do
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
 
-    predict_fun = fn _params, inputs, state, _cache, result_cache ->
+    predict_fun = fn _params, inputs, state, _cache, result_cache, _fn_stacktrace ->
       value = get_input(inputs, name, optional?)
 
       # TODO: Add this back in
@@ -190,7 +220,7 @@ defmodule Axon.Compiler do
       {res, {state, result_cache}}
     end
 
-    init_fun = fn template, _cache, result_cache ->
+    init_fun = fn template, _cache, result_cache, _fn_stacktrace ->
       input = get_input(template, name, optional?)
       {safe_shape(input), {%{}, result_cache}}
     end
@@ -207,18 +237,18 @@ defmodule Axon.Compiler do
        ) do
     {parent_id, {cache, op_counts, key}} = to_model_funs(parent, {cache, op_counts, key}, mode)
 
-    predict_fun = fn params, inputs, state, cache, result_cache ->
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {out, {state, result_cache}} =
-        call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+        call_predict_cache(parent_id, params, inputs, state, cache, result_cache, fn_stacktrace)
 
       out = with %Axon.None{} <- out, do: %Axon.None{__propagate__: false}
 
       {out, {state, result_cache}}
     end
 
-    init_fun = fn template, cache, result_cache ->
+    init_fun = fn template, cache, result_cache, fn_stacktrace ->
       {out, {params, result_cache}} =
-        call_init_cache(parent_id, template, %{}, cache, result_cache)
+        call_init_cache(parent_id, template, %{}, cache, result_cache, fn_stacktrace)
 
       out = with %Axon.None{} <- out, do: %Axon.None{__propagate__: false}
 
@@ -240,14 +270,22 @@ defmodule Axon.Compiler do
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
 
-    predict_fun = fn params, inputs, state, cache, result_cache ->
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {input, {state, result_cache, none?}} =
         deep_map_reduce(
           parent_ids,
           {state, result_cache, false},
           fn parent_id, {state, result_cache, none?} ->
             {input, {state, result_cache}} =
-              call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+              call_predict_cache(
+                parent_id,
+                params,
+                inputs,
+                state,
+                cache,
+                result_cache,
+                fn_stacktrace
+              )
 
             none? = none? or propagating_none?(input)
             {input, {state, result_cache, none?}}
@@ -259,12 +297,12 @@ defmodule Axon.Compiler do
       {input, {state, result_cache}}
     end
 
-    init_fun = fn template, cache, result_cache ->
+    init_fun = fn template, cache, result_cache, fn_stacktrace ->
       {parent_shape, {parent_params, result_cache, none?}} =
         deep_map_reduce(parent_ids, {%{}, result_cache, false}, fn
           parent_id, {params, result_cache, none?} ->
             {parent_shape, {params, result_cache}} =
-              call_init_cache(parent_id, template, params, cache, result_cache)
+              call_init_cache(parent_id, template, params, cache, result_cache, fn_stacktrace)
 
             none? = none? or propagating_none?(parent_shape)
             {parent_shape, {params, result_cache, none?}}
@@ -305,7 +343,7 @@ defmodule Axon.Compiler do
 
     # The function just returns the result of it's child,
     # or parent depending on how you view the tree
-    predict_fun = fn params, inputs, state, cache, result_cache ->
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       # We're only concerned with this namespaces parameters, so we pair
       # down parameters first given the namespace
       namespace_params = params[name]
@@ -314,14 +352,22 @@ defmodule Axon.Compiler do
       # TODO: I think we can actually handle parameter freezing and access
       # better here by only forwarding params[namespace] to the child function
       {out, {state, result_cache}} =
-        call_predict_cache(parent_id, namespace_params, inputs, state, cache, result_cache)
+        call_predict_cache(
+          parent_id,
+          namespace_params,
+          inputs,
+          state,
+          cache,
+          result_cache,
+          fn_stacktrace
+        )
 
       {out, {state, result_cache}}
     end
 
-    init_fun = fn template, cache, result_cache ->
+    init_fun = fn template, cache, result_cache, fn_stacktrace ->
       {_parent_shape, {namespace_params, result_cache}} =
-        call_init_cache(parent_id, template, %{}, cache, result_cache)
+        call_init_cache(parent_id, template, %{}, cache, result_cache, fn_stacktrace)
 
       params =
         if namespace_params == %{} do
@@ -330,7 +376,8 @@ defmodule Axon.Compiler do
           %{name => namespace_params}
         end
 
-      {pred_expr, {_, result_cache}} = predict_fun.(params, template, %{}, cache, result_cache)
+      {pred_expr, {_, result_cache}} =
+        predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
 
       {safe_shape(pred_expr), {params, result_cache}}
     end
@@ -352,7 +399,8 @@ defmodule Axon.Compiler do
            opts: opts,
            policy: policy,
            hooks: hooks,
-           op_name: op_name
+           op_name: op_name,
+           stacktrace: stacktrace
          },
          cache_counts_key,
          mode
@@ -382,6 +430,7 @@ defmodule Axon.Compiler do
         &3,
         &4,
         &5,
+        &6,
         op,
         parent_ids,
         name,
@@ -390,7 +439,8 @@ defmodule Axon.Compiler do
         policy,
         layer_params,
         hooks,
-        mode
+        mode,
+        stacktrace
       )
 
     keys = Nx.Random.split(key)
@@ -401,6 +451,7 @@ defmodule Axon.Compiler do
         &1,
         &2,
         &3,
+        &4,
         parent_ids,
         name,
         predict_fun,
@@ -460,6 +511,7 @@ defmodule Axon.Compiler do
          state,
          cache,
          result_cache,
+         fn_stacktrace,
          op,
          parent_ids,
          name,
@@ -468,7 +520,8 @@ defmodule Axon.Compiler do
          %{output: output, compute: compute},
          layer_params,
          hooks,
-         mode
+         mode,
+         layer_stacktrace
        ) do
     # Recurse graph inputs and invoke cache to get parent results,
     # state, and result_cache and then apply dtype policy and hooks
@@ -479,7 +532,15 @@ defmodule Axon.Compiler do
         {state, result_cache, false},
         fn parent_id, {state, result_cache, none?} ->
           {layer_input, {state, result_cache}} =
-            call_predict_cache(parent_id, params, inputs, state, cache, result_cache)
+            call_predict_cache(
+              parent_id,
+              params,
+              inputs,
+              state,
+              cache,
+              result_cache,
+              fn_stacktrace
+            )
 
           none? = none? or propagating_none?(layer_input)
 
@@ -533,14 +594,7 @@ defmodule Axon.Compiler do
       # in Axon.Layers. The implication of this is that every function which
       # can be invoked as a layer must have a definition in Axon.Layers even
       # if there is a distinction (e.g. with activations)
-      result =
-        case op do
-          op when is_function(op) ->
-            apply(op, args)
-
-          op when is_atom(op) ->
-            apply(Axon.Layers, op, args)
-        end
+      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace)
 
       result =
         case result do
@@ -578,10 +632,52 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace) do
+    try do
+      case op do
+        op when is_function(op) ->
+          apply(op, args)
+
+        op when is_atom(op) ->
+          apply(Axon.Layers, op, args)
+      end
+    rescue
+      exception ->
+        # outside_apply is the internal compiler stacktrace.
+        # Print it when debugging compiler bugs.
+        {inside_apply, _outside_apply} =
+          Enum.split_while(__STACKTRACE__, fn {mod, fun, _arity, _info} ->
+            mod != __MODULE__ and fun != :apply_layer
+          end)
+
+        mfa =
+          case op do
+            op when is_function(op) ->
+              {:module, module} = Function.info(op, :module)
+              {:name, name} = Function.info(op, :name)
+              {module, name, length(args)}
+
+            op when is_atom(op) ->
+              {Axon.Layers, op, length(args)}
+          end
+
+        reraise Axon.CompileError,
+                [
+                  exception: exception,
+                  name: name,
+                  mfa: mfa,
+                  layer_stacktrace: layer_stacktrace,
+                  compile_stacktrace: inside_apply
+                ],
+                fn_stacktrace
+    end
+  end
+
   defp layer_init_fun(
          template,
          cache,
          result_cache,
+         fn_stacktrace,
          parent_ids,
          name,
          predict_fun,
@@ -594,7 +690,7 @@ defmodule Axon.Compiler do
       Enum.map_reduce(parent_ids, {%{}, result_cache, false}, fn
         parent_id, {params, result_cache, none?} ->
           {parent_shape, {params, result_cache}} =
-            call_init_cache(parent_id, template, params, cache, result_cache)
+            call_init_cache(parent_id, template, params, cache, result_cache, fn_stacktrace)
 
           none? = none? or propagating_none?(parent_shape)
           {parent_shape, {params, result_cache, none?}}
@@ -617,7 +713,8 @@ defmodule Axon.Compiler do
           Map.put(parent_params, name, layer_params)
         end
 
-      {pred_expr, {_, result_cache}} = predict_fun.(params, template, %{}, cache, result_cache)
+      {pred_expr, {_, result_cache}} =
+        predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
 
       {safe_shape(pred_expr), {params, result_cache}}
     end

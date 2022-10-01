@@ -99,6 +99,24 @@ defmodule CompilerTest do
       assert Exception.message(exception) =~
                "unable to find input"
     end
+
+    test "raises helpful error messages" do
+      input = Axon.input("input")
+      x1 = Axon.dense(input, 32)
+      x2 = Axon.dense(input, 64)
+      model = Axon.add(x1, x2)
+
+      {init_fn, _predict_fn} = Axon.build(model)
+      %Axon.CompileError{} = exception = catch_error(init_fn.(Nx.template({1, 16}, :f32), %{}))
+
+      message = Exception.message(exception)
+      assert message =~ "exception found when compiling layer Axon.Layers.add/2 named add_0"
+      assert message =~ "cannot broadcast tensor of dimensions {1, 32} to {1, 64}"
+      assert message =~ "cannot broadcast tensor of dimensions {1, 32} to {1, 64}"
+      assert message =~ "The layer was defined at:"
+      assert message =~ "test/axon/compiler_test.exs:#{__ENV__.line - 10}: CompilerTest.\"test"
+      assert message =~ "Compiling of the model was initiated at:"
+    end
   end
 
   describe "optional" do
@@ -4117,7 +4135,7 @@ defmodule CompilerTest do
 
     test "raises on bad shapes" do
       for op <- @binary_layers do
-        assert_raise ArgumentError, ~r/cannot broadcast tensor/, fn ->
+        assert_raise Axon.CompileError, ~r/cannot broadcast tensor/, fn ->
           inp1 = Nx.random_uniform({1, 32})
           inp2 = Nx.random_uniform({1, 64})
 
@@ -4348,7 +4366,7 @@ defmodule CompilerTest do
 
       model = Axon.cond(inp, cond_fn, on_true, on_false)
 
-      assert_raise ArgumentError, ~r/cond_fn must return a scalar/, fn ->
+      assert_raise Axon.CompileError, ~r/cond_fn must return a scalar/, fn ->
         {_, predict_fn} = Axon.build(model)
         predict_fn.(%{}, Nx.random_uniform({1, 1, 10}))
       end
