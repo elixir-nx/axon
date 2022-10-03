@@ -99,7 +99,8 @@ defmodule AxonTestUtil do
 
   def zeros(shape) do
     fun = Axon.Initializers.zeros()
-    fun.(shape, {:f, 32}, Nx.Random.key(1))
+    {_, out} = fun.(shape, {:f, 32}, Nx.Random.key(1))
+    out
   end
 
   defp check_optimizer_functions!(optimizer) do

@@ -134,7 +134,8 @@ defmodule Axon.Shared do
       params,
       &deep_new(&1, fn x ->
         fun = Axon.Initializers.zeros()
-        fun.(Nx.shape(x), Nx.type(x), 1)
+        {_, out} = fun.(Nx.shape(x), Nx.type(x), 1)
+        out
       end)
     )
   end
@@ -147,7 +148,8 @@ defmodule Axon.Shared do
       params,
       &deep_new(&1, fn x ->
         fun = Axon.Initializers.full(value)
-        fun.(Nx.shape(x), Nx.type(x), 1)
+        {_, out} = fun.(Nx.shape(x), Nx.type(x), 1)
+        out
       end)
     )
   end

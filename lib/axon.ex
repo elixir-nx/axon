@@ -2723,11 +2723,13 @@ defmodule Axon do
 
       case initializer do
         fun when is_function(fun) ->
-          fun.(shape)
+          {_, out} = fun.(shape)
+          out
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          fun.(shape, {:f, 32}, opts[:key])
+          {_, out} = fun.(shape, {:f, 32}, opts[:key])
+          out
       end
     end
 
