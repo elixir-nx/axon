@@ -222,17 +222,8 @@ defmodule Axon do
   @type t :: %__MODULE__{}
 
   defstruct [
-    :id,
-    :name,
-    :parent,
-    :parameters,
-    :args,
-    :op,
-    :policy,
-    :hooks,
-    :opts,
-    :op_name,
-    :stacktrace
+    :nodes,
+    :output
   ]
 
   @doc """
@@ -267,21 +258,27 @@ defmodule Axon do
   """
   @doc type: :special
   def layer(op, inputs, opts \\ []) when (is_atom(op) or is_function(op)) and is_list(inputs) do
-    {inputs, params, args} = split_inputs(op, inputs)
+    {inputs, params, args, updated_nodes} = split_inputs(op, inputs)
 
     inputs = Enum.reverse(inputs)
     params = Enum.reverse(params)
     args = Enum.reverse(args)
 
     {name, opts} = Keyword.pop(opts, :name)
-    {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
+    {op_name, layer_opts} = Keyword.pop(opts, :op_name, :custom)
 
     {id, name} = unique_identifiers(op_name, name)
 
+    axon_node = make_node(id, op, name, op_name, inputs, params, args, layer_opts)
+
+    %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
+  end
+
+  defp make_node(id, op, name, op_name, inputs, params, args, layer_opts) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
-    %Axon{
+    %Axon.Node{
       id: id,
       name: name,
       parent: inputs,
@@ -290,23 +287,28 @@ defmodule Axon do
       op: op,
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
-      opts: opts,
+      opts: layer_opts,
       op_name: op_name,
       stacktrace: stacktrace
     }
   end
 
   defp split_inputs(:container, [inputs]) do
-    {[inputs], [], [:layer]}
+    {inputs, cache} =
+      deep_map_reduce(inputs, %{}, fn %Axon{output: id, nodes: nodes}, cache ->
+        {id, Map.merge(nodes, cache)}
+      end)
+
+    {[inputs], [], [:layer], cache}
   end
 
   defp split_inputs(_op, inputs) do
-    Enum.reduce(inputs, {[], [], []}, fn
-      %Axon{} = layer, {layers, params, args} ->
-        {[layer | layers], params, [:layer | args]}
+    Enum.reduce(inputs, {[], [], [], %{}}, fn
+      %Axon{output: layer_input, nodes: nodes}, {layers, params, args, cache} ->
+        {[layer_input | layers], params, [:layer | args], Map.merge(nodes, cache)}
 
-      %Parameter{} = param, {layers, params, args} ->
-        {layers, [param | params], [:parameter | args]}
+      %Parameter{} = param, {layers, params, args, cache} ->
+        {layers, [param | params], [:parameter | args], cache}
 
       invalid, _ ->
         raise ArgumentError, "invalid input given to layer: #{inspect(invalid)}"
@@ -2818,17 +2820,17 @@ defmodule Axon do
   @doc type: :model
   def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
     parameters =
-      reduce_nodes(model, MapSet.new(), fn %Axon{} = axon, acc ->
-        Enum.reduce(get_parameters(axon), acc, fn param, acc ->
+      reduce_nodes(model, MapSet.new(), fn %Axon.Node{parameters: params}, acc ->
+        Enum.reduce(params, acc, fn param, acc ->
           MapSet.put(acc, param)
         end)
       end)
 
     parameters_to_freeze = fun.(Enum.to_list(parameters))
 
-    map_nodes(model, fn %Axon{} = axon ->
+    map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
       frozen_params =
-        Enum.map(get_parameters(axon), fn %{id: param_id} = v ->
+        Enum.map(params, fn %{id: param_id} = v ->
           if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
             %{v | frozen: true}
           else
@@ -2836,7 +2838,7 @@ defmodule Axon do
           end
         end)
 
-      set_parameters(axon, frozen_params)
+      %{axon_node | parameters: frozen_params}
     end)
   end
 
@@ -2888,41 +2890,23 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def attach_hook(%Axon{hooks: hooks} = axon, fun, opts \\ []) do
+  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts \\ []) do
     opts = Keyword.validate!(opts, on: :forward, mode: :both)
     on_event = opts[:on]
     mode = opts[:mode]
 
-    %{axon | hooks: [{on_event, mode, fun} | hooks]}
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        %{axon_node | hooks: [{on_event, mode, fun}]}
+      end)
+
+    %{axon | nodes: updated_nodes}
   end
 
   ## Graph Manipulation and Utilities
 
-  @doc """
-  Returns a node's immediate parent(s).
-
-  You can use this to slice off the heads of pre-trained
-  models, or to manipulate nodes other graph manipulation
-  APIs.
-  """
-  @doc type: :graph
-  def get_parent(%Axon{parent: [parent]}), do: parent
-
-  def get_parent(%Axon{op: :container, parent: parent}), do: parent
-
-  def get_parent(%Axon{parent: parents}), do: parents
-
-  @doc """
-  Sets a node's parent to the given Axon graph(s).
-
-  The new parents must be compatible with the original
-  parents of the given node. Note that replacing a node's
-  parent replaces it's entire lineage.
-  """
-  @doc type: :graph
-  def set_parent(%Axon{} = axon, %Axon{} = new_parent) do
-    %{axon | parent: List.wrap(new_parent)}
-  end
+  # TODO: Revisit later with new decoupled structs
+  # e.g. there should be a node API and graph API
 
   @doc """
   Returns a node's immediate parameters.
@@ -2932,7 +2916,9 @@ defmodule Axon do
   the immediate layer.
   """
   @doc type: :graph
-  def get_parameters(%Axon{parameters: params}), do: params
+  def get_parameters(%Axon{output: id, nodes: nodes}) do
+    Access.get(nodes, [id, :parameters])
+  end
 
   @doc """
   Sets a node's immediate parameters to the given
@@ -2946,9 +2932,14 @@ defmodule Axon do
   old parameters.
   """
   @doc type: :graph
-  def set_parameters(%Axon{parameters: _old_params} = axon, new_params) do
+  def set_parameters(%Axon{output: id, nodes: nodes} = axon, new_params) do
     # TODO: Check compatibility
-    %{axon | parameters: new_params}
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        %{axon_node | parameters: new_params}
+      end)
+
+    %{axon | nodes: updated_nodes}
   end
 
   @doc """
@@ -2959,7 +2950,9 @@ defmodule Axon do
   immediate layer.
   """
   @doc type: :graph
-  def get_options(%Axon{opts: opts}), do: opts
+  def get_options(%Axon{output: id, nodes: nodes}) do
+    Access.get(nodes, [id, :opts])
+  end
 
   @doc """
   Sets a node's immediate options to the given input
@@ -2974,8 +2967,13 @@ defmodule Axon do
   result in an error at graph execution time.
   """
   @doc type: :graph
-  def set_options(%Axon{opts: _old_opts} = axon, new_opts) do
-    %{axon | opts: new_opts}
+  def set_options(%Axon{output: id, nodes: nodes} = axon, new_opts) do
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        %{axon_node | opts: new_opts}
+      end)
+
+    %{axon | nodes: updated_nodes}
   end
 
   @doc """
@@ -2984,7 +2982,7 @@ defmodule Axon do
   @doc type: :graph
   def get_inputs(%Axon{} = axon) do
     reduce_nodes(axon, %{}, fn
-      %Axon{op: :input, name: name, opts: opts}, inputs ->
+      %Axon.Node{op: :input, name: name, opts: opts}, inputs ->
         name = name.(:input, %{})
         Map.put(inputs, name, opts[:shape])
 
@@ -3042,7 +3040,7 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
-    reduce_nodes(axon, %{}, fn %Axon{op: op}, op_counts ->
+    reduce_nodes(axon, %{}, fn %Axon.Node{op: op}, op_counts ->
       Map.update(op_counts, op, 1, fn x -> x + 1 end)
     end)
   end
@@ -3068,7 +3066,7 @@ defmodule Axon do
   you can use this function to visualize intermediate activations
   of all convolutional layers in a model:
 
-      instrumented_model = Axon.map_nodes(model, fn
+      instrumented_model = Axon.  (model, fn
         %Axon{op: :conv} = graph ->
           Axon.attach_hook(graph, &visualize_activations/1)
 
@@ -3093,41 +3091,9 @@ defmodule Axon do
 
   """
   @doc type: :graph
-  def map_nodes(%Axon{} = axon, fun) when is_function(fun, 1) do
-    {new_axon, _cache} = do_map_nodes(axon, %{}, fun)
-    new_axon
-  end
-
-  defp do_map_nodes(%Axon{id: id, op: op, parent: parents} = axon, cache, fun) do
-    case cache do
-      %{^id => result} ->
-        {result, cache}
-
-      %{} ->
-        {parents, cache} =
-          case {op, parents} do
-            {:container, [parents]} ->
-              deep_map_reduce(parents, cache, &do_map_nodes(&1, &2, fun))
-
-            {_, parents} ->
-              Enum.map_reduce(parents, cache, &do_map_nodes(&1, &2, fun))
-          end
-
-        new_node = fun.(axon)
-
-        unless is_struct(new_node, __MODULE__) do
-          raise ArgumentError,
-                "function passed to map_nodes must return an" <>
-                  " Axon struct, got #{inspect(new_node)}"
-        end
-
-        # New nodes need to retain the same ID as well as
-        # parents, because we depend on IDs to do certain
-        # graph traversals this is important
-        result = %{new_node | id: id, parent: List.wrap(parents)}
-
-        {result, Map.put(cache, id, result)}
-    end
+  def map_nodes(%Axon{nodes: nodes} = axon, fun) when is_function(fun, 1) do
+    updated_nodes = Map.new(nodes, fn {id, axon_node} -> {id, fun.(axon_node)} end)
+    %{axon | nodes: updated_nodes}
   end
 
   @doc """
@@ -3148,70 +3114,16 @@ defmodule Axon do
   of a certain type of operation in the graph:
 
       Axon.reduce_nodes(model, 0, fn
-        %Axon{op: :relu}, acc -> acc + 1
+        %Axon.Nodes{op: :relu}, acc -> acc + 1
         _, acc -> acc
-      end)
-
-  You can potentially use this method as a means of altering Axon
-  graphs themselves, though note that it is possible to end up with
-  a disconnected graph in the event something goes wrong. Here's an
-  example which removes all dropout layers from a graph:
-
-      Axon.reduce_nodes(model, nil, fn
-        %Axon{} = axon, nil ->
-          axon
-
-        %Axon{op: :dropout}, %Axon{} = acc ->
-          acc
-
-        %Axon{} = axon, %Axon{} = acc ->
-          Axon.set_parent(axon, acc)
       end)
 
   """
   @doc type: :graph
-  def reduce_nodes(%Axon{} = axon, acc, fun) when is_function(fun, 2) do
-    {acc, _visited} = do_reduce_nodes(axon, {acc, MapSet.new()}, fun)
-    acc
-  end
-
-  defp do_reduce_nodes(%Axon{id: id, op: op, parent: parents} = axon, {acc, visited}, fun) do
-    if MapSet.member?(visited, id) do
-      {acc, visited}
-    else
-      {acc, visited} =
-        case {op, parents} do
-          {:container, [parents]} ->
-            deep_reduce(parents, {acc, visited}, &do_reduce_nodes(&1, &2, fun))
-
-          {_, parents} ->
-            Enum.reduce(parents, {acc, visited}, &do_reduce_nodes(&1, &2, fun))
-        end
-
-      {fun.(axon, acc), MapSet.put(visited, id)}
-    end
-  end
-
-  # TODO: This should not be duplicated
-  defp deep_reduce(item, acc, fun) when is_integer(item) do
-    fun.(item, acc)
-  end
-
-  defp deep_reduce(map, acc, fun) do
-    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
-  end
-
-  defp recur_deep_reduce(value, acc, fun) do
-    case value do
-      %Axon{} = val ->
-        fun.(val, acc)
-
-      %Nx.Tensor{} = val ->
-        fun.(val, acc)
-
-      val ->
-        deep_reduce(val, acc, fun)
-    end
+  def reduce_nodes(%Axon{nodes: nodes}, acc, fun) when is_function(fun, 2) do
+    nodes
+    |> Map.values()
+    |> Enum.reduce(acc, fun)
   end
 
   defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
@@ -3424,7 +3336,7 @@ defmodule Axon do
   defimpl Inspect do
     import Inspect.Algebra
 
-    def inspect(%Axon{op_name: op_name, name: name_fn} = axon, opts) do
+    def inspect(%Axon{output: id, nodes: nodes} = axon, opts) do
       inputs =
         axon
         |> Axon.get_inputs()
@@ -3432,17 +3344,17 @@ defmodule Axon do
         |> Map.new()
 
       op_counts = Axon.get_op_counts(axon)
-      op_counts = Map.update(op_counts, op_name, 0, fn x -> x - 1 end)
-      output = name_fn.(op_name, op_counts)
+      %Axon.Node{op_name: op_name, name: name_fn} = nodes[id]
+      output_name = name_fn.(op_name, op_counts)
 
-      node_count = Axon.reduce_nodes(axon, 0, fn %Axon{}, acc -> acc + 1 end)
+      node_count = Enum.count(axon.nodes)
 
       inner =
         concat([
           line(),
           "inputs: #{inspect(inputs)}",
           line(),
-          "outputs: #{inspect(output)}",
+          "outputs: #{inspect(output_name)}",
           line(),
           "nodes: #{inspect(node_count)}"
         ])
@@ -3460,105 +3372,105 @@ defmodule Axon do
 
   ## Serialization
 
-  @doc """
-  Serializes a model and its parameters for persisting
-  models to disk or elsewhere.
+  # @doc """
+  # Serializes a model and its parameters for persisting
+  # models to disk or elsewhere.
 
-  Model and parameters are serialized as a tuple, where the
-  model is converted to a recursive map to ensure compatibility
-  with future Axon versions and the parameters are serialized
-  using `Nx.serialize/2`. There is some additional metadata included
-  such as current serialization version for compatibility.
+  # Model and parameters are serialized as a tuple, where the
+  # model is converted to a recursive map to ensure compatibility
+  # with future Axon versions and the parameters are serialized
+  # using `Nx.serialize/2`. There is some additional metadata included
+  # such as current serialization version for compatibility.
 
-  Serialization `opts` are forwarded to `Nx.serialize/2` and
-  `:erlang.term_to_binary/2` for controlling compression options.
+  # Serialization `opts` are forwarded to `Nx.serialize/2` and
+  # `:erlang.term_to_binary/2` for controlling compression options.
 
-  ## Examples
+  # ## Examples
 
-      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> {init_fn, _} = Axon.build(model)
-      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-      iex> serialized = Axon.serialize(model, params)
-      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> {_, predict_fn} = Axon.build(saved_model)
-      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-      #Nx.Tensor<
-        f32[1][1]
-        [
-          [0.0]
-        ]
-      >
+  #     iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+  #     iex> {init_fn, _} = Axon.build(model)
+  #     iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
+  #     iex> serialized = Axon.serialize(model, params)
+  #     iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+  #     iex> {_, predict_fn} = Axon.build(saved_model)
+  #     iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
+  #     #Nx.Tensor<
+  #       f32[1][1]
+  #       [
+  #         [0.0]
+  #       ]
+  #     >
 
-  """
-  @doc type: :model
-  def serialize(%Axon{} = model, params, opts \\ []) do
-    {model_meta, _op_counts} = axon_to_map(model, %{})
-    params = Nx.serialize(params, opts)
-    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
-  end
+  # """
+  # @doc type: :model
+  # def serialize(%Axon{} = model, params, opts \\ []) do
+  #   {model_meta, _op_counts} = axon_to_map(model, %{})
+  #   params = Nx.serialize(params, opts)
+  #   :erlang.term_to_binary({@file_version, model_meta, params}, opts)
+  # end
 
-  defp axon_to_map(%Axon{op: :container, name: name_fn, parent: [parents]} = model, op_counts) do
-    {parents, op_counts} = deep_map_reduce(parents, op_counts, &axon_to_map/2)
-    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    name = name_fn.(:container, op_counts)
-    op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
-    {%{axon_map | parent: List.wrap(parents), name: name}, op_counts}
-  end
+  # defp axon_to_map(%Axon{op: :container, name: name_fn, parent: [parents]} = model, op_counts) do
+  #   {parents, op_counts} = deep_map_reduce(parents, op_counts, &axon_to_map/2)
+  #   axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
+  #   name = name_fn.(:container, op_counts)
+  #   op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
+  #   {%{axon_map | parent: List.wrap(parents), name: name}, op_counts}
+  # end
 
-  defp axon_to_map(%Axon{op_name: op, parent: parents, name: name_fn} = model, op_counts) do
-    {parents, op_counts} = Enum.map_reduce(parents, op_counts, &axon_to_map/2)
-    axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-    name = name_fn.(op, op_counts)
-    op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-    {%{axon_map | parent: parents, name: name}, op_counts}
-  end
+  # defp axon_to_map(%Axon{op_name: op, parent: parents, name: name_fn} = model, op_counts) do
+  #   {parents, op_counts} = Enum.map_reduce(parents, op_counts, &axon_to_map/2)
+  #   axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
+  #   name = name_fn.(op, op_counts)
+  #   op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
+  #   {%{axon_map | parent: parents, name: name}, op_counts}
+  # end
 
-  @doc """
-  Deserializes serialized model and parameters into a `{model, params}`
-  tuple.
+  # @doc """
+  # Deserializes serialized model and parameters into a `{model, params}`
+  # tuple.
 
-  It is the opposite of `Axon.serialize/3`.
+  # It is the opposite of `Axon.serialize/3`.
 
-  ## Examples
+  # ## Examples
 
-      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> {init_fn, _} = Axon.build(model)
-      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-      iex> serialized = Axon.serialize(model, params)
-      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> {_, predict_fn} = Axon.build(saved_model)
-      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-      #Nx.Tensor<
-        f32[1][1]
-        [
-          [0.0]
-        ]
-      >
+  #     iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+  #     iex> {init_fn, _} = Axon.build(model)
+  #     iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
+  #     iex> serialized = Axon.serialize(model, params)
+  #     iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+  #     iex> {_, predict_fn} = Axon.build(saved_model)
+  #     iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
+  #     #Nx.Tensor<
+  #       f32[1][1]
+  #       [
+  #         [0.0]
+  #       ]
+  #     >
 
-  """
-  @doc type: :model
-  def deserialize(serialized, opts \\ []) do
-    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
-    model = map_to_axon(model_meta)
-    params = Nx.deserialize(serialized_params, opts)
-    {model, params}
-  end
+  # """
+  # @doc type: :model
+  # def deserialize(serialized, opts \\ []) do
+  #   {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
+  #   model = map_to_axon(model_meta)
+  #   params = Nx.deserialize(serialized_params, opts)
+  #   {model, params}
+  # end
 
-  defp map_to_axon(%{op: :container, parent: [parents], name: name} = model) do
-    parents = deep_new(parents, &map_to_axon/1)
-    model = Map.drop(model, [:axon])
-    name_fn = fn _, _ -> name end
-    model = %{model | parent: List.wrap(parents), name: name_fn}
-    struct(__MODULE__, model)
-  end
+  # defp map_to_axon(%{op: :container, parent: [parents], name: name} = model) do
+  #   parents = deep_new(parents, &map_to_axon/1)
+  #   model = Map.drop(model, [:axon])
+  #   name_fn = fn _, _ -> name end
+  #   model = %{model | parent: List.wrap(parents), name: name_fn}
+  #   struct(__MODULE__, model)
+  # end
 
-  defp map_to_axon(%{axon: :axon, parent: parents, name: name} = model) do
-    parents = Enum.map(parents, &map_to_axon/1)
-    model = Map.drop(model, [:axon])
-    name_fn = fn _, _ -> name end
-    model = %{model | parent: parents, name: name_fn}
-    struct(__MODULE__, model)
-  end
+  # defp map_to_axon(%{axon: :axon, parent: parents, name: name} = model) do
+  #   parents = Enum.map(parents, &map_to_axon/1)
+  #   model = Map.drop(model, [:axon])
+  #   name_fn = fn _, _ -> name end
+  #   model = %{model | parent: parents, name: name_fn}
+  #   struct(__MODULE__, model)
+  # end
 
   ## Helpers
 

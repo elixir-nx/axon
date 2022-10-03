@@ -29,13 +29,15 @@ defmodule Axon.Display do
 
       Axon.Display.as_table(model, input)
   """
-  def as_table(%Axon{} = axon, input_templates) do
+  def as_table(%Axon{output: id, nodes: nodes}, input_templates) do
     assert_table_rex!("ax_table/2")
 
     title = "Model"
     header = ["Layer", "Input Shape", "Output Shape", "Options", "Parameters"]
     model_info = %{num_params: 0, total_param_byte_size: 0}
-    {_, _, _, cache, _, model_info} = axon_to_rows(axon, input_templates, %{}, %{}, model_info)
+
+    {_, _, _, cache, _, model_info} =
+      axon_to_rows(id, nodes, input_templates, %{}, %{}, model_info)
 
     rows =
       cache
@@ -72,14 +74,16 @@ defmodule Axon.Display do
     end
   end
 
-  defp axon_to_rows(%{id: id, op_name: op_name} = graph, templates, cache, op_counts, model_info) do
+  defp axon_to_rows(id, nodes, templates, cache, op_counts, model_info) do
     case cache do
       %{^id => {row, name, shape}} ->
         {row, name, shape, cache, op_counts, model_info}
 
       %{} ->
+        %Axon.Node{op_name: op_name} = axon_node = nodes[id]
+
         {row, name, shape, cache, op_counts, model_info} =
-          do_axon_to_rows(graph, templates, cache, op_counts, model_info)
+          do_axon_to_rows(axon_node, nodes, templates, cache, op_counts, model_info)
 
         cache = Map.put(cache, id, {row, name, shape})
         op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
@@ -88,11 +92,13 @@ defmodule Axon.Display do
   end
 
   defp do_axon_to_rows(
-         %Axon{
+         %Axon.Node{
+           id: id,
            op: :container,
            parent: [parents],
            name: name_fn
-         } = model,
+         },
+         nodes,
          templates,
          cache,
          op_counts,
@@ -100,9 +106,9 @@ defmodule Axon.Display do
        ) do
     {input_names, {cache, op_counts, model_info}} =
       deep_map_reduce(parents, {cache, op_counts, model_info}, fn
-        graph, {cache, op_counts, model_info} ->
+        parent_id, {cache, op_counts, model_info} ->
           {_, name, _shape, cache, op_counts, model_info} =
-            axon_to_rows(graph, templates, cache, op_counts, model_info)
+            axon_to_rows(parent_id, nodes, templates, cache, op_counts, model_info)
 
           {name, {cache, op_counts, model_info}}
       end)
@@ -110,7 +116,7 @@ defmodule Axon.Display do
     op_string = "container"
 
     name = name_fn.(:container, op_counts)
-    shape = Axon.get_output_shape(model, templates)
+    shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
 
     row = [
       "#{name} ( #{op_string} #{inspect(input_names)} )",
@@ -124,14 +130,16 @@ defmodule Axon.Display do
   end
 
   defp do_axon_to_rows(
-         %Axon{
+         %Axon.Node{
+           id: id,
            parent: parents,
            parameters: params,
            name: name_fn,
            opts: opts,
            policy: %{params: {_, bitsize}},
            op_name: op_name
-         } = model,
+         },
+         nodes,
          templates,
          cache,
          op_counts,
@@ -139,9 +147,9 @@ defmodule Axon.Display do
        ) do
     {input_names_and_shapes, {cache, op_counts, model_info}} =
       Enum.map_reduce(parents, {cache, op_counts, model_info}, fn
-        graph, {cache, op_counts, model_info} ->
+        parent_id, {cache, op_counts, model_info} ->
           {_, name, shape, cache, op_counts, model_info} =
-            axon_to_rows(graph, templates, cache, op_counts, model_info)
+            axon_to_rows(parent_id, nodes, templates, cache, op_counts, model_info)
 
           {{name, shape}, {cache, op_counts, model_info}}
       end)
@@ -171,7 +179,7 @@ defmodule Axon.Display do
       end
 
     name = name_fn.(op_name, op_counts)
-    shape = Axon.get_output_shape(model, templates)
+    shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
 
     row = [
       "#{name} ( #{op_inspect}#{inputs} )",
@@ -245,12 +253,12 @@ defmodule Axon.Display do
 
       Axon.Display.as_graph(model, input, direction: :top_down)
   """
-  def as_graph(%Axon{} = axon, input_templates, opts \\ []) do
+  def as_graph(%Axon{output: id, nodes: nodes}, input_templates, opts \\ []) do
     assert_kino!("as_graph/3")
 
     direction = direction_from_opts(opts)
 
-    {_root_node, {cache, _, edgelist}} = axon_to_edges(axon, input_templates, {%{}, %{}, []})
+    {_root_node, {cache, _, edgelist}} = axon_to_edges(id, nodes, input_templates, {%{}, %{}, []})
     nodelist = Map.values(cache)
 
     nodes = Enum.map_join(nodelist, ";\n", &generate_mermaid_node_entry/1)
@@ -279,14 +287,16 @@ defmodule Axon.Display do
     end
   end
 
-  defp axon_to_edges(%{id: id, op_name: op} = axon, input_templates, {cache, op_counts, edgelist}) do
+  defp axon_to_edges(id, nodes, input_templates, {cache, op_counts, edgelist}) do
     case cache do
       %{^id => entry} ->
         {entry, {cache, op_counts, edgelist}}
 
       %{} ->
+        %Axon.Node{op_name: op} = axon_node = nodes[id]
+
         {entry, {cache, op_counts, edgelist}} =
-          recur_axon_to_edges(axon, input_templates, {cache, op_counts, edgelist})
+          recur_axon_to_edges(axon_node, nodes, input_templates, {cache, op_counts, edgelist})
 
         op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
         {entry, {Map.put(cache, id, entry), op_counts, edgelist}}
@@ -294,15 +304,16 @@ defmodule Axon.Display do
   end
 
   defp recur_axon_to_edges(
-         %Axon{id: id, op: :container, name: name_fn, parent: [parents]} = axon,
+         %Axon.Node{id: id, op: :container, name: name_fn, parent: [parents]},
+         nodes,
          templates,
          cache_counts_edgelist
        ) do
     {node_inputs, {cache, op_counts, edgelist}} =
-      deep_map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
+      deep_map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, nodes, templates, &2))
 
     name = name_fn.(:container, op_counts)
-    node_shape = Axon.get_output_shape(axon, templates)
+    node_shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
     to_node = %{axon: :axon, id: id, op: :container, name: name, shape: node_shape}
 
     new_edgelist =
@@ -314,15 +325,16 @@ defmodule Axon.Display do
   end
 
   defp recur_axon_to_edges(
-         %Axon{id: id, op_name: op, name: name_fn, parent: parents} = axon,
+         %Axon.Node{id: id, op_name: op, name: name_fn, parent: parents},
+         nodes,
          templates,
          cache_counts_edgelist
        ) do
     {node_inputs, {cache, op_counts, edgelist}} =
-      Enum.map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, templates, &2))
+      Enum.map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, nodes, templates, &2))
 
     name = name_fn.(op, op_counts)
-    node_shape = Axon.get_output_shape(axon, templates)
+    node_shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
     to_node = %{axon: :axon, id: id, op: op, name: name, shape: node_shape}
 
     new_edgelist =

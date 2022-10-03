@@ -5,13 +5,15 @@ defmodule AxonTest do
 
   describe "input" do
     test "works with defaults" do
-      assert %Axon{op: :input, parent: []} = Axon.input("input", shape: {32, 1, 28, 28})
+      assert %Axon{output: id, nodes: nodes} = Axon.input("input", shape: {32, 1, 28, 28})
+      assert %Axon.Node{op: :input, parent: []} = nodes[id]
     end
   end
 
   describe "constant" do
     test "works with defaults" do
-      assert %Axon{op: :constant, opts: [value: value]} = Axon.constant(Nx.tensor(1.0))
+      assert %Axon{output: id, nodes: nodes} = Axon.constant(Nx.tensor(1.0))
+      assert %Axon.Node{op: :constant, opts: [value: value]} = nodes[id]
       assert value == Nx.tensor(1.0)
     end
 
@@ -28,27 +30,34 @@ defmodule AxonTest do
 
   describe "dense" do
     test "works with defaults" do
-      assert %Axon{
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("input", shape: {nil, 784}) |> Axon.dense(128)
+
+      assert %Axon.Node{
                op: :dense,
                parameters: [weight, bias]
-             } = Axon.input("input", shape: {nil, 784}) |> Axon.dense(128)
+             } = nodes[id]
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = weight
       assert %Axon.Parameter{initializer: :zeros} = bias
     end
 
     test "works with parameter initializer" do
-      assert %Axon{op: :dense, parameters: [weight, bias]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 784})
                |> Axon.dense(128, kernel_initializer: :lecun_normal, bias_initializer: :ones)
+
+      assert %Axon.Node{op: :dense, parameters: [weight, bias]} = nodes[id]
 
       assert %Axon.Parameter{initializer: :lecun_normal} = weight
       assert %Axon.Parameter{initializer: :ones} = bias
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: [%Axon{op: :dense}]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 784}) |> Axon.dense(128, activation: :relu)
+
+      assert %Axon.Node{op: :relu, parent: [_]} = nodes[id]
     end
 
     test "fails on bad initializers" do
@@ -62,15 +71,19 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{parameters: [_]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 784}) |> Axon.dense(128, use_bias: false)
+
+      assert %Axon.Node{parameters: [_]} = nodes[id]
     end
   end
 
   describe "conv" do
     test "works with defaults" do
-      assert %Axon{op: :conv, parameters: [kernel, bias], opts: opts} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(64)
+
+      assert %Axon.Node{op: :conv, parameters: [kernel, bias], opts: opts} = nodes[id]
 
       assert opts[:padding] == :valid
       assert opts[:strides] == 1
@@ -82,14 +95,18 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: [%Axon{op: :conv}]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.conv(64, activation: :relu)
+
+      assert %Axon.Node{op: :relu, parent: [_]} = nodes[id]
     end
 
     test "works with options" do
-      assert %Axon{op: :conv, opts: opts, parameters: [kernel, bias]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28})
                |> Axon.conv(64, padding: :same, strides: [2, 1], kernel_size: 2)
+
+      assert %Axon.Node{op: :conv, opts: opts, parameters: [kernel, bias]} = nodes[id]
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
@@ -111,15 +128,19 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{parameters: [_]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv(2, use_bias: false)
+
+      assert %Axon.Node{parameters: [_]} = nodes[id]
     end
   end
 
   describe "depthwise_conv" do
     test "works with defaults" do
-      assert %Axon{op: :depthwise_conv, parameters: [kernel, bias], opts: opts} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.depthwise_conv(3)
+
+      assert %Axon.Node{op: :depthwise_conv, parameters: [kernel, bias], opts: opts} = nodes[id]
 
       assert opts[:padding] == :valid
       assert opts[:strides] == 1
@@ -131,15 +152,19 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: [%Axon{op: :depthwise_conv}]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28})
                |> Axon.depthwise_conv(64, activation: :relu)
+
+      assert %Axon.Node{op: :relu, parent: [%Axon.Node{op: :depthwise_conv}]} = nodes[id]
     end
 
     test "works with options" do
-      assert %Axon{op: :depthwise_conv, opts: opts, parameters: [kernel, bias]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28})
                |> Axon.depthwise_conv(3, padding: :same, strides: [2, 1], kernel_size: 2)
+
+      assert %Axon.Node{op: :depthwise_conv, opts: opts, parameters: [kernel, bias]} = nodes[id]
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
@@ -163,18 +188,23 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{parameters: [_]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 2}) |> Axon.depthwise_conv(1, use_bias: false)
+
+      assert %Axon.Node{parameters: [_]} = nodes[id]
     end
   end
 
   describe "separable_conv2d" do
     test "works with defaults" do
-      assert %Axon{
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
+
+      assert %Axon.Node{
                op: :separable_conv2d,
                parameters: [k1, b1, k2, b2],
                opts: opts
-             } = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.separable_conv2d(3)
+             } = nodes[id]
 
       assert opts[:padding] == :valid
       assert opts[:strides] == 1
@@ -188,19 +218,23 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv2d}]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28})
                |> Axon.separable_conv2d(3, activation: :relu)
+
+      assert %Axon.Node{op: :relu, parent: [%Axon.Node{op: :separable_conv2d}]} = nodes[id]
     end
 
     test "works with options" do
-      assert %Axon{
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("input", shape: {nil, 1, 28, 28})
+               |> Axon.separable_conv2d(3, padding: :same, strides: [2, 1], kernel_size: 2)
+
+      assert %Axon.Node{
                op: :separable_conv2d,
                opts: opts,
                parameters: [k1, b1, k2, b2]
-             } =
-               Axon.input("input", shape: {nil, 1, 28, 28})
-               |> Axon.separable_conv2d(3, padding: :same, strides: [2, 1], kernel_size: 2)
+             } = nodes[id]
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1]
@@ -226,19 +260,24 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: _, parameters: [_, _]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 2, 2})
                |> Axon.separable_conv2d(1, use_bias: false)
+
+      assert %Axon.Node{op: _, parameters: [_, _]} = nodes[id]
     end
   end
 
   describe "separable_conv3d" do
     test "works with defaults" do
-      assert %Axon{
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
+
+      assert %Axon.Node{
                op: :separable_conv3d,
                parameters: [k1, b1, k2, b2, k3, b3],
                opts: opts
-             } = Axon.input("input", shape: {nil, 1, 28, 28, 3}) |> Axon.separable_conv3d(3)
+             } = nodes[id]
 
       assert opts[:padding] == :valid
       assert opts[:strides] == 1
@@ -254,23 +293,25 @@ defmodule AxonTest do
     end
 
     test "works with activation" do
-      assert %Axon{op: :relu, parent: [%Axon{op: :separable_conv3d}]} =
+      assert %Axon.Node{op: :relu, parent: [%Axon.Node{op: :separable_conv3d}]} =
                Axon.input("input", shape: {nil, 1, 28, 28, 3})
                |> Axon.separable_conv3d(3, activation: :relu)
     end
 
     test "works with options" do
-      assert %Axon{
-               op: :separable_conv3d,
-               opts: opts,
-               parameters: [k1, b1, k2, b2, k3, b3]
-             } =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 28, 28, 3})
                |> Axon.separable_conv3d(3,
                  padding: :same,
                  strides: [2, 1, 1],
                  kernel_size: {2, 2, 2}
                )
+
+      assert %Axon.Node{
+               op: :separable_conv3d,
+               opts: opts,
+               parameters: [k1, b1, k2, b2, k3, b3]
+             } = nodes[id]
 
       assert opts[:padding] == :same
       assert opts[:strides] == [2, 1, 1]
@@ -298,9 +339,11 @@ defmodule AxonTest do
     end
 
     test "works with use_bias false" do
-      assert %Axon{op: _, parameters: [_, _, _]} =
+      assert %Axon{output: id, nodes: nodes} =
                Axon.input("input", shape: {nil, 1, 2, 2, 2})
                |> Axon.separable_conv3d(1, use_bias: false)
+
+      assert %Axon.Node{op: _, parameters: [_, _, _]} = nodes[id]
     end
   end
 
@@ -311,9 +354,17 @@ defmodule AxonTest do
   describe "activation" do
     test "works with valid activation" do
       for act <- @activation_layers do
-        assert %Axon{op: act1} = Axon.input("input", shape: {nil, 32}) |> Axon.activation(act)
+        assert %Axon{output: id, nodes: nodes} =
+                 Axon.input("input", shape: {nil, 32}) |> Axon.activation(act)
+
+        assert %Axon.Node{op: act1} = nodes[id]
+
         assert act1 == act
-        assert %Axon{op: act2} = apply(Axon, act, [Axon.input("input", shape: {nil, 32})])
+
+        assert %Axon{output: id, nodes: nodes} =
+                 apply(Axon, act, [Axon.input("input", shape: {nil, 32})])
+
+        assert %Axon.Node{op: act2} = nodes[id]
         assert act2 == act
       end
     end
@@ -324,8 +375,10 @@ defmodule AxonTest do
   describe "dropout" do
     test "works with defaults" do
       for dropout <- @dropout_layers do
-        assert %Axon{op: drop1, opts: opts} =
+        assert %Axon{output: id, nodes: nodes} =
                  apply(Axon, dropout, [Axon.input("input", shape: {nil, 32})])
+
+        assert %Axon.Node{op: drop1, opts: opts} = nodes[id]
 
         assert drop1 == dropout
         assert opts[:rate] == 0.5
@@ -338,8 +391,10 @@ defmodule AxonTest do
   describe "pooling" do
     test "works with defaults" do
       for pool <- @pooling_layers do
-        assert %Axon{op: pool1, opts: opts} =
+        assert %Axon{output: id, nodes: nodes} =
                  apply(Axon, pool, [Axon.input("input", shape: {nil, 1, 28, 28})])
+
+        assert %Axon.Node{op: pool1, opts: opts} = nodes[id]
 
         assert pool1 == pool
 
@@ -355,11 +410,13 @@ defmodule AxonTest do
   describe "adaptive pooling" do
     test "works with options" do
       for pool <- @adaptive_pooling_layers do
-        assert %Axon{} =
+        assert %Axon{output: id, nodes: nodes} =
                  apply(Axon, pool, [
                    Axon.input("input", shape: {nil, 1, 28, 28}),
                    [output_size: {26, 26}, name: "pool"]
                  ])
+
+        assert %Axon.Node{} = nodes[id]
       end
     end
   end
@@ -369,7 +426,7 @@ defmodule AxonTest do
   describe "global pooling" do
     test "works with options" do
       for pool <- @global_pooling_layers do
-        assert %Axon{} =
+        assert %Axon.Node{} =
                  apply(Axon, pool, [
                    Axon.input("input", shape: {nil, 1, 28, 28}),
                    [keep_axes: false, name: "pool"]
@@ -383,7 +440,7 @@ defmodule AxonTest do
   describe "stateful normalization" do
     test "works with defaults" do
       for norm <- @stateful_normalization do
-        assert %Axon{op: norm1, opts: opts, parameters: [gamma, beta, mean, var]} =
+        assert %Axon.Node{op: norm1, opts: opts, parameters: [gamma, beta, mean, var]} =
                  apply(Axon, norm, [Axon.input("input", shape: {nil, 784})])
 
         assert norm1 == norm
@@ -400,7 +457,7 @@ defmodule AxonTest do
 
     test "works with parameter initializer" do
       for norm <- @stateful_normalization do
-        assert %Axon{parameters: [gamma, beta, mean, var]} =
+        assert %Axon.Node{parameters: [gamma, beta, mean, var]} =
                  apply(Axon, norm, [
                    Axon.input("input", shape: {nil, 784}),
                    [gamma_initializer: :lecun_normal, beta_initializer: :ones]
@@ -428,7 +485,7 @@ defmodule AxonTest do
 
   describe "layer normalization" do
     test "works with defaults" do
-      assert %Axon{op: :layer_norm, opts: opts, parameters: [gamma, beta]} =
+      assert %Axon.Node{op: :layer_norm, opts: opts, parameters: [gamma, beta]} =
                Axon.layer_norm(Axon.input("input", shape: {nil, 784}))
 
       assert opts[:channel_index] == 1
@@ -439,7 +496,7 @@ defmodule AxonTest do
     end
 
     test "works with parameter initializer" do
-      assert %Axon{parameters: [gamma, beta]} =
+      assert %Axon.Node{parameters: [gamma, beta]} =
                Axon.layer_norm(Axon.input("input", shape: {nil, 784}),
                  gamma_initializer: :lecun_normal,
                  beta_initializer: :ones
@@ -462,7 +519,7 @@ defmodule AxonTest do
 
   describe "group normalization" do
     test "works with defaults" do
-      assert %Axon{op: :group_norm, parameters: [gamma, beta], opts: opts} =
+      assert %Axon.Node{op: :group_norm, parameters: [gamma, beta], opts: opts} =
                Axon.input("input", shape: {nil, 3, 28, 28}) |> Axon.group_norm(3)
 
       assert opts[:channel_index] == 1
@@ -474,7 +531,7 @@ defmodule AxonTest do
     end
 
     test "works with parameter initializer" do
-      assert %Axon{parameters: [gamma, beta]} =
+      assert %Axon.Node{parameters: [gamma, beta]} =
                Axon.input("input", shape: {nil, 3, 28, 28})
                |> Axon.group_norm(3, gamma_initializer: :lecun_normal, beta_initializer: :ones)
 
@@ -503,13 +560,17 @@ defmodule AxonTest do
 
   describe "flatten" do
     test "works with defaults" do
-      assert %Axon{op: :flatten} = Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.flatten()
+      assert %Axon.Node{op: :flatten} =
+               Axon.input("input", shape: {nil, 1, 28, 28}) |> Axon.flatten()
     end
   end
 
   describe "concatenate" do
     test "works with 2 inputs" do
-      assert %Axon{op: :concatenate, parent: [%Axon{parent: [{%Axon{}, %Axon{}}]}]} =
+      assert %Axon.Node{
+               op: :concatenate,
+               parent: [%Axon.Node{parent: [{%Axon.Node{}, %Axon.Node{}}]}]
+             } =
                Axon.concatenate(
                  Axon.input("input", shape: {nil, 32}),
                  Axon.input("input", shape: {nil, 32})
@@ -517,7 +578,10 @@ defmodule AxonTest do
     end
 
     test "works with many inputs" do
-      assert %Axon{op: :concatenate, parent: [%Axon{parent: [{%Axon{}, %Axon{}, %Axon{}}]}]} =
+      assert %Axon.Node{
+               op: :concatenate,
+               parent: [%Axon.Node{parent: [{%Axon.Node{}, %Axon.Node{}, %Axon.Node{}}]}]
+             } =
                Axon.concatenate([
                  Axon.input("input", shape: {nil, 32}),
                  Axon.input("input", shape: {nil, 32}),
@@ -531,7 +595,7 @@ defmodule AxonTest do
   describe "element-wise layers" do
     test "works with 2 inputs" do
       for op <- @element_wise_layers do
-        assert %Axon{op: op1, parent: [%Axon{parent: [{%Axon{}, %Axon{}}]}]} =
+        assert %Axon.Node{op: op1, parent: [%Axon.Node{parent: [{%Axon.Node{}, %Axon.Node{}}]}]} =
                  apply(Axon, op, [
                    Axon.input("input", shape: {nil, 32}),
                    Axon.input("input", shape: {nil, 32})
@@ -543,7 +607,10 @@ defmodule AxonTest do
 
     test "works with many inputs" do
       for op <- @element_wise_layers do
-        assert %Axon{op: op1, parent: [%Axon{parent: [{%Axon{}, %Axon{}, %Axon{}}]}]} =
+        assert %Axon.Node{
+                 op: op1,
+                 parent: [%Axon.Node{parent: [{%Axon.Node{}, %Axon.Node{}, %Axon.Node{}}]}]
+               } =
                  apply(Axon, op, [
                    [
                      Axon.input("input", shape: {nil, 32}),
@@ -559,34 +626,35 @@ defmodule AxonTest do
 
   describe "nx" do
     test "works with defaults" do
-      assert %Axon{} = Axon.input("input", shape: {nil, 32}) |> Axon.nx(fn x -> Nx.erf(x) end)
+      assert %Axon.Node{} =
+               Axon.input("input", shape: {nil, 32}) |> Axon.nx(fn x -> Nx.erf(x) end)
     end
   end
 
   describe "embedding" do
     test "works with defaults" do
-      assert %Axon{} =
+      assert %Axon.Node{} =
                Axon.input("input", shape: {nil, 10}) |> Axon.embedding(128, 32, name: "embedding")
     end
   end
 
   describe "reshape" do
     test "works with batch input" do
-      assert %Axon{} = Axon.input("input", shape: {nil, 9}) |> Axon.reshape({3, 3})
+      assert %Axon.Node{} = Axon.input("input", shape: {nil, 9}) |> Axon.reshape({3, 3})
     end
 
     test "works with constant input" do
-      assert %Axon{} = Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
+      assert %Axon.Node{} = Axon.constant(Nx.iota({6})) |> Axon.reshape({1, 2, 3})
     end
   end
 
   describe "transpose" do
     test "works with batch input" do
-      assert %Axon{} = Axon.input("input", shape: {nil, 2, 1}) |> Axon.transpose([0, 2, 1])
+      assert %Axon.Node{} = Axon.input("input", shape: {nil, 2, 1}) |> Axon.transpose([0, 2, 1])
     end
 
     test "works with constant input" do
-      assert %Axon{} =
+      assert %Axon.Node{} =
                Axon.constant(Nx.iota({3, 2, 1}))
                |> Axon.transpose([2, 1, 0])
     end
@@ -632,11 +700,13 @@ defmodule AxonTest do
         |> Axon.dense(128)
         |> Axon.freeze()
 
-      assert %Axon{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-               model
+      assert %Axon.Node{
+               parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]
+             } = model
 
-      assert %Axon{parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]} =
-               model |> Axon.dense(10)
+      assert %Axon.Node{
+               parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]
+             } = model |> Axon.dense(10)
     end
   end
 
@@ -762,9 +832,9 @@ defmodule AxonTest do
       last_hidden_state = Axon.input("last_hidden_state", shape: {5, 128, 768})
       pooled = Axon.input("pooled", shape: {5, 768})
 
-      assert %Axon{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 0))
+      assert %Axon.Node{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 0))
 
-      assert %Axon{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
+      assert %Axon.Node{} = Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
     end
   end
 
@@ -810,17 +880,17 @@ defmodule AxonTest do
 
   describe "layer names" do
     test "only accepts binaries, functions or nil" do
-      %Axon{name: name_fn, op: op} = Axon.input("a_binary_name", shape: {nil, 1})
+      %Axon.Node{name: name_fn, op: op} = Axon.input("a_binary_name", shape: {nil, 1})
 
       assert "a_binary_name" == name_fn.(op, input: 1)
 
-      %Axon{name: name_fn, op: op} =
+      %Axon.Node{name: name_fn, op: op} =
         Axon.input("input", shape: {nil, 1})
         |> Axon.dense(2, name: fn op, _ -> "custom_#{op}" end)
 
       assert "custom_#{op}" == name_fn.(op, input: 1)
 
-      %Axon{name: name_fn, op: op} =
+      %Axon.Node{name: name_fn, op: op} =
         Axon.input("input", shape: {nil, 1}) |> Axon.dense(2, name: nil)
 
       assert "dense_10" == name_fn.(op, dense: 10)

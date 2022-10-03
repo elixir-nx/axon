@@ -30,14 +30,14 @@ defmodule Axon.Compiler do
   ## Init JIT Compilation
 
   @doc false
-  def build(%Axon{} = graph, opts) do
+  def build(%Axon{output: id, nodes: nodes}, opts) do
     debug? = Keyword.get(opts, :debug, false)
     mode = Keyword.get(opts, :mode, :inference)
     key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
 
     {time, {root_id, {cache, _op_counts, _key}}} =
       :timer.tc(fn ->
-        to_model_funs(graph, {%{}, %{}, key}, mode)
+        to_model_funs(id, nodes, {%{}, %{}, key}, mode)
       end)
 
     if debug? do
@@ -125,13 +125,13 @@ defmodule Axon.Compiler do
             " output, use `Axon.container`"
   end
 
-  defp to_model_funs(%{id: id} = graph, {cache, op_counts, key}, mode) do
+  defp to_model_funs(id, nodes, {cache, op_counts, key}, mode) do
     case cache do
       %{^id => _} ->
         {id, {cache, op_counts, key}}
 
       %{} ->
-        recur_model_funs(graph, {cache, op_counts, key}, mode)
+        recur_model_funs(nodes[id], nodes, {cache, op_counts, key}, mode)
     end
   end
 
@@ -170,7 +170,8 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
+         %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
+         _nodes,
          {cache, op_counts, key},
          _
        ) do
@@ -193,13 +194,14 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{
+         %Axon.Node{
            id: id,
            op: :input,
            hooks: hooks,
            name: name_fn,
            opts: [shape: _input_shape, optional: optional?]
          },
+         _nodes,
          {cache, op_counts, key},
          mode
        ) do
@@ -231,11 +233,13 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{id: id, op: :optional, parent: [parent]},
+         %Axon.Node{id: id, op: :optional, parent: [parent]},
+         nodes,
          {cache, op_counts, key},
          mode
        ) do
-    {parent_id, {cache, op_counts, key}} = to_model_funs(parent, {cache, op_counts, key}, mode)
+    {parent_id, {cache, op_counts, key}} =
+      to_model_funs(parent, nodes, {cache, op_counts, key}, mode)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {out, {state, result_cache}} =
@@ -261,12 +265,13 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{id: id, op: :container, parent: [parents]},
+         %Axon.Node{id: id, op: :container, parent: [parents]},
+         nodes,
          cache_counts_key,
          mode
        ) do
     {parent_ids, {cache, op_counts, key}} =
-      deep_map_reduce(parents, cache_counts_key, &to_model_funs(&1, &2, mode))
+      deep_map_reduce(parents, cache_counts_key, &to_model_funs(&1, nodes, &2, mode))
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
 
@@ -319,7 +324,8 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{id: id, op: :namespace, name: name_fn, parent: [parent]},
+         %Axon.Node{id: id, op: :namespace, name: name_fn, parent: [parent]},
+         nodes,
          {cache, op_counts, key},
          mode
        ) do
@@ -334,7 +340,7 @@ defmodule Axon.Compiler do
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
     {parent_id, {cache, namespace_op_counts, key}} =
-      to_model_funs(parent, {cache, namespace_op_counts, key}, mode)
+      to_model_funs(parent, nodes, {cache, namespace_op_counts, key}, mode)
 
     # Update the global op_count of input layers, since they
     # are a global operation regardless of where they are
@@ -389,7 +395,7 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon{
+         %Axon.Node{
            id: id,
            name: name_fn,
            op: op,
@@ -402,6 +408,7 @@ defmodule Axon.Compiler do
            op_name: op_name,
            stacktrace: stacktrace
          },
+         nodes,
          cache_counts_key,
          mode
        )
@@ -414,7 +421,7 @@ defmodule Axon.Compiler do
       Enum.map_reduce(
         inputs,
         cache_counts_key,
-        &to_model_funs(&1, &2, mode)
+        &to_model_funs(&1, nodes, &2, mode)
       )
 
     # Names are computed lazily, so compute name from current
