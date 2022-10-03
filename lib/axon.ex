@@ -3345,6 +3345,7 @@ defmodule Axon do
 
       op_counts = Axon.get_op_counts(axon)
       %Axon.Node{op_name: op_name, name: name_fn} = nodes[id]
+      op_counts = Map.update(op_counts, op_name, 0, fn x -> x - 1 end)
       output_name = name_fn.(op_name, op_counts)
 
       node_count = Enum.count(axon.nodes)
