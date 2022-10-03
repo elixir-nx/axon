@@ -708,7 +708,7 @@ defmodule Axon.Compiler do
       end)
 
     if none? do
-      {%Axon.None{}, {parent_params, result_cache}}
+      {%Axon.None{}, {parent_params, result_cache, key}}
     else
       {key, layer_params} =
         Enum.reduce(parameters, {key, %{}}, fn param, {key, layer_params} ->
