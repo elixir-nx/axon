@@ -270,6 +270,7 @@ defmodule Axon.Serving do
 
   defp maybe_pad(inputs, current_batch_size, desired_batch_size) when is_map(inputs) do
     pad_size = desired_batch_size - current_batch_size
+    # TODO: Do not pad batched outputs
     Map.new(inputs, fn {name, tensor} -> {name, do_pad(tensor, pad_size)} end)
   end
 
