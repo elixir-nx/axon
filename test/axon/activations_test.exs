@@ -1322,7 +1322,7 @@ defmodule Axon.ActivationsTest do
       a = Nx.tensor([0.21630559861660004, 0.1898617446422577, 0.9072079062461853])
       expected = Nx.tensor([0.0, 0.0, 0.0])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-5)
     end
 
     test "backward matches jax for rank 2 and type {:f, 32}" do

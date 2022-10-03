@@ -34,6 +34,7 @@ defmodule Axon.Compiler do
     debug? = Keyword.get(opts, :debug, false)
     mode = Keyword.get(opts, :mode, :inference)
     key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
+    key = Nx.backend_copy(key, Nx.Defn.Expr)
 
     {time, {root_id, {cache, _op_counts}}} =
       :timer.tc(fn ->
