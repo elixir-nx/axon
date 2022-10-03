@@ -2986,7 +2986,7 @@ defmodule Axon do
     reduce_nodes(axon, %{}, fn
       %Axon.Node{op: :input, name: name, opts: opts}, inputs ->
         name = name.(:input, %{})
-        Map.put(inputs, name, opts[:shape])
+        Map.put(inputs, name, %{shape: opts[:shape], optional: opts[:optional]})
 
       _, inputs ->
         inputs

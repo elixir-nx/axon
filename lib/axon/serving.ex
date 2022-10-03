@@ -16,6 +16,11 @@ defmodule Axon.Serving do
     }
   end
 
+  # TODO: Raise if input shape different than compiled shape
+  # TODO: With pre-process how can we determine batch size
+  # (e.g. with tokenization)
+  # TODO: Add debug to trace wait time, execution time, etc. 
+
   ## API
 
   @doc """
@@ -34,6 +39,14 @@ defmodule Axon.Serving do
     * `:batch_size` - maximum batch size to forward to model
 
     * `:batch_timeout` - auto-batching queue timeout limit
+  
+    * `:state` - state which is carried forward to pre/post-processing
+
+    * `:preprocess` - arity-2 function to preprocess inputs in
+    queue
+
+    * `:postprocess` - arity-2 function to postprocess outputs in
+    queue
 
     All other options are treated as compilation options and
     forwarded to the defn compiler.
@@ -43,6 +56,9 @@ defmodule Axon.Serving do
     {name, opts} = Keyword.pop!(opts, :name)
     {shape, opts} = Keyword.pop(opts, :shape)
     {batch_size, opts} = Keyword.pop(opts, :batch_size, 1)
+    {state, opts} = Keyword.pop(opts, :state, %{})
+    {preprocess, opts} = Keyword.pop(opts, :preprocess, & &1)
+    {postprocess, opts} = Keyword.pop(opts, :postprocess, & &1)
     {batch_timeout, compiler_opts} = Keyword.pop(opts, :batch_timeout, 100)
 
     template = template!(model, shape, batch_size)
@@ -53,7 +69,10 @@ defmodule Axon.Serving do
       model: predict_fun,
       params: params,
       batch_size: batch_size,
-      batch_timeout: batch_timeout
+      batch_timeout: batch_timeout,
+      preprocess: preprocess,
+      postprocess: postprocess,
+      state: state
     }
 
     GenServer.start_link(__MODULE__, config, name: name)
@@ -80,16 +99,18 @@ defmodule Axon.Serving do
   @impl true
   def handle_call({:predict, input}, from, state) do
     %{queue: queue, count: count} = state
+    # preprocess before sending to queue
+    input = apply(state.config.preprocess, [input, state.config.state])
     queue = :queue.in({input, from}, queue)
 
     # TODO: if Nx.axis_size(input, 0) is more than batch_size,
     # we should return error.
     # TODO: correctly handle counts/batch for all inputs
 
-    [input] = Map.values(input)
+    [first_input | _rest] = Map.values(input)
 
     state =
-      %{state | queue: queue, count: count + Nx.axis_size(input, 0)}
+      %{state | queue: queue, count: count + Nx.axis_size(first_input, 0)}
       |> maybe_start_timer()
       |> maybe_dispatch()
 
@@ -104,9 +125,25 @@ defmodule Axon.Serving do
   defp template!(%Axon{} = model, config_shapes, batch_size) do
     model
     |> Axon.get_inputs()
-    |> Map.new(fn {name, axon_shape} ->
+    |> Enum.filter(fn {name, properties} ->
+      optional = properties[:optional]
+      shape = properties[:shape]
+
+      unless optional or Map.has_key?(config_shapes, name) or shape != nil do
+        raise ArgumentError, "must provide shape for required input #{name}"
+      end
+
+      # if the input is optional and we don't provide a shape, then we assume
+      # that we take the optional path. if the shape is not present, but is optional
+      # then we filter it out completely
+      Map.has_key?(config_shapes, name) or (not optional and shape != nil)
+    end)
+    |> Map.new(fn {name, properties} ->
+      axon_shape = properties[:shape]
       config_shape = config_shapes[name]
 
+      # TODO: Handle inputs which are not batched across an entire batch
+      # like head_mask
       shape =
         cond do
           config_shape != nil and same_shape?(axon_shape, config_shape) and
@@ -176,7 +213,7 @@ defmodule Axon.Serving do
       Enum.map_reduce(1..batch_size, queue, fn _, queue ->
         {{:value, {input, _} = pair}, queue} = :queue.out(queue)
         # TODO: handle with counts per input
-        [input] = Map.values(input)
+        [input | _rest] = Map.values(input)
         1 = Nx.axis_size(input, 0)
         {pair, queue}
       end)
@@ -189,6 +226,7 @@ defmodule Axon.Serving do
     |> maybe_pad(batch_size, state.config.batch_size)
     |> then(&state.config.model.(state.config.params, &1))
     |> maybe_pad(state.config.batch_size, batch_size)
+    |> then(&apply(state.config.postprocess, [&1, state.config.state]))
     |> Nx.to_batched(1)
     |> Enum.zip_with(froms, fn tensor, from ->
       GenServer.reply(from, tensor)
