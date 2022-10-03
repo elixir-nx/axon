@@ -101,7 +101,7 @@ defmodule Axon.MixedPrecision do
 
   @doc false
   def apply_policy(axon, policy, only: only) do
-    filter = fn %Axon{op: op} ->
+    filter = fn %Axon.Node{op: op} ->
       Enum.member?(only, op)
     end
 
@@ -110,7 +110,7 @@ defmodule Axon.MixedPrecision do
 
   @doc false
   def apply_policy(axon, policy, except: exceptions) do
-    filter = fn %Axon{op: op} ->
+    filter = fn %Axon.Node{op: op} ->
       not Enum.member?(exceptions, op)
     end
 
