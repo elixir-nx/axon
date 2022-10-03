@@ -3371,107 +3371,93 @@ defmodule Axon do
     end
   end
 
-  ## Serialization
+  # Serialization
 
-  # @doc """
-  # Serializes a model and its parameters for persisting
-  # models to disk or elsewhere.
+  @doc """
+  Serializes a model and its parameters for persisting
+  models to disk or elsewhere.
 
-  # Model and parameters are serialized as a tuple, where the
-  # model is converted to a recursive map to ensure compatibility
-  # with future Axon versions and the parameters are serialized
-  # using `Nx.serialize/2`. There is some additional metadata included
-  # such as current serialization version for compatibility.
+  Model and parameters are serialized as a tuple, where the
+  model is converted to a recursive map to ensure compatibility
+  with future Axon versions and the parameters are serialized
+  using `Nx.serialize/2`. There is some additional metadata included
+  such as current serialization version for compatibility.
 
-  # Serialization `opts` are forwarded to `Nx.serialize/2` and
-  # `:erlang.term_to_binary/2` for controlling compression options.
+  Serialization `opts` are forwarded to `Nx.serialize/2` and
+  `:erlang.term_to_binary/2` for controlling compression options.
 
-  # ## Examples
+  ## Examples
 
-  #     iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-  #     iex> {init_fn, _} = Axon.build(model)
-  #     iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-  #     iex> serialized = Axon.serialize(model, params)
-  #     iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-  #     iex> {_, predict_fn} = Axon.build(saved_model)
-  #     iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-  #     #Nx.Tensor<
-  #       f32[1][1]
-  #       [
-  #         [0.0]
-  #       ]
-  #     >
+      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> {init_fn, _} = Axon.build(model)
+      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> {_, predict_fn} = Axon.build(saved_model)
+      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [0.0]
+        ]
+      >
 
-  # """
-  # @doc type: :model
-  # def serialize(%Axon{} = model, params, opts \\ []) do
-  #   {model_meta, _op_counts} = axon_to_map(model, %{})
-  #   params = Nx.serialize(params, opts)
-  #   :erlang.term_to_binary({@file_version, model_meta, params}, opts)
-  # end
+  """
+  @doc type: :model
+  def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
+    nodes =
+      Map.new(nodes, fn {k, v} ->
+        node_meta = Map.from_struct(v)
+        {k, Map.put(node_meta, :node, :node)}
+      end)
 
-  # defp axon_to_map(%Axon{op: :container, name: name_fn, parent: [parents]} = model, op_counts) do
-  #   {parents, op_counts} = deep_map_reduce(parents, op_counts, &axon_to_map/2)
-  #   axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-  #   name = name_fn.(:container, op_counts)
-  #   op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
-  #   {%{axon_map | parent: List.wrap(parents), name: name}, op_counts}
-  # end
+    model_meta = %{output: id, nodes: nodes, axon: :axon}
+    params = Nx.serialize(params, opts)
+    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
+  end
 
-  # defp axon_to_map(%Axon{op_name: op, parent: parents, name: name_fn} = model, op_counts) do
-  #   {parents, op_counts} = Enum.map_reduce(parents, op_counts, &axon_to_map/2)
-  #   axon_map = Map.from_struct(model) |> Map.put(:axon, :axon)
-  #   name = name_fn.(op, op_counts)
-  #   op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
-  #   {%{axon_map | parent: parents, name: name}, op_counts}
-  # end
+  @doc """
+  Deserializes serialized model and parameters into a `{model, params}`
+  tuple.
 
-  # @doc """
-  # Deserializes serialized model and parameters into a `{model, params}`
-  # tuple.
+  It is the opposite of `Axon.serialize/3`.
 
-  # It is the opposite of `Axon.serialize/3`.
+  ## Examples
 
-  # ## Examples
+      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
+      iex> {init_fn, _} = Axon.build(model)
+      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
+      iex> serialized = Axon.serialize(model, params)
+      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
+      iex> {_, predict_fn} = Axon.build(saved_model)
+      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [0.0]
+        ]
+      >
 
-  #     iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-  #     iex> {init_fn, _} = Axon.build(model)
-  #     iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-  #     iex> serialized = Axon.serialize(model, params)
-  #     iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-  #     iex> {_, predict_fn} = Axon.build(saved_model)
-  #     iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-  #     #Nx.Tensor<
-  #       f32[1][1]
-  #       [
-  #         [0.0]
-  #       ]
-  #     >
+  """
+  @doc type: :model
+  def deserialize(serialized, opts \\ []) do
+    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
+    %{nodes: nodes, output: id} = model_meta
 
-  # """
-  # @doc type: :model
-  # def deserialize(serialized, opts \\ []) do
-  #   {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
-  #   model = map_to_axon(model_meta)
-  #   params = Nx.deserialize(serialized_params, opts)
-  #   {model, params}
-  # end
+    nodes =
+      Map.new(nodes, fn {k, v} ->
+        node_struct =
+          v
+          |> Map.delete(:node)
+          |> then(&struct(Axon.Node, &1))
 
-  # defp map_to_axon(%{op: :container, parent: [parents], name: name} = model) do
-  #   parents = deep_new(parents, &map_to_axon/1)
-  #   model = Map.drop(model, [:axon])
-  #   name_fn = fn _, _ -> name end
-  #   model = %{model | parent: List.wrap(parents), name: name_fn}
-  #   struct(__MODULE__, model)
-  # end
+        {k, node_struct}
+      end)
 
-  # defp map_to_axon(%{axon: :axon, parent: parents, name: name} = model) do
-  #   parents = Enum.map(parents, &map_to_axon/1)
-  #   model = Map.drop(model, [:axon])
-  #   name_fn = fn _, _ -> name end
-  #   model = %{model | parent: parents, name: name_fn}
-  #   struct(__MODULE__, model)
-  # end
+    model = %Axon{output: id, nodes: nodes}
+    params = Nx.deserialize(serialized_params, opts)
+    {model, params}
+  end
 
   ## Helpers
 
