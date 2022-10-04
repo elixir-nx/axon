@@ -711,8 +711,8 @@ defmodule Axon.Compiler do
     if none? do
       {%Axon.None{}, {parent_params, result_cache, key}}
     else
-      {key, layer_params} =
-        Enum.reduce(parameters, {key, %{}}, fn param, {key, layer_params} ->
+      {layer_params, key} =
+        Enum.reduce(parameters, {%{}, key}, fn param, {layer_params, key} ->
           init_param(param, layer_params, parent_shapes, dtype, key)
         end)
 
@@ -735,25 +735,23 @@ defmodule Axon.Compiler do
   defp init_param(param, layer_params, parent_shapes, dtype, key) do
     %{name: name, shape: shape, initializer: initializer} = param
 
-    {key, params} =
+    {params, key} =
       case shape do
         {:tuple, params} ->
           {params, key} =
-            params
-            |> Enum.map_reduce(key, fn shape, key ->
+            Enum.map_reduce(params, key, fn shape, key ->
               shape = apply(shape, parent_shapes)
-              {key, rand} = apply_initializer(initializer, shape, dtype, key)
-              {rand, key}
+              apply_initializer(initializer, shape, dtype, key)
             end)
 
-          {key, List.to_tuple(params)}
+          {List.to_tuple(params), key}
 
         shape ->
           shape = apply(shape, parent_shapes)
           apply_initializer(initializer, shape, dtype, key)
       end
 
-    {key, Map.put(layer_params, name, params)}
+    {Map.put(layer_params, name, params), key}
   end
 
   defp apply_initializer(initializer, shape, type, key) when is_atom(initializer) do
