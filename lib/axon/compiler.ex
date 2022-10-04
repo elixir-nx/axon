@@ -156,7 +156,7 @@ defmodule Axon.Compiler do
 
     {parent_shape, {parent_params, result_cache, seed}} =
       case result_cache do
-        %{^key => {parent_shape, parent_params}} ->
+        %{^key => {parent_shape, parent_params, seed}} ->
           {parent_shape, {parent_params, result_cache, seed}}
 
         %{} ->
@@ -164,7 +164,7 @@ defmodule Axon.Compiler do
             cache[parent_id][:init].(template, cache, result_cache, fn_stacktrace, seed)
 
           {parent_shape,
-           {parent_params, Map.put(result_cache, key, {parent_shape, parent_params}), seed}}
+           {parent_params, Map.put(result_cache, key, {parent_shape, parent_params, seed}), seed}}
       end
 
     {parent_shape, {Map.merge(parent_params, params), result_cache, seed}}
