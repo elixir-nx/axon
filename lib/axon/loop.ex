@@ -1105,8 +1105,8 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.trainer(loss, optim)
       |> Axon.Loop.metric(:accuracy)
-      |> Axon.Loop.validate(val_data)
-      |> Axon.Loop.reduce_lr_on_plateau("validation_accuracy")
+      |> Axon.Loop.validate(model, val_data)
+      |> Axon.Loop.reduce_lr_on_plateau("accuracy", mode: :max)
 
   ## Options
 
