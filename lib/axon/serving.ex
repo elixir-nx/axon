@@ -10,7 +10,7 @@ defmodule Axon.Serving do
       children = [
         {Axon.Serving,
           name: :my_model,
-          model: &MyApp.Model.load_model/0,
+          model: MyApp.Model.load_model(),
           shape: MyApp.Model.input(),
           batch_size: 32,
           batch_timeout: 50,
