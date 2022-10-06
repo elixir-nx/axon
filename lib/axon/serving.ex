@@ -1,5 +1,52 @@
 defmodule Axon.Serving do
+  @moduledoc """
+  Module for performing dynamic batch inference in production settings.
+
+  `Axon.Serving` implements queue-based dynamic batch inference in order
+  to handle concurrent inference requests between multiple processes.
+  Typically, you start an `Axon.Serving` process as a part of your
+  application's supervision tree:
+
+      children = [
+        {Axon.Serving,
+          name: :my_model,
+          model: &MyApp.Model.load_model/0,
+          shape: MyApp.Model.input(),
+          batch_size: 32,
+          batch_timeout: 50,
+          compiler: EXLA},
+        MyApp.Repo,
+        MyApp.Endpoint
+      ]
+
+      Supervisor.start_link(children, strategy: :one_for_one)
+
+  `Axon.Serving` will compile your model with the given defn compiler
+  specialized to the given input shapes. You may then invoke the model
+  using `Axon.Serving.predict/2`:
+
+      Axon.Serving.predict(:my_model, inputs)
+
+  `Axon.Serving` will batch overlapping requests which reach the queue
+  in the same window. The size of the window is given by `batch_timeout`.
+  In the above example, `batch_timeout: 50` indicates the queue will wait
+  50 ms to receive a total of `:batch_size` inputs. If the queue fills up
+  before the timeout, `Axon.Serving` will execute the inference request and
+  dispatch responses back to the respective processes.
+    
+  It's important to note that partial queues will always be padded to
+  the given `:batch_size`. For example, if the queue has a size of 16
+  when it hits timeout and the given batch size is 32, `Axon.Serving`
+  will add padding to reach a batch size of 16. This is necessary to
+  avoid recompilation overhead.
+
+  If you plan on serving many models and continously reloading models
+  with new versions, you should instead manage `Axon.Serving` processes
+  with a `DynamicSupervisor`. Then, you can dynamically start and stop
+  `Axon.Serving` processes and load/unload models in a more dynamic manner.
+  """
   use GenServer
+  import Axon.Shared
 
   @doc false
   def child_spec(opts) when is_list(opts) do
@@ -16,10 +63,8 @@ defmodule Axon.Serving do
     }
   end
 
-  # TODO: Raise if input shape different than compiled shape
-  # TODO: With pre-process how can we determine batch size
-  # (e.g. with tokenization)
-  # TODO: Add debug to trace wait time, execution time, etc. 
+  # TODO: With pre-processing how can we determine batch size
+  # TODO: Add debug to trace wait time, execution time, etc.
 
   ## API
 
@@ -39,14 +84,6 @@ defmodule Axon.Serving do
     * `:batch_size` - maximum batch size to forward to model
 
     * `:batch_timeout` - auto-batching queue timeout limit
-  
-    * `:state` - state which is carried forward to pre/post-processing
-
-    * `:preprocess` - arity-2 function to preprocess inputs in
-    queue
-
-    * `:postprocess` - arity-2 function to postprocess outputs in
-    queue
 
     All other options are treated as compilation options and
     forwarded to the defn compiler.
@@ -56,9 +93,6 @@ defmodule Axon.Serving do
     {name, opts} = Keyword.pop!(opts, :name)
     {shape, opts} = Keyword.pop(opts, :shape)
     {batch_size, opts} = Keyword.pop(opts, :batch_size, 1)
-    {state, opts} = Keyword.pop(opts, :state, %{})
-    {preprocess, opts} = Keyword.pop(opts, :preprocess, & &1)
-    {postprocess, opts} = Keyword.pop(opts, :postprocess, & &1)
     {batch_timeout, compiler_opts} = Keyword.pop(opts, :batch_timeout, 100)
 
     template = template!(model, shape, batch_size)
@@ -69,15 +103,25 @@ defmodule Axon.Serving do
       model: predict_fun,
       params: params,
       batch_size: batch_size,
-      batch_timeout: batch_timeout,
-      preprocess: preprocess,
-      postprocess: postprocess,
-      state: state
+      batch_timeout: batch_timeout
     }
 
     GenServer.start_link(__MODULE__, config, name: name)
   end
 
+  @doc """
+  Invokes the given server's inference function with the
+  given inputs.
+
+  `input` must exactly match the form expected by `server`. It
+  cannot include any additional inputs, or inputs with a differing
+  shape.
+
+  ## Examples
+      
+      input = %{"input" => Nx.random_uniform({1, 32})}
+      result = Axon.Serving.predict(:my_model, input)
+  """
   def predict(server, input) do
     GenServer.call(server, {:predict, input}, :infinity)
   end
@@ -99,13 +143,12 @@ defmodule Axon.Serving do
   @impl true
   def handle_call({:predict, input}, from, state) do
     %{queue: queue, count: count} = state
-    # preprocess before sending to queue
-    input = apply(state.config.preprocess, [input, state.config.state])
     queue = :queue.in({input, from}, queue)
 
     # TODO: if Nx.axis_size(input, 0) is more than batch_size,
     # we should return error.
     # TODO: correctly handle counts/batch for all inputs
+    # TODO: correctly handle container inputs
 
     [first_input | _rest] = Map.values(input)
 
@@ -146,11 +189,14 @@ defmodule Axon.Serving do
       # like head_mask
       shape =
         cond do
+          axon_shape == nil and valid_shape?(config_shape, batch_size) ->
+            put_elem(config_shape, 0, batch_size)
+
           config_shape != nil and same_shape?(axon_shape, config_shape) and
               valid_shape?(config_shape, batch_size) ->
             put_elem(config_shape, 0, batch_size)
 
-          valid_shape?(axon_shape, batch_size) ->
+          config_shape == nil and valid_shape?(axon_shape, batch_size) ->
             put_elem(axon_shape, 0, batch_size)
 
           true ->
@@ -161,6 +207,9 @@ defmodule Axon.Serving do
       {name, Nx.template(shape, :f32)}
     end)
   end
+
+  defp same_shape?(nil, _), do: true
+  defp same_shape?(_, nil), do: true
 
   defp same_shape?(shape1, shape2) do
     shape1
@@ -226,8 +275,8 @@ defmodule Axon.Serving do
     |> maybe_pad(batch_size, state.config.batch_size)
     |> then(&state.config.model.(state.config.params, &1))
     |> maybe_pad(state.config.batch_size, batch_size)
-    |> then(&apply(state.config.postprocess, [&1, state.config.state]))
-    |> Nx.to_batched(1)
+    |> to_batched_output()
+    |> Enum.reverse()
     |> Enum.zip_with(froms, fn tensor, from ->
       GenServer.reply(from, tensor)
     end)
@@ -268,15 +317,33 @@ defmodule Axon.Serving do
     do_pad(tensor, pad_size)
   end
 
-  defp maybe_pad(inputs, current_batch_size, desired_batch_size) when is_map(inputs) do
+  defp maybe_pad(inputs, current_batch_size, desired_batch_size) do
     pad_size = desired_batch_size - current_batch_size
     # TODO: Do not pad batched outputs
-    Map.new(inputs, fn {name, tensor} -> {name, do_pad(tensor, pad_size)} end)
+    deep_new(inputs, fn tensor -> do_pad(tensor, pad_size) end)
   end
+
+  defp do_pad(%Axon.None{} = result, _), do: result
 
   defp do_pad(tensor, pad_size) do
     first_axis_pad = {0, pad_size, 0}
     rest_axes_pad = List.duplicate({0, 0, 0}, Nx.rank(tensor) - 1)
     Nx.pad(tensor, 0.0, [first_axis_pad | rest_axes_pad])
+  end
+
+  defp to_batched_output(%Nx.Tensor{} = tensor), do: Nx.to_batched(tensor, 1)
+
+  defp to_batched_output(result) do
+    batch_size =
+      deep_reduce(result, nil, fn
+        tensor, _ -> Nx.axis_size(tensor, 0)
+      end)
+
+    for idx <- 0..(batch_size - 1) do
+      deep_new(result, fn
+        %Axon.None{} = out -> out
+        out -> out[[idx]]
+      end)
+    end
   end
 end

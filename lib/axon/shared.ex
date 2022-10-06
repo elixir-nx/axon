@@ -189,11 +189,15 @@ defmodule Axon.Shared do
   Creates a new map-like structure from a possible nested map, applying `fun`
   to each leaf.
   """
-  deftransform deep_new(item, fun) when is_integer(item) do
+  deftransform deep_new(item, fun) when is_number(item) do
     fun.(item)
   end
 
   deftransform deep_new(%Nx.Tensor{} = item, fun) do
+    fun.(item)
+  end
+
+  deftransform deep_new(%Axon.None{} = item, fun) do
     fun.(item)
   end
 
@@ -205,6 +209,9 @@ defmodule Axon.Shared do
   defp recur_traverse(item, :ok, fun) do
     case item do
       %Nx.Tensor{} = t ->
+        {fun.(t), :ok}
+
+      %Axon.None{} = t ->
         {fun.(t), :ok}
 
       container ->

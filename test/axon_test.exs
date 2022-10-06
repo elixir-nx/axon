@@ -765,7 +765,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input" => {nil, 784}}
+               inputs: %{"input" => %{optional: false, shape: {nil, 784}}}
                outputs: "softmax"
                nodes: 4
              >\
@@ -788,7 +788,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input" => {nil, 784}}
+               inputs: %{"input" => %{optional: false, shape: {nil, 784}}}
                outputs: "softmax"
                nodes: 7
              >\
@@ -801,7 +801,7 @@ defmodule AxonTest do
 
       assert inspect(out_sequence) == """
              #Axon<
-               inputs: %{"input_0" => {nil, 32, 10}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 32, 10}}}
                outputs: "lstm_output_sequence"
                nodes: 6
              >\
@@ -813,7 +813,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => {nil, 1}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}}
                outputs: "x"
                nodes: 3
              >\
@@ -829,7 +829,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => {nil, 1}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}}
                outputs: "y"
                nodes: 4
              >\
@@ -844,7 +844,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}, "input_1" => %{optional: false, shape: {nil, 1}}}
                outputs: "add_0"
                nodes: 8
              >\
@@ -859,7 +859,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}, "input_1" => %{optional: false, shape: {nil, 1}}}
                outputs: "add_0"
                nodes: 7
              >\
