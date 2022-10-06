@@ -254,7 +254,7 @@ defmodule Axon.ServingTest do
       expected = Axon.predict(model, params, input)
       actual = Axon.Serving.predict(:single_in, input)
 
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
     test "returns correctly with single predict multi-in, single out model", %{
@@ -264,7 +264,7 @@ defmodule Axon.ServingTest do
       expected = Axon.predict(model, params, input)
       actual = Axon.Serving.predict(:multi_in_single_out, input)
 
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
     test "returns correctly with single predict optional input model", %{
@@ -274,7 +274,7 @@ defmodule Axon.ServingTest do
       expected = Axon.predict(model, params, input)
       actual = Axon.Serving.predict(:optional, input)
 
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
     test "returns correctly with single predict deeply nested model", %{
@@ -284,7 +284,7 @@ defmodule Axon.ServingTest do
       expected = Axon.predict(model, params, input)
       actual = Axon.Serving.predict(:deeply_nested, input)
 
-      assert_all_close(expected, actual)
+      assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
     test "returns correctly with full-batch predict and single in, single out model", %{
@@ -300,7 +300,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -317,7 +317,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -334,7 +334,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -351,7 +351,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -367,7 +367,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -384,7 +384,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -400,7 +400,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
 
@@ -417,7 +417,7 @@ defmodule Axon.ServingTest do
       end)
       |> Enum.each(fn {actual_pid, expected} ->
         actual = Task.await(actual_pid)
-        assert_all_close(expected, actual)
+        assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
   end
