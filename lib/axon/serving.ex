@@ -342,7 +342,7 @@ defmodule Axon.Serving do
     for idx <- 0..(batch_size - 1) do
       deep_new(result, fn
         %Axon.None{} = out -> out
-        out -> out[[idx]]
+        out -> Nx.new_axis(out[[idx]], 0)
       end)
     end
   end
