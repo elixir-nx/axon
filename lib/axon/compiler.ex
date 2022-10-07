@@ -802,6 +802,8 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp maybe_as_type(%Axon.None{} = none, _), do: none
+
   defp maybe_as_type(tensor, type) do
     # do not convert integer types
     if Nx.Type.integer?(Nx.type(tensor)) do
