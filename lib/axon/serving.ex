@@ -173,10 +173,15 @@ defmodule Axon.Serving do
 
   defp template!(%Axon{} = model, config_shapes, config_types, batch_size) do
     config_shapes_and_types =
-      if config_types do
-        Map.merge(config_shapes, config_types, fn _key, shape, type -> {shape, type} end)
-      else
-        Map.new(config_shapes, fn {key, shape} -> {key, {shape, nil}} end)
+      cond do
+        config_shapes == nil and config_types == nil ->
+          %{}
+
+        config_types == nil ->
+          Map.new(config_shapes, fn {key, shape} -> {key, {shape, nil}} end)
+
+        true ->
+          Map.merge(config_shapes, config_types, fn _key, shape, type -> {shape, type} end)
       end
 
     model
@@ -197,7 +202,15 @@ defmodule Axon.Serving do
     |> Map.new(fn {name, properties} ->
       axon_shape = properties[:shape]
       axon_type = properties[:type]
-      {config_shape, config_type} = config_shapes_and_types[name]
+
+      {config_shape, config_type} =
+        case config_shapes_and_types[name] do
+          nil ->
+            {nil, nil}
+
+          shape_type ->
+            shape_type
+        end
 
       # TODO: Handle inputs which are not batched across an entire batch
       # like head_mask
@@ -219,11 +232,15 @@ defmodule Axon.Serving do
 
       type =
         cond do
-          config_type == nil ->
+          config_type != nil and axon_type == nil ->
+            config_type
+
+          axon_type != nil and config_type == nil ->
             axon_type
 
-          Nx.Type.normalize!(config_type) == Nx.Type.normalize!(axon_type) ->
-            config_type
+          config_type != nil and axon_type != nil and
+              Nx.Type.normalize!(config_type) == Nx.Type.normalize!(axon_type) ->
+            axon_type
 
           true ->
             raise ArgumentError, "invalid type for input #{name}"

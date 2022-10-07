@@ -34,16 +34,11 @@ defmodule Axon.ServingTest do
     Axon.embedding(inp, 32, 64)
   end
 
-  defp model(model, shapes, types \\ nil) do
-    shapes_and_types =
-      if types do
-        Map.merge(shapes, types, fn _k, l, r -> {l, r} end)
-      else
-        Map.new(shapes, fn {k, v} -> {k, {v, :f32}} end)
-      end
-
+  defp model(model, shapes, types) do
     templates =
-      Map.new(shapes_and_types, fn {k, {shape, type}} -> {k, Nx.template(shape, type)} end)
+      shapes
+      |> Map.merge(types, fn _key, shape, type -> {shape, type} end)
+      |> Map.new(fn {k, {shape, type}} -> {k, Nx.template(shape, type)} end)
 
     {init_fn, _} = Axon.build(model)
     {model, init_fn.(templates, %{})}
@@ -51,48 +46,58 @@ defmodule Axon.ServingTest do
 
   defp setup_predict(_context) do
     single_in_shape = %{"input" => {8, 16}}
-    single_in_model = model(single_in_single_out(), single_in_shape)
+    single_in_type = %{"input" => :f32}
+    single_in_model = model(single_in_single_out(), single_in_shape, single_in_type)
 
     Axon.Serving.start_link(
       name: :single_in,
       model: single_in_model,
       shape: single_in_shape,
+      type: single_in_type,
       batch_size: 8,
       batch_timeout: 50,
       compiler: test_compiler()
     )
 
     multi_in_single_out_shape = %{"input1" => {8, 8}, "input2" => {8, 16}}
-    multi_in_single_out_model = model(multi_in_single_out(), multi_in_single_out_shape)
+    multi_in_single_out_type = %{"input1" => :f32, "input2" => :f32}
+
+    multi_in_single_out_model =
+      model(multi_in_single_out(), multi_in_single_out_shape, multi_in_single_out_type)
 
     Axon.Serving.start_link(
       name: :multi_in_single_out,
       model: multi_in_single_out_model,
       shape: multi_in_single_out_shape,
+      type: multi_in_single_out_type,
       batch_size: 8,
       batch_timeout: 50,
       compiler: test_compiler()
     )
 
     optional_shape = %{"input1" => {8, 8}}
-    optional_model = model(optional(), optional_shape)
+    optional_type = %{"input1" => :f32}
+    optional_model = model(optional(), optional_shape, optional_type)
 
     Axon.Serving.start_link(
       name: :optional,
       model: optional_model,
       shape: optional_shape,
+      type: optional_type,
       batch_size: 8,
       batch_timeout: 50,
       compiler: test_compiler()
     )
 
     deeply_nested_shape = %{"input1" => {8, 8}, "input2" => {8, 16}}
-    deeply_nested_model = model(deeply_nested(), deeply_nested_shape)
+    deeply_nested_type = %{"input1" => :f32, "input2" => :f32}
+    deeply_nested_model = model(deeply_nested(), deeply_nested_shape, deeply_nested_type)
 
     Axon.Serving.start_link(
       name: :deeply_nested,
       model: deeply_nested_model,
       shape: deeply_nested_shape,
+      type: deeply_nested_type,
       batch_size: 8,
       batch_timeout: 50,
       compiler: test_compiler()
@@ -106,6 +111,7 @@ defmodule Axon.ServingTest do
       name: :integer_input,
       model: integer_input_model,
       shape: integer_input_shape,
+      type: integer_input_type,
       batch_size: 8,
       batch_timeout: 50,
       compiler: test_compiler()
@@ -124,13 +130,15 @@ defmodule Axon.ServingTest do
   describe "initialization" do
     test "initializes correctly with single-in, single-out model" do
       single_in_shape = %{"input" => {8, 16}}
-      single_in_model = model(single_in_single_out(), single_in_shape)
+      single_in_type = %{"input" => :f32}
+      single_in_model = model(single_in_single_out(), single_in_shape, single_in_type)
 
       assert {:ok, pid} =
                Axon.Serving.start_link(
                  name: :single_in,
                  model: single_in_model,
                  shape: single_in_shape,
+                 type: single_in_type,
                  batch_size: 8,
                  batch_timeout: 50,
                  compiler: test_compiler()
@@ -141,13 +149,15 @@ defmodule Axon.ServingTest do
 
     test "initializes correctly with single-in, single-out model, nil batch" do
       single_in_shape = %{"input" => {nil, 16}}
-      single_in_model = model(single_in_single_out(), %{"input" => {8, 16}})
+      single_in_type = %{"input" => :f32}
+      single_in_model = model(single_in_single_out(), %{"input" => {8, 16}}, single_in_type)
 
       assert {:ok, pid} =
                Axon.Serving.start_link(
                  name: :single_in,
                  model: single_in_model,
                  shape: single_in_shape,
+                 type: single_in_type,
                  batch_size: 8,
                  batch_timeout: 50,
                  compiler: test_compiler()
@@ -157,7 +167,7 @@ defmodule Axon.ServingTest do
     end
 
     test "initializes correctly with nil shape specified in model" do
-      model = Axon.input("foo", shape: {nil, 16}) |> Axon.dense(32)
+      model = Axon.input("foo", shape: {nil, 16}, type: :f32) |> Axon.dense(32)
       {init_fn, _} = Axon.build(model)
       params = init_fn.(Nx.template({1, 16}, :f32), %{})
 
@@ -184,6 +194,7 @@ defmodule Axon.ServingTest do
                  name: :model,
                  model: {model, params},
                  shape: %{"foo" => {8, 16}},
+                 type: %{"foo" => :f32},
                  batch_size: 8,
                  batch_timeout: 50
                )

@@ -369,11 +369,11 @@ defmodule Axon do
   def input(name, opts \\ [])
 
   def input(name, opts) when is_binary(name) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:shape, optional: false, type: :f32])
+    opts = Keyword.validate!(opts, [:shape, :type, optional: false])
     optional = opts[:optional]
 
     input_shape = opts[:shape]
-    input_type = opts[:type] || :f32
+    input_type = opts[:type]
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
 
