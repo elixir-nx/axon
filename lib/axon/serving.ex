@@ -92,10 +92,11 @@ defmodule Axon.Serving do
     {{model, params}, opts} = Keyword.pop!(opts, :model)
     {name, opts} = Keyword.pop!(opts, :name)
     {shape, opts} = Keyword.pop(opts, :shape)
+    {type, opts} = Keyword.pop(opts, :type)
     {batch_size, opts} = Keyword.pop(opts, :batch_size, 1)
     {batch_timeout, compiler_opts} = Keyword.pop(opts, :batch_timeout, 100)
 
-    template = template!(model, shape, batch_size)
+    template = template!(model, shape, type, batch_size)
 
     {_init_fun, predict_fun} = Axon.compile(model, template, %{}, compiler_opts)
 
@@ -170,7 +171,14 @@ defmodule Axon.Serving do
     {:noreply, dispatch(state)}
   end
 
-  defp template!(%Axon{} = model, config_shapes, batch_size) do
+  defp template!(%Axon{} = model, config_shapes, config_types, batch_size) do
+    config_shapes_and_types =
+      if config_types do
+        Map.merge(config_shapes, config_types, fn _key, shape, type -> {shape, type} end)
+      else
+        Map.new(config_shapes, fn {key, shape} -> {key, {shape, nil}} end)
+      end
+
     model
     |> Axon.get_inputs()
     |> Enum.filter(fn {name, properties} ->
@@ -189,7 +197,7 @@ defmodule Axon.Serving do
     |> Map.new(fn {name, properties} ->
       axon_shape = properties[:shape]
       axon_type = properties[:type]
-      config_shape = config_shapes[name]
+      {config_shape, config_type} = config_shapes_and_types[name]
 
       # TODO: Handle inputs which are not batched across an entire batch
       # like head_mask
@@ -209,7 +217,19 @@ defmodule Axon.Serving do
             raise ArgumentError, "invalid shape for input #{name}"
         end
 
-      {name, Nx.template(shape, axon_type)}
+      type =
+        cond do
+          config_type == nil ->
+            axon_type
+
+          Nx.Type.normalize!(config_type) == Nx.Type.normalize!(axon_type) ->
+            config_type
+
+          true ->
+            raise ArgumentError, "invalid type for input #{name}"
+        end
+
+      {name, Nx.template(shape, type)}
     end)
   end
 
