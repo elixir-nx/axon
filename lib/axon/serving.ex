@@ -143,7 +143,7 @@ defmodule Axon.Serving do
 
   @impl true
   def handle_call({:predict, input}, from, state) do
-    %{queue: queue, count: count} = state
+    %{config: %{batch_size: max_batch_size}, queue: queue, count: count} = state
     queue = :queue.in({input, from}, queue)
 
     # TODO: if Nx.axis_size(input, 0) is more than batch_size,
@@ -152,9 +152,16 @@ defmodule Axon.Serving do
     # TODO: correctly handle container inputs
 
     [first_input | _rest] = Map.values(input)
+    batch_size = Nx.axis_size(first_input, 0)
+
+    if batch_size > max_batch_size do
+      raise ArgumentError,
+            "received batch size #{inspect(batch_size)} which is larger" <>
+              " than max configured batch size of #{inspect(max_batch_size)}"
+    end
 
     state =
-      %{state | queue: queue, count: count + Nx.axis_size(first_input, 0)}
+      %{state | queue: queue, count: count + batch_size}
       |> maybe_start_timer()
       |> maybe_dispatch()
 
@@ -184,6 +191,7 @@ defmodule Axon.Serving do
     end)
     |> Map.new(fn {name, properties} ->
       axon_shape = properties[:shape]
+      axon_type = properties[:type]
       config_shape = config_shapes[name]
 
       # TODO: Handle inputs which are not batched across an entire batch
@@ -204,8 +212,7 @@ defmodule Axon.Serving do
             raise ArgumentError, "invalid shape for input #{name}"
         end
 
-      # TODO: preserve input type
-      {name, Nx.template(shape, :f32)}
+      {name, Nx.template(shape, axon_type)}
     end)
   end
 
@@ -252,39 +259,61 @@ defmodule Axon.Serving do
     state
   end
 
-  # TODO: Make this work with batches != 1
   defp dispatch(state) do
     %{queue: queue, count: count, timeout_ref: timeout_ref} = state
     cancel_timer(timeout_ref)
 
     batch_size = min(count, state.config.batch_size)
 
-    {now, queue} =
-      Enum.map_reduce(1..batch_size, queue, fn _, queue ->
-        {{:value, {input, _} = pair}, queue} = :queue.out(queue)
-        # TODO: handle with counts per input
-        [input | _rest] = Map.values(input)
-        1 = Nx.axis_size(input, 0)
-        {pair, queue}
-      end)
+    {actual_batch_size, now, batch_sizes, queue} = get_batches(batch_size, {0, [], [], queue})
 
     {inputs, froms} = Enum.unzip(now)
 
-    # TODO: Do we want to start a process or not?
+    # TODO: do we really want to start a process here?
     inputs
     |> concat_inputs()
-    |> maybe_pad(batch_size, state.config.batch_size)
+    |> maybe_pad(actual_batch_size, state.config.batch_size)
     |> then(&state.config.model.(state.config.params, &1))
     |> maybe_pad(state.config.batch_size, batch_size)
-    |> to_batched_output()
-    |> Enum.reverse()
-    |> Enum.zip_with(froms, fn tensor, from ->
-      GenServer.reply(from, tensor)
-    end)
+    |> reply_with_batched_output(batch_sizes, froms)
 
-    %{state | count: count - batch_size, queue: queue, timeout_ref: nil}
+    %{state | count: count - actual_batch_size, queue: queue, timeout_ref: nil}
     |> maybe_start_timer()
     |> maybe_dispatch()
+  end
+
+  defp get_batches(max_batch_size, {cur_batch_size, now, batch_sizes, queue}) do
+    case :queue.out(queue) do
+      {:empty, {[], []}} ->
+        {cur_batch_size, now, batch_sizes, queue}
+
+      {{:value, {input, _} = pair}, new_queue} ->
+        [input | _rest] = Map.values(input)
+        batch_size = Nx.axis_size(input, 0)
+
+        cond do
+          batch_size + cur_batch_size == max_batch_size ->
+            # the batch fits perfectly, so we can predict :)
+            now = [pair | now]
+            batch_sizes = [batch_size | batch_sizes]
+            {batch_size + cur_batch_size, now, batch_sizes, new_queue}
+
+          batch_size + cur_batch_size > max_batch_size ->
+            # the batch does not fit perfectly, it must wait for
+            # the next queue
+            {cur_batch_size, now, batch_sizes, queue}
+
+          true ->
+            # we can keep collecting from the queue
+            now = [pair | now]
+            batch_sizes = [batch_size | batch_sizes]
+
+            get_batches(
+              max_batch_size,
+              {batch_size + cur_batch_size, now, batch_sizes, new_queue}
+            )
+        end
+    end
   end
 
   defp cancel_timer(timeout_ref) do
@@ -326,25 +355,39 @@ defmodule Axon.Serving do
 
   defp do_pad(%Axon.None{} = result, _), do: result
 
+  defp do_pad(tensor, 0), do: tensor
+
   defp do_pad(tensor, pad_size) do
     first_axis_pad = {0, pad_size, 0}
     rest_axes_pad = List.duplicate({0, 0, 0}, Nx.rank(tensor) - 1)
-    Nx.pad(tensor, 0.0, [first_axis_pad | rest_axes_pad])
+    Nx.pad(tensor, Nx.tensor(0, type: Nx.type(tensor)), [first_axis_pad | rest_axes_pad])
   end
 
-  defp to_batched_output(%Nx.Tensor{} = tensor), do: Nx.to_batched(tensor, 1)
+  defp reply_with_batched_output(%Nx.Tensor{} = tensor, batch_sizes, froms) do
+    batch_sizes
+    |> Enum.zip(froms)
+    |> Enum.reverse()
+    |> Enum.reduce(0, fn {batch_size, from}, idx ->
+      sliced = Nx.slice_along_axis(tensor, idx, batch_size, axis: 0)
+      :ok = GenServer.reply(from, sliced)
+      idx + batch_size
+    end)
+  end
 
-  defp to_batched_output(result) do
-    batch_size =
-      deep_reduce(result, nil, fn
-        tensor, _ -> Nx.axis_size(tensor, 0)
-      end)
+  defp reply_with_batched_output(result, batch_sizes, froms) do
+    batch_sizes
+    |> Enum.zip(froms)
+    |> Enum.reverse()
+    |> Enum.reduce(0, fn {batch_size, from}, idx ->
+      sliced =
+        deep_new(result, fn
+          %Axon.None{} = out -> out
+          out -> Nx.slice_along_axis(out, idx, batch_size, axis: 0)
+        end)
 
-    for idx <- 0..(batch_size - 1) do
-      deep_new(result, fn
-        %Axon.None{} = out -> out
-        out -> Nx.new_axis(out[[idx]], 0)
-      end)
-    end
+      :ok = GenServer.reply(from, sliced)
+
+      idx + batch_size
+    end)
   end
 end

@@ -369,13 +369,21 @@ defmodule Axon do
   def input(name, opts \\ [])
 
   def input(name, opts) when is_binary(name) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:shape, optional: false])
+    opts = Keyword.validate!(opts, [:shape, optional: false, type: :f32])
     optional = opts[:optional]
 
     input_shape = opts[:shape]
+    input_type = opts[:type] || :f32
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
-    layer(:input, [], name: name, shape: output_shape, op_name: :input, optional: optional)
+
+    layer(:input, [],
+      name: name,
+      shape: output_shape,
+      op_name: :input,
+      optional: optional,
+      type: input_type
+    )
   end
 
   # TODO: remove on Axon v0.3
@@ -2986,7 +2994,8 @@ defmodule Axon do
     reduce_nodes(axon, %{}, fn
       %Axon.Node{op: :input, name: name, opts: opts}, inputs ->
         name = name.(:input, %{})
-        Map.put(inputs, name, %{shape: opts[:shape], optional: opts[:optional]})
+
+        Map.put(inputs, name, %{shape: opts[:shape], optional: opts[:optional], type: opts[:type]})
 
       _, inputs ->
         inputs

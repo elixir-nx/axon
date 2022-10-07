@@ -29,8 +29,22 @@ defmodule Axon.ServingTest do
     Axon.container(out)
   end
 
-  defp model(model, shapes) do
-    templates = Map.new(shapes, fn {k, v} -> {k, Nx.template(v, :f32)} end)
+  defp integer_input() do
+    inp = Axon.input("input", type: :s64)
+    Axon.embedding(inp, 32, 64)
+  end
+
+  defp model(model, shapes, types \\ nil) do
+    shapes_and_types =
+      if types do
+        Map.merge(shapes, types, fn _k, l, r -> {l, r} end)
+      else
+        Map.new(shapes, fn {k, v} -> {k, {v, :f32}} end)
+      end
+
+    templates =
+      Map.new(shapes_and_types, fn {k, {shape, type}} -> {k, Nx.template(shape, type)} end)
+
     {init_fn, _} = Axon.build(model)
     {model, init_fn.(templates, %{})}
   end
@@ -84,12 +98,26 @@ defmodule Axon.ServingTest do
       compiler: test_compiler()
     )
 
+    integer_input_shape = %{"input" => {8, 32}}
+    integer_input_type = %{"input" => :s64}
+    integer_input_model = model(integer_input(), integer_input_shape, integer_input_type)
+
+    Axon.Serving.start_link(
+      name: :integer_input,
+      model: integer_input_model,
+      shape: integer_input_shape,
+      batch_size: 8,
+      batch_timeout: 50,
+      compiler: test_compiler()
+    )
+
     {:ok,
      %{
        single_in: single_in_model,
        multi_in_single_out: multi_in_single_out_model,
        optional: optional_model,
-       deeply_nested: deeply_nested_model
+       deeply_nested: deeply_nested_model,
+       integer_input: integer_input_model
      }}
   end
 
@@ -247,7 +275,7 @@ defmodule Axon.ServingTest do
   describe "predict" do
     setup [:setup_predict]
 
-    test "returns correctly with single unbatched predict and single in, single out model", %{
+    test "returns correctly with single batch_size=1 predict and single in, single out model", %{
       single_in: {model, params}
     } do
       input = %{"input" => Nx.random_uniform({1, 16})}
@@ -257,7 +285,7 @@ defmodule Axon.ServingTest do
       assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
-    test "returns correctly with single predict multi-in, single out model", %{
+    test "returns correctly with single batch_size=1 predict and multi-in, single out model", %{
       multi_in_single_out: {model, params}
     } do
       input = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -267,7 +295,7 @@ defmodule Axon.ServingTest do
       assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
-    test "returns correctly with single predict optional input model", %{
+    test "returns correctly with single batch_size=1 predict and optional input model", %{
       optional: {model, params}
     } do
       input = %{"input1" => Nx.random_uniform({1, 8})}
@@ -277,7 +305,7 @@ defmodule Axon.ServingTest do
       assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
-    test "returns correctly with single predict deeply nested model", %{
+    test "returns correctly with single batch_size=1 predict and deeply nested model", %{
       deeply_nested: {model, params}
     } do
       input = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -287,7 +315,47 @@ defmodule Axon.ServingTest do
       assert_all_close(expected, actual, atol: 1.0e-4)
     end
 
-    test "returns correctly with full-batch predict and single in, single out model", %{
+    test "returns correctly with batch_size > 1 predict and single in, single out model", %{
+      single_in: {model, params}
+    } do
+      input = %{"input" => Nx.random_uniform({8, 16})}
+      expected = Axon.predict(model, params, input)
+      actual = Axon.Serving.predict(:single_in, input)
+
+      assert_all_close(expected, actual, atol: 1.0e-4)
+    end
+
+    test "returns correctly with batch_size > 1 predict and multi-in, single out model", %{
+      multi_in_single_out: {model, params}
+    } do
+      input = %{"input1" => Nx.random_uniform({8, 8}), "input2" => Nx.random_uniform({8, 16})}
+      expected = Axon.predict(model, params, input)
+      actual = Axon.Serving.predict(:multi_in_single_out, input)
+
+      assert_all_close(expected, actual, atol: 1.0e-4)
+    end
+
+    test "returns correctly with single batch_size > 1 predict and optional input model", %{
+      optional: {model, params}
+    } do
+      input = %{"input1" => Nx.random_uniform({8, 8})}
+      expected = Axon.predict(model, params, input)
+      actual = Axon.Serving.predict(:optional, input)
+
+      assert_all_close(expected, actual, atol: 1.0e-4)
+    end
+
+    test "returns correctly with batch_size > 1 predict and deeply nested model", %{
+      deeply_nested: {model, params}
+    } do
+      input = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
+      expected = Axon.predict(model, params, input)
+      actual = Axon.Serving.predict(:deeply_nested, input)
+
+      assert_all_close(expected, actual, atol: 1.0e-4)
+    end
+
+    test "returns correctly with full-batch predict timeout and single in, single out model", %{
       single_in: {model, params}
     } do
       0..7
@@ -304,7 +372,7 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with full-batch predict and multi-in, single out model", %{
+    test "returns correctly with full-batch predict timeout and multi-in, single out model", %{
       multi_in_single_out: {model, params}
     } do
       0..7
@@ -321,7 +389,7 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with full-batch predict and optional model", %{
+    test "returns correctly with full-batch predict timeout and optional model", %{
       optional: {model, params}
     } do
       0..7
@@ -338,7 +406,7 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with full-batch predict and deeply nested model", %{
+    test "returns correctly with full-batch predict timeout and deeply nested model", %{
       deeply_nested: {model, params}
     } do
       0..7
@@ -421,7 +489,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with way too full batch and single in, single out model", %{single_in: {model, params}} do
+    test "returns correctly with way too full batch and single in, single out model", %{
+      single_in: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input" => Nx.random_uniform({1, 16})}
@@ -436,7 +506,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with way too full batch and multi-in, single out model", %{multi_in_single_out: {model, params}} do
+    test "returns correctly with way too full batch and multi-in, single out model", %{
+      multi_in_single_out: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -451,7 +523,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with way too full batch and optional model", %{optional: {model, params}} do
+    test "returns correctly with way too full batch and optional model", %{
+      optional: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8})}
@@ -466,7 +540,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with way too full batch and deeply nested model", %{deeply_nested: {model, params}} do
+    test "returns correctly with way too full batch and deeply nested model", %{
+      deeply_nested: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -481,7 +557,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with intermittent requests and single in, single out model", %{single_in: {model, params}} do
+    test "returns correctly with intermittent requests and single in, single out model", %{
+      single_in: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input" => Nx.random_uniform({1, 16})}
@@ -503,7 +581,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with intermittent requests and multi-in, single out model", %{multi_in_single_out: {model, params}} do
+    test "returns correctly with intermittent requests and multi-in, single out model", %{
+      multi_in_single_out: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -525,7 +605,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with intermittent requets and optional model", %{optional: {model, params}} do
+    test "returns correctly with intermittent requets and optional model", %{
+      optional: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8})}
@@ -547,7 +629,9 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with intermittent requests and deeply nested model", %{deeply_nested: {model, params}} do
+    test "returns correctly with intermittent requests and deeply nested model", %{
+      deeply_nested: {model, params}
+    } do
       0..99
       |> Enum.map(fn _idx ->
         inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
@@ -569,30 +653,212 @@ defmodule Axon.ServingTest do
       end)
     end
 
-    test "returns correctly with irregular sized batch inputs at regular interval" do
-      flunk()
+    test "returns correctly with irregular sized batch inputs at regular interval, single in, single out model",
+         %{single_in: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+        inp = %{"input" => Nx.random_uniform({batch_size, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:single_in, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
     end
 
-    test "returns correcly with irregular sized batches at irregular interval" do
-      flunk()
+    test "returns correctly with irregular sized batch inputs at regular interval, multi-in, single out model",
+         %{multi_in_single_out: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+
+        inp = %{
+          "input1" => Nx.random_uniform({batch_size, 8}),
+          "input2" => Nx.random_uniform({batch_size, 16})
+        }
+
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:multi_in_single_out, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
     end
 
-    test "raises on input batch size larger than expected batch size" do
-      flunk()
+    test "returns correcly with irregular sized batches at regular interval, optional model", %{
+      optional: {model, params}
+    } do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+        inp = %{"input1" => Nx.random_uniform({batch_size, 8})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:optional, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
     end
 
-    test "returns correctly with non-uniform input data types" do
-      flunk()
+    test "returns correcly with irregular sized batches at regular interval, deeply nested model",
+         %{deeply_nested: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+
+        inp = %{
+          "input1" => Nx.random_uniform({batch_size, 8}),
+          "input2" => Nx.random_uniform({batch_size, 16})
+        }
+
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:deeply_nested, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with irregular sized batches at irregular interval, single in, single out model",
+         %{single_in: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+        inp = %{"input" => Nx.random_uniform({batch_size, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:single_in, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with irregular sized batches at irregular interval, multi in, single out model",
+         %{multi_in_single_out: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+
+        inp = %{
+          "input1" => Nx.random_uniform({batch_size, 8}),
+          "input2" => Nx.random_uniform({batch_size, 16})
+        }
+
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:multi_in_single_out, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with irregular sized batches at irregular interval, optional model",
+         %{optional: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+        inp = %{"input1" => Nx.random_uniform({batch_size, 8})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:optional, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with irregular sized batches at irregular interval, deeply nested model",
+         %{deeply_nested: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        batch_size = :rand.uniform(8)
+
+        inp = %{
+          "input1" => Nx.random_uniform({batch_size, 8}),
+          "input2" => Nx.random_uniform({batch_size, 16})
+        }
+
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:deeply_nested, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    # test "raises on input batch size larger than expected batch size" do
+    #   # TODO
+    # end
+
+    test "returns correctly with non-float input data types", %{integer_input: {model, params}} do
+      input = %{"input" => Nx.iota({1, 32})}
+      expected = Axon.predict(model, params, input)
+      actual = Axon.Serving.predict(:integer_input, input)
+
+      assert_all_close(expected, actual, atol: 1.0e-4)
     end
   end
 
-  describe "termination" do
-    test "does not add any more requests to the queue" do
-      flunk()
-    end
+  # TODO
+  # describe "termination" do
+  #   test "does not add any more requests to the queue" do
+  #     flunk()
+  #   end
 
-    test "services all requests currently in queue before terminating" do
-      flunk()
-    end
-  end
+  #   test "services all requests currently in queue before terminating" do
+  #     flunk()
+  #   end
+  # end
 end

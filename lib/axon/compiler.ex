@@ -200,7 +200,7 @@ defmodule Axon.Compiler do
            op: :input,
            hooks: hooks,
            name: name_fn,
-           opts: [shape: _input_shape, optional: optional?]
+           opts: [shape: _input_shape, optional: optional?, type: _input_type]
          },
          _nodes,
          {cache, op_counts},
@@ -214,6 +214,7 @@ defmodule Axon.Compiler do
 
       # TODO: Add this back in
       # validate_input_shape!(value, shape)
+      # validate_input_type!(value, type)
 
       res =
         value
@@ -794,10 +795,19 @@ defmodule Axon.Compiler do
         none
 
       %Nx.Tensor{} = tensor ->
-        Nx.as_type(tensor, type)
+        maybe_as_type(tensor, type)
 
       container ->
-        deep_new(container, &Nx.as_type(&1, type))
+        deep_new(container, &maybe_as_type(&1, type))
+    end
+  end
+
+  defp maybe_as_type(tensor, type) do
+    # do not convert integer types
+    if Nx.Type.integer?(Nx.type(tensor)) do
+      tensor
+    else
+      Nx.as_type(tensor, type)
     end
   end
 
