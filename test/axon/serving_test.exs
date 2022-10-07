@@ -420,5 +420,179 @@ defmodule Axon.ServingTest do
         assert_all_close(expected, actual, atol: 1.0e-4)
       end)
     end
+
+    test "returns correctly with way too full batch and single in, single out model", %{single_in: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:single_in, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with way too full batch and multi-in, single out model", %{multi_in_single_out: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:multi_in_single_out, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with way too full batch and optional model", %{optional: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:optional, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with way too full batch and deeply nested model", %{deeply_nested: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {Task.async(fn -> Axon.Serving.predict(:deeply_nested, inp) end), expected}
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with intermittent requests and single in, single out model", %{single_in: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:single_in, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with intermittent requests and multi-in, single out model", %{multi_in_single_out: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:multi_in_single_out, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with intermittent requets and optional model", %{optional: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:optional, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with intermittent requests and deeply nested model", %{deeply_nested: {model, params}} do
+      0..99
+      |> Enum.map(fn _idx ->
+        inp = %{"input1" => Nx.random_uniform({1, 8}), "input2" => Nx.random_uniform({1, 16})}
+        {inp, Axon.predict(model, params, inp)}
+      end)
+      |> Enum.map(fn {inp, expected} ->
+        {
+          Task.async(fn ->
+            sleep = :rand.uniform(15)
+            Process.sleep(sleep)
+            Axon.Serving.predict(:deeply_nested, inp)
+          end),
+          expected
+        }
+      end)
+      |> Enum.each(fn {actual_pid, expected} ->
+        actual = Task.await(actual_pid)
+        assert_all_close(expected, actual, atol: 1.0e-4)
+      end)
+    end
+
+    test "returns correctly with irregular sized batch inputs at regular interval" do
+      flunk()
+    end
+
+    test "returns correcly with irregular sized batches at irregular interval" do
+      flunk()
+    end
+
+    test "raises on input batch size larger than expected batch size" do
+      flunk()
+    end
+
+    test "returns correctly with non-uniform input data types" do
+      flunk()
+    end
+  end
+
+  describe "termination" do
+    test "does not add any more requests to the queue" do
+      flunk()
+    end
+
+    test "services all requests currently in queue before terminating" do
+      flunk()
+    end
   end
 end

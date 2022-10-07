@@ -65,6 +65,7 @@ defmodule Axon.Serving do
 
   # TODO: With pre-processing how can we determine batch size
   # TODO: Add debug to trace wait time, execution time, etc.
+  # TODO: Support multiple batch sizes
 
   ## API
 
