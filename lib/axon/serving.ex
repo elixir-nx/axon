@@ -65,7 +65,6 @@ defmodule Axon.Serving do
 
   # TODO: With pre-processing how can we determine batch size
   # TODO: Add debug to trace wait time, execution time, etc.
-  # TODO: Support multiple batch sizes
 
   ## API
 
@@ -146,8 +145,6 @@ defmodule Axon.Serving do
     %{config: %{batch_size: max_batch_size}, queue: queue, count: count} = state
     queue = :queue.in({input, from}, queue)
 
-    # TODO: if Nx.axis_size(input, 0) is more than batch_size,
-    # we should return error.
     # TODO: correctly handle counts/batch for all inputs
     # TODO: correctly handle container inputs
 
@@ -269,7 +266,7 @@ defmodule Axon.Serving do
 
     {inputs, froms} = Enum.unzip(now)
 
-    # TODO: do we really want to start a process here?
+    # TODO: Do we want to start a process here
     inputs
     |> concat_inputs()
     |> maybe_pad(actual_batch_size, state.config.batch_size)
