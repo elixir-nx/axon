@@ -765,7 +765,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input" => %{optional: false, shape: {nil, 784}}}
+               inputs: %{"input" => %{optional: false, shape: {nil, 784}, type: nil}}
                outputs: "softmax"
                nodes: 4
              >\
@@ -788,7 +788,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input" => %{optional: false, shape: {nil, 784}}}
+               inputs: %{"input" => %{optional: false, shape: {nil, 784}, type: nil}}
                outputs: "softmax"
                nodes: 7
              >\
@@ -801,7 +801,7 @@ defmodule AxonTest do
 
       assert inspect(out_sequence) == """
              #Axon<
-               inputs: %{"input_0" => %{optional: false, shape: {nil, 32, 10}}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 32, 10}, type: nil}}
                outputs: "lstm_output_sequence"
                nodes: 6
              >\
@@ -813,7 +813,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}, type: nil}}
                outputs: "x"
                nodes: 3
              >\
@@ -829,7 +829,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}, type: nil}}
                outputs: "y"
                nodes: 4
              >\
@@ -844,7 +844,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}, "input_1" => %{optional: false, shape: {nil, 1}}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}, type: nil}, "input_1" => %{optional: false, shape: {nil, 1}, type: nil}}
                outputs: "add_0"
                nodes: 8
              >\
@@ -859,7 +859,7 @@ defmodule AxonTest do
 
       assert inspect(model) == """
              #Axon<
-               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}}, "input_1" => %{optional: false, shape: {nil, 1}}}
+               inputs: %{"input_0" => %{optional: false, shape: {nil, 1}, type: nil}, "input_1" => %{optional: false, shape: {nil, 1}, type: nil}}
                outputs: "add_0"
                nodes: 7
              >\

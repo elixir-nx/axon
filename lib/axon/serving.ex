@@ -81,6 +81,8 @@ defmodule Axon.Serving do
 
     * `:shape` - input shapes for each input in the model
 
+    * `:type` - input types for each input in the model
+
     * `:batch_size` - maximum batch size to forward to model
 
     * `:batch_timeout` - auto-batching queue timeout limit
