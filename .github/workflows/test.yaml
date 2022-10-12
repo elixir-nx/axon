@@ -1,19 +1,34 @@
-name: Axon CI
+name: Test
 on:
   pull_request:
   push:
     branches:
       - main
+env:
+  OTP_VERSION: "25.0"
+  ELIXIR_VERSION: "1.14.0"
+  MIX_ENV: test
+  XLA_CACHE_DIR: ${{ github.workspace }}/cache/xla
+  LIBTORCH_DIR: ${{ github.workspace }}/cache/torch
 jobs:
   main:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Erlang & Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: '24.0'
-          elixir-version: '1.14.0'
+          otp-version: "${{ env.OTP_VERSION }}"
+          elixir-version: "${{ env.ELIXIR_VERSION }}"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+            cache
+          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
       - name: Install mix dependencies
         run: mix deps.get
       - name: Check formatting
@@ -25,41 +40,59 @@ jobs:
   exla_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Erlang & Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: '24.0'
-          elixir-version: '1.13.0'
+          otp-version: "${{ env.OTP_VERSION }}"
+          elixir-version: "${{ env.ELIXIR_VERSION }}"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+            cache
+          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
       - name: Install mix dependencies
         run: mix deps.get
       - name: Run tests against EXLA
-        run: MIX_ENV=test USE_EXLA=true mix do compile --warnings-as-errors, test
+        run: USE_EXLA=true mix do compile --warnings-as-errors, test
   torchx_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Erlang & Elixir
         uses: erlef/setup-elixir@v1
         with:
-          otp-version: '24.0'
-          elixir-version: '1.13.0'
+          otp-version: "${{ env.OTP_VERSION }}"
+          elixir-version: "${{ env.ELIXIR_VERSION }}"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+            cache
+          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
       - name: Install mix dependencies
         run: mix deps.get
       - name: Run tests against Torchx
-        run: MIX_ENV=test USE_TORCHX=true mix do compile --warnings-as-errors, test
+        run: USE_TORCHX=true mix do compile --warnings-as-errors, test
   onnx_check:
     runs-on: ubuntu-latest
     steps:
       - name: Install Erlang & Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: '24.0'
-          elixir-version: '1.13.0'
+          otp-version: "${{ env.OTP_VERSION }}"
+          elixir-version: "${{ env.ELIXIR_VERSION }}"
       - name: Install Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: "3.8"
       - name: Install ONNX
         run: pip install numpy onnx onnxruntime
       - name: Install transformers
@@ -67,18 +100,15 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
         with:
-          version: '3.x'
+          version: "3.x"
       - name: Checkout AxonOnnx
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: elixir-nx/axon_onnx
           ref: refs/heads/master
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           path: tmp/axon
       - name: Run ONNX tests
         run: |
-          AXON_PATH="tmp/axon" MIX_ENV=test \
-            mix do deps.get, \
-            compile --warnings-as-errors, \
-            test
+          AXON_PATH="tmp/axon" mix do deps.get, compile --warnings-as-errors, test
