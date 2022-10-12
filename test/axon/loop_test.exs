@@ -54,7 +54,7 @@ defmodule Axon.LoopTest do
           assert_equal(tar, Nx.tensor([[1]]))
           assert_equal(pred, Nx.tensor([[1]]))
 
-          assert_equal(transform.(state), %{})
+          assert_equal(transform.(state), {state, %{}})
         end
       end
     end
@@ -77,7 +77,7 @@ defmodule Axon.LoopTest do
       assert_equal(pred, Nx.tensor([[1]]))
       assert_equal(loss, Nx.tensor(5.0))
 
-      assert_equal(transform.(state), %{})
+      assert_equal(transform.(state), {state, %{}})
     end
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
@@ -97,7 +97,7 @@ defmodule Axon.LoopTest do
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
 
-      assert_equal(transform.(state), %{})
+      assert_equal(transform.(state), {state, %{}})
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
@@ -116,7 +116,7 @@ defmodule Axon.LoopTest do
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
 
-      assert_equal(transform.(state), %{})
+      assert_equal(transform.(state), {state, %{}})
     end
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
@@ -142,7 +142,7 @@ defmodule Axon.LoopTest do
       assert_equal(pred, {Nx.tensor([[1]]), Nx.tensor([[1]])})
       assert_equal(loss, Nx.tensor(1.0))
 
-      assert_equal(transform.(state), %{})
+      assert_equal(transform.(state), {state, %{}})
     end
 
     test "trainer/3 raises on bad inputs" do
