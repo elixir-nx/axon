@@ -5,8 +5,8 @@
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", override: true},
-  {:kino, "~> 0.6.2"}
+  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:kino, "~> 0.7.0"}
 ])
 ```
 
@@ -74,12 +74,30 @@ template = Nx.template({2, 8}, :f32)
 Axon.Display.as_graph(out, template)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD;
+3[/"data (:input) {2, 8}"/];
+4["custom_0 (:custom) {2, 8}"];
+3 --> 4;
+```
+
 Notice that by default custom layers render with a default operation marked as `:custom`. This can make it difficult to determine which layer is which during inspection. You can control the rendering by passing `:op_name` to `Axon.layer/3`:
 
 ```elixir
 out = Axon.layer(&CustomLayers.my_layer/2, [input], op_name: :my_layer)
 
 Axon.Display.as_graph(out, template)
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD;
+3[/"data (:input) {2, 8}"/];
+5["my_layer_0 (:my_layer) {2, 8}"];
+3 --> 5;
 ```
 
 You can also control the name of your layer via the `:name` option. All other options are forwarded to the layer implementation function:
@@ -93,6 +111,15 @@ out =
   )
 
 Axon.Display.as_graph(out, template)
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD;
+3[/"data (:input) {2, 8}"/];
+6["layer (:my_layer) {2, 8}"];
+3 --> 6;
 ```
 
 ```elixir
@@ -139,7 +166,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 10, ...>>, {:my_layer, 3}}
+{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:my_layer, 3}}
 ```
 
 And then construct the layer with a regular Axon input and a trainable parameter:
@@ -172,7 +199,7 @@ params = init_fn.(template, %{})
   "my_layer_0" => %{
     "alpha" => #Nx.Tensor<
       f32
-      -0.38638609647750854
+      1.194254994392395
     >
   }
 }
@@ -206,7 +233,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:my_layer_impl, 3}}
+{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:my_layer_impl, 3}}
 ```
 
 ```elixir
@@ -229,4 +256,17 @@ out =
 
 ```elixir
 Axon.Display.as_graph(out, template)
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD;
+3[/"data (:input) {2, 8}"/];
+10["my_layer_0 (:my_layer) {2, 8}"];
+12["my_layer_1 (:my_layer) {2, 8}"];
+15["dense_0 (:dense) {2, 1}"];
+12 --> 15;
+10 --> 12;
+3 --> 10;
 ```

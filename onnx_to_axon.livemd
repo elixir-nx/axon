@@ -8,7 +8,7 @@ Mix.install(
     {:exla, "~> 0.3"},
     {:axon_onnx, "~> 0.2"},
     {:stb_image, "~> 0.5"},
-    {:kino, "~> 0.6.2"}
+    {:kino, "~> 0.7.0"}
   ],
   # change to "cuda111" for Nvidia GPU
   system_env: %{"XLA_TARGET" => xla_target}
@@ -122,8 +122,6 @@ Download the files and place them in a directory of your choice.  By default, we
 ```elixir
 File.cd!(__DIR__)
 ```
-
-<!-- livebook:{"break_markdown":true} -->
 
 Now let's convert an ONNX model into Axon
 

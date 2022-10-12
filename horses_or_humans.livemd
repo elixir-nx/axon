@@ -7,7 +7,7 @@ Mix.install([
   {:exla, "~> 0.3.0"},
   {:stb_image, "~> 0.5.2"},
   {:req, "~> 0.3.0"},
-  {:kino, "~> 0.6.2"}
+  {:kino, "~> 0.7.0"}
 ])
 
 Nx.global_default_backend(EXLA.Backend)
