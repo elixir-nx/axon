@@ -17,7 +17,7 @@ alias VegaLite, as: Vl
 
 In this notebook we try to create a model and learn it the **logical XOR**.
 
-Even though XOR seems like a trivial operation, it cannot be modeled using a single dense layer ([single-layer perceptron](https://en.wikipedia.org/wiki/Feedforward_neural_network#Single-layer_perceptron)). The underlying reason is that the classes in XOR are not linearly separable. We cannot draw a straight line to separate the points $(0,0)$, $(1,1)$ from the points $(0,1)$, $(1,0)$. To model this properly, we need to turn to deep learning methods. Deep learning is capable of learning non-linear relationships like XOR. 
+Even though XOR seems like a trivial operation, it cannot be modeled using a single dense layer ([single-layer perceptron](https://en.wikipedia.org/wiki/Feedforward_neural_network#Single-layer_perceptron)). The underlying reason is that the classes in XOR are not linearly separable. We cannot draw a straight line to separate the points $(0,0)$, $(1,1)$ from the points $(0,1)$, $(1,0)$. To model this properly, we need to turn to deep learning methods. Deep learning is capable of learning non-linear relationships like XOR.
 
 ## The model
 
