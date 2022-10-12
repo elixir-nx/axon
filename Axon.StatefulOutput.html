@@ -156,7 +156,6 @@ with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&
 </section>
 </div>
 
-<!-- Render math with KaTeX -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"></script>
@@ -168,27 +167,6 @@ with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&
         { left: "$", right: "$", display: false },
       ]
     });
-  });
-</script>
-
-<!-- Render diagrams with Mermaid -->
-<script src="https://cdn.jsdelivr.net/npm/mermaid@8.13.3/dist/mermaid.min.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    mermaid.initialize({ startOnLoad: false });
-    let id = 0;
-    for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
-      const preEl = codeEl.parentElement;
-      const graphDefinition = codeEl.textContent;
-      const graphEl = document.createElement("div");
-      const graphId = "mermaid-graph-" + id++;
-      mermaid.render(graphId, graphDefinition, function (svgSource, bindListeners) {
-        graphEl.innerHTML = svgSource;
-        bindListeners && bindListeners(graphEl);
-        preEl.insertAdjacentElement("afterend", graphEl);
-        preEl.remove();
-      });
-    }
   });
 </script>
 
