@@ -225,7 +225,7 @@ defmodule Axon.Display do
     |> Enum.join("")
   end
 
-  @compile {:no_warn_undefined, {Kino.Markdown, :new, 1}}
+  @compile {:no_warn_undefined, {Kino.Mermaid, :new, 1}}
 
   @doc """
   Traces execution of the given Axon model with the given
@@ -264,12 +264,10 @@ defmodule Axon.Display do
     nodes = Enum.map_join(nodelist, ";\n", &generate_mermaid_node_entry/1)
     edges = Enum.map_join(edgelist, ";\n", &generate_mermaid_edge_entry/1)
 
-    Kino.Markdown.new("""
-    ```mermaid
+    Kino.Mermaid.new("""
     graph #{direction};
     #{nodes};
-    #{edges};
-    ```
+    #{edges};\
     """)
   end
 
@@ -280,7 +278,7 @@ defmodule Axon.Display do
 
       You can install it by adding
 
-          {:kino, "~> 0.6.2"}
+          {:kino, "~> 0.7.0"}
 
       to your dependency list.
       """

@@ -6,7 +6,7 @@ Mix.install([
   {:nx, "~> 0.3.0", override: true},
   {:exla, "~> 0.3.0"},
   {:explorer, "~> 0.3.1"},
-  {:kino, "~> 0.6.2"}
+  {:kino, "~> 0.7.0"}
 ])
 
 Nx.Defn.default_options(compiler: EXLA)
