@@ -110,5 +110,8 @@ jobs:
         with:
           path: tmp/axon
       - name: Run ONNX tests
-        run: |
-          AXON_PATH="tmp/axon" mix do deps.get, compile --warnings-as-errors, test
+        run: mix do deps.get, compile --warnings-as-errors, test
+        env:
+          AXON_PATH: "tmp/axon"
+          NX_PATH: "tmp/axon/deps/nx"
+          EXLA_PATH: "tmp/axon/deps/exla"
