@@ -54,7 +54,7 @@ defmodule Axon.LoopTest do
           assert_equal(tar, Nx.tensor([[1]]))
           assert_equal(pred, Nx.tensor([[1]]))
 
-          assert_equal(transform.(state), {state, %{}})
+          assert_equal(transform.(state), %{})
         end
       end
     end
@@ -77,7 +77,7 @@ defmodule Axon.LoopTest do
       assert_equal(pred, Nx.tensor([[1]]))
       assert_equal(loss, Nx.tensor(5.0))
 
-      assert_equal(transform.(state), {state, %{}})
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
@@ -97,7 +97,7 @@ defmodule Axon.LoopTest do
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
 
-      assert_equal(transform.(state), {state, %{}})
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
@@ -116,7 +116,7 @@ defmodule Axon.LoopTest do
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
 
-      assert_equal(transform.(state), {state, %{}})
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
@@ -142,7 +142,7 @@ defmodule Axon.LoopTest do
       assert_equal(pred, {Nx.tensor([[1]]), Nx.tensor([[1]])})
       assert_equal(loss, Nx.tensor(1.0))
 
-      assert_equal(transform.(state), {state, %{}})
+      assert_equal(transform.(state), %{})
     end
 
     test "trainer/3 raises on bad inputs" do
@@ -199,7 +199,10 @@ defmodule Axon.LoopTest do
       assert %Loop{} = loop = Loop.metric(loop, :mean_absolute_error)
 
       ExUnit.CaptureIO.capture_io(fn ->
-        assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
+        assert {
+          %State{metrics: %{0 => %{"mean_absolute_error" => _}}},
+          %{0 => %{"mean_absolute_error" => _}}
+        } = Loop.run(loop, data, model_state)
       end)
     end
 
@@ -351,7 +354,10 @@ defmodule Axon.LoopTest do
         |> Loop.loop()
         |> Loop.run([Nx.tensor(1)], %{}, epochs: 0)
 
-      assert %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate} = state
+      assert {
+        %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: %{}},
+        %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate}
+       } = state
 
       assert pstate == %{}
     end
@@ -507,7 +513,7 @@ defmodule Axon.LoopTest do
         end)
 
       ExUnit.CaptureIO.capture_io(fn ->
-        state1 =
+        {_loop_state, transformed_state} =
           model
           |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
           # TODO: Make this an actual function or configurable
@@ -516,7 +522,7 @@ defmodule Axon.LoopTest do
 
         model
         |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-        |> Axon.Loop.from_state(state1)
+        |> Axon.Loop.from_state(transformed_state)
         |> Axon.Loop.handle(:epoch_completed, fn %{epoch: epoch} = state ->
           assert epoch >= 3
           {:continue, state}

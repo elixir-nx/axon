@@ -536,7 +536,7 @@ defmodule Axon.Loop do
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer)
-    output_transform = fn state -> {state, state.step_state[:model_state]} end
+    output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
       step_fn
@@ -1446,7 +1446,7 @@ defmodule Axon.Loop do
     {_, state} = fire_event(status, handler_fns, state, debug?)
     state = %State{state | metrics: final_metrics}
 
-    output_transform.(state)
+    {state, output_transform.(state)}
   end
 
   ## Helpers

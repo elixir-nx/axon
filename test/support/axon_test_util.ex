@@ -63,14 +63,6 @@ defmodule AxonTestUtil do
     end
   end
 
-  def assert_equal(lhs, rhs) when is_struct(lhs) and is_struct(rhs) do
-    assert_equal(Map.from_struct(lhs), Map.from_struct(rhs))
-  end
-
-  def assert_equal(lhs, rhs) when is_integer(lhs) and is_integer(rhs) do
-    lhs == rhs
-  end
-
   def assert_equal(lhs, rhs) when is_map(lhs) and is_map(rhs) do
     lhs
     |> Map.values()
