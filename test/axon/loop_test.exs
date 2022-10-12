@@ -200,9 +200,9 @@ defmodule Axon.LoopTest do
 
       ExUnit.CaptureIO.capture_io(fn ->
         assert {
-          %State{metrics: %{0 => %{"mean_absolute_error" => _}}},
-          %{0 => %{"mean_absolute_error" => _}}
-        } = Loop.run(loop, data, model_state)
+                 %State{metrics: %{0 => %{"mean_absolute_error" => _}}},
+                 %{0 => %{"mean_absolute_error" => _}}
+               } = Loop.run(loop, data, model_state)
       end)
     end
 
@@ -355,9 +355,9 @@ defmodule Axon.LoopTest do
         |> Loop.run([Nx.tensor(1)], %{}, epochs: 0)
 
       assert {
-        %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: %{}},
-        %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate}
-       } = state
+               %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: %{}},
+               %State{epoch: 0, iteration: 0, times: %{}, metrics: %{}, step_state: pstate}
+             } = state
 
       assert pstate == %{}
     end
