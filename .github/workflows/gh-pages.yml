@@ -1,5 +1,4 @@
-
-name: Axon Docs
+name: Docs
 
 on:
   push:
@@ -11,26 +10,27 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ELIXIR_VERSION: 1.13
-  OTP_VERSION: 24.0
+  OTP_VERSION: "25.0"
+  ELIXIR_VERSION: "1.14.0"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
+      - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "${{ env.OTP_VERSION }}"
           elixir-version: "${{ env.ELIXIR_VERSION }}"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            deps
+            _build
+            cache
+          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
       - run: mix deps.get
       - run: mix docs
       - name: Deploy 🚀
