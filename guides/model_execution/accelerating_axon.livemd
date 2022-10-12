@@ -5,12 +5,12 @@
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:exla, "~> 0.3.0"},
+  {:exla, "~> 0.3.0", github: "elixir-nx/nx", sparse: "exla"},
   {:torchx, github: "elixir-nx/nx", sparse: "torchx"},
-  {:nx, "~> 0.3.0", override: true},
-  {:benchee, git: "https://github.com/akoutmos/benchee.git", branch: :adding_table_support},
+  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:benchee, github: "akoutmos/benchee", branch: :adding_table_support},
   {:kino_benchee, github: "livebook-dev/kino_benchee"},
-  {:kino, git: "https://github.com/livebook-dev/kino.git", branch: :main, override: true}
+  {:kino, "~> 0.7.0", override: true}
 ])
 ```
 

@@ -958,11 +958,12 @@ defmodule Axon.Loop do
             case mode do
               :min ->
                 prev_criteria_value == nil or
-                  Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, {:u, 8})
+                  Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
 
               :max ->
                 prev_criteria_value == nil or
-                  Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, {:u, 8})
+                  Nx.greater(cur_criteria_value, prev_criteria_value) ==
+                    Nx.tensor(1, type: {:u, 8})
 
               _ ->
                 raise ArgumentError,

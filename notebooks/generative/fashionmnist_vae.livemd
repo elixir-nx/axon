@@ -6,10 +6,10 @@ Mix.install([
   {:nx, "~> 0.3.0"},
   {:axon, "~> 0.2.0"},
   {:req, "~> 0.3.1"},
-  {:kino, "~> 0.6.2"},
+  {:kino, "~> 0.7.0"},
   {:scidata, "~> 0.1.9"},
   {:stb_image, "~> 0.5.2"},
-  {:kino_vega_lite, "~> 0.1.3"},
+  {:kino_vega_lite, "~> 0.1.4"},
   {:vega_lite, "~> 0.1.6"}
 ])
 
@@ -173,7 +173,9 @@ defmodule KinoAxon do
 
     {:ok, button_agent} = Agent.start_link(fn -> nil end)
 
-    Kino.Control.stream(stop_button, fn _event ->
+    stop_button
+    |> Kino.Control.stream()
+    |> Kino.listen(fn _event ->
       Agent.update(button_agent, fn _ -> :stop end)
     end)
 
@@ -348,12 +350,10 @@ reconstructed_images =
     names: [:images, :channels, :height, :width]
   )
 
-Kino.animate(round(5000 / num_steps), 0, fn i ->
-  if i > num_steps do
-    :halt
-  else
-    {:cont, Data.image_to_kino(reconstructed_images[i]), i + 1}
-  end
+Stream.interval(div(5000, num_steps))
+|> Stream.take(num_steps + 1)
+|> Kino.animate(fn i ->
+  Data.image_to_kino(reconstructed_images[i])
 end)
 ```
 
@@ -508,12 +508,10 @@ reconstructed_images =
     names: [:images, :channels, :height, :width]
   )
 
-Kino.animate(round(5000 / num_steps), 0, fn i ->
-  if i > num_steps do
-    :halt
-  else
-    {:cont, Data.image_to_kino(reconstructed_images[i]), i + 1}
-  end
+Stream.interval(div(5000, num_steps))
+|> Stream.take(num_steps + 1)
+|> Kino.animate(fn i ->
+  Data.image_to_kino(reconstructed_images[i])
 end)
 ```
 

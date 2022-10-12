@@ -6,7 +6,7 @@ Mix.install([
   {:nx, "~> 0.3.0"},
   {:axon, "~> 0.2.0"},
   {:req, "~> 0.3.1"},
-  {:kino, "~> 0.6.2"},
+  {:kino, "~> 0.7.0"},
   {:scidata, "~> 0.1.9"},
   {:stb_image, "~> 0.5.2"}
 ])
@@ -222,8 +222,6 @@ To use `Kino` to give us an interactive tool to evaluate the model, we'll create
 We can use `Nx.concatenate` to stack the images side by side for a prettier output.
 
 ```elixir
-frame = Kino.Frame.new() |> Kino.render()
-
 form =
   Kino.Control.form(
     [
@@ -234,7 +232,9 @@ form =
 
 Kino.render(form)
 
-Kino.Control.stream(form, fn %{data: %{test_image_index: image_index}} ->
+form
+|> Kino.Control.stream()
+|> Kino.animate(fn %{data: %{test_image_index: image_index}} ->
   test_image = test_images[[images: image_index]] |> add_noise.()
 
   reconstructed_image =
@@ -244,15 +244,13 @@ Kino.Control.stream(form, fn %{data: %{test_image_index: image_index}} ->
     |> Nx.squeeze(axes: [0])
 
   combined_image = Nx.concatenate([test_image, reconstructed_image], axis: :width)
-  Kino.Frame.render(frame, Nx.to_heatmap(combined_image))
+  Nx.to_heatmap(combined_image)
 end)
-
-:ok
 ```
 
 That looks pretty good!
 
-Note we used `Kino.Control.stream/2` which runs asynchronously so we don't block execution of the rest of the notebook.
+Note we used `Kino.animate/2` which runs asynchronously so we don't block execution of the rest of the notebook.
 
 <!-- livebook:{"branch_parent_index":2} -->
 

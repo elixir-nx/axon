@@ -5,8 +5,8 @@
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", override: true},
-  {:kino, "~> 0.6.2"}
+  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:kino, "~> 0.7.0"}
 ])
 ```
 
@@ -45,6 +45,14 @@ template = Nx.template({2, 8}, :f32)
 Axon.Display.as_graph(input, template)
 ```
 
+<!-- livebook:{"output":true} -->
+
+```mermaid
+graph TD;
+3[/"data (:input) {2, 8}"/];
+;
+```
+
 Notice the execution flow is just a single node, because your graph only consists of an input node! You pass data in and the model spits the same data back out, without any intermediate transformations.
 
 You can see this in action by actually executing your model. You can build the `%Axon{}` struct into it's `initialization` and `forward` functions by calling `Axon.build/2`. This pattern of "lowering" or transforming the `%Axon{}` data structure into other functions or representations is very common in Axon. By simply traversing the data structure, you can create useful functions, execution visualizations, and more!
@@ -56,8 +64,8 @@ You can see this in action by actually executing your model. You can build the `
 <!-- livebook:{"output":true} -->
 
 ```
-{#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>,
- #Function<136.40088443/2 in Nx.Defn.wrap_arity/2>}
+{#Function<137.55749718/2 in Nx.Defn.wrap_arity/2>,
+ #Function<137.55749718/2 in Nx.Defn.wrap_arity/2>}
 ```
 
 Notice that `Axon.build/2` returns a tuple of `{init_fn, predict_fn}`. `init_fn` has the signature:
