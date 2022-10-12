@@ -4,7 +4,7 @@
 
 ```elixir
 Mix.install([
-  {:axon, path: "~/dev/axon"},
+  {:axon, github: "elixir-nx/axon"},
   {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true}
 ])
 ```
