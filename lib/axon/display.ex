@@ -211,9 +211,19 @@ defmodule Axon.Display do
 
   defp render_parameters(params, input_shapes) do
     params
-    |> Enum.map(fn %Parameter{name: name, shape: shape_fn} ->
-      shape = apply(shape_fn, input_shapes)
-      "#{name}: f32#{shape_string(shape)}"
+    |> Enum.map(fn
+      %Parameter{name: name, shape: {:tuple, shape_fns}} ->
+        shapes =
+          shape_fns
+          |> Enum.map(&apply(&1, input_shapes))
+          |> Enum.map(fn shape -> "f32#{shape_string(shape)}" end)
+          |> List.to_tuple()
+
+        "#{name}: tuple#{inspect(shapes)}"
+
+      %Parameter{name: name, shape: shape_fn} ->
+        shape = apply(shape_fn, input_shapes)
+        "#{name}: f32#{shape_string(shape)}"
     end)
     |> Enum.join("\n")
   end
