@@ -1375,7 +1375,7 @@ defmodule Axon do
 
     if opts[:rate] < 0 or opts[:rate] >= 1 do
       raise ArgumentError,
-        "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}"
+            "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}"
     end
 
     layer(dropout, [x],

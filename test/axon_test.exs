@@ -391,9 +391,11 @@ defmodule AxonTest do
       opts = [rate: -0.1]
 
       for dropout <- @dropout_layers do
-        assert_raise ArgumentError, "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}" , fn ->
-          apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
-        end
+        assert_raise ArgumentError,
+                     "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}",
+                     fn ->
+                       apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
+                     end
       end
     end
 
@@ -401,9 +403,11 @@ defmodule AxonTest do
       opts = [rate: 1]
 
       for dropout <- @dropout_layers do
-        assert_raise ArgumentError, "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}" , fn ->
-          apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
-        end
+        assert_raise ArgumentError,
+                     "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}",
+                     fn ->
+                       apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
+                     end
       end
     end
   end

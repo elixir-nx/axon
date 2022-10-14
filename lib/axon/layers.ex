@@ -1492,7 +1492,6 @@ defmodule Axon.Layers do
   @doc type: :dropout
   defn dropout(input, opts \\ []) do
     opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input), mode: :inference])
-
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - Nx.tensor(opts[:rate], type: Nx.type(input))
     mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
 
