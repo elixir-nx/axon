@@ -711,9 +711,12 @@ defmodule Axon.Compiler do
     if none? do
       {%Axon.None{}, {parent_params, result_cache, key}}
     else
-      {layer_params, key} =
-        Enum.reduce(parameters, {%{}, key}, fn param, {layer_params, key} ->
-          init_param(param, layer_params, parent_shapes, dtype, key)
+      <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, name)
+      layer_key = Nx.Random.fold_in(key, data)
+
+      layer_params =
+        Enum.reduce(parameters, %{}, fn param, layer_params ->
+          init_param(param, layer_params, parent_shapes, dtype, layer_key)
         end)
 
       layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
@@ -735,23 +738,23 @@ defmodule Axon.Compiler do
   defp init_param(param, layer_params, parent_shapes, dtype, key) do
     %{name: name, shape: shape, initializer: initializer} = param
 
-    {params, key} =
+    params =
       case shape do
         {:tuple, params} ->
-          {params, key} =
-            Enum.map_reduce(params, key, fn shape, key ->
+          params =
+            Enum.map(params, fn shape ->
               shape = apply(shape, parent_shapes)
               apply_initializer(initializer, shape, dtype, key)
             end)
 
-          {List.to_tuple(params), key}
+          List.to_tuple(params)
 
         shape ->
           shape = apply(shape, parent_shapes)
           apply_initializer(initializer, shape, dtype, key)
       end
 
-    {Map.put(layer_params, name, params), key}
+    Map.put(layer_params, name, params)
   end
 
   defp apply_initializer(initializer, shape, type, key) when is_atom(initializer) do

@@ -2729,13 +2729,11 @@ defmodule Axon do
 
       case initializer do
         fun when is_function(fun) ->
-          {out, _} = fun.(shape)
-          out
+          fun.(shape)
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          {out, _} = fun.(shape, {:f, 32}, opts[:key])
-          out
+          fun.(shape, {:f, 32}, opts[:key])
       end
     end
 
@@ -3211,10 +3209,10 @@ defmodule Axon do
   @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
     {init_fn, predict_fn} = build(model, opts)
-    init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params])
+    init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params], opts)
 
     predict_compiled_fn =
-      Nx.Defn.compile(predict_fn, [init_compiled_fn.(template, init_params), template])
+      Nx.Defn.compile(predict_fn, [init_compiled_fn.(template, init_params), template], opts)
 
     {init_compiled_fn, predict_compiled_fn}
   end
