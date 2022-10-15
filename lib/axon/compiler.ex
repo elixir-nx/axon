@@ -711,12 +711,9 @@ defmodule Axon.Compiler do
     if none? do
       {%Axon.None{}, {parent_params, result_cache, key}}
     else
-      <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, name)
-      layer_key = Nx.Random.fold_in(key, data)
-
       layer_params =
         Enum.reduce(parameters, %{}, fn param, layer_params ->
-          init_param(param, layer_params, parent_shapes, dtype, layer_key)
+          init_param(name, param, layer_params, parent_shapes, dtype, key)
         end)
 
       layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
@@ -735,23 +732,27 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp init_param(param, layer_params, parent_shapes, dtype, key) do
+  defp init_param(layer_name, param, layer_params, parent_shapes, dtype, key) do
     %{name: name, shape: shape, initializer: initializer} = param
 
     params =
       case shape do
         {:tuple, params} ->
           params =
-            Enum.map(params, fn shape ->
+            Enum.with_index(params, fn shape, i ->
+              <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> name <> "." <> "#{i}")
+              key_to_use = Nx.Random.fold_in(key, data)
               shape = apply(shape, parent_shapes)
-              apply_initializer(initializer, shape, dtype, key)
+              apply_initializer(initializer, shape, dtype, key_to_use)
             end)
 
           List.to_tuple(params)
 
         shape ->
+          <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> name)
+          key_to_use = Nx.Random.fold_in(key, data)
           shape = apply(shape, parent_shapes)
-          apply_initializer(initializer, shape, dtype, key)
+          apply_initializer(initializer, shape, dtype, key_to_use)
       end
 
     Map.put(layer_params, name, params)
