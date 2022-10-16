@@ -757,20 +757,27 @@ defmodule Axon.Compiler do
 
   @initializer_no_key [:zeros, :ones, :identity, :full]
 
-  defp apply_initializer(initializer, _layer_name, _param_name, shape, type, key) when initializer in @initializer_no_key do
+  defp apply_initializer(initializer, _layer_name, _param_name, shape, type, key)
+       when initializer in @initializer_no_key do
     fun = apply(Axon.Initializers, initializer, [])
     fun.(shape, type, key)
   end
 
-  defp apply_initializer(initializer, layer_name, param_name, shape, type, key) when is_atom(initializer) do
-    <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> param_name)
+  defp apply_initializer(initializer, layer_name, param_name, shape, type, key)
+       when is_atom(initializer) do
+    <<data::unsigned-size(32), _rest::binary>> =
+      :crypto.hash(:sha, layer_name <> "." <> param_name)
+
     key_to_use = Nx.Random.fold_in(key, data)
     fun = apply(Axon.Initializers, initializer, [])
     fun.(shape, type, key_to_use)
   end
 
-  defp apply_initializer(initializer, layer_name, param_name, shape, type, key) when is_function(initializer, 3) do
-    <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> param_name)
+  defp apply_initializer(initializer, layer_name, param_name, shape, type, key)
+       when is_function(initializer, 3) do
+    <<data::unsigned-size(32), _rest::binary>> =
+      :crypto.hash(:sha, layer_name <> "." <> param_name)
+
     key_to_use = Nx.Random.fold_in(key, data)
     initializer.(shape, type, key_to_use)
   end
