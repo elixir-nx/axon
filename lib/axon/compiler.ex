@@ -740,31 +740,39 @@ defmodule Axon.Compiler do
         {:tuple, params} ->
           params =
             Enum.with_index(params, fn shape, i ->
-              <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> name <> "." <> "#{i}")
-              key_to_use = Nx.Random.fold_in(key, data)
+              param_name = name <> "." <> "#{i}"
               shape = apply(shape, parent_shapes)
-              apply_initializer(initializer, shape, dtype, key_to_use)
+              apply_initializer(initializer, layer_name, param_name, shape, dtype, key)
             end)
 
           List.to_tuple(params)
 
         shape ->
-          <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> name)
-          key_to_use = Nx.Random.fold_in(key, data)
           shape = apply(shape, parent_shapes)
-          apply_initializer(initializer, shape, dtype, key_to_use)
+          apply_initializer(initializer, layer_name, name, shape, dtype, key)
       end
 
     Map.put(layer_params, name, params)
   end
 
-  defp apply_initializer(initializer, shape, type, key) when is_atom(initializer) do
+  @initializer_no_key [:zeros, :ones, :identity, :full]
+
+  defp apply_initializer(initializer, _layer_name, _param_name, shape, type, key) when initializer in @initializer_no_key do
     fun = apply(Axon.Initializers, initializer, [])
     fun.(shape, type, key)
   end
 
-  defp apply_initializer(initializer, shape, type, key) when is_function(initializer, 3) do
-    initializer.(shape, type, key)
+  defp apply_initializer(initializer, layer_name, param_name, shape, type, key) when is_atom(initializer) do
+    <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> param_name)
+    key_to_use = Nx.Random.fold_in(key, data)
+    fun = apply(Axon.Initializers, initializer, [])
+    fun.(shape, type, key_to_use)
+  end
+
+  defp apply_initializer(initializer, layer_name, param_name, shape, type, key) when is_function(initializer, 3) do
+    <<data::unsigned-size(32), _rest::binary>> = :crypto.hash(:sha, layer_name <> "." <> param_name)
+    key_to_use = Nx.Random.fold_in(key, data)
+    initializer.(shape, type, key_to_use)
   end
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
