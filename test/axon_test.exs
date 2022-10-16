@@ -386,6 +386,30 @@ defmodule AxonTest do
         assert opts[:rate] == 0.5
       end
     end
+
+    test "raises for rates below zero" do
+      opts = [rate: -0.1]
+
+      for dropout <- @dropout_layers do
+        assert_raise ArgumentError,
+                     "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}",
+                     fn ->
+                       apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
+                     end
+      end
+    end
+
+    test "raises for rates above or equal to one" do
+      opts = [rate: 1]
+
+      for dropout <- @dropout_layers do
+        assert_raise ArgumentError,
+                     "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}",
+                     fn ->
+                       apply(Axon, dropout, [Axon.input("input", shape: {nil, 32}), opts])
+                     end
+      end
+    end
   end
 
   @pooling_layers [:max_pool, :avg_pool, :lp_pool]

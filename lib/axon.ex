@@ -1361,6 +1361,7 @@ defmodule Axon do
       * `:name` - layer name.
 
       * `:rate` - dropout rate. Defaults to `0.5`.
+        Needs to be equal or greater than zero and less than one.
 
     """
     @doc type: :dropout
@@ -1371,6 +1372,11 @@ defmodule Axon do
 
   defp dropout(%Axon{} = x, dropout, opts) do
     opts = Keyword.validate!(opts, [:name, rate: 0.5])
+
+    if opts[:rate] < 0 or opts[:rate] >= 1 do
+      raise ArgumentError,
+            "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}"
+    end
 
     layer(dropout, [x],
       name: opts[:name],
