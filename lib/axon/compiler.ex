@@ -107,11 +107,9 @@ defmodule Axon.Compiler do
   end
 
   defp get_keys(nodes, key) do
-    names_and_data =
-      nodes
-      |> Map.values()
-      |> Enum.reduce({[], %{}}, fn
-        %Axon.Node{op: op, name: name_fn, parameters: params}, {keys, op_counts} ->
+    {names_and_data, _op_counts} =
+      Enum.reduce(nodes, {[], %{}}, fn
+        {_, %Axon.Node{op: op, name: name_fn, parameters: params}}, {keys, op_counts} ->
           name = name_fn.(op, op_counts)
           op_counts = Map.update(op_counts, op, 1, &(&1 + 1))
 
@@ -134,7 +132,6 @@ defmodule Axon.Compiler do
 
           {keys, op_counts}
       end)
-      |> elem(0)
 
     {names, data} = Enum.unzip(names_and_data)
 
@@ -145,16 +142,17 @@ defmodule Axon.Compiler do
       [_ | _] = names ->
         keys_tensor =
           data
-          |> Nx.stack()
+          |> Nx.tensor(type: :u32)
           |> then(&Nx.Random.fold_in(key, &1))
 
-        {keys_idxs, _} =
+        {keys, _} =
           Enum.reduce(names, {%{}, 0}, fn {layer_name, param_name}, {acc, i} ->
-            acc = Map.update(acc, layer_name, %{param_name => i}, &Map.put(&1, param_name, i))
+            key = keys_tensor[i]
+            acc = Map.update(acc, layer_name, %{param_name => key}, &Map.put(&1, param_name, key))
             {acc, i + 1}
           end)
 
-        {keys_idxs, keys_tensor}
+        keys
     end
   end
 
@@ -810,14 +808,14 @@ defmodule Axon.Compiler do
     Map.put(layer_params, name, params)
   end
 
-  defp apply_initializer(initializer, _layer_name, _name, shape, type, _keys) when is_function(initializer, 2) do
+  defp apply_initializer(initializer, _layer_name, _name, shape, type, _keys)
+       when is_function(initializer, 2) do
     initializer.(shape, type)
   end
 
-  defp apply_initializer(initializer, layer_name, name, shape, type, {keys_idxs, keys_tensor}) when is_function(initializer, 3) do
-    key_idxs = keys_idxs[layer_name][name]
-    key = keys_tensor[[key_idxs]]
-    initializer.(shape, type, key)
+  defp apply_initializer(initializer, layer_name, name, shape, type, keys)
+       when is_function(initializer, 3) do
+    initializer.(shape, type, keys[layer_name][name])
   end
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
