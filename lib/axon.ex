@@ -333,8 +333,7 @@ defmodule Axon do
   def param(name, shape, opts \\ [])
       when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
-    initializer = opts[:initializer]
-    validate_initializer!(initializer)
+    initializer = validate_initializer!(opts[:initializer])
 
     id = System.unique_integer([:positive, :monotonic])
 
@@ -2733,7 +2732,18 @@ defmodule Axon do
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          fun.(shape, {:f, 32}, opts[:key])
+          {:arity, arity} = Function.info(fun, :arity)
+
+          cond do
+            arity == 2 ->
+              fun.(shape, {:f, 32})
+
+            arity == 3 ->
+              fun.(shape, {:f, 32}, opts[:key])
+
+            true ->
+              raise ArgumentError, "bad arity for initializer"
+          end
       end
     end
 
@@ -3473,11 +3483,15 @@ defmodule Axon do
 
   defp validate_initializer!(initializer)
        when is_atom(initializer) and initializer in @valid_initializers do
-    :ok
+    apply(Axon.Initializers, initializer, [])
+  end
+
+  defp validate_initializer!(initializer) when is_function(initializer, 2) do
+    initializer
   end
 
   defp validate_initializer!(initializer) when is_function(initializer, 3) do
-    :ok
+    initializer
   end
 
   defp validate_initializer!(initializer) do

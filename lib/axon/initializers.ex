@@ -47,7 +47,7 @@ defmodule Axon.Initializers do
   ## Examples
 
       iex> init_fn = Axon.Initializers.zeros()
-      iex> out = init_fn.({2, 2}, {:f, 32}, Nx.Random.key(1))
+      iex> out = init_fn.({2, 2}, {:f, 32})
       iex> out
       #Nx.Tensor<
         f32[2][2]
@@ -58,7 +58,7 @@ defmodule Axon.Initializers do
       >
   """
   def zeros() do
-    fn shape, type, _key ->
+    fn shape, type ->
       zeros_impl(shape: shape, type: type)
     end
   end
@@ -74,7 +74,7 @@ defmodule Axon.Initializers do
   ## Examples
 
       iex> init_fn = Axon.Initializers.ones()
-      iex> out = init_fn.({2, 2}, {:f, 32}, Nx.Random.key(1))
+      iex> out = init_fn.({2, 2}, {:f, 32})
       iex> out
       #Nx.Tensor<
         f32[2][2]
@@ -85,7 +85,7 @@ defmodule Axon.Initializers do
       >
   """
   def ones() do
-    fn shape, type, _key ->
+    fn shape, type ->
       ones_impl(shape: shape, type: type)
     end
   end
@@ -101,7 +101,7 @@ defmodule Axon.Initializers do
   ## Examples
 
       iex> init_fn = Axon.Initializers.full(1.00)
-      iex> out = init_fn.({2, 2}, {:f, 32}, Nx.Random.key(1))
+      iex> out = init_fn.({2, 2}, {:f, 32})
       iex> out
       #Nx.Tensor<
         f32[2][2]
@@ -112,7 +112,7 @@ defmodule Axon.Initializers do
       >
   """
   def full(value) do
-    fn shape, type, _key ->
+    fn shape, type ->
       full_impl(value, shape: shape, type: type)
     end
   end
@@ -128,7 +128,7 @@ defmodule Axon.Initializers do
   ## Examples
 
       iex> init_fn = Axon.Initializers.identity()
-      iex> out = init_fn.({2, 2}, {:f, 32}, Nx.Random.key(1))
+      iex> out = init_fn.({2, 2}, {:f, 32})
       iex> out
       #Nx.Tensor<
         f32[2][2]
@@ -139,7 +139,7 @@ defmodule Axon.Initializers do
       >
   """
   def identity() do
-    fn shape, type, _key ->
+    fn shape, type ->
       identity_impl(shape: shape, type: type)
     end
   end
