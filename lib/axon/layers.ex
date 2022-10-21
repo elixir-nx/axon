@@ -210,7 +210,7 @@ defmodule Axon.Layers do
       iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
       iex> kernel = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
       iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[2][3][2]
         [
@@ -236,7 +236,7 @@ defmodule Axon.Layers do
       ...>  [[[1.8587, 0.4722], [0.6058, -1.0301]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([1.9564, 0.2822, -0.5385], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -262,7 +262,7 @@ defmodule Axon.Layers do
       ...>  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][2][1][1][1]
         [
@@ -294,7 +294,7 @@ defmodule Axon.Layers do
         kernel_dilation: 1,
         feature_group_size: 1,
         batch_group_size: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -306,14 +306,17 @@ defmodule Axon.Layers do
         end
       )
 
-    permutations =
+    {permutations, kernel_permutation} =
       transform({Nx.rank(input), opts[:channels]}, fn
         {rank, :first} ->
-          Enum.to_list(0..(rank - 1))
+          perm = Enum.to_list(0..(rank - 1))
+          {perm, perm}
 
         {rank, :last} ->
           spatial = Enum.to_list(1..(rank - 2)//1)
-          [0, rank - 1 | spatial]
+          perm = [0, rank - 1 | spatial]
+          kernel_perm = [rank - 1, rank - 2] ++ Enum.to_list(0..(rank - 3)//1)
+          {perm, kernel_perm}
 
         {_rank, invalid} ->
           raise ArgumentError, "invalid channel configuration, #{inspect(invalid)}"
@@ -328,6 +331,7 @@ defmodule Axon.Layers do
       feature_group_size: opts[:feature_group_size],
       batch_group_size: opts[:batch_group_size],
       input_permutation: permutations,
+      kernel_permutation: kernel_permutation,
       output_permutation: permutations
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))

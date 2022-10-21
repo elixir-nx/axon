@@ -225,8 +225,8 @@ defmodule Axon.Shape do
       iex> Axon.Shape.conv_kernel({nil, 1, 32, 32, 10}, 32, {2, 1, 3}, :first, 1)
       {32, 1, 2, 1, 3}
 
-      iex> Axon.Shape.conv_kernel({nil, 28, 3}, 64, {2}, :last, 1)
-      {64, 3, 2}
+      iex> Axon.Shape.conv_kernel({nil, 28, 28, 3}, 64, {2, 2}, :last, 1)
+      {2, 2, 3, 64}
   """
   def conv_kernel(input_shape, output_filters, kernel_size, channels, feature_group_size) do
     inner_rank = Nx.rank(input_shape) - 2
@@ -249,7 +249,13 @@ defmodule Axon.Shape do
                 " and #{inspect(feature_group_size)}"
       end
 
-    List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
+    case channels do
+      :first ->
+        List.to_tuple([output_filters, input_channels | Tuple.to_list(kernel_size)])
+
+      :last ->
+        List.to_tuple(Tuple.to_list(kernel_size) ++ [input_channels, output_filters])
+    end
   end
 
   @doc """

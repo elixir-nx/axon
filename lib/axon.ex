@@ -780,7 +780,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         feature_group_size: 1
       ])
 
@@ -874,7 +874,7 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -973,7 +973,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1073,7 +1073,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1194,7 +1194,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1430,7 +1430,7 @@ defmodule Axon do
         :strides,
         kernel_size: 1,
         padding: :valid,
-        channels: :first,
+        channels: :last,
         dilations: 1,
         norm: 2
       ])
@@ -1502,7 +1502,7 @@ defmodule Axon do
   end
 
   defp adaptative_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, :output_size, channels: :first, norm: 2])
+    opts = Keyword.validate!(opts, [:name, :output_size, channels: :last, norm: 2])
 
     channels = opts[:channels]
     name = opts[:name]
@@ -1567,7 +1567,7 @@ defmodule Axon do
   end
 
   defp global_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :first, norm: 2])
+    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :last, norm: 2])
 
     keep_axes = opts[:keep_axes]
     name = opts[:name]
@@ -1879,7 +1879,7 @@ defmodule Axon do
   @doc type: :shape
   def pad(%Axon{} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
-    opts = Keyword.validate!(opts, [:name, channels: :first])
+    opts = Keyword.validate!(opts, [:name, channels: :last])
     channels = opts[:channels]
 
     layer(:pad, [x],
@@ -1915,7 +1915,7 @@ defmodule Axon do
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :first])
+    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :last])
     channels = opts[:channels]
 
     layer(:resize, [x],
