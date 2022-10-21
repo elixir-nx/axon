@@ -762,7 +762,7 @@ defmodule Axon do
       to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -858,7 +858,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -955,7 +955,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1055,7 +1055,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1176,7 +1176,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1414,7 +1414,7 @@ defmodule Axon do
       * `:dilations` - window dilations. Defaults to `1`.
 
       * `:channels` - channels location. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1492,7 +1492,7 @@ defmodule Axon do
       * `:output_size` - layer output size.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1557,7 +1557,7 @@ defmodule Axon do
         with a dimension size of 1.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1615,7 +1615,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1682,7 +1682,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1735,7 +1735,7 @@ defmodule Axon do
       `:zeros`.
 
     * `:channel_index` - input feature index used for calculating
-      mean and variance. Defaults to `1`.
+      mean and variance. Defaults to `-1`.
 
     * `:epsilon` - numerical stability term.
 
@@ -1873,7 +1873,7 @@ defmodule Axon do
     * `:name` - layer name.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
@@ -1910,7 +1910,7 @@ defmodule Axon do
     * `:method` - resize method. Defaults to `:nearest`.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
