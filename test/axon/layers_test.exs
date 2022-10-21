@@ -247,7 +247,11 @@ defmodule Axon.LayersTest do
       bias = 0.0
 
       assert_equal(
-        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [2, 1], channels: :first),
+        Axon.Layers.conv_transpose(inp, kernel, bias,
+          padding: :valid,
+          strides: [2, 1],
+          channels: :first
+        ),
         Nx.tensor([
           [
             [[0.0, 3.0, 2.0], [0.0, 1.0, 0.0], [6.0, 13.0, 6.0], [2.0, 3.0, 0.0]],
@@ -264,7 +268,11 @@ defmodule Axon.LayersTest do
       bias = 0.0
 
       assert_equal(
-        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :valid, strides: [1, 1, 2], channels: :first),
+        Axon.Layers.conv_transpose(inp, kernel, bias,
+          padding: :valid,
+          strides: [1, 1, 2],
+          channels: :first
+        ),
         Nx.tensor([
           [
             [
@@ -308,7 +316,11 @@ defmodule Axon.LayersTest do
       bias = 0.0
 
       assert_equal(
-        Axon.Layers.conv_transpose(inp, kernel, bias, padding: :same, strides: [2, 1], channels: :first),
+        Axon.Layers.conv_transpose(inp, kernel, bias,
+          padding: :same,
+          strides: [2, 1],
+          channels: :first
+        ),
         Nx.tensor([
           [
             [[52.0, 101.0], [0.0, 0.0], [70.0, 131.0], [0.0, 0.0]],
@@ -537,7 +549,12 @@ defmodule Axon.LayersTest do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
-      first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2], channels: :first)
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :first
+        )
 
       last =
         Axon.Layers.max_pool(t_input,
@@ -575,7 +592,12 @@ defmodule Axon.LayersTest do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
-      first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2], channels: :first)
+      first =
+        Axon.Layers.avg_pool(input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :first
+        )
 
       last =
         Axon.Layers.avg_pool(t_input,
@@ -613,7 +635,8 @@ defmodule Axon.LayersTest do
       input = Nx.random_uniform({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
-      first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2], channels: :first)
+      first =
+        Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2], channels: :first)
 
       last =
         Axon.Layers.lp_pool(t_input,
