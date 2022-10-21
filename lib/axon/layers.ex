@@ -754,16 +754,12 @@ defmodule Axon.Layers do
 
     padding =
       transform(
-        opts[:padding],
+        {opts[:padding], opts[:channels]},
         fn
-          :same ->
-            :same
-
-          :valid ->
-            :valid
-
-          padding ->
-            [{0, 0}, {0, 0} | padding]
+          {:same, _} -> :same
+          {:valid, _} -> :valid
+          {padding, :first} -> [{0, 0}, {0, 0} | padding]
+          {padding, :last} -> [{0, 0} | padding] ++ [{0, 0}]
         end
       )
 
