@@ -686,8 +686,8 @@ defmodule Axon.Shape do
 
     input_spatial =
       input_shape
+      |> Tuple.delete_at(idx)
       |> Tuple.delete_at(0)
-      |> Tuple.delete_at(idx - 1)
       |> Tuple.to_list()
 
     output_spatial =
@@ -704,9 +704,7 @@ defmodule Axon.Shape do
                   " or integer, got #{inspect(x)}"
       end
 
-    strides =
-      input_spatial
-      |> Enum.zip_with(output_spatial, &Kernel.div/2)
+    strides = Enum.zip_with(input_spatial, output_spatial, &Kernel.div/2)
 
     if channels == :first do
       [1, 1 | strides]
@@ -729,11 +727,22 @@ defmodule Axon.Shape do
   """
   def adaptive_pool_window_size(
         input_shape,
-        [_, _ | stride],
+        stride,
         output_spatial,
         spatial_rank,
         channels
       ) do
+    strides =
+      case channels do
+        :first ->
+          [_, _ | strides] = stride
+          strides
+
+        :last ->
+          [_ | strides] = Enum.take(stride, length(stride) - 1)
+          strides
+      end
+
     idx =
       if channels == :first do
         1
@@ -743,8 +752,8 @@ defmodule Axon.Shape do
 
     input_spatial =
       input_shape
+      |> Tuple.delete_at(idx)
       |> Tuple.delete_at(0)
-      |> Tuple.delete_at(idx - 1)
       |> Tuple.to_list()
 
     output_spatial =
@@ -761,7 +770,7 @@ defmodule Axon.Shape do
                   " or integer, got #{inspect(x)}"
       end
 
-    zip_all = [input_spatial, output_spatial, stride]
+    zip_all = [input_spatial, output_spatial, strides]
 
     output_size =
       zip_all
