@@ -1353,12 +1353,17 @@ defmodule Axon.Layers do
   defn group_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: -1, mode: :inference])
 
-    group_shape =
-      transform({Nx.shape(input), opts[:num_groups], opts[:channel_index]}, fn
-        {shape, groups, channel} ->
+    channel_axis =
+      transform({Nx.shape(input), opts[:channel_index]}, fn
+        {shape, channel_index} ->
           names = List.duplicate(nil, Nx.rank(shape))
-          axis = Nx.Shape.normalize_axis(shape, channel, names)
-          Axon.Shape.group_norm_shape(shape, groups, axis)
+          Nx.Shape.normalize_axis(shape, channel_index, names)
+      end)
+
+    group_shape =
+      transform({Nx.shape(input), opts[:num_groups], channel_axis}, fn
+        {shape, groups, channel_axis} ->
+          Axon.Shape.group_norm_shape(shape, groups, channel_axis)
       end)
 
     channel_index = opts[:channel_index]
@@ -1386,7 +1391,12 @@ defmodule Axon.Layers do
       end)
 
     x = Nx.reshape(input, group_shape)
-    axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
+
+    axes =
+      transform({x, channel_axis}, fn {x, channel_axis} ->
+        Axon.Shape.group_norm_axes(Nx.rank(x), channel_axis)
+      end)
+
     {mean, var} = mean_and_variance(x, axes: axes)
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
     x = Nx.reshape(x, input)

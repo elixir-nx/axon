@@ -826,8 +826,8 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reduction axes for group normalization.
   """
-  def group_norm_axes(rank) do
-    for i <- 2..(rank - 1), do: i
+  def group_norm_axes(rank, channel_index) do
+    Enum.to_list(1..(rank - 1)) -- [channel_index]
   end
 
   @doc """
