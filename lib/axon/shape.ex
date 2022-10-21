@@ -407,8 +407,8 @@ defmodule Axon.Shape do
       iex> Axon.Shape.depthwise_conv_kernel({nil, 1, 32, 32, 10}, 1, {2, 1, 3}, :first)
       {1, 1, 2, 1, 3}
 
-      iex> Axon.Shape.depthwise_conv_kernel({nil, 28, 3}, 2, {2}, :last)
-      {6, 1, 2}
+      iex> Axon.Shape.depthwise_conv_kernel({nil, 28, 28, 3}, 2, {2, 2}, :last)
+      {2, 2, 1, 6}
   """
   def depthwise_conv_kernel(input_shape, channel_multiplier, kernel_size, channels) do
     inner_rank = Nx.rank(input_shape) - 2
@@ -421,7 +421,13 @@ defmodule Axon.Shape do
         elem(input_shape, tuple_size(input_shape) - 1)
       end
 
-    List.to_tuple([input_channels * channel_multiplier, 1 | Tuple.to_list(kernel_size)])
+    case channels do
+      :first ->
+        List.to_tuple([input_channels * channel_multiplier, 1 | Tuple.to_list(kernel_size)])
+
+      :last ->
+        List.to_tuple(Tuple.to_list(kernel_size) ++ [1, input_channels * channel_multiplier])
+    end
   end
 
   @doc """
@@ -471,11 +477,6 @@ defmodule Axon.Shape do
 
       iex> Axon.Shape.separable_conv2d_kernel({nil, 3, 32, 32}, 3, {3, 3}, 2, :first)
       {9, 1, 1, 3}
-
-  ### Error cases
-
-      iex> Axon.Shape.separable_conv2d_kernel({nil, 1, 28, 28}, 2, {2, 2}, 3, :first)
-      ** (ArgumentError) invalid kernel number
   """
   def separable_conv2d_kernel(input_shape, channel_multiplier, kernel_size, num, channels) do
     inner_rank = Nx.rank(input_shape) - 2
@@ -494,15 +495,18 @@ defmodule Axon.Shape do
         tuple_size(input_shape) - 1
       end
 
-    cond do
-      num == 1 ->
+    case {channels, num} do
+      {:first, 1} ->
         {elem(input_shape, idx) * channel_multiplier, 1, elem(kernel_size, 0), 1}
 
-      num == 2 ->
+      {:first, 2} ->
         {elem(input_shape, idx) * channel_multiplier, 1, 1, elem(kernel_size, 1)}
 
-      true ->
-        raise ArgumentError, "invalid kernel number"
+      {:last, 1} ->
+        {elem(kernel_size, 0), 1, 1, elem(input_shape, idx) * channel_multiplier}
+
+      {:last, 2} ->
+        {1, elem(kernel_size, 1), 1, elem(input_shape, idx) * channel_multiplier}
     end
   end
 
@@ -564,15 +568,24 @@ defmodule Axon.Shape do
         tuple_size(input_shape) - 1
       end
 
-    cond do
-      num == 1 ->
+    case {channels, num} do
+      {:first, 1} ->
         {elem(input_shape, idx) * channel_multiplier, 1, elem(kernel_size, 0), 1, 1}
 
-      num == 2 ->
+      {:first, 2} ->
         {elem(input_shape, idx) * channel_multiplier, 1, 1, elem(kernel_size, 1), 1}
 
-      num == 3 ->
+      {:first, 3} ->
         {elem(input_shape, idx) * channel_multiplier, 1, 1, 1, elem(kernel_size, 2)}
+
+      {:last, 1} ->
+        {elem(kernel_size, 0), 1, 1, 1, elem(input_shape, idx) * channel_multiplier}
+
+      {:last, 2} ->
+        {1, elem(kernel_size, 1), 1, 1, elem(input_shape, idx) * channel_multiplier}
+
+      {:last, 3} ->
+        {1, 1, elem(kernel_size, 2), 1, elem(input_shape, idx) * channel_multiplier}
     end
   end
 
@@ -636,13 +649,17 @@ defmodule Axon.Shape do
   @doc """
   Computes the window size from the given parent shape.
   """
-  def adaptive_pool_window_size(parent_shape, nil) do
-    parent_shape
-    |> Tuple.delete_at(0)
-    |> Tuple.delete_at(0)
+  def adaptive_pool_window_size(parent_shape, nil, channels) do
+    case channels do
+      :first ->
+        parent_shape |> Tuple.delete_at(0) |> Tuple.delete_at(0)
+
+      :last ->
+        parent_shape |> Tuple.delete_at(tuple_size(parent_shape) - 1) |> Tuple.delete_at(0)
+    end
   end
 
-  def adaptive_pool_window_size(parent_shape, output_size) do
+  def adaptive_pool_window_size(parent_shape, output_size, _channels) do
     inner_rank = Nx.rank(parent_shape) - 2
     tuple_or_duplicate(:output_size, output_size, inner_rank)
   end

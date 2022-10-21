@@ -381,7 +381,7 @@ defmodule Axon.Layers do
       iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
       iex> kernel = Nx.iota({6, 3, 2}, type: {:f, 32})
       iex> bias = Nx.tensor(1.0, type: {:f, 32})
-      iex> Axon.Layers.conv_transpose(input, kernel, bias)
+      iex> Axon.Layers.conv_transpose(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][6][4]
         [
@@ -411,7 +411,7 @@ defmodule Axon.Layers do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -498,7 +498,7 @@ defmodule Axon.Layers do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -692,7 +692,7 @@ defmodule Axon.Layers do
       ...> [0.051500000059604645, -0.7042999863624573, -0.32899999618530273],
       ...> [-0.37130001187324524, 1.6191999912261963, -0.11829999834299088],
       ...> [0.7099999785423279, 0.7282999753952026, -0.18639999628067017]]], type: {:f, 32})
-      iex> Axon.Layers.max_pool(t, kernel_size: 2)
+      iex> Axon.Layers.max_pool(t, kernel_size: 2, channels: :first)
       #Nx.Tensor<
         f32[1][3][1]
         [
@@ -716,7 +716,7 @@ defmodule Axon.Layers do
           strides: nil,
           padding: :valid,
           window_dilations: 1,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -819,7 +819,7 @@ defmodule Axon.Layers do
           strides: nil,
           padding: :valid,
           window_dilations: 1,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -920,7 +920,7 @@ defmodule Axon.Layers do
   ## Examples
 
       iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
-      iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2)
+      iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2, channels: :first)
       #Nx.Tensor<
         f32[1][3][1]
         [
@@ -945,7 +945,7 @@ defmodule Axon.Layers do
           padding: :valid,
           window_dilations: 1,
           norm: 2,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -1036,11 +1036,11 @@ defmodule Axon.Layers do
   defn adaptive_avg_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_avg_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, channels: :last, mode: :inference])
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1087,11 +1087,11 @@ defmodule Axon.Layers do
   defn adaptive_max_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_max_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, channels: :last, mode: :inference])
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1144,13 +1144,13 @@ defmodule Axon.Layers do
   defn adaptive_lp_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_lp_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, norm: 2, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, norm: 2, channels: :last, mode: :inference])
 
     norm = opts[:norm]
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1547,7 +1547,7 @@ defmodule Axon.Layers do
   defn spatial_dropout(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.spatial_dropout", "input", input, 3)
 
-    opts = keyword!(opts, rate: 0.5, channels: :first, mode: :inference)
+    opts = keyword!(opts, rate: 0.5, channels: :last, mode: :inference)
 
     noise_shape =
       transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
@@ -1625,7 +1625,7 @@ defmodule Axon.Layers do
   defn feature_alpha_dropout(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.feature_alpha_dropout", "input", input, 3)
 
-    opts = keyword!(opts, rate: 0.5, channels: :first, mode: :inference)
+    opts = keyword!(opts, rate: 0.5, channels: :last, mode: :inference)
 
     noise_shape =
       transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
@@ -1676,7 +1676,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1686,7 +1686,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), channels: :first, keep_axes: true)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1708,7 +1708,7 @@ defmodule Axon.Layers do
   defn global_avg_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_avg_pool", "input", input, 3)
 
-    opts = keyword!(opts, channels: :first, keep_axes: false, mode: :inference)
+    opts = keyword!(opts, channels: :last, keep_axes: false, mode: :inference)
 
     all_but_batch_and_feature =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1740,7 +1740,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_max_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_max_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1750,7 +1750,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_max_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_max_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true, channels: :first)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1772,7 +1772,7 @@ defmodule Axon.Layers do
   defn global_max_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_max_pool", "input", input, 3)
 
-    opts = keyword!(opts, keep_axes: false, channels: :first, mode: :inference)
+    opts = keyword!(opts, keep_axes: false, channels: :last, mode: :inference)
 
     all_but_batch_and_feature =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1809,7 +1809,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), norm: 1)
+      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), norm: 1, channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1819,7 +1819,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), keep_axes: true)
+      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), keep_axes: true, channels: :first)
       #Nx.Tensor<
         f16[1][3][1][1]
         [
@@ -1841,7 +1841,7 @@ defmodule Axon.Layers do
   defn global_lp_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_lp_pool", "input", input, 3)
 
-    opts = keyword!(opts, norm: 2, keep_axes: false, channels: :first, mode: :inference)
+    opts = keyword!(opts, norm: 2, keep_axes: false, channels: :last, mode: :inference)
 
     norm = opts[:norm]
 
@@ -2047,7 +2047,7 @@ defmodule Axon.Layers do
   ## Examples
 
       iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
-      iex> Axon.Layers.resize(img, size: {4, 4})
+      iex> Axon.Layers.resize(img, size: {4, 4}, channels: :first)
       #Nx.Tensor<
         f32[1][1][4][4]
         [
@@ -2076,7 +2076,7 @@ defmodule Axon.Layers do
       keyword!(opts, [
         :size,
         method: :nearest,
-        channels: :first,
+        channels: :last,
         mode: :inference
       ])
 
@@ -2230,7 +2230,7 @@ defmodule Axon.Layers do
   end
 
   defnp size(input, opts \\ []) do
-    opts = keyword!(opts, channels: :first)
+    opts = keyword!(opts, channels: :last)
     {height_axis, width_axis} = spatial_axes(input, channels: opts[:channels])
     {Nx.axis_size(input, height_axis), Nx.axis_size(input, width_axis)}
   end
@@ -2389,8 +2389,8 @@ defmodule Axon.Layers do
 
     gates =
       Nx.add(
-        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
-        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
+        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding], channels: :first),
+        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding], channels: :first)
       )
 
     {i, g, f, o} = split_gates(gates)

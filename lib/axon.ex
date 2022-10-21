@@ -1497,11 +1497,11 @@ defmodule Axon do
     """
     @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
-      adaptative_pool(x, unquote(pool), opts)
+      adaptive_pool(x, unquote(pool), opts)
     end
   end
 
-  defp adaptative_pool(%Axon{} = x, pool, opts) do
+  defp adaptive_pool(%Axon{} = x, pool, opts) do
     opts = Keyword.validate!(opts, [:name, :output_size, channels: :last, norm: 2])
 
     channels = opts[:channels]
