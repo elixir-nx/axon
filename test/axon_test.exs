@@ -475,7 +475,7 @@ defmodule AxonTest do
 
         assert norm1 == norm
 
-        assert opts[:channel_index] == 1
+        assert opts[:channel_index] == -1
         assert opts[:epsilon] == 1.0e-5
 
         assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
@@ -522,7 +522,7 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :layer_norm, opts: opts, parameters: [gamma, beta]} = nodes[id]
 
-      assert opts[:channel_index] == 1
+      assert opts[:channel_index] == -1
       assert opts[:epsilon] == 1.0e-5
 
       assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
@@ -560,7 +560,7 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :group_norm, parameters: [gamma, beta], opts: opts} = nodes[id]
 
-      assert opts[:channel_index] == 1
+      assert opts[:channel_index] == -1
       assert opts[:epsilon] == 1.0e-5
       assert opts[:num_groups] == 3
 

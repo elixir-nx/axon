@@ -797,7 +797,9 @@ defmodule Axon.Shape do
       {3}
   """
   def norm_param(parent_shape, channel_index) do
-    {elem(parent_shape, channel_index)}
+    names = List.duplicate(nil, Nx.rank(parent_shape))
+    axis = Nx.Shape.normalize_axis(parent_shape, channel_index, names)
+    {elem(parent_shape, axis)}
   end
 
   @doc """

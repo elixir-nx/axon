@@ -2313,9 +2313,9 @@ defmodule CompilerTest do
           assert Nx.type(beta) == {:f, 32}
         end
 
-        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2, 2, 3}), [name: "norm"]])
 
-        input = Nx.random_uniform({1, 3, 2, 2})
+        input = Nx.random_uniform({1, 2, 2, 3})
 
         assert {init_fn, _predict_fn} = Axon.build(model2)
 
@@ -2360,11 +2360,11 @@ defmodule CompilerTest do
 
         model2 =
           apply(Axon, norm, [
-            Axon.input("input", shape: {nil, 3, 2, 2}),
+            Axon.input("input", shape: {nil, 2, 2, 3}),
             [name: "norm", beta_initializer: :zeros]
           ])
 
-        input = Nx.random_uniform({1, 3, 2, 2})
+        input = Nx.random_uniform({1, 2, 2, 3})
 
         assert {init_fn, _predict_fn} = Axon.build(model2)
 
@@ -2522,9 +2522,9 @@ defmodule CompilerTest do
           assert Nx.type(beta) == {:f, 32}
         end
 
-        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 3, 2, 2}), [name: "norm"]])
+        model2 = apply(Axon, norm, [Axon.input("input", shape: {nil, 2, 2, 3}), [name: "norm"]])
 
-        input = Nx.random_uniform({1, 3, 2, 2})
+        input = Nx.random_uniform({1, 2, 2, 3})
 
         assert {init_fn, _predict_fn} = Axon.build(model2)
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
@@ -2555,11 +2555,11 @@ defmodule CompilerTest do
 
         model2 =
           apply(Axon, norm, [
-            Axon.input("input", shape: {nil, 3, 2, 2}),
+            Axon.input("input", shape: {nil, 2, 2, 3}),
             [name: "norm", beta_initializer: :zeros]
           ])
 
-        input = Nx.random_uniform({1, 3, 2, 2})
+        input = Nx.random_uniform({1, 2, 2, 3})
 
         assert {init_fn, _predict_fn} = Axon.build(model2)
         assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = init_fn.(input, %{})
@@ -2732,8 +2732,8 @@ defmodule CompilerTest do
         Axon.Layers.group_norm(input1, gamma, beta, num_groups: 2)
       )
 
-      model2 = Axon.input("input", shape: {nil, 3, 2, 2}) |> Axon.group_norm(3, name: "norm")
-      input2 = Nx.random_uniform({1, 3, 2, 2})
+      model2 = Axon.input("input", shape: {nil, 2, 2, 3}) |> Axon.group_norm(3, name: "norm")
+      input2 = Nx.random_uniform({1, 2, 2, 3})
 
       assert {init_fn, predict_fn} = Axon.build(model2)
       assert %{"norm" => %{"gamma" => gamma, "beta" => beta}} = params = init_fn.(input2, %{})

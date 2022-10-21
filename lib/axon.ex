@@ -1632,7 +1632,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5,
         momentum: 0.1
       ])
@@ -1699,7 +1699,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 
@@ -1748,7 +1748,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :ones,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 

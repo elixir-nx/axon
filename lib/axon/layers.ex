@@ -1209,7 +1209,7 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn batch_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, momentum: 0.1, mode: :inference)
 
     training? =
       transform(opts[:mode], fn
@@ -1217,12 +1217,12 @@ defmodule Axon.Layers do
         :train -> true
       end)
 
-    axes =
-      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
-        Axon.Shape.batch_norm_axes(axes, channel)
+    {axes, channel_index} =
+      transform({input, opts[:channel_index]}, fn {input, channel} ->
+        axes = Nx.axes(input)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel, Nx.names(input))
+        {Axon.Shape.batch_norm_axes(axes, axis), axis}
       end)
-
-    channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
@@ -1289,25 +1289,32 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, beta, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, mode: :inference)
     axes = opts[:channel_index]
 
     channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
-        elem(Nx.shape(inp), channel_idx)
+        names = List.duplicate(nil, Nx.rank(inp))
+        axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+        elem(Nx.shape(inp), axis)
       end)
 
     {gamma, beta} =
-      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
+      transform({gamma, beta, input, Nx.rank(input), num_channels, channel_index}, fn {g, b,
+                                                                                       input,
+                                                                                       rank,
+                                                                                       num_channels,
+                                                                                       channel_idx} ->
+        names = List.duplicate(nil, rank)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel_idx, names)
+
         new_shape =
           1
           |> List.duplicate(rank)
           |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+          |> put_elem(axis, num_channels)
 
         {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
@@ -1344,29 +1351,36 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, beta, opts \\ []) do
-    opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: 1, mode: :inference])
+    opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: -1, mode: :inference])
 
     group_shape =
       transform({Nx.shape(input), opts[:num_groups], opts[:channel_index]}, fn
         {shape, groups, channel} ->
-          Axon.Shape.group_norm_shape(shape, groups, channel)
+          names = List.duplicate(nil, Nx.rank(shape))
+          axis = Nx.Shape.normalize_axis(shape, channel, names)
+          Axon.Shape.group_norm_shape(shape, groups, axis)
       end)
 
     channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
-        elem(Nx.shape(inp), channel_idx)
+        names = List.duplicate(nil, Nx.rank(inp))
+        axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+        elem(Nx.shape(inp), axis)
       end)
 
     {gamma, beta} =
-      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn
-        {g, b, rank, num_channels, channel_idx} ->
+      transform({gamma, beta, input, Nx.rank(input), num_channels, channel_index}, fn
+        {g, b, inp, rank, num_channels, channel_idx} ->
+          names = List.duplicate(nil, Nx.rank(inp))
+          axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+
           new_shape =
             1
             |> List.duplicate(rank)
             |> List.to_tuple()
-            |> put_elem(channel_idx, num_channels)
+            |> put_elem(axis, num_channels)
 
           {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
@@ -1410,7 +1424,7 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn instance_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, momentum: 0.1, mode: :inference)
 
     training? =
       transform(opts[:mode], fn
@@ -1418,12 +1432,12 @@ defmodule Axon.Layers do
         :train -> true
       end)
 
-    axes =
-      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
-        Axon.Shape.instance_norm_axes(axes, channel)
+    {axes, channel_index} =
+      transform({input, opts[:channel_index]}, fn {input, channel} ->
+        axes = Nx.axes(input)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel, Nx.names(input))
+        {Axon.Shape.instance_norm_axes(axes, axis), axis}
       end)
-
-    channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
