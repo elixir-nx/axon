@@ -2496,7 +2496,14 @@ defmodule Axon.Layers do
     static_unroll_loop(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)
   end
 
-  deftransformp static_unroll_loop(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
+  deftransformp static_unroll_loop(
+                  cell_fn,
+                  input_sequence,
+                  carry,
+                  input_kernel,
+                  recurrent_kernel,
+                  bias
+                ) do
     time_steps = elem(Nx.shape(input_sequence), 1)
 
     {carry, outputs} =
