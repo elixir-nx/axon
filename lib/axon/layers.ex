@@ -2493,103 +2493,96 @@ defmodule Axon.Layers do
   This makes it suitable for shorter sequences.
   """
   defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
-    transform(
-      {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias},
-      fn {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias} ->
-        time_steps = elem(Nx.shape(input_sequence), 1)
-
-        {carry, outputs} =
-          for t <- 0..(time_steps - 1), reduce: {carry, []} do
-            {carry, outputs} ->
-              input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
-              {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
-              {carry, [output | outputs]}
-          end
-
-        {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
-      end
-    )
+    static_unroll_loop(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)
   end
 
-  @recurrent_layers [:lstm, :gru, :conv_lstm]
+  deftransformp static_unroll_loop(
+                  cell_fn,
+                  input_sequence,
+                  carry,
+                  input_kernel,
+                  recurrent_kernel,
+                  bias
+                ) do
+    time_steps = elem(Nx.shape(input_sequence), 1)
 
-  for rnn_op <- @recurrent_layers do
-    defn unquote(rnn_op)(input, hidden_state, input_kernel, hidden_kernel, bias \\ 0, opts \\ []) do
+    {carry, outputs} =
+      for t <- 0..(time_steps - 1), reduce: {carry, []} do
+        {carry, outputs} ->
+          input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
+          {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
+          {carry, [output | outputs]}
+      end
+
+    {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
+  end
+
+  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0, 0, 0}]
+
+  for {rnn_op, default} <- @recurrent_layers do
+    deftransform unquote(rnn_op)(
+                   input,
+                   hidden_state,
+                   input_kernel,
+                   hidden_kernel,
+                   bias \\ [],
+                   opts \\ []
+                 ) do
       {bias, opts} =
-        transform({bias, opts}, fn
-          {[_ | _] = opts, _opts} ->
-            {0, opts}
+        cond do
+          is_list(bias) -> {unquote(Macro.escape(default)), bias}
+          is_tuple(bias) -> {bias, opts}
+          true -> raise ArgumentError, "invalid bias #{inspect(bias)}"
+        end
 
-          {[] = opts, _opts} ->
-            {0, opts}
+      opts =
+        Keyword.validate!(opts,
+          mode: :inference,
+          unroll: :static,
+          activation: :sigmoid,
+          gate: :tanh,
+          conv_opts: []
+        )
 
-          {bias, opts} ->
-            {bias, opts}
-        end)
+      cell_fn = get_cell_fn(unquote(rnn_op), opts[:activation], opts[:gate], opts[:conv_opts])
 
-      opts = transform(opts, &Keyword.put(&1, :cell, unquote(rnn_op)))
-      rnn(input, hidden_state, input_kernel, hidden_kernel, bias, opts)
+      case opts[:unroll] do
+        :static ->
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            hidden_state,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        :dynamic ->
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            hidden_state,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+      end
     end
   end
 
-  defnp rnn(input, hidden_state, input_kernel, hidden_kernel, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        mode: :inference,
-        unroll: :static,
-        cell: :lstm,
-        activation: :sigmoid,
-        gate: :tanh,
-        conv_opts: []
-      )
-
-    bias =
-      transform({bias, opts[:cell]}, fn
-        {0, :lstm} -> {0, 0, 0, 0}
-        {0, :gru} -> {0, 0, 0, 0}
-        {0, :conv_lstm} -> {0, 0, 0}
-        {bias, _} -> bias
-      end)
-
-    cell_fn =
-      transform({opts[:cell], opts[:activation], opts[:gate], opts[:conv_opts]}, &get_cell_fn/1)
-
-    transform({input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, opts[:unroll]}, fn
-      {input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, :static} ->
-        Axon.Layers.static_unroll(
-          cell_fn,
-          input,
-          hidden_state,
-          input_kernel,
-          hidden_kernel,
-          bias
-        )
-
-      {input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, :dynamic} ->
-        Axon.Layers.dynamic_unroll(
-          cell_fn,
-          input,
-          hidden_state,
-          input_kernel,
-          hidden_kernel,
-          bias
-        )
-    end)
-  end
-
-  defp get_cell_fn({:lstm, activation, gate, _}) do
+  defp get_cell_fn(:lstm, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
     &lstm_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
   end
 
-  defp get_cell_fn({:gru, activation, gate, _}) do
+  defp get_cell_fn(:gru, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
     &gru_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
   end
 
-  defp get_cell_fn({:conv_lstm, _, _, conv_opts}) do
+  defp get_cell_fn(:conv_lstm, _, _, conv_opts) do
     &conv_lstm_cell(&1, &2, &3, &4, &5, conv_opts)
   end
 

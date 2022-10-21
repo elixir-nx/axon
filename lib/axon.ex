@@ -2261,7 +2261,7 @@ defmodule Axon do
 
         {[x, hidden_state, input_kernel, hidden_kernel, bias], :lstm}
       else
-        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm(&1, &2, &3, &4, 0, &5)}
+        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm/5}
       end
 
     output =

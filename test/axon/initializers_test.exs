@@ -9,11 +9,14 @@ defmodule Axon.InitializersTest do
       {t1, _key} = init_fn.({3, 3}, {:f, 32}, Nx.Random.key(1))
       identity_left_t1 = t1 |> Nx.transpose() |> Nx.dot(t1)
 
-      assert_all_close(identity_left_t1, Nx.eye(identity_left_t1), atol: 1.0e-3, rtol: 1.0e-3)
+      assert_all_close(identity_left_t1, Nx.eye(Nx.shape(identity_left_t1)),
+        atol: 1.0e-3,
+        rtol: 1.0e-3
+      )
 
       identity_right_t1 = t1 |> Nx.dot(t1 |> Nx.transpose())
 
-      assert_all_close(identity_right_t1, Nx.eye(identity_right_t1),
+      assert_all_close(identity_right_t1, Nx.eye(Nx.shape(identity_right_t1)),
         atol: 1.0e-3,
         rtol: 1.0e-3
       )
@@ -24,13 +27,16 @@ defmodule Axon.InitializersTest do
 
       identity_left_t2 = t2 |> Nx.transpose() |> Nx.dot(t2)
 
-      assert_all_close(identity_left_t2, Nx.eye(identity_left_t2), atol: 1.0e-3, rtol: 1.0e-3)
+      assert_all_close(identity_left_t2, Nx.eye(Nx.shape(identity_left_t2)),
+        atol: 1.0e-3,
+        rtol: 1.0e-3
+      )
 
       # Since the matrix is "tall", it's transpose will only be it's left inverse
       identity_right_t2 = t2 |> Nx.dot(Nx.transpose(t2))
 
       assert_equal(
-        Nx.all_close(identity_right_t2, Nx.eye(identity_right_t2),
+        Nx.all_close(identity_right_t2, Nx.eye(Nx.shape(identity_right_t2)),
           atol: 1.0e-3,
           rtol: 1.0e-3
         ),
