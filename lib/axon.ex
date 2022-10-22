@@ -762,7 +762,7 @@ defmodule Axon do
       to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -780,7 +780,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         feature_group_size: 1
       ])
 
@@ -858,7 +858,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -874,7 +874,7 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -955,7 +955,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -973,7 +973,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1055,7 +1055,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1073,7 +1073,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1176,7 +1176,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1194,7 +1194,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1414,7 +1414,7 @@ defmodule Axon do
       * `:dilations` - window dilations. Defaults to `1`.
 
       * `:channels` - channels location. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1430,7 +1430,7 @@ defmodule Axon do
         :strides,
         kernel_size: 1,
         padding: :valid,
-        channels: :first,
+        channels: :last,
         dilations: 1,
         norm: 2
       ])
@@ -1492,17 +1492,17 @@ defmodule Axon do
       * `:output_size` - layer output size.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
-      adaptative_pool(x, unquote(pool), opts)
+      adaptive_pool(x, unquote(pool), opts)
     end
   end
 
-  defp adaptative_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, :output_size, channels: :first, norm: 2])
+  defp adaptive_pool(%Axon{} = x, pool, opts) do
+    opts = Keyword.validate!(opts, [:name, :output_size, channels: :last, norm: 2])
 
     channels = opts[:channels]
     name = opts[:name]
@@ -1557,7 +1557,7 @@ defmodule Axon do
         with a dimension size of 1.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1567,7 +1567,7 @@ defmodule Axon do
   end
 
   defp global_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :first, norm: 2])
+    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :last, norm: 2])
 
     keep_axes = opts[:keep_axes]
     name = opts[:name]
@@ -1615,7 +1615,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1632,7 +1632,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5,
         momentum: 0.1
       ])
@@ -1682,7 +1682,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1699,7 +1699,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 
@@ -1735,7 +1735,7 @@ defmodule Axon do
       `:zeros`.
 
     * `:channel_index` - input feature index used for calculating
-      mean and variance. Defaults to `1`.
+      mean and variance. Defaults to `-1`.
 
     * `:epsilon` - numerical stability term.
 
@@ -1748,7 +1748,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :ones,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 
@@ -1873,13 +1873,13 @@ defmodule Axon do
     * `:name` - layer name.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
   def pad(%Axon{} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
-    opts = Keyword.validate!(opts, [:name, channels: :first])
+    opts = Keyword.validate!(opts, [:name, channels: :last])
     channels = opts[:channels]
 
     layer(:pad, [x],
@@ -1910,12 +1910,12 @@ defmodule Axon do
     * `:method` - resize method. Defaults to `:nearest`.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :first])
+    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :last])
     channels = opts[:channels]
 
     layer(:resize, [x],
