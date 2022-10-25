@@ -3,8 +3,8 @@
 ```elixir
 Mix.install([
   {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", override: true},
-  {:exla, "~> 0.3.0"},
+  {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:exla, github: "elixir-nx/nx", sparse: "exla", override: true},
   {:stb_image, "~> 0.5.2"},
   {:req, "~> 0.3.0"},
   {:kino, "~> 0.7.0"}
@@ -63,8 +63,8 @@ images_to_animate =
   end
 
 Kino.animate(50, images_to_animate, fn
-  [image | images] -> {:cont, image, images}
-  [] -> :halt
+  _i, [image | images] -> {:cont, image, images}
+  _i, [] -> :halt
 end)
 ```
 
@@ -117,9 +117,6 @@ defmodule HorsesHumans.DataProcessing do
   end
 
   defnp augment(images) do
-    # Convert images from NHWC to NCHW
-    images = Nx.transpose(images, axes: [0, 3, 1, 2])
-
     # Normalize
     images = images / 255.0
 
@@ -176,7 +173,7 @@ Knowing the relevant building blocks, let's build our network! It will have a co
 
 ```elixir
 model =
-  Axon.input("input", shape: {nil, 4, 300, 300})
+  Axon.input("input", shape: {nil, 300, 300, 4})
   |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
   |> Axon.max_pool(kernel_size: {2, 2})
   |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
@@ -239,7 +236,6 @@ input =
   binary
   |> StbImage.read_binary!()
   |> StbImage.to_nx()
-  |> Nx.transpose(axes: [:channels, :height, :width])
   |> Nx.new_axis(0)
   |> Nx.divide(255.0)
 
