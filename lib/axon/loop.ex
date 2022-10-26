@@ -869,6 +869,7 @@ defmodule Axon.Loop do
         )
         |> log(:completed, fn _ -> "\n" end)
         |> run(validation_data, model_state)
+        |> Access.get(0)
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)

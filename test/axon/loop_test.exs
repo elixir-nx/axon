@@ -525,4 +525,34 @@ defmodule Axon.LoopTest do
       end)
     end
   end
+
+  describe "validate" do
+    test "adds validation_* metrics to metrics map" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, Enum.take(data, 5))
+        |> Axon.Loop.handle(
+          :epoch_completed,
+          fn %{metrics: metrics} = state ->
+            IO.inspect(metrics)
+            assert Map.has_key?(metrics, "validation_accuracy")
+            {:continue, state}
+          end,
+          fn %{epoch: epoch} -> epoch == 1 end
+        )
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+      end)
+    end
+  end
 end
