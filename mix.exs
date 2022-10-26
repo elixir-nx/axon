@@ -35,9 +35,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
-      {:torchx, "~> 0.3.0", [only: :test] ++ torchx_opts()},
-      {:nx, "~> 0.3.0", nx_opts()},
+      {:exla, "~> 0.4.0", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.4.0", [only: :test] ++ torchx_opts()},
+      {:nx, "~> 0.4.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.7.0", optional: true}
@@ -56,7 +56,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      [github: "elixir-nx/nx", sparse: "nx", branch: "main", override: true]
+      []
     end
   end
 
@@ -64,7 +64,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path]
     else
-      [github: "elixir-nx/nx", sparse: "exla", branch: "main"]
+      []
     end
   end
 
@@ -72,7 +72,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_TORCHX_PATH") do
       [path: path]
     else
-      [github: "elixir-nx/nx", sparse: "torchx", branch: "main"]
+      []
     end
   end
 
