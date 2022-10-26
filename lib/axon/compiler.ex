@@ -88,8 +88,7 @@ defmodule Axon.Compiler do
         :timer.tc(fn ->
           param_keys = get_keys(nodes, key)
 
-          {_, {params, _}} =
-            cache[root_id][:init].(template, cache, %{}, stacktrace, param_keys)
+          {_, {params, _}} = cache[root_id][:init].(template, cache, %{}, stacktrace, param_keys)
 
           params
         end)
@@ -114,7 +113,8 @@ defmodule Axon.Compiler do
           op_counts = Map.update(op_counts, op, 1, &(&1 + 1))
 
           keys =
-            Enum.reduce(params, keys, fn %Axon.Parameter{name: param_name, initializer: fun}, keys ->
+            Enum.reduce(params, keys, fn %Axon.Parameter{name: param_name, initializer: fun},
+                                         keys ->
               {:arity, arity} = Function.info(fun, :arity)
 
               cond do
@@ -122,7 +122,9 @@ defmodule Axon.Compiler do
                   keys
 
                 arity == 3 ->
-                  <<data::unsigned-size(32), _rest::binary>> = :erlang.md5(name <> "." <> param_name)
+                  <<data::unsigned-size(32), _rest::binary>> =
+                    :erlang.md5(name <> "." <> param_name)
+
                   [{{name, param_name}, data} | keys]
 
                 true ->
