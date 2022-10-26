@@ -333,8 +333,7 @@ defmodule Axon do
   def param(name, shape, opts \\ [])
       when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
-    initializer = opts[:initializer]
-    validate_initializer!(initializer)
+    initializer = validate_initializer!(opts[:initializer])
 
     id = System.unique_integer([:positive, :monotonic])
 
@@ -2729,13 +2728,22 @@ defmodule Axon do
 
       case initializer do
         fun when is_function(fun) ->
-          {out, _} = fun.(shape)
-          out
+          fun.(shape)
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          {out, _} = fun.(shape, {:f, 32}, opts[:key])
-          out
+          {:arity, arity} = Function.info(fun, :arity)
+
+          cond do
+            arity == 2 ->
+              fun.(shape, {:f, 32})
+
+            arity == 3 ->
+              fun.(shape, {:f, 32}, opts[:key])
+
+            true ->
+              raise ArgumentError, "bad arity for initializer"
+          end
       end
     end
 
@@ -3211,10 +3219,10 @@ defmodule Axon do
   @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
     {init_fn, predict_fn} = build(model, opts)
-    init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params])
+    init_compiled_fn = Nx.Defn.compile(init_fn, [template, init_params], opts)
 
     predict_compiled_fn =
-      Nx.Defn.compile(predict_fn, [init_compiled_fn.(template, init_params), template])
+      Nx.Defn.compile(predict_fn, [init_compiled_fn.(template, init_params), template], opts)
 
     {init_compiled_fn, predict_compiled_fn}
   end
@@ -3475,11 +3483,15 @@ defmodule Axon do
 
   defp validate_initializer!(initializer)
        when is_atom(initializer) and initializer in @valid_initializers do
-    :ok
+    apply(Axon.Initializers, initializer, [])
+  end
+
+  defp validate_initializer!(initializer) when is_function(initializer, 2) do
+    initializer
   end
 
   defp validate_initializer!(initializer) when is_function(initializer, 3) do
-    :ok
+    initializer
   end
 
   defp validate_initializer!(initializer) do

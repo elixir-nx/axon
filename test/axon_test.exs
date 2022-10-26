@@ -38,8 +38,8 @@ defmodule AxonTest do
                parameters: [weight, bias]
              } = nodes[id]
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = weight
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = weight
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with parameter initializer" do
@@ -49,8 +49,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :dense, parameters: [weight, bias]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = weight
-      assert %Axon.Parameter{initializer: :ones} = bias
+      assert %Axon.Parameter{} = weight
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -90,8 +90,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -113,8 +113,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "fails on bad initializers" do
@@ -147,8 +147,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -171,8 +171,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "fails on bad initializers" do
@@ -211,10 +211,10 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
     end
 
     test "works with activation" do
@@ -241,10 +241,10 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
     end
 
     test "fails on bad initializers" do
@@ -284,12 +284,12 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k3
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
-      assert %Axon.Parameter{initializer: :zeros} = b3
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
+      assert %Axon.Parameter{} = k3
+      assert %Axon.Parameter{} = b3
     end
 
     test "works with activation" do
@@ -478,10 +478,10 @@ defmodule AxonTest do
         assert opts[:channel_index] == -1
         assert opts[:epsilon] == 1.0e-5
 
-        assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
-        assert %Axon.Parameter{initializer: :zeros} = beta
-        assert %Axon.Parameter{initializer: :zeros} = mean
-        assert %Axon.Parameter{initializer: :ones} = var
+        assert %Axon.Parameter{} = gamma
+        assert %Axon.Parameter{} = beta
+        assert %Axon.Parameter{} = mean
+        assert %Axon.Parameter{} = var
       end
     end
 
@@ -495,10 +495,10 @@ defmodule AxonTest do
 
         assert %Axon.Node{parameters: [gamma, beta, mean, var]} = nodes[id]
 
-        assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-        assert %Axon.Parameter{initializer: :ones} = beta
-        assert %Axon.Parameter{initializer: :zeros} = mean
-        assert %Axon.Parameter{initializer: :ones} = var
+        assert %Axon.Parameter{} = gamma
+        assert %Axon.Parameter{} = beta
+        assert %Axon.Parameter{} = mean
+        assert %Axon.Parameter{} = var
       end
     end
 
@@ -525,8 +525,8 @@ defmodule AxonTest do
       assert opts[:channel_index] == -1
       assert opts[:epsilon] == 1.0e-5
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
-      assert %Axon.Parameter{initializer: :zeros} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "works with parameter initializer" do
@@ -538,8 +538,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{parameters: [gamma, beta]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-      assert %Axon.Parameter{initializer: :ones} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "fails on bad initializers" do
@@ -564,8 +564,8 @@ defmodule AxonTest do
       assert opts[:epsilon] == 1.0e-5
       assert opts[:num_groups] == 3
 
-      assert %Axon.Parameter{initializer: :ones} = gamma
-      assert %Axon.Parameter{initializer: :zeros} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "works with parameter initializer" do
@@ -575,8 +575,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{parameters: [gamma, beta]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-      assert %Axon.Parameter{initializer: :ones} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "fails on bad initializer" do
