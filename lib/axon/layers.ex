@@ -102,7 +102,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn dense(input, kernel, bias, _opts \\ []) do
+  deftransform dense(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    dense_impl(input, kernel, bias, opts)
+  end
+
+  defnp dense_impl(input, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.dense", "input", input, 2)
 
     input
@@ -144,7 +163,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn bilinear(input1, input2, kernel, bias, _opts \\ []) do
+  deftransform bilinear(input1, input2, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    bilinear_impl(input1, input2, kernel, bias, opts)
+  end
+
+  defnp bilinear_impl(input1, input2, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
     assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
     assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
@@ -282,7 +320,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :convolutional
-  defn conv(input, kernel, bias, opts \\ []) do
+  deftransform conv(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    conv_impl(input, kernel, bias, opts)
+  end
+
+  defnp conv_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
 
@@ -402,7 +459,26 @@ defmodule Axon.Layers do
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
-  defn conv_transpose(input, kernel, bias, opts \\ []) do
+  deftransform conv_transpose(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    conv_transpose_impl(input, kernel, bias, opts)
+  end
+
+  defnp conv_transpose_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
@@ -488,7 +564,26 @@ defmodule Axon.Layers do
 
   """
   @doc type: :convolutional
-  defn depthwise_conv(input, kernel, bias, opts \\ []) do
+  deftransform depthwise_conv(inputs, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    depthwise_conv_impl(inputs, kernel, bias, opts)
+  end
+
+  defnp depthwise_conv_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 
@@ -2553,7 +2648,7 @@ defmodule Axon.Layers do
     {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
   end
 
-  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0, 0, 0}]
+  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
 
   for {rnn_op, default} <- @recurrent_layers do
     deftransform unquote(rnn_op)(

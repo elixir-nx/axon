@@ -1,6 +1,8 @@
 defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
+
+  import ExUnit.CaptureLog
   import AxonTestUtil
 
   describe "input" do
@@ -20,10 +22,6 @@ defmodule AxonTest do
     test "raises on bad value" do
       assert_raise ArgumentError, ~r/value passed to constant/, fn ->
         Axon.constant(:foo)
-      end
-
-      assert_raise ArgumentError, ~r/value passed to constant/, fn ->
-        Axon.constant(1)
       end
     end
   end
@@ -950,6 +948,26 @@ defmodule AxonTest do
       assert b == input1
       assert c == input2
       assert d == input1
+    end
+
+    # TODO: Raise on next release
+    test "warns when serializing anonymous function" do
+      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
+      {init_fn, _} = Axon.build(model)
+      params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert capture_log(fn -> Axon.serialize(model, params) end) =~ "Attempting to serialize"
+    end
+
+    test "warns when deserializing anonymous function" do
+      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
+      {init_fn, _} = Axon.build(model)
+      params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert capture_log(fn ->
+               serialized = Axon.serialize(model, params)
+               Axon.deserialize(serialized)
+             end) =~ "Attempting to deserialize"
     end
   end
 
