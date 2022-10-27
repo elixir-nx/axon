@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.2.0"
+  @version "0.3.0"
 
   def project do
     [
@@ -84,6 +84,7 @@ defmodule Axon.MixProject do
       source_url: @source_url,
       extras: [
         # Guides
+        "guides/guides.md",
         "guides/model_creation/your_first_axon_model.livemd",
         "guides/model_creation/sequential_models.livemd",
         "guides/model_creation/complex_models.livemd",
@@ -106,7 +107,9 @@ defmodule Axon.MixProject do
         "notebooks/vision/horses_or_humans.livemd",
         "notebooks/text/lstm_generation.livemd",
         "notebooks/structured/credit_card_fraud.livemd",
-        "notebooks/generative/fashionmnist_autoencoder.livemd"
+        "notebooks/generative/mnist_autoencoder_using_kino.livemd",
+        "notebooks/generative/fashionmnist_autoencoder.livemd",
+        "notebooks/generative/fashionmnist_vae.livemd"
       ],
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
@@ -158,11 +161,12 @@ defmodule Axon.MixProject do
         ],
         Functional: [
           Axon.Activations,
-          Axon.Initalizers,
+          Axon.Initializers,
           Axon.Layers,
           Axon.Losses,
           Axon.Metrics,
-          Axon.Recurrent
+          Axon.Recurrent,
+          Axon.LossScale
         ],
         Optimization: [
           Axon.Optimizers,

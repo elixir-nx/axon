@@ -8,6 +8,8 @@ defmodule Axon do
   network formats like TensorFlow Lite and
   [ONNX](https://github.com/elixir-nx/axon_onnx).
 
+  For a more in-depth overview of Axon, refer to the [Guides](guides.html).
+
   ## Model Creation
 
   All Axon models start with an input layer, optionally specifying
