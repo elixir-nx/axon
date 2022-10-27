@@ -647,7 +647,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :dense}
       else
-        {[x, kernel], &Axon.Layers.dense(&1, &2, 0, &3)}
+        {[x, kernel], :dense}
       end
 
     node = layer(op, inputs, name: opts[:name], op_name: :dense)
@@ -719,7 +719,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[input1, input2, kernel, bias], :bilinear}
       else
-        {[input1, input2, kernel, constant(0)], :bilinear}
+        {[input1, input2, kernel], :bilinear}
       end
 
     node = layer(op, inputs, name: opts[:name], op_name: :bilinear)
@@ -811,7 +811,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv}
       else
-        {[x, kernel, constant(0)], :conv}
+        {[x, kernel], :conv}
       end
 
     node =
@@ -902,7 +902,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv_transpose}
       else
-        {[x, kernel, constant(0)], :conv_transpose}
+        {[x, kernel], :conv_transpose}
       end
 
     node =
@@ -1005,7 +1005,7 @@ defmodule Axon do
 
         {[x, kernel, bias], :depthwise_conv}
       else
-        {[x, kernel, constant(0)], :depthwise_conv}
+        {[x, kernel], :depthwise_conv}
       end
 
     node =
@@ -1124,7 +1124,7 @@ defmodule Axon do
         b2 = param("bias_2", b2_shape, initializer: bias_initializer)
         {[x, k1, b1, k2, b2], :separable_conv2d}
       else
-        {[x, k1, constant(0), k2, constant(0)], :separable_conv2d}
+        {[x, k1, k2], :separable_conv2d}
       end
 
     node =
@@ -1259,7 +1259,7 @@ defmodule Axon do
         b3 = param("bias_3", b3_shape, initializer: bias_initializer)
         {[x, k1, b1, k2, b2, k3, b3], :separable_conv3d}
       else
-        {[x, k1, constant(0), k2, constant(0), k3, constant(0)], :separable_conv3d}
+        {[x, k1, k2, k3], :separable_conv3d}
       end
 
     node =
@@ -2648,7 +2648,7 @@ defmodule Axon do
         b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
         {[x, hidden_state, wi, wh, b], :conv_lstm}
       else
-        {[x, hidden_state, wi, wh, constant(0)], :conv_lstm}
+        {[x, hidden_state, wi, wh], :conv_lstm}
       end
 
     output =
@@ -3437,6 +3437,7 @@ defmodule Axon do
         " keep your model definitions as code and serialize your parameters using" <>
         " `Nx.serialize/2`."
     )
+
     nodes =
       Map.new(nodes, fn {k, %{op: op, op_name: op_name} = v} ->
         validate_serialized_op!(op_name, op)
@@ -3446,7 +3447,7 @@ defmodule Axon do
 
     model_meta = %{output: id, nodes: nodes, axon: :axon}
     params = Nx.serialize(params, opts)
-    :erlang.term_to_binary({@file_version, node_list, params}, opts)
+    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
 
   # TODO: Raise on next release
@@ -3528,7 +3529,6 @@ defmodule Axon do
 
     case fun_info[:type] do
       :local ->
-        IO.inspect op_name
         Logger.warning(
           "Attempting to deserialize anonymous function in #{inspect(op_name)} layer," <>
             " this will result in errors during deserialization between" <>
@@ -3540,14 +3540,14 @@ defmodule Axon do
         unless function_exported?(fun_info[:module], fun_info[:name], fun_info[:arity]) do
           Logger.warning(
             "Attempting to deserialize model which depends on function" <>
-              " #{inspect(op)} in layer #{name} which does not exist in" <>
+              " #{inspect(op)} in layer #{inspect(op_name)} which does not exist in" <>
               " the current environment, check your dependencies"
           )
         end
     end
   end
 
-  defp validate_deserialized_op!(_name, op, _op_name) when is_atom(op), do: :ok
+  defp validate_deserialized_op!(op, _op_name) when is_atom(op), do: :ok
 
   ## Helpers
 
