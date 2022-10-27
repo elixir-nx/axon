@@ -7,7 +7,7 @@
     <meta name="generator" content="ExDoc v0.28.6">
     <meta name="project" content="Axon v0.2.0">
 
-    <title>Axon.StatefulOutput — Axon v0.2.0</title>
+    <title>Axon.LossScale — Axon v0.2.0</title>
     <link rel="stylesheet" href="dist/html-elixir-5CLCQQME.css" />
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
@@ -99,32 +99,161 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/stateful_output.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/loss_scale.ex#L1" title="View Source" class="view-source" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
-  <span translate="no">Axon.StatefulOutput</span> 
+  <span translate="no">Axon.LossScale</span> 
   <small class="app-vsn" translate="no">(Axon v0.2.0)</small>
 
 </h1>
 
 
   <section id="moduledoc">
-<p>Container for returning stateful outputs from Axon layers.</p><p>Some layers, such as <a href="Axon.html#batch_norm/2"><code class="inline">Axon.batch_norm/2</code></a>, keep a running internal
-state which is updated continuously at train time and used statically
-at inference time. In order for the Axon compiler to differentiate
-ordinary layer outputs from internal state, you must mark output
-as stateful.</p><p>Stateful Outputs consist of two fields:</p><pre><code class="makeup elixir" translate="no"><span class="ss">:output</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Actual</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">output</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">forwarded</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="n">layer</span><span class="w">
-</span><span class="ss">:state</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nc">Internal</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">tracked</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">updated</span></code></pre><p><code class="inline">:output</code> is simply forwarded to the next layer. <code class="inline">:state</code> is aggregated
-with other stateful outputs, and then is treated specially by internal
-Axon training functions such that update state parameters reflect returned
-values from stateful outputs.</p><p><code class="inline">:state</code> must be a map with keys that map directly to layer internal
-state names. For example, <code class="inline">Axon.Layers.batch_norm</code> returns StatefulOutput
-with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&quot;</code> and <code class="inline">&quot;var&quot;</code>.</p>
+<p>Implementations of loss-scalers for use in mixed precision
+training.</p><p>Loss scaling is used to prevent underflow when using mixed
+precision during the model training process. Each loss-scale
+implementation here returns a 3-tuple of the functions:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="0563634297-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">scale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">unscale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">adjust_fn</span><span class="p" data-group-id="0563634297-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.LossScale</span><span class="o">.</span><span class="n">static</span><span class="p" data-group-id="0563634297-2">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">power</span><span class="p" data-group-id="0563634297-3">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="p" data-group-id="0563634297-3">)</span><span class="p" data-group-id="0563634297-2">)</span></code></pre><p>You can use these to scale/unscale loss and gradients as well
+as adjust the loss scale state.</p><p><a href="Axon.Loop.html#trainer/3"><code class="inline">Axon.Loop.trainer/3</code></a> builds loss-scaling in by default. You
+can reference the <a href="Axon.Loop.html#train_step/3"><code class="inline">Axon.Loop.train_step/3</code></a> implementation to
+see how loss-scaling is applied in practice.</p>
   </section>
 
 
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+      Summary
+    </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#dynamic/2" translate="no">dynamic(loss_scale \\ 32768, opts \\ [])</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Implements dynamic loss-scale.</p></div>
+
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#identity/0" translate="no">identity()</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Implements identity loss-scale.</p></div>
+
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-signature">
+          <a href="#static/1" translate="no">static(loss_scale \\ 32768)</a>
+
+        </div>
+
+          <div class="summary-synopsis"><p>Implements static loss-scale.</p></div>
+
+      </div>
+
+  </div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+        <span class="sr-only">Link to this section</span>
+      </a>
+Functions
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="dynamic/2">
+
+    <span id="dynamic/0"></span>
+
+    <span id="dynamic/1"></span>
+
+  <div class="detail-header">
+    <a href="#dynamic/2" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">dynamic(loss_scale \\ 32768, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/loss_scale.ex#L66" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Implements dynamic loss-scale.</p>
+  </section>
+</section>
+<section class="detail" id="identity/0">
+
+  <div class="detail-header">
+    <a href="#identity/0" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">identity()</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/loss_scale.ex#L28" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Implements identity loss-scale.</p>
+  </section>
+</section>
+<section class="detail" id="static/1">
+
+    <span id="static/0"></span>
+
+  <div class="detail-header">
+    <a href="#static/1" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">static(loss_scale \\ 32768)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.2.0/lib/axon/loss_scale.ex#L37" class="view-source" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Implements static loss-scale.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
 
       <footer class="footer">
 
@@ -135,7 +264,7 @@ with <code class="inline">:state</code> keys of <code class="inline">&quot;mean&
               <a href="https://hex.pm/packages/axon/0.2.0" class="line footer-hex-package">Package</a>
               <a href="https://preview.hex.pm/preview/axon/0.2.0" class="line">Preview</a>
 
-                <a href="https://preview.hex.pm/preview/axon/0.2.0/show/lib/axon/stateful_output.ex">(current file)</a>
+                <a href="https://preview.hex.pm/preview/axon/0.2.0/show/lib/axon/loss_scale.ex">(current file)</a>
 
             </span>
 
