@@ -7,7 +7,7 @@
     <meta name="generator" content="ExDoc v0.28.6">
     <meta name="project" content="Axon v0.3.0">
 
-    <title>Axon.CompileError — Axon v0.3.0</title>
+    <title>Axon Guides — Axon v0.3.0</title>
     <link rel="stylesheet" href="dist/html-elixir-5CLCQQME.css" />
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
@@ -20,7 +20,7 @@
 
 
   </head>
-  <body data-type="modules" class="page-exception">
+  <body data-type="extras" class="page-extra">
     <script>
 
       try {
@@ -99,82 +99,65 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/compiler.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/guides/guides.md#L1" title="View Source" class="view-source" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
-  <span translate="no">Axon.CompileError</span> <small>exception</small>
-  <small class="app-vsn" translate="no">(Axon v0.3.0)</small>
-
+  <span>Axon Guides</span>
 </h1>
 
+<p>Axon is a library for creating and training neural networks in Elixir. The Axon guides are a collection of Livebooks designed to introduce Axon's APIs and design decisions from the bottom-up. After working through the guides, you will feel comfortable and confident working with Axon and using Axon for your next deep learning problem.</p><h2 id="model-creation" class="section-heading">
+  <a href="#model-creation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">model-creation</p>
+  </a>
+  Model Creation
+</h2>
+<ul><li><a href="your_first_axon_model.html">Your first Axon model</a></li><li><a href="sequential_models.html">Sequential models</a></li><li><a href="complex_models.html">Complex models</a></li><li><a href="multi_input_multi_output_models.html">Multi-input / multi-output models</a></li><li><a href="custom_layers.html">Custom layers</a></li><li><a href="model_hooks.html">Model hooks</a></li></ul><h2 id="model-execution" class="section-heading">
+  <a href="#model-execution" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">model-execution</p>
+  </a>
+  Model Execution
+</h2>
+<ul><li><a href="accelerating_axon.html">Accelerating Axon</a></li><li><a href="training_and_inference_mode.html">Training and inference mode</a></li></ul><h2 id="training-and-evaluation" class="section-heading">
+  <a href="#training-and-evaluation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">training-and-evaluation</p>
+  </a>
+  Training and Evaluation
+</h2>
+<ul><li><a href="your_first_training_loop.html">Your first training loop</a></li><li><a href="instrumenting_loops_with_metrics.html">Instrumenting loops with metrics</a></li><li><a href="your_first_evaluation_loop.html">Your first evalutaion loop</a></li><li><a href="using_loop_event_handlers.html">Using loop event handlers</a></li><li><a href="custom_models_loss_optimizers.html">Custom models, loss functions, and optimizers</a></li><li><a href="writing_custom_metrics.html">Writing custom metrics</a></li><li><a href="writing_custom_event_handlers.html">Writing custom event handlers</a></li></ul><h2 id="serialization" class="section-heading">
+  <a href="#serialization" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">serialization</p>
+  </a>
+  Serialization
+</h2>
+<ul><li><a href="onnx_to_axon.html">Converting ONNX models to Axon</a> </li></ul>
+<div class="bottom-actions">
+  <div class="bottom-actions-item">
 
-
-  <section id="summary" class="details-list">
-    <h1 class="section-heading">
-      <a class="hover-link" href="#summary">
-        <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
+      <a href="api-reference.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+API Reference
+        </span>
       </a>
-      Summary
-    </h1>
-
-  <div class="summary-functions summary">
-    <h2>
-      <a href="#functions">Functions</a>
-    </h2>
-
-      <div class="summary-row">
-        <div class="summary-signature">
-          <a href="#message/1" translate="no">message(exception)</a>
-
-        </div>
-
-          <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/elixir/Exception.html#c:message/1"><code class="inline">Exception.message/1</code></a>.</p></div>
-
-      </div>
 
   </div>
+  <div class="bottom-actions-item">
 
-  </section>
-
-
-  <section id="functions" class="details-list">
-    <h1 class="section-heading">
-      <a class="hover-link" href="#functions">
-        <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
+      <a href="your_first_axon_model.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Your first Axon model
+        </span>
       </a>
-Functions
-    </h1>
-    <div class="functions-list">
-<section class="detail" id="message/1">
-
-  <div class="detail-header">
-    <a href="#message/1" class="detail-link" title="Link to this function">
-      <i class="ri-link-m" aria-hidden="true"></i>
-      <span class="sr-only">Link to this function</span>
-    </a>
-    <h1 class="signature" translate="no">message(exception)</h1>
-
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/compiler.ex#L4" class="view-source" rel="help" title="View Source">
-       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-       <span class="sr-only">View Source</span>
-     </a>
-
 
   </div>
-
-  <section class="docstring">
-
-<p>Callback implementation for <a href="https://hexdocs.pm/elixir/Exception.html#c:message/1"><code class="inline">Exception.message/1</code></a>.</p>
-  </section>
-</section>
-
-    </div>
-  </section>
-
+</div>
       <footer class="footer">
 
           <p>
@@ -184,7 +167,7 @@ Functions
               <a href="https://hex.pm/packages/axon/0.3.0" class="line footer-hex-package">Package</a>
               <a href="https://preview.hex.pm/preview/axon/0.3.0" class="line">Preview</a>
 
-                <a href="https://preview.hex.pm/preview/axon/0.3.0/show/lib/axon/compiler.ex">(current file)</a>
+                <a href="https://preview.hex.pm/preview/axon/0.3.0/show/guides/guides.md">(current file)</a>
 
             </span>
 
