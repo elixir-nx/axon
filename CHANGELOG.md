@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.3.0 (2022-10-27)
+
+### Enhancements
+
+* Add filters and events to validation loop event handler
+* Add `Axon.Losses.cosine_similarity/2`
+* Add `Axon.Activations.log_sumexp/2`
+* Add mermaid rendering with `Axon.Display.as_graph/2`
+* Add a number of guides to documentation
+* Use stateless RNGs for initialization and dropout layers
+* Include stacktraces in compilation errors to improve error messages
+* Update Axon data structure to reduce size of copies
+* Change channels default to last for performance reasons
+* Add initial implementation of Loss scaling to Axon API
+
+### Bug fixes
+
+* Fix issue with `Axon.get_output_shape/2` returning container shapes
+* Fix implementation bugs with `Axon.group_norm/3`
+* Fix issue with `Axon.Loop.from_state/2` not allowing resumption of loops from states
+* Fix issue with validation loop not populating metrics correctly
+
 ## v0.2.0 (2022-08-13)
 
 ### Enhancements
