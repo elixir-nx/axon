@@ -209,6 +209,8 @@ defmodule Axon.Loop do
   alias __MODULE__, as: Loop
   alias Axon.Loop.State
 
+  import Axon.Shared
+
   @file_version 1
 
   @default_events [
@@ -305,7 +307,7 @@ defmodule Axon.Loop do
   optimizer state, and gradients. See `Axon.Updates` for more information on building
   optimizers.
   """
-  def train_step(model, loss, optimizer, loss_scale \\ :identity) do
+  def train_step(model, loss, optimizer, loss_scale \\ :identity, steps \\ 1) do
     {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
@@ -321,7 +323,9 @@ defmodule Axon.Loop do
         y_true: Nx.tensor(0.0),
         y_pred: Nx.tensor(0.0),
         loss: Nx.tensor(0.0),
+        gradient_step: Nx.tensor(0),
         model_state: model_state,
+        gradient_state: zeros_like(model_state),
         optimizer_state: optimizer_state,
         loss_scale_state: loss_scale_state
       }
@@ -331,13 +335,22 @@ defmodule Axon.Loop do
     # here
     objective_fn = fn model_state, loss_scale_state, inp, tar ->
       model_out = forward_model_fn.(model_state, inp)
-      {model_out, scale_loss.(loss_fn.(tar, model_out.prediction), loss_scale_state)}
+
+      loss =
+        tar
+        |> loss_fn.(model_out.prediction)
+        |> scale_loss.(loss_scale_state)
+        |> Nx.divide(steps)
+
+      {model_out, loss}
     end
 
     step_fn = fn {inp, tar}, state ->
       %{
         i: i,
+        gradient_step: gradient_step,
         loss_scale_state: loss_scale_state,
+        gradient_state: gradient_state,
         model_state: model_state,
         optimizer_state: optimizer_state,
         loss: loss
@@ -358,21 +371,30 @@ defmodule Axon.Loop do
       new_loss =
         loss
         |> Nx.multiply(i)
-        |> Nx.add(batch_loss)
+        |> Nx.add(Nx.multiply(batch_loss, steps))
         |> Nx.divide(Nx.add(i, 1))
 
-      {updates, new_optimizer_state} =
-        update_optimizer_fn.(gradients, optimizer_state, model_state)
+      {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step} =
+        if Nx.greater_equal(gradient_step, steps - 1) do
+          {updates, new_optimizer_state} =
+            update_optimizer_fn.(gradients, optimizer_state, model_state)
 
-      new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+          new_gradient_state = zeros_like(model_state)
+          new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+          {new_model_state, new_optimizer_state, new_gradient_state, 0}
+        else
+          {model_state, optimizer_state, gradient_state + gradients, gradient_step + 1}
+        end
 
       %{
         state
         | i: Nx.add(i, 1),
+          gradient_step: new_gradient_step,
           y_true: tar,
           y_pred: preds,
           loss: new_loss,
           model_state: new_model_state,
+          gradient_state: new_gradient_state,
           optimizer_state: new_optimizer_state,
           loss_scale_state: new_loss_scale_state
       }
@@ -549,9 +571,13 @@ defmodule Axon.Loop do
   """
   def trainer(model, loss, optimizer, loss_scale \\ :identity, opts \\ []) do
     log_interval = opts[:log] || 50
+    gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    {init_fn, step_fn} = train_step(model, loss_fn, optimizer, loss_scale)
+
+    {init_fn, step_fn} =
+      train_step(model, loss_fn, optimizer, loss_scale, gradient_accumulation_steps)
+
     output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
