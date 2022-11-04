@@ -2,15 +2,16 @@
 
 ```elixir
 Mix.install([
-  {:exla, "~> 0.3.0"},
-  {:nx, "~> 0.3.0"},
-  {:axon, "~> 0.2.0"},
+  {:exla, "~> 0.4.0"},
+  {:nx, "~> 0.4.0", override: true},
+  {:axon, "~> 0.3.0"},
   {:req, "~> 0.3.1"},
   {:kino, "~> 0.7.0"},
   {:scidata, "~> 0.1.9"},
   {:stb_image, "~> 0.5.2"},
-  {:kino_vega_lite, "~> 0.1.4"},
-  {:vega_lite, "~> 0.1.6"}
+  {:kino_vega_lite, "~> 0.1.6"},
+  {:vega_lite, "~> 0.1.6"},
+  {:table_rex, "~> 3.1.1"}
 ])
 
 alias VegaLite, as: Vl
@@ -34,7 +35,7 @@ This section will proceed without much explanation as most of it is extracted fr
 ```elixir
 defmodule Data do
   @moduledoc """
-  A module to hold useful data processing utilities, 
+  A module to hold useful data processing utilities,
   mostly extracted from the previous notebook
   """
 
@@ -132,7 +133,7 @@ model =
   |> Axon.dense(784, activation: :sigmoid, name: "decoder_layer_4")
   |> CustomLayer.scaling_layer()
   # Turn it back into a 28x28 single channel image
-  |> Axon.reshape({1, 28, 28})
+  |> Axon.reshape({:auto, 1, 28, 28})
 
 # We can use Axon.Display to show us what each of the layers would look like
 # assuming we send in a batch of 4 images
@@ -161,7 +162,7 @@ We also have `plot_losses/1` function to visualize our train and validation loss
 ```elixir
 defmodule KinoAxon do
   @doc """
-  Adds handler function which adds a frame with a "stop" button 
+  Adds handler function which adds a frame with a "stop" button
   to the cell with the training loop.
 
   Clicking "stop" will halt the training loop.
@@ -212,7 +213,7 @@ defmodule KinoAxon do
     handler = fn state ->
       %Axon.Loop.State{metrics: metrics, epoch: epoch} = state
       loss = metrics["loss"] |> Nx.to_number()
-      val_loss = metrics["validation_0"]["loss"] |> Nx.to_number()
+      val_loss = metrics["validation_loss"] |> Nx.to_number()
 
       points = [
         %{epoch: epoch, loss: loss, dataset: "train"},
@@ -290,7 +291,7 @@ decoder =
   |> Axon.dense(784, activation: :sigmoid, name: "decoder_layer_4")
   |> CustomLayer.scaling_layer()
   # Turn it back into a 28x28 single channel image
-  |> Axon.reshape({1, 28, 28})
+  |> Axon.reshape({:auto, 1, 28, 28})
 
 Axon.Display.as_table(encoder, Nx.template({4, 1, 28, 28}, :f32)) |> IO.puts()
 Axon.Display.as_table(decoder, Nx.template({4, 10}, :f32)) |> IO.puts()
@@ -336,7 +337,7 @@ num_steps = 100
 # index 1 is where we'll end
 latents = Axon.predict(encoder, params, test_images[[images: 0..1]])
 # Latents is a {2, 10} tensor
-# The step we'll add to our latent to move it towards image[1] 
+# The step we'll add to our latent to move it towards image[1]
 step = Nx.subtract(latents[1], latents[0]) |> Nx.divide(num_steps)
 # We can make a batch of all our new latents
 new_latents = Nx.multiply(Nx.iota({num_steps + 1, 1}), step) |> Nx.add(latents[0])
@@ -397,7 +398,7 @@ defmodule Vae do
     # Bottleneck layer
     |> Axon.dense(@latent_features * 2, name: "bottleneck_layer")
     # Split up the mu and logvar
-    |> Axon.reshape({2, @latent_features})
+    |> Axon.reshape({:auto, 2, @latent_features})
     |> sampling_layer()
   end
 
@@ -415,7 +416,7 @@ defmodule Vae do
     |> Axon.dense(784, activation: :sigmoid, name: "decoder_layer_4")
     |> CustomLayer.scaling_layer()
     # Turn it back into a 28x28 single channel image
-    |> Axon.reshape({1, 28, 28})
+    |> Axon.reshape({:auto, 1, 28, 28})
   end
 
   def autoencoder() do
@@ -492,7 +493,7 @@ num_steps = 100
 # index 1 is where we'll end
 latents = Axon.predict(Vae.encoder(), params, test_images[[images: 0..1]])
 # Latents is a {2, 10} tensor
-# The step we'll add to our latent to move it towards image[1] 
+# The step we'll add to our latent to move it towards image[1]
 step = Nx.subtract(latents[1], latents[0]) |> Nx.divide(num_steps)
 # We can make a batch of all our new latents
 new_latents = Nx.multiply(Nx.iota({num_steps + 1, 1}), step) |> Nx.add(latents[0])
