@@ -1775,7 +1775,7 @@ defmodule Axon.Loop do
   defp build_loss_scale_fns(invalid) do
     raise ArgumentError,
           "Invalid loss scale #{inspect(invalid)}, a valid" <>
-            " loss scale is an atom amtching the name of a loss" <>
+            " loss scale is an atom matching the name of a loss" <>
             " scale implementation in Axon.LossScale or a 3-tuple" <>
             " of {init_scale, scale_fn, unscale_fn}. See Axon.LossScale" <>
             " for more information"
