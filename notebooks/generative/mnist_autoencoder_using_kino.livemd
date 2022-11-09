@@ -2,13 +2,14 @@
 
 ```elixir
 Mix.install([
-  {:exla, "~> 0.3.0"},
-  {:nx, "~> 0.3.0"},
-  {:axon, "~> 0.2.0"},
+  {:exla, "~> 0.4.0"},
+  {:nx, "~> 0.4.0", override: true},
+  {:axon, "~> 0.3.0"},
   {:req, "~> 0.3.1"},
   {:kino, "~> 0.7.0"},
   {:scidata, "~> 0.1.9"},
-  {:stb_image, "~> 0.5.2"}
+  {:stb_image, "~> 0.5.2"},
+  {:table_rex, "~> 3.1.1"}
 ])
 ```
 
@@ -103,7 +104,7 @@ model =
   |> Axon.dense(256, activation: :relu)
   |> Axon.dense(784, activation: :sigmoid)
   # Turn it back into a 28x28 single channel image
-  |> Axon.reshape({1, 28, 28})
+  |> Axon.reshape({:auto, 1, 28, 28})
 
 # We can use Axon.Display to show us what each of the layers would look like
 # assuming we send in a batch of 4 images
