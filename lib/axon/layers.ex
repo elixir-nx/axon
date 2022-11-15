@@ -102,7 +102,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn dense(input, kernel, bias, _opts \\ []) do
+  deftransform dense(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    dense_impl(input, kernel, bias, opts)
+  end
+
+  defnp dense_impl(input, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.dense", "input", input, 2)
 
     input
@@ -144,7 +163,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :linear
-  defn bilinear(input1, input2, kernel, bias, _opts \\ []) do
+  deftransform bilinear(input1, input2, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    bilinear_impl(input1, input2, kernel, bias, opts)
+  end
+
+  defnp bilinear_impl(input1, input2, kernel, bias, _opts \\ []) do
     assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
     assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
     assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
@@ -210,7 +248,7 @@ defmodule Axon.Layers do
       iex> input = Nx.tensor([[[0.1294, -0.6638, 1.0251]], [[ 0.9182,  1.1512, -1.6149]]], type: {:f, 32})
       iex> kernel = Nx.tensor([[[-1.5475, 1.2425]], [[0.1871, 0.5458]], [[-0.4488,  0.8879]]], type: {:f, 32})
       iex> bias = Nx.tensor([0.7791, 0.1676, 1.5971], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[2][3][2]
         [
@@ -236,7 +274,7 @@ defmodule Axon.Layers do
       ...>  [[[1.8587, 0.4722], [0.6058, -1.0301]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([1.9564, 0.2822, -0.5385], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -262,7 +300,7 @@ defmodule Axon.Layers do
       ...>  [[[[-0.6638], [0.4341]], [[0.6368], [1.1846]]]]
       ...> ], type: {:f, 32})
       iex> bias = Nx.tensor([-0.4101,  0.1776], type: {:f, 32})
-      iex> Axon.Layers.conv(input, kernel, bias)
+      iex> Axon.Layers.conv(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][2][1][1][1]
         [
@@ -282,7 +320,26 @@ defmodule Axon.Layers do
       >
   """
   @doc type: :convolutional
-  defn conv(input, kernel, bias, opts \\ []) do
+  deftransform conv(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    conv_impl(input, kernel, bias, opts)
+  end
+
+  defnp conv_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
 
@@ -294,7 +351,7 @@ defmodule Axon.Layers do
         kernel_dilation: 1,
         feature_group_size: 1,
         batch_group_size: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -306,14 +363,17 @@ defmodule Axon.Layers do
         end
       )
 
-    permutations =
+    {permutations, kernel_permutation} =
       transform({Nx.rank(input), opts[:channels]}, fn
         {rank, :first} ->
-          Enum.to_list(0..(rank - 1))
+          perm = Enum.to_list(0..(rank - 1))
+          {perm, perm}
 
         {rank, :last} ->
           spatial = Enum.to_list(1..(rank - 2)//1)
-          [0, rank - 1 | spatial]
+          perm = [0, rank - 1 | spatial]
+          kernel_perm = [rank - 1, rank - 2] ++ Enum.to_list(0..(rank - 3)//1)
+          {perm, kernel_perm}
 
         {_rank, invalid} ->
           raise ArgumentError, "invalid channel configuration, #{inspect(invalid)}"
@@ -328,6 +388,7 @@ defmodule Axon.Layers do
       feature_group_size: opts[:feature_group_size],
       batch_group_size: opts[:batch_group_size],
       input_permutation: permutations,
+      kernel_permutation: kernel_permutation,
       output_permutation: permutations
     )
     |> Nx.add(Nx.reshape(bias, bias_reshape))
@@ -377,7 +438,7 @@ defmodule Axon.Layers do
       iex> input = Nx.iota({1, 3, 3}, type: {:f, 32})
       iex> kernel = Nx.iota({6, 3, 2}, type: {:f, 32})
       iex> bias = Nx.tensor(1.0, type: {:f, 32})
-      iex> Axon.Layers.conv_transpose(input, kernel, bias)
+      iex> Axon.Layers.conv_transpose(input, kernel, bias, channels: :first)
       #Nx.Tensor<
         f32[1][6][4]
         [
@@ -398,7 +459,26 @@ defmodule Axon.Layers do
     * [Deconvolutional Networks](https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf)
   """
   @doc type: :convolutional
-  defn conv_transpose(input, kernel, bias, opts \\ []) do
+  deftransform conv_transpose(input, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    conv_transpose_impl(input, kernel, bias, opts)
+  end
+
+  defnp conv_transpose_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
@@ -407,7 +487,7 @@ defmodule Axon.Layers do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -484,7 +564,26 @@ defmodule Axon.Layers do
 
   """
   @doc type: :convolutional
-  defn depthwise_conv(input, kernel, bias, opts \\ []) do
+  deftransform depthwise_conv(inputs, kernel, bias \\ 0, opts \\ []) do
+    {bias, opts} =
+      case bias do
+        %Nx.Tensor{} = bias ->
+          {bias, opts}
+
+        bias when is_number(bias) ->
+          {bias, opts}
+
+        opts when is_list(opts) ->
+          {Nx.tensor(0), opts}
+
+        other ->
+          raise ArgumentError, "invalid bias, expected a tensor, got #{inspect(other)}"
+      end
+
+    depthwise_conv_impl(inputs, kernel, bias, opts)
+  end
+
+  defnp depthwise_conv_impl(input, kernel, bias, opts \\ []) do
     assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 
@@ -494,7 +593,7 @@ defmodule Axon.Layers do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         mode: :inference
       )
 
@@ -688,7 +787,7 @@ defmodule Axon.Layers do
       ...> [0.051500000059604645, -0.7042999863624573, -0.32899999618530273],
       ...> [-0.37130001187324524, 1.6191999912261963, -0.11829999834299088],
       ...> [0.7099999785423279, 0.7282999753952026, -0.18639999628067017]]], type: {:f, 32})
-      iex> Axon.Layers.max_pool(t, kernel_size: 2)
+      iex> Axon.Layers.max_pool(t, kernel_size: 2, channels: :first)
       #Nx.Tensor<
         f32[1][3][1]
         [
@@ -712,7 +811,7 @@ defmodule Axon.Layers do
           strides: nil,
           padding: :valid,
           window_dilations: 1,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -750,16 +849,12 @@ defmodule Axon.Layers do
 
     padding =
       transform(
-        opts[:padding],
+        {opts[:padding], opts[:channels]},
         fn
-          :same ->
-            :same
-
-          :valid ->
-            :valid
-
-          padding ->
-            [{0, 0}, {0, 0} | padding]
+          {:same, _} -> :same
+          {:valid, _} -> :valid
+          {padding, :first} -> [{0, 0}, {0, 0} | padding]
+          {padding, :last} -> [{0, 0} | padding] ++ [{0, 0}]
         end
       )
 
@@ -815,7 +910,7 @@ defmodule Axon.Layers do
           strides: nil,
           padding: :valid,
           window_dilations: 1,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -916,7 +1011,7 @@ defmodule Axon.Layers do
   ## Examples
 
       iex> t = Nx.tensor([[[0.9450, 0.4684, 1.8146], [1.2663, 0.4354, -0.0781], [-0.4759, 0.3251, 0.8742]]], type: {:f, 32})
-      iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2)
+      iex> Axon.Layers.lp_pool(t, kernel_size: 2, norm: 2, channels: :first)
       #Nx.Tensor<
         f32[1][3][1]
         [
@@ -941,7 +1036,7 @@ defmodule Axon.Layers do
           padding: :valid,
           window_dilations: 1,
           norm: 2,
-          channels: :first,
+          channels: :last,
           mode: :inference
         ]
       )
@@ -1032,11 +1127,11 @@ defmodule Axon.Layers do
   defn adaptive_avg_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_avg_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, channels: :last, mode: :inference])
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1083,11 +1178,11 @@ defmodule Axon.Layers do
   defn adaptive_max_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_max_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, channels: :last, mode: :inference])
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1140,13 +1235,13 @@ defmodule Axon.Layers do
   defn adaptive_lp_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.adaptive_lp_pool", "input", input, 3)
 
-    opts = keyword!(opts, [:output_size, norm: 2, channels: :first, mode: :inference])
+    opts = keyword!(opts, [:output_size, norm: 2, channels: :last, mode: :inference])
 
     norm = opts[:norm]
 
     output_size =
-      transform({Nx.shape(input), opts[:output_size]}, fn {shape, size} ->
-        Axon.Shape.adaptive_pool_window_size(shape, size)
+      transform({Nx.shape(input), opts[:output_size], opts[:channels]}, fn {shape, size, channels} ->
+        Axon.Shape.adaptive_pool_window_size(shape, size, channels)
       end)
 
     window_strides =
@@ -1205,7 +1300,7 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn batch_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, momentum: 0.1, mode: :inference)
 
     training? =
       transform(opts[:mode], fn
@@ -1213,12 +1308,12 @@ defmodule Axon.Layers do
         :train -> true
       end)
 
-    axes =
-      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
-        Axon.Shape.batch_norm_axes(axes, channel)
+    {axes, channel_index} =
+      transform({input, opts[:channel_index]}, fn {input, channel} ->
+        axes = Nx.axes(input)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel, Nx.names(input))
+        {Axon.Shape.batch_norm_axes(axes, axis), axis}
       end)
-
-    channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
@@ -1285,25 +1380,32 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn layer_norm(input, gamma, beta, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, mode: :inference)
     axes = opts[:channel_index]
 
     channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
-        elem(Nx.shape(inp), channel_idx)
+        names = List.duplicate(nil, Nx.rank(inp))
+        axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+        elem(Nx.shape(inp), axis)
       end)
 
     {gamma, beta} =
-      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn {g, b, rank,
-                                                                                num_channels,
-                                                                                channel_idx} ->
+      transform({gamma, beta, input, Nx.rank(input), num_channels, channel_index}, fn {g, b,
+                                                                                       input,
+                                                                                       rank,
+                                                                                       num_channels,
+                                                                                       channel_idx} ->
+        names = List.duplicate(nil, rank)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel_idx, names)
+
         new_shape =
           1
           |> List.duplicate(rank)
           |> List.to_tuple()
-          |> put_elem(channel_idx, num_channels)
+          |> put_elem(axis, num_channels)
 
         {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
@@ -1340,35 +1442,52 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn group_norm(input, gamma, beta, opts \\ []) do
-    opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: 1, mode: :inference])
+    opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: -1, mode: :inference])
+
+    channel_axis =
+      transform({Nx.shape(input), opts[:channel_index]}, fn
+        {shape, channel_index} ->
+          names = List.duplicate(nil, Nx.rank(shape))
+          Nx.Shape.normalize_axis(shape, channel_index, names)
+      end)
 
     group_shape =
-      transform({Nx.shape(input), opts[:num_groups], opts[:channel_index]}, fn
-        {shape, groups, channel} ->
-          Axon.Shape.group_norm_shape(shape, groups, channel)
+      transform({Nx.shape(input), opts[:num_groups], channel_axis}, fn
+        {shape, groups, channel_axis} ->
+          Axon.Shape.group_norm_shape(shape, groups, channel_axis)
       end)
 
     channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
-        elem(Nx.shape(inp), channel_idx)
+        names = List.duplicate(nil, Nx.rank(inp))
+        axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+        elem(Nx.shape(inp), axis)
       end)
 
     {gamma, beta} =
-      transform({gamma, beta, Nx.rank(input), num_channels, channel_index}, fn
-        {g, b, rank, num_channels, channel_idx} ->
+      transform({gamma, beta, input, Nx.rank(input), num_channels, channel_index}, fn
+        {g, b, inp, rank, num_channels, channel_idx} ->
+          names = List.duplicate(nil, Nx.rank(inp))
+          axis = Nx.Shape.normalize_axis(Nx.shape(inp), channel_idx, names)
+
           new_shape =
             1
             |> List.duplicate(rank)
             |> List.to_tuple()
-            |> put_elem(channel_idx, num_channels)
+            |> put_elem(axis, num_channels)
 
           {Nx.reshape(g, new_shape), Nx.reshape(b, new_shape)}
       end)
 
     x = Nx.reshape(input, group_shape)
-    axes = transform(Nx.rank(x), &Axon.Shape.group_norm_axes/1)
+
+    axes =
+      transform({x, channel_axis}, fn {x, channel_axis} ->
+        Axon.Shape.group_norm_axes(Nx.rank(x), channel_axis)
+      end)
+
     {mean, var} = mean_and_variance(x, axes: axes)
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
     x = Nx.reshape(x, input)
@@ -1406,7 +1525,7 @@ defmodule Axon.Layers do
   """
   @doc type: :normalization
   defn instance_norm(input, gamma, beta, ra_mean, ra_var, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: 1, momentum: 0.1, mode: :inference)
+    opts = keyword!(opts, epsilon: 1.0e-5, channel_index: -1, momentum: 0.1, mode: :inference)
 
     training? =
       transform(opts[:mode], fn
@@ -1414,12 +1533,12 @@ defmodule Axon.Layers do
         :train -> true
       end)
 
-    axes =
-      transform({Nx.axes(input), opts[:channel_index]}, fn {axes, channel} ->
-        Axon.Shape.instance_norm_axes(axes, channel)
+    {axes, channel_index} =
+      transform({input, opts[:channel_index]}, fn {input, channel} ->
+        axes = Nx.axes(input)
+        axis = Nx.Shape.normalize_axis(Nx.shape(input), channel, Nx.names(input))
+        {Axon.Shape.instance_norm_axes(axes, axis), axis}
       end)
-
-    channel_index = opts[:channel_index]
 
     num_channels =
       transform({input, channel_index}, fn {inp, channel_idx} ->
@@ -1463,8 +1582,6 @@ defmodule Axon.Layers do
 
   ## Stochastic
 
-  # TODO: Manage the state of these RNGs
-
   @doc ~S"""
   Functional implementation of a dropout layer.
 
@@ -1491,9 +1608,14 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn dropout(input, opts \\ []) do
-    opts = keyword!(opts, [:rate, noise_shape: Nx.shape(input), mode: :inference])
+    opts = keyword!(opts, [:key, :rate, noise_shape: Nx.shape(input), mode: :inference])
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - Nx.tensor(opts[:rate], type: Nx.type(input))
-    mask = Nx.less(Nx.random_uniform(opts[:noise_shape], type: Nx.type(input)), keep_prob)
+
+    mask =
+      Nx.less(
+        Nx.Random.uniform_split(opts[:key], 0, 1, shape: opts[:noise_shape], type: Nx.type(input)),
+        keep_prob
+      )
 
     mask =
       transform(
@@ -1543,14 +1665,14 @@ defmodule Axon.Layers do
   defn spatial_dropout(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.spatial_dropout", "input", input, 3)
 
-    opts = keyword!(opts, rate: 0.5, channels: :first, mode: :inference)
+    opts = keyword!(opts, [:key, rate: 0.5, channels: :last, mode: :inference])
 
     noise_shape =
       transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
         Axon.Shape.spatial_dropout_noise_shape(shape, channels)
       end)
 
-    dropout(input, rate: opts[:rate], noise_shape: noise_shape, mode: opts[:mode])
+    dropout(input, key: opts[:key], rate: opts[:rate], noise_shape: noise_shape, mode: opts[:mode])
   end
 
   @doc """
@@ -1575,7 +1697,7 @@ defmodule Axon.Layers do
   """
   @doc type: :dropout
   defn alpha_dropout(input, opts \\ []) do
-    opts = keyword!(opts, rate: 0.5, mode: :inference)
+    opts = keyword!(opts, [:key, rate: 0.5, mode: :inference])
     rate = opts[:rate]
 
     alpha = Nx.tensor(1.6732632423543772848170429916717, type: Nx.type(input))
@@ -1583,7 +1705,11 @@ defmodule Axon.Layers do
     alpha_p = -alpha * scale
     keep_prob = Nx.tensor(1, type: Nx.type(input)) - rate
 
-    mask = Nx.less(Nx.random_uniform(Nx.shape(input), type: Nx.type(input)), keep_prob)
+    mask =
+      Nx.less(
+        Nx.Random.uniform_split(opts[:key], 0, 1, shape: Nx.shape(input), type: Nx.type(input)),
+        keep_prob
+      )
 
     a = Nx.rsqrt(keep_prob * Nx.power(Nx.tensor(1, type: Nx.type(input)) * alpha_p, 2))
     b = -a * alpha_p * rate
@@ -1621,7 +1747,7 @@ defmodule Axon.Layers do
   defn feature_alpha_dropout(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.feature_alpha_dropout", "input", input, 3)
 
-    opts = keyword!(opts, rate: 0.5, channels: :first, mode: :inference)
+    opts = keyword!(opts, [:key, rate: 0.5, channels: :last, mode: :inference])
 
     noise_shape =
       transform({Nx.shape(input), opts[:channels]}, fn {shape, channels} ->
@@ -1629,7 +1755,12 @@ defmodule Axon.Layers do
       end)
 
     keep_prob = 1 - opts[:rate]
-    mask = Nx.less(Nx.random_uniform(noise_shape, type: Nx.type(input)), keep_prob)
+
+    mask =
+      Nx.less(
+        Nx.Random.uniform_split(opts[:key], 0, 1, shape: noise_shape, type: Nx.type(input)),
+        keep_prob
+      )
 
     mask =
       transform(
@@ -1672,7 +1803,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_avg_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1682,7 +1813,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_avg_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), channels: :first, keep_axes: true)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1704,7 +1835,7 @@ defmodule Axon.Layers do
   defn global_avg_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_avg_pool", "input", input, 3)
 
-    opts = keyword!(opts, channels: :first, keep_axes: false, mode: :inference)
+    opts = keyword!(opts, channels: :last, keep_axes: false, mode: :inference)
 
     all_but_batch_and_feature =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1736,7 +1867,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_max_pool(Nx.iota({3, 2, 3}, type: {:f, 32}))
+      iex> Axon.Layers.global_max_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1746,7 +1877,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_max_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true)
+      iex> Axon.Layers.global_max_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 32}), keep_axes: true, channels: :first)
       #Nx.Tensor<
         f32[1][3][1][1]
         [
@@ -1768,7 +1899,7 @@ defmodule Axon.Layers do
   defn global_max_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_max_pool", "input", input, 3)
 
-    opts = keyword!(opts, keep_axes: false, channels: :first, mode: :inference)
+    opts = keyword!(opts, keep_axes: false, channels: :last, mode: :inference)
 
     all_but_batch_and_feature =
       transform({Nx.rank(input), opts[:channels]}, fn
@@ -1805,7 +1936,7 @@ defmodule Axon.Layers do
 
   ## Examples
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), norm: 1)
+      iex> Axon.Layers.global_lp_pool(Nx.iota({3, 2, 3}, type: {:f, 32}), norm: 1, channels: :first)
       #Nx.Tensor<
         f32[3][2]
         [
@@ -1815,7 +1946,7 @@ defmodule Axon.Layers do
         ]
       >
 
-      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), keep_axes: true)
+      iex> Axon.Layers.global_lp_pool(Nx.iota({1, 3, 2, 2}, type: {:f, 16}), keep_axes: true, channels: :first)
       #Nx.Tensor<
         f16[1][3][1][1]
         [
@@ -1837,7 +1968,7 @@ defmodule Axon.Layers do
   defn global_lp_pool(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.global_lp_pool", "input", input, 3)
 
-    opts = keyword!(opts, norm: 2, keep_axes: false, channels: :first, mode: :inference)
+    opts = keyword!(opts, norm: 2, keep_axes: false, channels: :last, mode: :inference)
 
     norm = opts[:norm]
 
@@ -2043,7 +2174,7 @@ defmodule Axon.Layers do
   ## Examples
 
       iex> img = Nx.iota({1, 1, 3, 3}, type: {:f, 32})
-      iex> Axon.Layers.resize(img, size: {4, 4})
+      iex> Axon.Layers.resize(img, size: {4, 4}, channels: :first)
       #Nx.Tensor<
         f32[1][1][4][4]
         [
@@ -2072,7 +2203,7 @@ defmodule Axon.Layers do
       keyword!(opts, [
         :size,
         method: :nearest,
-        channels: :first,
+        channels: :last,
         mode: :inference
       ])
 
@@ -2226,7 +2357,7 @@ defmodule Axon.Layers do
   end
 
   defnp size(input, opts \\ []) do
-    opts = keyword!(opts, channels: :first)
+    opts = keyword!(opts, channels: :last)
     {height_axis, width_axis} = spatial_axes(input, channels: opts[:channels])
     {Nx.axis_size(input, height_axis), Nx.axis_size(input, width_axis)}
   end
@@ -2385,8 +2516,8 @@ defmodule Axon.Layers do
 
     gates =
       Nx.add(
-        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding]),
-        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding])
+        conv(input, ih, bi, strides: opts[:strides], padding: opts[:padding], channels: :first),
+        conv(hidden, hh, 0, strides: opts[:strides], padding: opts[:padding], channels: :first)
       )
 
     {i, g, f, o} = split_gates(gates)
@@ -2493,103 +2624,96 @@ defmodule Axon.Layers do
   This makes it suitable for shorter sequences.
   """
   defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
-    transform(
-      {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias},
-      fn {cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias} ->
-        time_steps = elem(Nx.shape(input_sequence), 1)
-
-        {carry, outputs} =
-          for t <- 0..(time_steps - 1), reduce: {carry, []} do
-            {carry, outputs} ->
-              input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
-              {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
-              {carry, [output | outputs]}
-          end
-
-        {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
-      end
-    )
+    static_unroll_loop(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)
   end
 
-  @recurrent_layers [:lstm, :gru, :conv_lstm]
+  deftransformp static_unroll_loop(
+                  cell_fn,
+                  input_sequence,
+                  carry,
+                  input_kernel,
+                  recurrent_kernel,
+                  bias
+                ) do
+    time_steps = elem(Nx.shape(input_sequence), 1)
 
-  for rnn_op <- @recurrent_layers do
-    defn unquote(rnn_op)(input, hidden_state, input_kernel, hidden_kernel, bias \\ 0, opts \\ []) do
+    {carry, outputs} =
+      for t <- 0..(time_steps - 1), reduce: {carry, []} do
+        {carry, outputs} ->
+          input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
+          {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
+          {carry, [output | outputs]}
+      end
+
+    {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
+  end
+
+  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
+
+  for {rnn_op, default} <- @recurrent_layers do
+    deftransform unquote(rnn_op)(
+                   input,
+                   hidden_state,
+                   input_kernel,
+                   hidden_kernel,
+                   bias \\ [],
+                   opts \\ []
+                 ) do
       {bias, opts} =
-        transform({bias, opts}, fn
-          {[_ | _] = opts, _opts} ->
-            {0, opts}
+        cond do
+          is_list(bias) -> {unquote(Macro.escape(default)), bias}
+          is_tuple(bias) -> {bias, opts}
+          true -> raise ArgumentError, "invalid bias #{inspect(bias)}"
+        end
 
-          {[] = opts, _opts} ->
-            {0, opts}
+      opts =
+        Keyword.validate!(opts,
+          mode: :inference,
+          unroll: :static,
+          activation: :sigmoid,
+          gate: :tanh,
+          conv_opts: []
+        )
 
-          {bias, opts} ->
-            {bias, opts}
-        end)
+      cell_fn = get_cell_fn(unquote(rnn_op), opts[:activation], opts[:gate], opts[:conv_opts])
 
-      opts = transform(opts, &Keyword.put(&1, :cell, unquote(rnn_op)))
-      rnn(input, hidden_state, input_kernel, hidden_kernel, bias, opts)
+      case opts[:unroll] do
+        :static ->
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            hidden_state,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        :dynamic ->
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            hidden_state,
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+      end
     end
   end
 
-  defnp rnn(input, hidden_state, input_kernel, hidden_kernel, bias, opts \\ []) do
-    opts =
-      keyword!(opts,
-        mode: :inference,
-        unroll: :static,
-        cell: :lstm,
-        activation: :sigmoid,
-        gate: :tanh,
-        conv_opts: []
-      )
-
-    bias =
-      transform({bias, opts[:cell]}, fn
-        {0, :lstm} -> {0, 0, 0, 0}
-        {0, :gru} -> {0, 0, 0, 0}
-        {0, :conv_lstm} -> {0, 0, 0}
-        {bias, _} -> bias
-      end)
-
-    cell_fn =
-      transform({opts[:cell], opts[:activation], opts[:gate], opts[:conv_opts]}, &get_cell_fn/1)
-
-    transform({input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, opts[:unroll]}, fn
-      {input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, :static} ->
-        Axon.Layers.static_unroll(
-          cell_fn,
-          input,
-          hidden_state,
-          input_kernel,
-          hidden_kernel,
-          bias
-        )
-
-      {input, hidden_state, input_kernel, hidden_kernel, bias, cell_fn, :dynamic} ->
-        Axon.Layers.dynamic_unroll(
-          cell_fn,
-          input,
-          hidden_state,
-          input_kernel,
-          hidden_kernel,
-          bias
-        )
-    end)
-  end
-
-  defp get_cell_fn({:lstm, activation, gate, _}) do
+  defp get_cell_fn(:lstm, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
     &lstm_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
   end
 
-  defp get_cell_fn({:gru, activation, gate, _}) do
+  defp get_cell_fn(:gru, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
     &gru_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
   end
 
-  defp get_cell_fn({:conv_lstm, _, _, conv_opts}) do
+  defp get_cell_fn(:conv_lstm, _, _, conv_opts) do
     &conv_lstm_cell(&1, &2, &3, &4, &5, conv_opts)
   end
 

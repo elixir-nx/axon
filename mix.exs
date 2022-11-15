@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.2.0"
+  @version "0.3.0"
 
   def project do
     [
@@ -35,9 +35,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:exla, "~> 0.3.0", [only: :test] ++ exla_opts()},
-      {:torchx, "~> 0.3.0", [only: :test] ++ torchx_opts()},
-      {:nx, "~> 0.3.0", nx_opts()},
+      {:exla, "~> 0.4.0", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.4.0", [only: :test] ++ torchx_opts()},
+      {:nx, "~> 0.4.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.7.0", optional: true}
@@ -56,7 +56,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      [github: "elixir-nx/nx", sparse: "nx", branch: "main", override: true]
+      []
     end
   end
 
@@ -64,7 +64,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path]
     else
-      [github: "elixir-nx/nx", sparse: "exla", branch: "main"]
+      []
     end
   end
 
@@ -72,7 +72,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_TORCHX_PATH") do
       [path: path]
     else
-      [github: "elixir-nx/nx", sparse: "torchx", branch: "main"]
+      []
     end
   end
 
@@ -84,6 +84,7 @@ defmodule Axon.MixProject do
       source_url: @source_url,
       extras: [
         # Guides
+        "guides/guides.md",
         "guides/model_creation/your_first_axon_model.livemd",
         "guides/model_creation/sequential_models.livemd",
         "guides/model_creation/complex_models.livemd",
@@ -106,7 +107,9 @@ defmodule Axon.MixProject do
         "notebooks/vision/horses_or_humans.livemd",
         "notebooks/text/lstm_generation.livemd",
         "notebooks/structured/credit_card_fraud.livemd",
-        "notebooks/generative/fashionmnist_autoencoder.livemd"
+        "notebooks/generative/mnist_autoencoder_using_kino.livemd",
+        "notebooks/generative/fashionmnist_autoencoder.livemd",
+        "notebooks/generative/fashionmnist_vae.livemd"
       ],
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
@@ -158,11 +161,12 @@ defmodule Axon.MixProject do
         ],
         Functional: [
           Axon.Activations,
-          Axon.Initalizers,
+          Axon.Initializers,
           Axon.Layers,
           Axon.Losses,
           Axon.Metrics,
-          Axon.Recurrent
+          Axon.Recurrent,
+          Axon.LossScale
         ],
         Optimization: [
           Axon.Optimizers,

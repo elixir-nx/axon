@@ -359,7 +359,7 @@ defmodule Axon.LoopTest do
     test "propagates user-defined numerical data inside step_state" do
       Axon.input("input", shape: {nil, 1})
       |> Axon.dense(1)
-      |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
+      |> Loop.trainer(:binary_cross_entropy, :sgd, :identity, log: 0)
       |> Loop.handle(
         :epoch_completed,
         fn %State{step_state: pstate} = state ->
@@ -394,7 +394,7 @@ defmodule Axon.LoopTest do
     test "propagates user-defined numerical data inside step_state when it is nested into a tuple" do
       Axon.input("input", shape: {nil, 1})
       |> Axon.dense(1)
-      |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
+      |> Loop.trainer(:binary_cross_entropy, :sgd, :identity, log: 0)
       |> Loop.handle(
         :epoch_completed,
         fn %State{step_state: pstate} = state ->
@@ -471,7 +471,7 @@ defmodule Axon.LoopTest do
       loop =
         Axon.input("input", shape: {nil, 1})
         |> Axon.dense(1)
-        |> Loop.trainer(:binary_cross_entropy, :sgd, log: 0)
+        |> Loop.trainer(:binary_cross_entropy, :sgd, :identity, log: 0)
 
       [loop: loop]
     end
@@ -522,6 +522,36 @@ defmodule Axon.LoopTest do
           {:continue, state}
         end)
         |> Axon.Loop.run(data, epochs: 5, iterations: 5)
+      end)
+    end
+  end
+
+  describe "validate" do
+    test "adds validation_* metrics to metrics map" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, Enum.take(data, 5))
+        |> Axon.Loop.handle(
+          :epoch_completed,
+          fn %{metrics: metrics} = state ->
+            IO.inspect(metrics)
+            assert Map.has_key?(metrics, "validation_accuracy")
+            {:continue, state}
+          end,
+          fn %{epoch: epoch} -> epoch == 1 end
+        )
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)
     end
   end

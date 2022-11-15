@@ -8,6 +8,8 @@ defmodule Axon do
   network formats like TensorFlow Lite and
   [ONNX](https://github.com/elixir-nx/axon_onnx).
 
+  For a more in-depth overview of Axon, refer to the [Guides](guides.html).
+
   ## Model Creation
 
   All Axon models start with an input layer, optionally specifying
@@ -216,6 +218,8 @@ defmodule Axon do
   alias __MODULE__, as: Axon
   alias Axon.Parameter
 
+  require Logger
+
   # Axon serialization version
   @file_version 1
 
@@ -333,8 +337,7 @@ defmodule Axon do
   def param(name, shape, opts \\ [])
       when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform)
-    initializer = opts[:initializer]
-    validate_initializer!(initializer)
+    initializer = validate_initializer!(opts[:initializer])
 
     id = System.unique_integer([:positive, :monotonic])
 
@@ -477,6 +480,12 @@ defmodule Axon do
     layer(:constant, [], name: opts[:name], value: tensor, op_name: :constant)
   end
 
+  def constant(number, opts) when is_number(number) do
+    opts = Keyword.validate!(opts, [:name])
+
+    layer(:constant, [], name: opts[:name], value: Nx.tensor(number), op_name: :constant)
+  end
+
   def constant(value, _) do
     raise ArgumentError,
           "value passed to constant must be an Nx tensor" <>
@@ -532,6 +541,8 @@ defmodule Axon do
 
   # TODO: This should not be duplicated
   defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
+
+  defp deep_new(x, fun) when is_number(x), do: fun.(x)
 
   defp deep_new(map, fun) do
     {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
@@ -638,7 +649,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :dense}
       else
-        {[x, kernel], &Axon.Layers.dense(&1, &2, 0, &3)}
+        {[x, kernel], :dense}
       end
 
     node = layer(op, inputs, name: opts[:name], op_name: :dense)
@@ -710,7 +721,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[input1, input2, kernel, bias], :bilinear}
       else
-        {[input1, input2, kernel], &Axon.Layers.bilinear(&1, &2, &3, 0, &4)}
+        {[input1, input2, kernel], :bilinear}
       end
 
     node = layer(op, inputs, name: opts[:name], op_name: :bilinear)
@@ -762,7 +773,7 @@ defmodule Axon do
       to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -780,7 +791,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first,
+        channels: :last,
         feature_group_size: 1
       ])
 
@@ -802,7 +813,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv}
       else
-        {[x, kernel], &Axon.Layers.conv(&1, &2, 0, &3)}
+        {[x, kernel], :conv}
       end
 
     node =
@@ -858,7 +869,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -874,7 +885,7 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -893,7 +904,7 @@ defmodule Axon do
         bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv_transpose}
       else
-        {[x, kernel], &Axon.Layers.conv_transpose(&1, &2, 0, &3)}
+        {[x, kernel], :conv_transpose}
       end
 
     node =
@@ -955,7 +966,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -973,7 +984,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -996,7 +1007,7 @@ defmodule Axon do
 
         {[x, kernel, bias], :depthwise_conv}
       else
-        {[x, kernel], &Axon.Layers.depthwise_conv(&1, &2, 0, &3)}
+        {[x, kernel], :depthwise_conv}
       end
 
     node =
@@ -1055,7 +1066,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1073,7 +1084,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1115,7 +1126,7 @@ defmodule Axon do
         b2 = param("bias_2", b2_shape, initializer: bias_initializer)
         {[x, k1, b1, k2, b2], :separable_conv2d}
       else
-        {[x, k1, k2], &Axon.Layers.separable_conv2d(&1, &2, 0, &3, 0, &4)}
+        {[x, k1, k2], :separable_conv2d}
       end
 
     node =
@@ -1176,7 +1187,7 @@ defmodule Axon do
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolution
@@ -1194,7 +1205,7 @@ defmodule Axon do
         padding: :valid,
         input_dilation: 1,
         kernel_dilation: 1,
-        channels: :first
+        channels: :last
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1250,7 +1261,7 @@ defmodule Axon do
         b3 = param("bias_3", b3_shape, initializer: bias_initializer)
         {[x, k1, b1, k2, b2, k3, b3], :separable_conv3d}
       else
-        {[x, k1, k2, k3], &Axon.Layers.separable_conv3d(&1, &2, 0, &3, 0, &4, 0, &5)}
+        {[x, k1, k2, k3], :separable_conv3d}
       end
 
     node =
@@ -1414,7 +1425,7 @@ defmodule Axon do
       * `:dilations` - window dilations. Defaults to `1`.
 
       * `:channels` - channels location. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1430,7 +1441,7 @@ defmodule Axon do
         :strides,
         kernel_size: 1,
         padding: :valid,
-        channels: :first,
+        channels: :last,
         dilations: 1,
         norm: 2
       ])
@@ -1492,17 +1503,17 @@ defmodule Axon do
       * `:output_size` - layer output size.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
     def unquote(pool)(%Axon{} = x, opts \\ []) do
-      adaptative_pool(x, unquote(pool), opts)
+      adaptive_pool(x, unquote(pool), opts)
     end
   end
 
-  defp adaptative_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, :output_size, channels: :first, norm: 2])
+  defp adaptive_pool(%Axon{} = x, pool, opts) do
+    opts = Keyword.validate!(opts, [:name, :output_size, channels: :last, norm: 2])
 
     channels = opts[:channels]
     name = opts[:name]
@@ -1557,7 +1568,7 @@ defmodule Axon do
         with a dimension size of 1.
 
       * `:channels` - channel configuration. One of `:first` or `:last`.
-        Defaults to `:first`.
+        Defaults to `:last`.
 
     """
     @doc type: :pooling
@@ -1567,7 +1578,7 @@ defmodule Axon do
   end
 
   defp global_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :first, norm: 2])
+    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :last, norm: 2])
 
     keep_axes = opts[:keep_axes]
     name = opts[:name]
@@ -1615,7 +1626,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1632,7 +1643,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5,
         momentum: 0.1
       ])
@@ -1682,7 +1693,7 @@ defmodule Axon do
         `:zeros`.
 
       * `:channel_index` - input feature index used for calculating
-        mean and variance. Defaults to `1`.
+        mean and variance. Defaults to `-1`.
 
       * `:epsilon` - numerical stability term.
 
@@ -1699,7 +1710,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 
@@ -1735,7 +1746,7 @@ defmodule Axon do
       `:zeros`.
 
     * `:channel_index` - input feature index used for calculating
-      mean and variance. Defaults to `1`.
+      mean and variance. Defaults to `-1`.
 
     * `:epsilon` - numerical stability term.
 
@@ -1748,7 +1759,7 @@ defmodule Axon do
         :name,
         gamma_initializer: :ones,
         beta_initializer: :zeros,
-        channel_index: 1,
+        channel_index: -1,
         epsilon: 1.0e-5
       ])
 
@@ -1873,13 +1884,13 @@ defmodule Axon do
     * `:name` - layer name.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
   def pad(%Axon{} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
-    opts = Keyword.validate!(opts, [:name, channels: :first])
+    opts = Keyword.validate!(opts, [:name, channels: :last])
     channels = opts[:channels]
 
     layer(:pad, [x],
@@ -1910,12 +1921,12 @@ defmodule Axon do
     * `:method` - resize method. Defaults to `:nearest`.
 
     * `:channels` - channel configuration. One of `:first` or
-      `:last`. Defaults to `:first`.
+      `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :first])
+    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :last])
     channels = opts[:channels]
 
     layer(:resize, [x],
@@ -2261,7 +2272,7 @@ defmodule Axon do
 
         {[x, hidden_state, input_kernel, hidden_kernel, bias], :lstm}
       else
-        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm(&1, &2, &3, &4, 0, &5)}
+        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm/5}
       end
 
     output =
@@ -2639,7 +2650,7 @@ defmodule Axon do
         b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
         {[x, hidden_state, wi, wh, b], :conv_lstm}
       else
-        {[x, hidden_state, wi, wh], &Axon.Layers.conv_lstm(&1, &2, &3, &4, {0}, &5)}
+        {[x, hidden_state, wi, wh], :conv_lstm}
       end
 
     output =
@@ -2729,13 +2740,22 @@ defmodule Axon do
 
       case initializer do
         fun when is_function(fun) ->
-          {out, _} = fun.(shape)
-          out
+          fun.(shape)
 
         fun when is_atom(fun) ->
           fun = apply(Axon.Initializers, fun, [])
-          {out, _} = fun.(shape, {:f, 32}, opts[:key])
-          out
+          {:arity, arity} = Function.info(fun, :arity)
+
+          cond do
+            arity == 2 ->
+              fun.(shape, {:f, 32})
+
+            arity == 3 ->
+              fun.(shape, {:f, 32}, opts[:key])
+
+            true ->
+              raise ArgumentError, "bad arity for initializer"
+          end
       end
     end
 
@@ -3410,8 +3430,16 @@ defmodule Axon do
   """
   @doc type: :model
   def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
+    Logger.warning(
+      "Attempting to serialize an Axon model. Serialiation is discouraged" <>
+        " and will be deprecated, then removed in future releases. You should" <>
+        " keep your model definitions as code and serialize your parameters using" <>
+        " `Nx.serialize/2`."
+    )
+
     nodes =
-      Map.new(nodes, fn {k, v} ->
+      Map.new(nodes, fn {k, %{op: op, op_name: op_name} = v} ->
+        validate_serialized_op!(op_name, op)
         node_meta = Map.from_struct(v)
         {k, Map.put(node_meta, :node, :node)}
       end)
@@ -3420,6 +3448,27 @@ defmodule Axon do
     params = Nx.serialize(params, opts)
     :erlang.term_to_binary({@file_version, model_meta, params}, opts)
   end
+
+  # TODO: Raise on next release
+  defp validate_serialized_op!(op_name, op) when is_function(op) do
+    fun_info = Function.info(op)
+
+    case fun_info[:type] do
+      :local ->
+        Logger.warning(
+          "Attempting to serialize anonymous function in #{inspect(op_name)} layer," <>
+            " this will result in errors during deserialization between" <>
+            " different processes, and will be unsupported in a future" <>
+            " release. You should instead use a fully-qualified MFA function" <>
+            " such as &Axon.Layers.dense/3"
+        )
+
+      {:type, :external} ->
+        :ok
+    end
+  end
+
+  defp validate_serialized_op!(_name, op) when is_atom(op), do: :ok
 
   @doc """
   Deserializes serialized model and parameters into a `{model, params}`
@@ -3446,11 +3495,20 @@ defmodule Axon do
   """
   @doc type: :model
   def deserialize(serialized, opts \\ []) do
+    Logger.warning(
+      "Attempting to deserialize a serialized Axon model. Deserialization" <>
+        " is discouraged and will be deprecated, then removed in future" <>
+        " releases. You should keep your model definitions as code and" <>
+        " serialize your parameters using `Nx.serialize/2`."
+    )
+
     {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
     %{nodes: nodes, output: id} = model_meta
 
     nodes =
-      Map.new(nodes, fn {k, v} ->
+      Map.new(nodes, fn {k, %{op_name: op_name, op: op} = v} ->
+        validate_deserialized_op!(op_name, op)
+
         node_struct =
           v
           |> Map.delete(:node)
@@ -3464,6 +3522,32 @@ defmodule Axon do
     {model, params}
   end
 
+  # TODO: Raise on next release
+  defp validate_deserialized_op!(op_name, op) when is_function(op) do
+    fun_info = Function.info(op)
+
+    case fun_info[:type] do
+      :local ->
+        Logger.warning(
+          "Attempting to deserialize anonymous function in #{inspect(op_name)} layer," <>
+            " this will result in errors during deserialization between" <>
+            " different processes, and will be unsupported in a future" <>
+            " release"
+        )
+
+      :external ->
+        unless function_exported?(fun_info[:module], fun_info[:name], fun_info[:arity]) do
+          Logger.warning(
+            "Attempting to deserialize model which depends on function" <>
+              " #{inspect(op)} in layer #{inspect(op_name)} which does not exist in" <>
+              " the current environment, check your dependencies"
+          )
+        end
+    end
+  end
+
+  defp validate_deserialized_op!(op, _op_name) when is_atom(op), do: :ok
+
   ## Helpers
 
   @valid_initializers [:zeros, :ones, :uniform, :normal, :identity] ++
@@ -3472,11 +3556,15 @@ defmodule Axon do
 
   defp validate_initializer!(initializer)
        when is_atom(initializer) and initializer in @valid_initializers do
-    :ok
+    apply(Axon.Initializers, initializer, [])
+  end
+
+  defp validate_initializer!(initializer) when is_function(initializer, 2) do
+    initializer
   end
 
   defp validate_initializer!(initializer) when is_function(initializer, 3) do
-    :ok
+    initializer
   end
 
   defp validate_initializer!(initializer) do

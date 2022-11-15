@@ -1,6 +1,8 @@
 defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
+
+  import ExUnit.CaptureLog
   import AxonTestUtil
 
   describe "input" do
@@ -21,10 +23,6 @@ defmodule AxonTest do
       assert_raise ArgumentError, ~r/value passed to constant/, fn ->
         Axon.constant(:foo)
       end
-
-      assert_raise ArgumentError, ~r/value passed to constant/, fn ->
-        Axon.constant(1)
-      end
     end
   end
 
@@ -38,8 +36,8 @@ defmodule AxonTest do
                parameters: [weight, bias]
              } = nodes[id]
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = weight
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = weight
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with parameter initializer" do
@@ -49,8 +47,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :dense, parameters: [weight, bias]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = weight
-      assert %Axon.Parameter{initializer: :ones} = bias
+      assert %Axon.Parameter{} = weight
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -90,8 +88,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -113,8 +111,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "fails on bad initializers" do
@@ -147,8 +145,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "works with activation" do
@@ -171,8 +169,8 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = kernel
-      assert %Axon.Parameter{initializer: :zeros} = bias
+      assert %Axon.Parameter{} = kernel
+      assert %Axon.Parameter{} = bias
     end
 
     test "fails on bad initializers" do
@@ -211,10 +209,10 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
     end
 
     test "works with activation" do
@@ -241,10 +239,10 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
     end
 
     test "fails on bad initializers" do
@@ -284,12 +282,12 @@ defmodule AxonTest do
       assert opts[:kernel_dilation] == 1
       assert opts[:input_dilation] == 1
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k1
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k2
-      assert %Axon.Parameter{initializer: :glorot_uniform} = k3
-      assert %Axon.Parameter{initializer: :zeros} = b1
-      assert %Axon.Parameter{initializer: :zeros} = b2
-      assert %Axon.Parameter{initializer: :zeros} = b3
+      assert %Axon.Parameter{} = k1
+      assert %Axon.Parameter{} = b1
+      assert %Axon.Parameter{} = k2
+      assert %Axon.Parameter{} = b2
+      assert %Axon.Parameter{} = k3
+      assert %Axon.Parameter{} = b3
     end
 
     test "works with activation" do
@@ -475,13 +473,13 @@ defmodule AxonTest do
 
         assert norm1 == norm
 
-        assert opts[:channel_index] == 1
+        assert opts[:channel_index] == -1
         assert opts[:epsilon] == 1.0e-5
 
-        assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
-        assert %Axon.Parameter{initializer: :zeros} = beta
-        assert %Axon.Parameter{initializer: :zeros} = mean
-        assert %Axon.Parameter{initializer: :ones} = var
+        assert %Axon.Parameter{} = gamma
+        assert %Axon.Parameter{} = beta
+        assert %Axon.Parameter{} = mean
+        assert %Axon.Parameter{} = var
       end
     end
 
@@ -495,10 +493,10 @@ defmodule AxonTest do
 
         assert %Axon.Node{parameters: [gamma, beta, mean, var]} = nodes[id]
 
-        assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-        assert %Axon.Parameter{initializer: :ones} = beta
-        assert %Axon.Parameter{initializer: :zeros} = mean
-        assert %Axon.Parameter{initializer: :ones} = var
+        assert %Axon.Parameter{} = gamma
+        assert %Axon.Parameter{} = beta
+        assert %Axon.Parameter{} = mean
+        assert %Axon.Parameter{} = var
       end
     end
 
@@ -522,11 +520,11 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :layer_norm, opts: opts, parameters: [gamma, beta]} = nodes[id]
 
-      assert opts[:channel_index] == 1
+      assert opts[:channel_index] == -1
       assert opts[:epsilon] == 1.0e-5
 
-      assert %Axon.Parameter{initializer: :glorot_uniform} = gamma
-      assert %Axon.Parameter{initializer: :zeros} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "works with parameter initializer" do
@@ -538,8 +536,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{parameters: [gamma, beta]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-      assert %Axon.Parameter{initializer: :ones} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "fails on bad initializers" do
@@ -560,12 +558,12 @@ defmodule AxonTest do
 
       assert %Axon.Node{op: :group_norm, parameters: [gamma, beta], opts: opts} = nodes[id]
 
-      assert opts[:channel_index] == 1
+      assert opts[:channel_index] == -1
       assert opts[:epsilon] == 1.0e-5
       assert opts[:num_groups] == 3
 
-      assert %Axon.Parameter{initializer: :ones} = gamma
-      assert %Axon.Parameter{initializer: :zeros} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "works with parameter initializer" do
@@ -575,8 +573,8 @@ defmodule AxonTest do
 
       assert %Axon.Node{parameters: [gamma, beta]} = nodes[id]
 
-      assert %Axon.Parameter{initializer: :lecun_normal} = gamma
-      assert %Axon.Parameter{initializer: :ones} = beta
+      assert %Axon.Parameter{} = gamma
+      assert %Axon.Parameter{} = beta
     end
 
     test "fails on bad initializer" do
@@ -950,6 +948,26 @@ defmodule AxonTest do
       assert b == input1
       assert c == input2
       assert d == input1
+    end
+
+    # TODO: Raise on next release
+    test "warns when serializing anonymous function" do
+      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
+      {init_fn, _} = Axon.build(model)
+      params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert capture_log(fn -> Axon.serialize(model, params) end) =~ "Attempting to serialize"
+    end
+
+    test "warns when deserializing anonymous function" do
+      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
+      {init_fn, _} = Axon.build(model)
+      params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert capture_log(fn ->
+               serialized = Axon.serialize(model, params)
+               Axon.deserialize(serialized)
+             end) =~ "Attempting to deserialize"
     end
   end
 
