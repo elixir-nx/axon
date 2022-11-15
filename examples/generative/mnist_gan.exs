@@ -53,10 +53,7 @@ defmodule MNISTGAN do
     |> Nx.divide(Nx.add(i, 1))
   end
 
-  defn init(init_d, init_g, init_optim_d, init_optim_g) do
-    d_params = init_d.(%{})
-    g_params = init_g.(%{})
-
+  defn init(d_params, g_params, init_optim_d, init_optim_g) do
     %{
       iteration: Nx.tensor(0),
       discriminator: %{
@@ -135,11 +132,11 @@ defmodule MNISTGAN do
     {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
     {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
 
-    {d_init, d_model} = Axon.compile(d_model, mode: :train)
-    {g_init, g_model} = Axon.compile(g_model, mode: :train)
+    {d_init_params, d_model} = Axon.compile(d_model, mode: :train)
+    {g_init_params, g_model} = Axon.compile(g_model, mode: :train)
 
     step = &batch_step(d_model, g_model, optim_d, optim_g, &1, &2)
-    init = fn %{} -> init(d_init, g_init, init_optim_d, init_optim_g) end
+    init = fn %{} -> init(d_init_params, g_init_params, init_optim_d, init_optim_g) end
 
     Axon.Loop.loop(step, init)
   end
