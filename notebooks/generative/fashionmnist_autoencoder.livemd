@@ -56,33 +56,6 @@ Nx.to_heatmap(train_images[1])
 
 First we need to define the encoder and decoder. Both are one-layer neural networks.
 
-In the encoder, we start by flattening the input using `Axon.flatten` because initially, the input shape is {batch_size, 1, 28, 28} and we want to pass the input into a dense layer with `Axon.dense`. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` or latent space is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
-
-Next, we pass the output of the encoder to the decoder and try to reconstruct the compressed data into its original form. Since our original input had a dimensionality of 784, we use an `Axon.dense` layer with 784 neurons. Because our original data was normalized to have pixel values between 0 and 1, we use a `:sigmoid` activation in our dense layer to squeeze output values between 0 and 1. Our original input shape was 28x28, so we use `Axon.reshape` to convert the flattened representation of the outputs into an image with correct the width and height.
-
-If we just bind the encoder and decoder sequentially, we'll get the desired model. This was pretty smooth, wasn't it?
-
-```elixir
-encoder = fn x, latent_dim ->
-  x
-  |> Axon.flatten()
-  |> Axon.dense(latent_dim, activation: :relu)
-end
-
-decoder = fn x ->
-  x
-  |> Axon.dense(784, activation: :sigmoid)
-  |> Axon.reshape({1, 28, 28})
-end
-
-model =
-  Axon.input("input", shape: {nil, 1, 28, 28})
-  |> encoder.(64)
-  |> decoder.()
-```
-
-First we need to define the encoder and decoder. Both are one-layer neural networks.
-
 In the encoder, we start by flattening the input, so we get from shape `{batch_size, 1, 28, 28}` to `{batch_size, 784}` and we pass the input into a dense layer. Our dense layer has only `latent_dim` number of neurons. The `latent_dim` (or the latent space) is a compressed representation of data. Remember, we want our encoder to compress the input data into a lower-dimensional representation, so we choose a `latent_dim` which is less than the dimensionality of the input.
 
 ```elixir
