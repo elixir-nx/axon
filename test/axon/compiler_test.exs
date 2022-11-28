@@ -5198,7 +5198,10 @@ defmodule CompilerTest do
 
       input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
 
-      assert_equal(Axon.predict(model, %{}, %{"lazy_container" => input}), Nx.tensor([[1.0, 3.0]]))
+      assert_equal(
+        Axon.predict(model, %{}, %{"lazy_container" => input}),
+        Nx.tensor([[1.0, 3.0]])
+      )
     end
   end
 end

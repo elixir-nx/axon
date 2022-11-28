@@ -2739,7 +2739,7 @@ defmodule Axon.Layers do
 
   @doc false
   defn stack_columns(inputs, opts \\ []) do
-    opts = keyword!(opts, [ignore: [], mode: :train])
+    opts = keyword!(opts, ignore: [], mode: :train)
 
     stack_columns_transform(inputs, opts[:ignore])
   end
