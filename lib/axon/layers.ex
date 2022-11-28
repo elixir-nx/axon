@@ -2718,7 +2718,7 @@ defmodule Axon.Layers do
   end
 
   @doc false
-  defn split(input, opts) do
+  defn split(input, opts \\ []) do
     assert_min_rank!("Axon.Layers.split", "input", input, 2)
     opts = keyword!(opts, [:index, :splits, axis: -1, mode: :train])
 
@@ -2735,5 +2735,21 @@ defmodule Axon.Layers do
       )
 
     Nx.slice_along_axis(input, offset, size, axis: opts[:axis])
+  end
+
+  @doc false
+  defn stack_columns(inputs, opts \\ []) do
+    opts = keyword!(opts, ignore: [], mode: :train)
+
+    stack_columns_transform(inputs, opts[:ignore])
+  end
+
+  deftransformp stack_columns_transform(container, ignore) do
+    container
+    |> Map.from_struct()
+    |> Enum.reject(fn {k, _} -> k in ignore end)
+    |> Enum.reduce([], fn {_, v}, acc -> [v | acc] end)
+    |> Enum.reverse()
+    |> Nx.stack(axis: -1)
   end
 end

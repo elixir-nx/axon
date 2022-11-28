@@ -89,6 +89,14 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
     end
 
+    test "allows lazy container inputs" do
+      model = Axon.input("lazy_container") |> Axon.nx(fn x -> Nx.add(x.a, x.c) end)
+
+      input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
+
+      assert_equal(Axon.predict(model, %{}, %{"lazy_container" => input}), Nx.tensor([[4]]))
+    end
+
     test "raises if input not found, no default value" do
       model = Axon.input("input_0", shape: {nil, 32})
       input = Nx.random_uniform({1, 16})
@@ -5181,6 +5189,19 @@ defmodule CompilerTest do
       assert capture_log(fn ->
                predict_fn.(params, input)
              end) =~ "Axon finished predict"
+    end
+  end
+
+  describe "stack_columns" do
+    test "works with lazy container" do
+      model = Axon.input("lazy_container") |> Axon.stack_columns(ignore: [:b])
+
+      input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
+
+      assert_equal(
+        Axon.predict(model, %{}, %{"lazy_container" => input}),
+        Nx.tensor([[1.0, 3.0]])
+      )
     end
   end
 end

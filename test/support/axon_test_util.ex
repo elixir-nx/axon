@@ -145,3 +145,23 @@ defmodule AxonTestUtil do
     end
   end
 end
+
+# The result of lazy container traversal
+defmodule LazyWrapped do
+  @derive {Nx.Container, containers: [:a, :b, :c]}
+  defstruct [:a, :b, :c]
+end
+
+# The lazy container itself (which is not a container)
+defmodule LazyOnly do
+  defstruct [:a, :b, :c]
+
+  defimpl Nx.LazyContainer do
+    def traverse(%LazyOnly{a: a, b: b, c: c}, acc, fun) do
+      {a, acc} = fun.(a |> Nx.tensor() |> Nx.to_template(), fn -> Nx.tensor(a) end, acc)
+      {b, acc} = fun.(b |> Nx.tensor() |> Nx.to_template(), fn -> raise "don't call b" end, acc)
+      {c, acc} = fun.(c |> Nx.tensor() |> Nx.to_template(), fn -> Nx.tensor(c) end, acc)
+      {%LazyWrapped{a: a, b: b, c: c}, acc}
+    end
+  end
+end
