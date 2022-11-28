@@ -89,6 +89,15 @@ defmodule CompilerTest do
       assert_equal(Axon.predict(model, %{}, %{"input_0" => input}), input)
     end
 
+    test "allows lazy container inputs" do
+      model = Axon.input("input_0", shape: %LazyWrapped{a: {nil, 1}, b: {nil, 1}, c: {nil, 1}})
+
+      input = %LazyWrapped{a: Nx.tensor([[1]]), b: Nx.tensor([[2]]), c: Nx.tensor([[3]])}
+
+      assert %LazyWrapped{a: a, b: b, c: c} = Axon.predict(model, %{}, %{"input_0" => input})
+      assert_equal({a, b, c}, {Nx.tensor([[1]]), Nx.tensor([[2]]), Nx.tensor([[3]])})
+    end
+
     test "raises if input not found, no default value" do
       model = Axon.input("input_0", shape: {nil, 32})
       input = Nx.random_uniform({1, 16})
