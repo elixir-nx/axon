@@ -2738,23 +2738,18 @@ defmodule Axon.Layers do
   end
 
   @doc false
-  defn stack_container(inputs, opts \\ []) do
+  defn stack_columns(inputs, opts \\ []) do
     opts = keyword!(opts, [ignore: [], mode: :train])
 
-    stack_container_transform(inputs, opts[:ignore])
+    stack_columns_transform(inputs, opts[:ignore])
   end
 
-  deftransformp stack_container_transform(container, ignore) do
-    filtered_container =
-      container
-      |> Map.from_struct()
-      |> Enum.reject(fn {k, _} -> k in ignore end)
-      |> Map.new()
-
-    {_, acc} = Nx.Container.traverse(filtered_container, [], fn v, acc ->
-      {v, [v | acc]}
-    end)
-
-    Nx.concatenate(Enum.reverse(acc), axis: -1)
+  deftransformp stack_columns_transform(container, ignore) do
+    container
+    |> Map.from_struct()
+    |> Enum.reject(fn {k, _} -> k in ignore end)
+    |> Enum.reduce([], fn {_, v}, acc -> [v | acc] end)
+    |> Enum.reverse()
+    |> Nx.stack(axis: -1)
   end
 end

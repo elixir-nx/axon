@@ -2813,24 +2813,27 @@ defmodule Axon do
   end
 
   @doc """
-  Adds a stack container layer to the network.
+  Adds a stack columns layer to the network.
 
-  A stack container layer is designed to be used with `Nx.LazyContainer`
+  A stack columns layer is designed to be used with `Nx.LazyContainer`
   data structures like Explorer DataFrames. Given an input which is a
-  DataFrame, `Axon.stack_container/2` will stack each column/key into
-  vector.
+  DataFrame, `Axon.stack_container/2` will stack the columns in each
+  row to create a single vector.
+
+  You may optionally specify `:ignore` to ignore certain columns in
+  the container.
 
   ## Options
 
     * `:name` - layer name.
 
-    * `:ignore` - container keys to ignore when stacking.
+    * `:ignore` - keys to ignore when stacking.
   """
   @doc type: :special
-  def stack_container(%Axon{} = x, opts \\ []) do
+  def stack_columns(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore: []])
 
-    layer(:stack_container, [x], name: opts[:name], ignore: opts[:ignore], op_name: :stack_container)
+    layer(:stack_columns, [x], name: opts[:name], ignore: opts[:ignore], op_name: :stack_columns)
   end
 
   @doc """

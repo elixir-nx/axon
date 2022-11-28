@@ -5192,9 +5192,9 @@ defmodule CompilerTest do
     end
   end
 
-  describe "stack_container" do
+  describe "stack_columns" do
     test "works with lazy container" do
-      model = Axon.input("lazy_container") |> Axon.stack_container(ignore: [:b])
+      model = Axon.input("lazy_container") |> Axon.stack_columns(ignore: [:b])
 
       input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
 
