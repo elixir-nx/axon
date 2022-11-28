@@ -90,12 +90,11 @@ defmodule CompilerTest do
     end
 
     test "allows lazy container inputs" do
-      model = Axon.input("input_0", shape: %LazyWrapped{a: {nil, 1}, b: {nil, 1}, c: {nil, 1}})
+      model = Axon.input("lazy_container") |> Axon.nx(fn x -> Nx.add(x.a, x.c) end)
 
-      input = %LazyWrapped{a: Nx.tensor([[1]]), b: Nx.tensor([[2]]), c: Nx.tensor([[3]])}
+      input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
 
-      assert %LazyWrapped{a: a, b: b, c: c} = Axon.predict(model, %{}, %{"input_0" => input})
-      assert_equal({a, b, c}, {Nx.tensor([[1]]), Nx.tensor([[2]]), Nx.tensor([[3]])})
+      assert_equal(Axon.predict(model, %{}, %{"lazy_container" => input}), Nx.tensor([[4]]))
     end
 
     test "raises if input not found, no default value" do
@@ -5190,6 +5189,16 @@ defmodule CompilerTest do
       assert capture_log(fn ->
                predict_fn.(params, input)
              end) =~ "Axon finished predict"
+    end
+  end
+
+  describe "stack_container" do
+    test "works with lazy container" do
+      model = Axon.input("lazy_container") |> Axon.stack_container(ignore: [:b])
+
+      input = %LazyOnly{a: [[1]], b: [[2]], c: [[3]]}
+
+      assert_equal(Axon.predict(model, %{}, %{"lazy_container" => input}), Nx.tensor([[1.0, 3.0]]))
     end
   end
 end
