@@ -6,4 +6,6 @@ exla? = System.get_env("USE_EXLA") in ["1", "true"]
 # failures
 exclude_doctests = if torchx? or exla?, do: [test_type: :doctest], else: []
 
-ExUnit.start(exclude: exclude_doctests ++ [skip_torchx: torchx?, skip_exla: exla?])
+ExUnit.start(
+  exclude: exclude_doctests ++ [skip_torchx: torchx?, skip_exla: exla?, integration: true]
+)

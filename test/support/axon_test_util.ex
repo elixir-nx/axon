@@ -1,4 +1,6 @@
 defmodule AxonTestUtil do
+  import Nx.Defn
+
   def test_compiler do
     use_exla? = System.get_env("USE_EXLA")
     if use_exla?, do: EXLA, else: Nx.Defn.Evaluator
@@ -97,6 +99,22 @@ defmodule AxonTestUtil do
     |> Enum.zip_with(Map.values(rhs), &assert_not_equal/2)
   end
 
+  def assert_greater_equal(lhs, rhs) do
+    res = Nx.greater_equal(lhs, rhs) |> Nx.all() |> Nx.backend_transfer(Nx.BinaryBackend)
+
+    unless Nx.to_number(res) == 1 do
+      raise """
+      expected
+
+      #{inspect(Nx.backend_transfer(lhs, Nx.BinaryBackend))}
+
+      to be greater than or equal to
+
+      #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
+      """
+    end
+  end
+
   def zeros(shape) do
     fun = Axon.Initializers.zeros()
     fun.(shape, {:f, 32})
@@ -143,6 +161,59 @@ defmodule AxonTestUtil do
         #{inspect(rhs)}
       """
     end
+  end
+
+  def get_test_data(
+        train_samples,
+        test_samples,
+        batch_size,
+        input_shape,
+        num_classes,
+        random_seed
+      ) do
+    key = Nx.Random.key(random_seed)
+    num_samples = train_samples + test_samples
+    full_input_shape = [num_classes | Tuple.to_list(input_shape)] |> List.to_tuple()
+
+    {noise, key} = Nx.Random.uniform(key, 0.0, 1.0, shape: full_input_shape)
+    templates = 2 |> Nx.multiply(num_classes) |> Nx.multiply(noise)
+    {y, key} = Nx.Random.randint(key, 0, num_classes, shape: {num_samples}, type: :s64)
+
+    {xs, ys, _} =
+      Enum.reduce(0..(num_samples - 1), {[], [], key}, fn i, {x_acc, y_acc, key} ->
+        {noise, key} = Nx.Random.normal(key, 0.0, 1.0, shape: input_shape)
+        y_i = y[[i]]
+        x_i = templates[[y_i]] |> Nx.add(noise)
+
+        {[x_i | x_acc], [y_i | y_acc], key}
+      end)
+
+    {x_train, x_test} = Enum.split(xs, train_samples)
+    {y_train, y_test} = Enum.split(ys, train_samples)
+
+    train =
+      x_train
+      |> Stream.zip(y_train)
+      |> Stream.chunk_every(batch_size)
+      |> Stream.map(fn chunks ->
+        {xs, ys} = Enum.unzip(chunks)
+        {Nx.stack(xs), Nx.stack(ys)}
+      end)
+
+    test =
+      x_test
+      |> Stream.zip(y_test)
+      |> Stream.chunk_every(batch_size)
+      |> Stream.map(fn chunks ->
+        {xs, ys} = Enum.unzip(chunks)
+        {Nx.stack(xs), Nx.stack(ys)}
+      end)
+
+    {train, test}
+  end
+
+  defn one_hot(tensor, opts \\ []) do
+    Nx.new_axis(tensor, -1) == Nx.iota({1, opts[:num_classes]})
   end
 end
 
