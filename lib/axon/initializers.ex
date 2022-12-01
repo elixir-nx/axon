@@ -606,47 +606,70 @@ defmodule Axon.Initializers do
     opts =
       keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0, mode: :fan_in, distribution: :normal])
 
-    fans = transform(opts[:shape], &compute_fans/1)
-
-    denominator =
-      transform(
-        {fans, opts[:mode]},
-        fn
-          {{fan_in, _}, :fan_in} ->
-            fan_in
-
-          {{_, fan_out}, :fan_out} ->
-            fan_out
-
-          {{fan_in, fan_out}, :fan_avg} ->
-            (fan_in + fan_out) / 2.0
-
-          {{_, _}, mode} ->
-            raise ArgumentError, "invalid mode #{inspect(mode)} passed to variance_scaling/1"
-        end
-      )
+    fans = compute_fans(opts[:shape])
+    denominator = compute_denominator(fans, opts[:mode])
 
     variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), Nx.max(denominator, 1.0))
 
-    var_opts = transform(opts, &Keyword.take(&1, [:shape, :type]))
+    apply_distribution(key, opts[:distribution], variance, shape: opts[:shape], type: opts[:type])
+  end
 
-    transform(
-      {key, opts[:distribution], variance, var_opts},
-      fn
-        {key, :normal, variance, opts} ->
-          var_normal(key, variance, opts)
+  deftransformp compute_fans(shape) do
+    rank = Nx.rank(shape)
 
-        {key, :uniform, variance, opts} ->
-          var_uniform(key, variance, opts)
+    {in_size, out_size} =
+      cond do
+        rank < 1 ->
+          {1, 1}
 
-        {key, :truncated_normal, variance, opts} ->
-          var_truncated(key, variance, opts)
+        rank == 1 ->
+          {elem(shape, 0), elem(shape, 0)}
 
-        {_, dist, _, _} ->
-          raise ArgumentError,
-                "invalid distribution #{inspect(dist)} passed to variance_scaling/1"
+        rank == 2 ->
+          {elem(shape, 0), elem(shape, 1)}
+
+        true ->
+          {elem(shape, rank - 2), elem(shape, rank - 1)}
       end
-    )
+
+    receptive_field_size = Nx.size(shape) / in_size / out_size
+    fan_in = in_size * receptive_field_size
+    fan_out = out_size * receptive_field_size
+
+    {fan_in, fan_out}
+  end
+
+  deftransformp compute_denominator(fans, mode) do
+    case {fans, mode} do
+      {{fan_in, _}, :fan_in} ->
+        fan_in
+
+      {{_, fan_out}, :fan_out} ->
+        fan_out
+
+      {{fan_in, fan_out}, :fan_avg} ->
+        (fan_in + fan_out) / 2.0
+
+      {{_, _}, mode} ->
+        raise ArgumentError, "invalid mode #{inspect(mode)} passed to variance_scaling/1"
+    end
+  end
+
+  deftransformp apply_distribution(key, distribution, variance, opts) do
+    case distribution do
+      :normal ->
+        var_normal(key, variance, opts)
+
+      :uniform ->
+        var_uniform(key, variance, opts)
+
+      :truncated_normal ->
+        var_truncated(key, variance, opts)
+
+      dist ->
+        raise ArgumentError,
+              "invalid distribution #{inspect(dist)} passed to variance_scaling/1"
+    end
   end
 
   @doc """
@@ -761,33 +784,26 @@ defmodule Axon.Initializers do
       variance
       |> Nx.sqrt()
       |> Nx.divide(0.87962566103423978)
+      |> Nx.as_type(type)
 
-    rand = Nx.Random.normal_split(key, 0.0, sigma, shape: shape, type: type)
-    Nx.clip(rand, -2, 2)
+    truncated_normal(key, -2, 2, shape: shape, type: type) * sigma
   end
 
-  defp compute_fans(shape) do
-    rank = Nx.rank(shape)
+  defnp truncated_normal(key, lower, upper, opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}])
+    shape = opts[:shape]
+    type = opts[:type]
 
-    {fan_in, fan_out} =
-      cond do
-        rank < 1 ->
-          {1, 1}
+    sqrt2 = Nx.sqrt(2) |> Nx.as_type(type)
+    lower = Nx.as_type(lower, type)
+    upper = Nx.as_type(upper, type)
 
-        rank == 1 ->
-          {elem(shape, 0), elem(shape, 0)}
+    a = Nx.erf(lower / sqrt2)
+    b = Nx.erf(upper / sqrt2)
 
-        rank == 2 ->
-          {elem(shape, 0), elem(shape, 1)}
+    u = Nx.Random.uniform_split(key, a, b, shape: shape, type: type)
+    out = sqrt2 * Nx.erf_inv(u)
 
-        true ->
-          receptive_field_size = Nx.size(shape) / elem(shape, 0) / elem(shape, 1)
-
-          fan_in = elem(shape, 0) * receptive_field_size
-          fan_out = elem(shape, 1) * receptive_field_size
-          {fan_in, fan_out}
-      end
-
-    {fan_in, fan_out}
+    Nx.clip(out, lower, upper)
   end
 end
