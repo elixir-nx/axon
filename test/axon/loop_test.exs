@@ -444,6 +444,19 @@ defmodule Axon.LoopTest do
     end
   end
 
+  describe "evaluator" do
+    test "returns clear error on bad inputs" do
+      model = Axon.input("input")
+      data = Stream.repeatedly(fn -> Nx.tensor(5) end)
+
+      assert_raise ArgumentError, ~r/invalid arguments/, fn ->
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.run(data, %{})
+      end
+    end
+  end
+
   describe "serialization" do
     test "serialize_state/deserialize_state preserve loop state" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)

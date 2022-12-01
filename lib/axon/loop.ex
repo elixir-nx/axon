@@ -418,13 +418,15 @@ defmodule Axon.Loop do
     raise ArgumentError,
           "invalid arguments given to train-step initialization," <>
             " this usually happens when you pass a invalid parameters" <>
-            " to Axon.Loop.run with a loop constructed using Axon.Loop.trainer," <>
-            " supervised training loops expect a stream or enumerable of inputs" <>
-            " of the form {x_train, y_train} where x_train and y_train" <>
-            " are batches of tensors, you must also provide an initial model" <>
-            " state such as an empty map: Axon.Loop.run(loop, data, %{}), got" <>
-            " input data: #{inspect(data)} and initial model state: " <>
-            " #{inspect(state)}"
+            " to Axon.Loop.run with a loop constructed using Axon.Loop.trainer" <>
+            " or Axon.Loop.evaluator, supervised training and evaluation loops"
+
+    " expect a stream or enumerable of inputs" <>
+      " of the form {x_train, y_train} where x_train and y_train" <>
+      " are batches of tensors, you must also provide an initial model" <>
+      " state such as an empty map: Axon.Loop.run(loop, data, %{}), got" <>
+      " input data: #{inspect(data)} and initial model state: " <>
+      " #{inspect(state)}"
   end
 
   @doc """
@@ -446,12 +448,16 @@ defmodule Axon.Loop do
       }
     end
 
-    step_fn = fn {inp, tar}, %{model_state: model_state} ->
-      %{
-        model_state: model_state,
-        y_true: tar,
-        y_pred: forward_model_fn.(model_state, inp)
-      }
+    step_fn = fn
+      {inp, tar}, %{model_state: model_state} ->
+        %{
+          model_state: model_state,
+          y_true: tar,
+          y_pred: forward_model_fn.(model_state, inp)
+        }
+
+      data, state ->
+        raise_bad_training_inputs!(data, state)
     end
 
     {
