@@ -198,9 +198,9 @@ defmodule Axon.LoopTest do
       assert %Loop{} = loop = Loop.evaluator(model)
       assert %Loop{} = loop = Loop.metric(loop, :mean_absolute_error)
 
-      ExUnit.CaptureIO.capture_io(fn ->
-        assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
-      end)
+      assert ExUnit.CaptureIO.capture_io(fn ->
+               assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
+             end) =~ "Batch"
     end
 
     test "eval_step/1 evalutes model on a single batch" do
@@ -428,6 +428,32 @@ defmodule Axon.LoopTest do
         %{},
         epochs: 5
       )
+    end
+  end
+
+  describe "trainer" do
+    test "returns clear error on bad inputs" do
+      model = Axon.input("input")
+      data = Stream.repeatedly(fn -> Nx.tensor(5) end)
+
+      assert_raise ArgumentError, ~r/invalid arguments/, fn ->
+        model
+        |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
+        |> Axon.Loop.run(data, %{})
+      end
+    end
+  end
+
+  describe "evaluator" do
+    test "returns clear error on bad inputs" do
+      model = Axon.input("input")
+      data = Stream.repeatedly(fn -> Nx.tensor(5) end)
+
+      assert_raise ArgumentError, ~r/invalid arguments/, fn ->
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.run(data, %{})
+      end
     end
   end
 
