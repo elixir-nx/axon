@@ -88,7 +88,7 @@ defmodule Axon.Schedules do
   @doc ~S"""
   Cosine decay schedule.
 
-  $$\gamma(t) = \gamma_0 * (1 - \alpha)*(\frac{1}{2}(1 + \cos{\pi \frac{t}{k}})) + \alpha$$
+  $$\gamma(t) = \gamma_0 * \left(\frac{1}{2}(1 - \alpha)(1 + \cos\pi \frac{t}{k}) + \alpha\right)$$
 
   ## Options
 
