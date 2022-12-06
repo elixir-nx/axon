@@ -2817,8 +2817,8 @@ defmodule Axon do
 
   A stack columns layer is designed to be used with `Nx.LazyContainer`
   data structures like Explorer DataFrames. Given an input which is a
-  DataFrame, `Axon.stack_container/2` will stack the columns in each
-  row to create a single vector.
+  DataFrame, `stack_columns/2` will stack the columns in each row to
+  create a single vector.
 
   You may optionally specify `:ignore` to ignore certain columns in
   the container.
