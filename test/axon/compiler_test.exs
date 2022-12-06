@@ -5078,20 +5078,6 @@ defmodule CompilerTest do
       assert %{"y" => y_params_2} = init_fn.(input, %{"y" => y_params_1})
       assert_equal(y_params_1, y_params_2)
     end
-
-    test "raises when unknown parameters are passed" do
-      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2, name: "dense_1")
-
-      {init_fn, _} = Axon.build(model)
-
-      inp = Nx.random_uniform({1, 1})
-
-      assert_raise ArgumentError,
-                   ~s{found unexpected key in the initial parameters map: "dense_2"},
-                   fn ->
-                     init_fn.(inp, %{"dense_2" => %{"kernel" => Nx.tensor([[2.0]])}})
-                   end
-    end
   end
 
   describe "containers" do

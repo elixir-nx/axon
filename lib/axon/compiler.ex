@@ -106,9 +106,9 @@ defmodule Axon.Compiler do
   end
 
   defp get_keys(nodes, key) do
-    {names_and_data, _op_counts} =
+    {ids_and_data, _op_counts} =
       Enum.reduce(nodes, {[], %{}}, fn
-        {_, %Axon.Node{op: op, name: name_fn, parameters: params}}, {keys, op_counts} ->
+        {_, %Axon.Node{id: id, op: op, name: name_fn, parameters: params}}, {keys, op_counts} ->
           name = name_fn.(op, op_counts)
           op_counts = Map.update(op_counts, op, 1, &(&1 + 1))
 
@@ -125,7 +125,7 @@ defmodule Axon.Compiler do
                   <<data::unsigned-size(32), _rest::binary>> =
                     :erlang.md5(name <> "." <> param_name)
 
-                  [{{name, param_name}, data} | keys]
+                  [{{id, param_name}, data} | keys]
 
                 true ->
                   raise ArgumentError, "bad initializer arity"
@@ -135,22 +135,22 @@ defmodule Axon.Compiler do
           {keys, op_counts}
       end)
 
-    {names, data} = Enum.unzip(names_and_data)
+    {ids, data} = Enum.unzip(ids_and_data)
 
-    case names do
+    case ids do
       [] ->
         %{}
 
-      [_ | _] = names ->
+      [_ | _] = ids ->
         keys_tensor =
           data
           |> Nx.tensor(type: :u32)
           |> then(&Nx.Random.fold_in(key, &1))
 
         {keys, _} =
-          Enum.reduce(names, {%{}, 0}, fn {layer_name, param_name}, {acc, i} ->
+          Enum.reduce(ids, {%{}, 0}, fn {layer_id, param_name}, {acc, i} ->
             key = keys_tensor[i]
-            acc = Map.update(acc, layer_name, %{param_name => key}, &Map.put(&1, param_name, key))
+            acc = Map.update(acc, layer_id, %{param_name => key}, &Map.put(&1, param_name, key))
             {acc, i + 1}
           end)
 
@@ -168,8 +168,8 @@ defmodule Axon.Compiler do
           %{params | key => value}
 
         _ ->
-          raise ArgumentError,
-                "found unexpected key in the initial parameters map: #{inspect(key)}"
+          Logger.warning("found unused key in initial parameters map #{inspect(key)}")
+          params
       end
     end)
   end
@@ -525,6 +525,7 @@ defmodule Axon.Compiler do
 
     init_fun =
       &layer_init_fun(
+        id,
         &1,
         &2,
         &3,
@@ -762,6 +763,7 @@ defmodule Axon.Compiler do
   end
 
   defp layer_init_fun(
+         layer_id,
          template,
          cache,
          result_cache,
@@ -789,7 +791,7 @@ defmodule Axon.Compiler do
     else
       layer_params =
         Enum.reduce(parameters, %{}, fn param, layer_params ->
-          init_param(name, param, layer_params, parent_shapes, dtype, keys)
+          init_param(layer_id, param, layer_params, parent_shapes, dtype, keys)
         end)
 
       layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
@@ -808,7 +810,7 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp init_param(layer_name, param, layer_params, parent_shapes, dtype, keys) do
+  defp init_param(layer_id, param, layer_params, parent_shapes, dtype, keys) do
     %{name: name, shape: shape, initializer: initializer} = param
 
     params =
@@ -817,27 +819,27 @@ defmodule Axon.Compiler do
           params =
             Enum.map(params, fn shape ->
               shape = apply(shape, parent_shapes)
-              apply_initializer(initializer, layer_name, name, shape, dtype, keys)
+              apply_initializer(layer_id, initializer, name, shape, dtype, keys)
             end)
 
           List.to_tuple(params)
 
         shape ->
           shape = apply(shape, parent_shapes)
-          apply_initializer(initializer, layer_name, name, shape, dtype, keys)
+          apply_initializer(layer_id, initializer, name, shape, dtype, keys)
       end
 
     Map.put(layer_params, name, params)
   end
 
-  defp apply_initializer(initializer, _layer_name, _name, shape, type, _keys)
+  defp apply_initializer(_layer_id, initializer, _name, shape, type, _keys)
        when is_function(initializer, 2) do
     initializer.(shape, type)
   end
 
-  defp apply_initializer(initializer, layer_name, name, shape, type, keys)
+  defp apply_initializer(layer_id, initializer, name, shape, type, keys)
        when is_function(initializer, 3) do
-    initializer.(shape, type, keys[layer_name][name])
+    initializer.(shape, type, keys[layer_id][name])
   end
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
