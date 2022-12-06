@@ -410,7 +410,7 @@ defmodule Axon.Activations do
   @doc ~S"""
   Log-sigmoid activation.
 
-  $$f(x_i) = \log(\sigmoid(x))$$
+  $$f(x_i) = \log(sigmoid(x))$$
 
   ## Examples
 
@@ -599,7 +599,7 @@ defmodule Axon.Activations do
   @doc ~S"""
   Sigmoid weighted linear unit activation.
 
-  $$f(x_i) = x\sigmoid(x)$$
+  $$f(x_i) = x * sigmoid(x)$$
 
   ## Examples
 

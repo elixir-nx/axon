@@ -1414,7 +1414,7 @@ defmodule Axon.Layers do
     normalize(input, mean, var, gamma, beta, epsilon: opts[:epsilon])
   end
 
-  @doc """
+  @doc ~S"""
   Functional implementation of group normalization.
 
   Normalizes the input by reshaping input into `:num_groups`
@@ -1494,7 +1494,7 @@ defmodule Axon.Layers do
     x * gamma + beta
   end
 
-  @doc """
+  @doc ~S"""
   Functional implementation of instance normalization.
 
   Normalizes the input by calculating mean and variance of the
