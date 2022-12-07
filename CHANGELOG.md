@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1 (2022-12-07)
+
+### Enhancements
+
+* Relax Kino dependency
+
 ## v0.3.0 (2022-10-27)
 
 ### Enhancements
