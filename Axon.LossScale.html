@@ -4,19 +4,20 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.6">
+    <meta name="generator" content="ExDoc v0.29.1">
     <meta name="project" content="Axon v0.3.0">
 
     <title>Axon.LossScale — Axon v0.3.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-5CLCQQME.css" />
+    <link rel="stylesheet" href="dist/html-elixir-V2ETBPMB.css" />
+
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-X7YVL3G2.js"></script>
-    <script src="dist/sidebar_items-CFEF4C15.js"></script>
+    <script src="dist/handlebars.templates-IV5W3OL2.js"></script>
+    <script src="dist/sidebar_items-CCE8AC55.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-PLW5RNNI.js"></script>
+    <script async src="dist/html-XN2TSG4M.js"></script>
 
 
   </head>
@@ -51,7 +52,7 @@
     </button>
     <label class="search-label">
       <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
     </label>
   </form>
 
@@ -93,13 +94,13 @@ Axon
     <div id="content" class="content-inner">
 
 <h1>
-<button class="settings display-settings">
+<button class="icon-action display-settings">
   <i class="ri-settings-3-line"></i>
   <span class="sr-only">Settings</span>
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -114,7 +115,7 @@ Axon
 <p>Implementations of loss-scalers for use in mixed precision
 training.</p><p>Loss scaling is used to prevent underflow when using mixed
 precision during the model training process. Each loss-scale
-implementation here returns a 3-tuple of the functions:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="1687175996-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">scale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">unscale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">adjust_fn</span><span class="p" data-group-id="1687175996-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.LossScale</span><span class="o">.</span><span class="n">static</span><span class="p" data-group-id="1687175996-2">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">power</span><span class="p" data-group-id="1687175996-3">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="p" data-group-id="1687175996-3">)</span><span class="p" data-group-id="1687175996-2">)</span></code></pre><p>You can use these to scale/unscale loss and gradients as well
+implementation here returns a 3-tuple of the functions:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="1969257876-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">scale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">unscale_fn</span><span class="p">,</span><span class="w"> </span><span class="n">adjust_fn</span><span class="p" data-group-id="1969257876-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.LossScale</span><span class="o">.</span><span class="n">static</span><span class="p" data-group-id="1969257876-2">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">power</span><span class="p" data-group-id="1969257876-3">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="p" data-group-id="1969257876-3">)</span><span class="p" data-group-id="1969257876-2">)</span></code></pre><p>You can use these to scale/unscale loss and gradients as well
 as adjust the loss scale state.</p><p><a href="Axon.Loop.html#trainer/3"><code class="inline">Axon.Loop.trainer/3</code></a> builds loss-scaling in by default. You
 can reference the <a href="Axon.Loop.html#train_step/3"><code class="inline">Axon.Loop.train_step/3</code></a> implementation to
 see how loss-scaling is applied in practice.</p>
@@ -129,43 +130,42 @@ see how loss-scaling is applied in practice.</p>
       </a>
       Summary
     </h1>
+<div class="summary-functions summary">
+  <h2>
+    <a href="#functions">Functions</a>
+  </h2>
 
-  <div class="summary-functions summary">
-    <h2>
-      <a href="#functions">Functions</a>
-    </h2>
-
-      <div class="summary-row">
-        <div class="summary-signature">
-          <a href="#dynamic/2" translate="no">dynamic(loss_scale \\ 32768, opts \\ [])</a>
-
-        </div>
-
-          <div class="summary-synopsis"><p>Implements dynamic loss-scale.</p></div>
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#dynamic/2" translate="no">dynamic(loss_scale \\ 32768, opts \\ [])</a>
 
       </div>
 
-      <div class="summary-row">
-        <div class="summary-signature">
-          <a href="#identity/0" translate="no">identity()</a>
+        <div class="summary-synopsis"><p>Implements dynamic loss-scale.</p></div>
 
-        </div>
+    </div>
 
-          <div class="summary-synopsis"><p>Implements identity loss-scale.</p></div>
-
-      </div>
-
-      <div class="summary-row">
-        <div class="summary-signature">
-          <a href="#static/1" translate="no">static(loss_scale \\ 32768)</a>
-
-        </div>
-
-          <div class="summary-synopsis"><p>Implements static loss-scale.</p></div>
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#identity/0" translate="no">identity()</a>
 
       </div>
 
-  </div>
+        <div class="summary-synopsis"><p>Implements identity loss-scale.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#static/1" translate="no">static(loss_scale \\ 32768)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Implements static loss-scale.</p></div>
+
+    </div>
+
+</div>
 
   </section>
 
@@ -192,7 +192,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">dynamic(loss_scale \\ 32768, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L66" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L66" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -214,7 +214,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">identity()</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L28" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L28" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -238,7 +238,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">static(loss_scale \\ 32768)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L37" class="view-source" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/loss_scale.ex#L37" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -256,26 +256,32 @@ Functions
   </section>
 
       <footer class="footer">
-
-          <p>
-            On Hex.pm:
+        <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.3.0" class="line footer-hex-package">Package</a>
-              <a href="https://preview.hex.pm/preview/axon/0.3.0" class="line">Preview</a>
+              <a href="https://hex.pm/packages/axon/0.3.0" class="footer-hex-package">Hex Package</a>
 
-                <a href="https://preview.hex.pm/preview/axon/0.3.0/show/lib/axon/loss_scale.ex">(current file)</a>
+              <a href="https://preview.hex.pm/preview/axon/0.3.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/axon/0.3.0/show/lib/axon/loss_scale.ex">current file</a>)
 
             </span>
 
-            <button class="a-main line footer-button display-quick-switch">
-              Search
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+              Search HexDocs
             </button>
-          </p>
 
-        <p>
+              <a href="Axon.epub" title="ePub version">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.6) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 

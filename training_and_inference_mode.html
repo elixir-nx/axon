@@ -4,19 +4,20 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.28.6">
+    <meta name="generator" content="ExDoc v0.29.1">
     <meta name="project" content="Axon v0.3.0">
 
     <title>Training and inference mode — Axon v0.3.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-5CLCQQME.css" />
+    <link rel="stylesheet" href="dist/html-elixir-V2ETBPMB.css" />
+
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-X7YVL3G2.js"></script>
-    <script src="dist/sidebar_items-CFEF4C15.js"></script>
+    <script src="dist/handlebars.templates-IV5W3OL2.js"></script>
+    <script src="dist/sidebar_items-CCE8AC55.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-PLW5RNNI.js"></script>
+    <script async src="dist/html-XN2TSG4M.js"></script>
 
 
   </head>
@@ -51,7 +52,7 @@
     </button>
     <label class="search-label">
       <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
     </label>
   </form>
 
@@ -93,16 +94,17 @@ Axon
     <div id="content" class="content-inner">
 
 <h1>
-<button class="settings display-settings">
+<button class="icon-action display-settings">
   <i class="ri-settings-3-line"></i>
   <span class="sr-only">Settings</span>
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/guides/model_execution/training_and_inference_mode.livemd#L1" title="View Source" class="view-source" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/guides/model_execution/training_and_inference_mode.livemd#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
+
 
   <span>Training and inference mode</span>
 </h1>
@@ -113,87 +115,87 @@ Axon
     </a>
   </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="5195971629-1">(</span><span class="p" data-group-id="5195971629-2">[</span><span class="w">
-  </span><span class="p" data-group-id="5195971629-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/axon&quot;</span><span class="p" data-group-id="5195971629-3">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="5195971629-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/nx&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">sparse</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;nx&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="5195971629-4">}</span><span class="w">
-</span><span class="p" data-group-id="5195971629-2">]</span><span class="p" data-group-id="5195971629-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="executing-models-in-inference-mode" class="section-heading">
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="1664164131-1">(</span><span class="p" data-group-id="1664164131-2">[</span><span class="w">
+  </span><span class="p" data-group-id="1664164131-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/axon&quot;</span><span class="p" data-group-id="1664164131-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="1664164131-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">github</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;elixir-nx/nx&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">sparse</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;nx&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="1664164131-4">}</span><span class="w">
+</span><span class="p" data-group-id="1664164131-2">]</span><span class="p" data-group-id="1664164131-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="executing-models-in-inference-mode" class="section-heading">
   <a href="#executing-models-in-inference-mode" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">executing-models-in-inference-mode</p>
   </a>
   Executing models in inference mode
 </h2>
-<p>Some layers have different considerations and behavior when running during model training versus model inference. For example <em>dropout layers</em> are intended only to be used during training as a form of model regularization. Certain stateful layers like <em>batch normalization</em> keep a running-internal state which changes during training mode but remains fixed during inference mode. Axon supports mode-dependent execution behavior via the <code class="inline">:mode</code> option passed to all building, compilation, and execution methods. By default, all models build in inference mode. You can see this behavior by adding a dropout layer with a dropout rate of 1. In inference mode this layer will have no affect:</p><pre><code class="makeup elixir" translate="no"><span class="n">inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="4363483667-1">(</span><span class="p" data-group-id="4363483667-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="4363483667-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="4363483667-1">)</span><span class="w">
+<p>Some layers have different considerations and behavior when running during model training versus model inference. For example <em>dropout layers</em> are intended only to be used during training as a form of model regularization. Certain stateful layers like <em>batch normalization</em> keep a running-internal state which changes during training mode but remains fixed during inference mode. Axon supports mode-dependent execution behavior via the <code class="inline">:mode</code> option passed to all building, compilation, and execution methods. By default, all models build in inference mode. You can see this behavior by adding a dropout layer with a dropout rate of 1. In inference mode this layer will have no affect:</p><pre><code class="makeup elixir" translate="no"><span class="n">inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="8000358560-1">(</span><span class="p" data-group-id="8000358560-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="8000358560-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="8000358560-1">)</span><span class="w">
 
 </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="4363483667-3">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="4363483667-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="4363483667-4">(</span><span class="mi">4</span><span class="p" data-group-id="4363483667-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="4363483667-5">(</span><span class="p" data-group-id="4363483667-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="4363483667-6">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.99</span><span class="p" data-group-id="4363483667-6">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="4363483667-7">(</span><span class="mi">1</span><span class="p" data-group-id="4363483667-7">)</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8000358560-3">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="8000358560-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8000358560-4">(</span><span class="mi">4</span><span class="p" data-group-id="8000358560-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="8000358560-5">(</span><span class="p" data-group-id="8000358560-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="8000358560-6">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.99</span><span class="p" data-group-id="8000358560-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8000358560-7">(</span><span class="mi">1</span><span class="p" data-group-id="8000358560-7">)</span><span class="w">
 
-</span><span class="p" data-group-id="4363483667-8">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="4363483667-8">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="4363483667-9">(</span><span class="n">model</span><span class="p" data-group-id="4363483667-9">)</span><span class="w">
-</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="4363483667-10">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="4363483667-11">%{</span><span class="p" data-group-id="4363483667-11">}</span><span class="p" data-group-id="4363483667-10">)</span><span class="w">
-</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="4363483667-12">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="4363483667-12">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="9602759269-1">#</span><span class="nc" data-group-id="9602759269-1">Nx.Tensor</span><span class="p" data-group-id="9602759269-1">&lt;</span><span class="w">
-  </span><span class="n">f32</span><span class="p" data-group-id="9602759269-2">[</span><span class="mi">2</span><span class="p" data-group-id="9602759269-2">]</span><span class="p" data-group-id="9602759269-3">[</span><span class="mi">1</span><span class="p" data-group-id="9602759269-3">]</span><span class="w">
-  </span><span class="p" data-group-id="9602759269-4">[</span><span class="w">
-    </span><span class="p" data-group-id="9602759269-5">[</span><span class="o">-</span><span class="mf">0.6138466000556946</span><span class="p" data-group-id="9602759269-5">]</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="9602759269-6">[</span><span class="o">-</span><span class="mf">0.8409845232963562</span><span class="p" data-group-id="9602759269-6">]</span><span class="w">
-  </span><span class="p" data-group-id="9602759269-4">]</span><span class="w">
-</span><span class="p" data-group-id="9602759269-1">&gt;</span></code></pre><p>You can also explicitly specify the mode:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="1473459945-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="1473459945-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="1473459945-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:inference</span><span class="p" data-group-id="1473459945-2">)</span><span class="w">
-</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="1473459945-3">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1473459945-4">%{</span><span class="p" data-group-id="1473459945-4">}</span><span class="p" data-group-id="1473459945-3">)</span><span class="w">
-</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="1473459945-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="1473459945-5">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="5365070464-1">#</span><span class="nc" data-group-id="5365070464-1">Nx.Tensor</span><span class="p" data-group-id="5365070464-1">&lt;</span><span class="w">
-  </span><span class="n">f32</span><span class="p" data-group-id="5365070464-2">[</span><span class="mi">2</span><span class="p" data-group-id="5365070464-2">]</span><span class="p" data-group-id="5365070464-3">[</span><span class="mi">1</span><span class="p" data-group-id="5365070464-3">]</span><span class="w">
-  </span><span class="p" data-group-id="5365070464-4">[</span><span class="w">
-    </span><span class="p" data-group-id="5365070464-5">[</span><span class="mf">0.7551136016845703</span><span class="p" data-group-id="5365070464-5">]</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="5365070464-6">[</span><span class="mf">0.448221355676651</span><span class="p" data-group-id="5365070464-6">]</span><span class="w">
-  </span><span class="p" data-group-id="5365070464-4">]</span><span class="w">
-</span><span class="p" data-group-id="5365070464-1">&gt;</span></code></pre><p>It's important that you know which mode your model's were compiled for, as running a model built in <code class="inline">:inference</code> mode will behave drastically different than a model built in <code class="inline">:train</code> mode.</p><h2 id="executing-models-in-training-mode" class="section-heading">
+</span><span class="p" data-group-id="8000358560-8">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="8000358560-8">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="8000358560-9">(</span><span class="n">model</span><span class="p" data-group-id="8000358560-9">)</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="8000358560-10">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="8000358560-11">%{</span><span class="p" data-group-id="8000358560-11">}</span><span class="p" data-group-id="8000358560-10">)</span><span class="w">
+</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="8000358560-12">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="8000358560-12">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="9406536077-1">#</span><span class="nc" data-group-id="9406536077-1">Nx.Tensor</span><span class="p" data-group-id="9406536077-1">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="9406536077-2">[</span><span class="mi">2</span><span class="p" data-group-id="9406536077-2">]</span><span class="p" data-group-id="9406536077-3">[</span><span class="mi">1</span><span class="p" data-group-id="9406536077-3">]</span><span class="w">
+  </span><span class="p" data-group-id="9406536077-4">[</span><span class="w">
+    </span><span class="p" data-group-id="9406536077-5">[</span><span class="o">-</span><span class="mf">0.6138466000556946</span><span class="p" data-group-id="9406536077-5">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="9406536077-6">[</span><span class="o">-</span><span class="mf">0.8409845232963562</span><span class="p" data-group-id="9406536077-6">]</span><span class="w">
+  </span><span class="p" data-group-id="9406536077-4">]</span><span class="w">
+</span><span class="p" data-group-id="9406536077-1">&gt;</span></code></pre><p>You can also explicitly specify the mode:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="7038666921-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="7038666921-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="7038666921-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:inference</span><span class="p" data-group-id="7038666921-2">)</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="7038666921-3">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7038666921-4">%{</span><span class="p" data-group-id="7038666921-4">}</span><span class="p" data-group-id="7038666921-3">)</span><span class="w">
+</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="7038666921-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="7038666921-5">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="3152158136-1">#</span><span class="nc" data-group-id="3152158136-1">Nx.Tensor</span><span class="p" data-group-id="3152158136-1">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="3152158136-2">[</span><span class="mi">2</span><span class="p" data-group-id="3152158136-2">]</span><span class="p" data-group-id="3152158136-3">[</span><span class="mi">1</span><span class="p" data-group-id="3152158136-3">]</span><span class="w">
+  </span><span class="p" data-group-id="3152158136-4">[</span><span class="w">
+    </span><span class="p" data-group-id="3152158136-5">[</span><span class="mf">0.7551136016845703</span><span class="p" data-group-id="3152158136-5">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="3152158136-6">[</span><span class="mf">0.448221355676651</span><span class="p" data-group-id="3152158136-6">]</span><span class="w">
+  </span><span class="p" data-group-id="3152158136-4">]</span><span class="w">
+</span><span class="p" data-group-id="3152158136-1">&gt;</span></code></pre><p>It's important that you know which mode your model's were compiled for, as running a model built in <code class="inline">:inference</code> mode will behave drastically different than a model built in <code class="inline">:train</code> mode.</p><h2 id="executing-models-in-training-mode" class="section-heading">
   <a href="#executing-models-in-training-mode" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
   <p class="sr-only">executing-models-in-training-mode</p>
   </a>
   Executing models in training mode
 </h2>
-<p>By specifying <code class="inline">mode: :train</code>, you tell your models to execute in training mode. You can see the effects of this behavior here:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5155563793-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="5155563793-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="5155563793-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="5155563793-2">)</span><span class="w">
-</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="5155563793-3">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5155563793-4">%{</span><span class="p" data-group-id="5155563793-4">}</span><span class="p" data-group-id="5155563793-3">)</span><span class="w">
-</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="5155563793-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="5155563793-5">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="3317087758-1">%{</span><span class="w">
-  </span><span class="ss">prediction</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3317087758-2">#</span><span class="nc" data-group-id="3317087758-2">Nx.Tensor</span><span class="p" data-group-id="3317087758-2">&lt;</span><span class="w">
-    </span><span class="n">f32</span><span class="p" data-group-id="3317087758-3">[</span><span class="mi">2</span><span class="p" data-group-id="3317087758-3">]</span><span class="p" data-group-id="3317087758-4">[</span><span class="mi">1</span><span class="p" data-group-id="3317087758-4">]</span><span class="w">
-    </span><span class="p" data-group-id="3317087758-5">[</span><span class="w">
-      </span><span class="p" data-group-id="3317087758-6">[</span><span class="mf">0.0</span><span class="p" data-group-id="3317087758-6">]</span><span class="p">,</span><span class="w">
-      </span><span class="p" data-group-id="3317087758-7">[</span><span class="mf">0.0</span><span class="p" data-group-id="3317087758-7">]</span><span class="w">
-    </span><span class="p" data-group-id="3317087758-5">]</span><span class="w">
-  </span><span class="p" data-group-id="3317087758-2">&gt;</span><span class="p">,</span><span class="w">
-  </span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3317087758-8">%{</span><span class="p" data-group-id="3317087758-8">}</span><span class="w">
-</span><span class="p" data-group-id="3317087758-1">}</span></code></pre><p>First, notice that your model now returns a map with keys <code class="inline">:prediction</code> and <code class="inline">:state</code>. <code class="inline">:prediction</code> contains the actual model prediction, while <code class="inline">:state</code> contains the updated state for any stateful layers such as batch norm. When writing custom training loops, you should extract <code class="inline">:state</code> and use it in conjunction with the updates API to ensure your stateful layers are updated correctly. If your model has stateful layers, <code class="inline">:state</code> will look similar to your model's parameter map:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1163139744-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="1163139744-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1163139744-2">(</span><span class="mi">4</span><span class="p" data-group-id="1163139744-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="1163139744-3">(</span><span class="p" data-group-id="1163139744-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="1163139744-4">(</span><span class="p" data-group-id="1163139744-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1163139744-5">(</span><span class="mi">1</span><span class="p" data-group-id="1163139744-5">)</span><span class="w">
+<p>By specifying <code class="inline">mode: :train</code>, you tell your models to execute in training mode. You can see the effects of this behavior here:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="7426497926-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="7426497926-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="7426497926-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="7426497926-2">)</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="7426497926-3">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7426497926-4">%{</span><span class="p" data-group-id="7426497926-4">}</span><span class="p" data-group-id="7426497926-3">)</span><span class="w">
+</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="7426497926-5">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="7426497926-5">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="0807361770-1">%{</span><span class="w">
+  </span><span class="ss">prediction</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0807361770-2">#</span><span class="nc" data-group-id="0807361770-2">Nx.Tensor</span><span class="p" data-group-id="0807361770-2">&lt;</span><span class="w">
+    </span><span class="n">f32</span><span class="p" data-group-id="0807361770-3">[</span><span class="mi">2</span><span class="p" data-group-id="0807361770-3">]</span><span class="p" data-group-id="0807361770-4">[</span><span class="mi">1</span><span class="p" data-group-id="0807361770-4">]</span><span class="w">
+    </span><span class="p" data-group-id="0807361770-5">[</span><span class="w">
+      </span><span class="p" data-group-id="0807361770-6">[</span><span class="mf">0.0</span><span class="p" data-group-id="0807361770-6">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="0807361770-7">[</span><span class="mf">0.0</span><span class="p" data-group-id="0807361770-7">]</span><span class="w">
+    </span><span class="p" data-group-id="0807361770-5">]</span><span class="w">
+  </span><span class="p" data-group-id="0807361770-2">&gt;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0807361770-8">%{</span><span class="p" data-group-id="0807361770-8">}</span><span class="w">
+</span><span class="p" data-group-id="0807361770-1">}</span></code></pre><p>First, notice that your model now returns a map with keys <code class="inline">:prediction</code> and <code class="inline">:state</code>. <code class="inline">:prediction</code> contains the actual model prediction, while <code class="inline">:state</code> contains the updated state for any stateful layers such as batch norm. When writing custom training loops, you should extract <code class="inline">:state</code> and use it in conjunction with the updates API to ensure your stateful layers are updated correctly. If your model has stateful layers, <code class="inline">:state</code> will look similar to your model's parameter map:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6370424066-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="6370424066-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6370424066-2">(</span><span class="mi">4</span><span class="p" data-group-id="6370424066-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="6370424066-3">(</span><span class="p" data-group-id="6370424066-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="6370424066-4">(</span><span class="p" data-group-id="6370424066-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6370424066-5">(</span><span class="mi">1</span><span class="p" data-group-id="6370424066-5">)</span><span class="w">
 
-</span><span class="p" data-group-id="1163139744-6">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="1163139744-6">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="1163139744-7">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="1163139744-7">)</span><span class="w">
-</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="1163139744-8">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="1163139744-9">%{</span><span class="p" data-group-id="1163139744-9">}</span><span class="p" data-group-id="1163139744-8">)</span><span class="w">
-</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="1163139744-10">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="1163139744-10">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="2106137394-1">%{</span><span class="w">
-  </span><span class="ss">prediction</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2106137394-2">#</span><span class="nc" data-group-id="2106137394-2">Nx.Tensor</span><span class="p" data-group-id="2106137394-2">&lt;</span><span class="w">
-    </span><span class="n">f32</span><span class="p" data-group-id="2106137394-3">[</span><span class="mi">2</span><span class="p" data-group-id="2106137394-3">]</span><span class="p" data-group-id="2106137394-4">[</span><span class="mi">1</span><span class="p" data-group-id="2106137394-4">]</span><span class="w">
-    </span><span class="p" data-group-id="2106137394-5">[</span><span class="w">
-      </span><span class="p" data-group-id="2106137394-6">[</span><span class="mf">0.03675001487135887</span><span class="p" data-group-id="2106137394-6">]</span><span class="p">,</span><span class="w">
-      </span><span class="p" data-group-id="2106137394-7">[</span><span class="o">-</span><span class="mf">0.03674999624490738</span><span class="p" data-group-id="2106137394-7">]</span><span class="w">
-    </span><span class="p" data-group-id="2106137394-5">]</span><span class="w">
-  </span><span class="p" data-group-id="2106137394-2">&gt;</span><span class="p">,</span><span class="w">
-  </span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2106137394-8">%{</span><span class="w">
-    </span><span class="s">&quot;batch_norm_0&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="2106137394-9">%{</span><span class="w">
-      </span><span class="s">&quot;mean&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="2106137394-10">#</span><span class="nc" data-group-id="2106137394-10">Nx.Tensor</span><span class="p" data-group-id="2106137394-10">&lt;</span><span class="w">
-        </span><span class="n">f32</span><span class="p" data-group-id="2106137394-11">[</span><span class="mi">4</span><span class="p" data-group-id="2106137394-11">]</span><span class="w">
-        </span><span class="p" data-group-id="2106137394-12">[</span><span class="mf">0.8784151673316956</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7386987209320068</span><span class="p">,</span><span class="w"> </span><span class="mf">0.663623571395874</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8947045803070068</span><span class="p" data-group-id="2106137394-12">]</span><span class="w">
-      </span><span class="p" data-group-id="2106137394-10">&gt;</span><span class="p">,</span><span class="w">
-      </span><span class="s">&quot;var&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="2106137394-13">#</span><span class="nc" data-group-id="2106137394-13">Nx.Tensor</span><span class="p" data-group-id="2106137394-13">&lt;</span><span class="w">
-        </span><span class="n">f32</span><span class="p" data-group-id="2106137394-14">[</span><span class="mi">4</span><span class="p" data-group-id="2106137394-14">]</span><span class="w">
-        </span><span class="p" data-group-id="2106137394-15">[</span><span class="mf">0.10050597041845322</span><span class="p">,</span><span class="w"> </span><span class="mf">0.11294332146644592</span><span class="p">,</span><span class="w"> </span><span class="mf">0.16061438620090485</span><span class="p">,</span><span class="w"> </span><span class="mf">0.10003116726875305</span><span class="p" data-group-id="2106137394-15">]</span><span class="w">
-      </span><span class="p" data-group-id="2106137394-13">&gt;</span><span class="w">
-    </span><span class="p" data-group-id="2106137394-9">}</span><span class="w">
-  </span><span class="p" data-group-id="2106137394-8">}</span><span class="w">
-</span><span class="p" data-group-id="2106137394-1">}</span></code></pre>
+</span><span class="p" data-group-id="6370424066-6">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="6370424066-6">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="6370424066-7">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">mode</span><span class="p">:</span><span class="w"> </span><span class="ss">:train</span><span class="p" data-group-id="6370424066-7">)</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="6370424066-8">(</span><span class="n">inputs</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="6370424066-9">%{</span><span class="p" data-group-id="6370424066-9">}</span><span class="p" data-group-id="6370424066-8">)</span><span class="w">
+</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="6370424066-10">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">inputs</span><span class="p" data-group-id="6370424066-10">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="4564641342-1">%{</span><span class="w">
+  </span><span class="ss">prediction</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4564641342-2">#</span><span class="nc" data-group-id="4564641342-2">Nx.Tensor</span><span class="p" data-group-id="4564641342-2">&lt;</span><span class="w">
+    </span><span class="n">f32</span><span class="p" data-group-id="4564641342-3">[</span><span class="mi">2</span><span class="p" data-group-id="4564641342-3">]</span><span class="p" data-group-id="4564641342-4">[</span><span class="mi">1</span><span class="p" data-group-id="4564641342-4">]</span><span class="w">
+    </span><span class="p" data-group-id="4564641342-5">[</span><span class="w">
+      </span><span class="p" data-group-id="4564641342-6">[</span><span class="mf">0.03675001487135887</span><span class="p" data-group-id="4564641342-6">]</span><span class="p">,</span><span class="w">
+      </span><span class="p" data-group-id="4564641342-7">[</span><span class="o">-</span><span class="mf">0.03674999624490738</span><span class="p" data-group-id="4564641342-7">]</span><span class="w">
+    </span><span class="p" data-group-id="4564641342-5">]</span><span class="w">
+  </span><span class="p" data-group-id="4564641342-2">&gt;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">state</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4564641342-8">%{</span><span class="w">
+    </span><span class="s">&quot;batch_norm_0&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="4564641342-9">%{</span><span class="w">
+      </span><span class="s">&quot;mean&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="4564641342-10">#</span><span class="nc" data-group-id="4564641342-10">Nx.Tensor</span><span class="p" data-group-id="4564641342-10">&lt;</span><span class="w">
+        </span><span class="n">f32</span><span class="p" data-group-id="4564641342-11">[</span><span class="mi">4</span><span class="p" data-group-id="4564641342-11">]</span><span class="w">
+        </span><span class="p" data-group-id="4564641342-12">[</span><span class="mf">0.8784151673316956</span><span class="p">,</span><span class="w"> </span><span class="mf">0.7386987209320068</span><span class="p">,</span><span class="w"> </span><span class="mf">0.663623571395874</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8947045803070068</span><span class="p" data-group-id="4564641342-12">]</span><span class="w">
+      </span><span class="p" data-group-id="4564641342-10">&gt;</span><span class="p">,</span><span class="w">
+      </span><span class="s">&quot;var&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="4564641342-13">#</span><span class="nc" data-group-id="4564641342-13">Nx.Tensor</span><span class="p" data-group-id="4564641342-13">&lt;</span><span class="w">
+        </span><span class="n">f32</span><span class="p" data-group-id="4564641342-14">[</span><span class="mi">4</span><span class="p" data-group-id="4564641342-14">]</span><span class="w">
+        </span><span class="p" data-group-id="4564641342-15">[</span><span class="mf">0.10050597041845322</span><span class="p">,</span><span class="w"> </span><span class="mf">0.11294332146644592</span><span class="p">,</span><span class="w"> </span><span class="mf">0.16061438620090485</span><span class="p">,</span><span class="w"> </span><span class="mf">0.10003116726875305</span><span class="p" data-group-id="4564641342-15">]</span><span class="w">
+      </span><span class="p" data-group-id="4564641342-13">&gt;</span><span class="w">
+    </span><span class="p" data-group-id="4564641342-9">}</span><span class="w">
+  </span><span class="p" data-group-id="4564641342-8">}</span><span class="w">
+</span><span class="p" data-group-id="4564641342-1">}</span></code></pre>
 <div class="bottom-actions">
   <div class="bottom-actions-item">
 
@@ -221,26 +223,32 @@ Your first training loop
   </div>
 </div>
       <footer class="footer">
-
-          <p>
-            On Hex.pm:
+        <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.3.0" class="line footer-hex-package">Package</a>
-              <a href="https://preview.hex.pm/preview/axon/0.3.0" class="line">Preview</a>
+              <a href="https://hex.pm/packages/axon/0.3.0" class="footer-hex-package">Hex Package</a>
 
-                <a href="https://preview.hex.pm/preview/axon/0.3.0/show/guides/model_execution/training_and_inference_mode.livemd">(current file)</a>
+              <a href="https://preview.hex.pm/preview/axon/0.3.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/axon/0.3.0/show/guides/model_execution/training_and_inference_mode.livemd">current file</a>)
 
             </span>
 
-            <button class="a-main line footer-button display-quick-switch">
-              Search
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+              Search HexDocs
             </button>
-          </p>
 
-        <p>
+              <a href="Axon.epub" title="ePub version">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.28.6) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
