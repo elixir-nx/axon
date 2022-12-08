@@ -1672,7 +1672,12 @@ defmodule Axon.Layers do
         Axon.Shape.spatial_dropout_noise_shape(shape, channels)
       end)
 
-    dropout(input, key: opts[:key], rate: opts[:rate], noise_shape: noise_shape, mode: opts[:mode])
+    dropout(input,
+      key: opts[:key],
+      rate: opts[:rate],
+      noise_shape: noise_shape,
+      mode: opts[:mode]
+    )
   end
 
   @doc """

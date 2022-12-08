@@ -2895,6 +2895,47 @@ defmodule Axon do
   end
 
   @doc """
+  Unfreezes parameters in the model.
+  """
+  @doc type: :model
+  def unfreeze(%Axon{} = model, fun_or_predicate \\ :all) do
+    parameters_per_layer =
+      reduce_nodes(model, [], fn %Axon.Node{parameters: params}, acc ->
+        layer_params =
+          Enum.reduce(params, [], fn param, inner_acc ->
+            [param | inner_acc]
+          end)
+
+        [layer_params | acc]
+      end)
+
+    parameters_to_freeze =
+      case fun_or_predicate do
+        :all ->
+          List.flatten(parameters_per_layer)
+
+        [{:up, n}] ->
+          parameters_per_layer
+          |> Enum.reverse()
+          |> Enum.take(n)
+          |> List.flatten()
+      end
+
+    map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
+      frozen_params =
+        Enum.map(params, fn %{id: param_id} = v ->
+          if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
+            %{v | frozen: false}
+          else
+            v
+          end
+        end)
+
+      %{axon_node | parameters: frozen_params}
+    end)
+  end
+
+  @doc """
   Attaches a hook to the given Axon model.
 
   Hooks compile down to `Nx.Defn.Kernel.hook/3` and provide the same
@@ -3143,8 +3184,9 @@ defmodule Axon do
 
   """
   @doc type: :graph
-  def map_nodes(%Axon{nodes: nodes} = axon, fun) when is_function(fun, 1) do
-    updated_nodes = Map.new(nodes, fn {id, axon_node} -> {id, fun.(axon_node)} end)
+  def map_nodes(%Axon{output: id, nodes: nodes} = axon, fun) when is_function(fun, 1) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+    updated_nodes = Map.new(inorder_nodes, fn %{id: id} = axon_node -> {id, fun.(axon_node)} end)
     %{axon | nodes: updated_nodes}
   end
 
@@ -3172,10 +3214,63 @@ defmodule Axon do
 
   """
   @doc type: :graph
-  def reduce_nodes(%Axon{nodes: nodes}, acc, fun) when is_function(fun, 2) do
-    nodes
-    |> Map.values()
-    |> Enum.reduce(acc, fun)
+  def reduce_nodes(%Axon{output: id, nodes: nodes}, acc, fun) when is_function(fun, 2) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+
+    Enum.reduce(inorder_nodes, acc, fun)
+  end
+
+  defp traverse_nodes(id, nodes, acc, visited) do
+    if MapSet.member?(visited, id) do
+      {acc, visited}
+    else
+      %{op: op, parent: parents} = parent = nodes[id]
+
+      {acc, visited} =
+        case op do
+          :container ->
+            [container] = parents
+
+            deep_reduce(container, {acc, visited}, fn pid, {acc, visited} ->
+              traverse_nodes(pid, nodes, acc, visited)
+            end)
+
+          _ ->
+            Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
+              traverse_nodes(pid, nodes, acc, visited)
+            end)
+        end
+
+      {[parent | acc], MapSet.put(visited, id)}
+    end
+  end
+
+  # TODO: Do not duplicate
+  defp deep_reduce(item, acc, fun) when is_integer(item) do
+    fun.(item, acc)
+  end
+
+  defp deep_reduce(map, acc, fun) do
+    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
+  end
+
+  defp recur_deep_reduce(value, acc, fun) do
+    case value do
+      %Axon{} = val ->
+        fun.(val, acc)
+
+      %Nx.Tensor{} = val ->
+        fun.(val, acc)
+
+      %{axon: :axon} = val ->
+        fun.(val, acc)
+
+      val when is_integer(val) ->
+        fun.(val, acc)
+
+      val ->
+        deep_reduce(val, acc, fun)
+    end
   end
 
   defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
@@ -3195,6 +3290,15 @@ defmodule Axon do
       container ->
         deep_map_reduce(container, acc, fun)
     end
+  end
+
+  @doc """
+  Pops the top node off of the graph.
+  """
+  @doc type: :graph
+  def pop_node(%Axon{nodes: nodes, output: id} = axon) do
+    {%{parent: [parent_id]} = popped, nodes} = Map.pop!(nodes, id)
+    {popped, %{axon | nodes: nodes, output: parent_id}}
   end
 
   @doc """

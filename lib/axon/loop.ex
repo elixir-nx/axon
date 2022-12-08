@@ -961,6 +961,29 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which monitors the given metric
+  and fires some action when the given metric meets some
+  criteria.
+
+  This function is a generalization of handlers such as
+  `Axon.Loop.reduce_lr_on_plateau/3` and `Axon.Loop.early_stop/3`.
+
+  You must specify a metric to monitor that is present in
+  the state metrics. This handler will then monitor the value
+  of the metric at the specified intervals and fire the specified
+  function if the criteria is met.
+  """
+  def monitor(%Loop{} = loop, metric, fun, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, event: :epoch_completed, filter: :always, mode: :max, patience: 3)
+
+    event = opts[:event] || :epoch_completed
+    filter = opts[:filter] || :always
+    patience = opts[:patience] || 3
+    mode = opts[:mode] || :min
+  end
+
+  @doc """
   Adds a handler function which saves loop checkpoints on a given
   event, optionally with metric-based criteria.
 
@@ -1139,32 +1162,40 @@ defmodule Axon.Loop do
         case mode do
           :min ->
             prev_criteria_value == nil or
-              Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+              Nx.to_number(Nx.less(cur_criteria_value, prev_criteria_value)) == 1
 
           :max ->
             prev_criteria_value == nil or
-              Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+              Nx.to_number(Nx.greater(cur_criteria_value, prev_criteria_value)) == 1
         end
 
       over_patience? = since_last_improvement >= patience
 
       cond do
         improved? ->
+          default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
+
           updated_handler_meta =
-            handler_meta
-            |> Map.replace(monitor, cur_criteria_value)
-            |> Map.replace(:since_last_improvement, 0)
+            Map.update(handler_meta, :early_stop, default, fn meta ->
+              meta
+              |> Map.update(monitor, cur_criteria_value, fn _ -> cur_criteria_value end)
+              |> Map.update(:since_last_improvement, 0, fn _ -> 0 end)
+            end)
 
           {:continue, %{state | handler_metadata: updated_handler_meta}}
 
         not improved? and not over_patience? ->
-          updated_handle_meta =
-            Map.update(handler_meta, :since_last_improvement, 0, fn x -> x + 1 end)
+          default = %{monitor => prev_criteria_value, :since_last_improvement => 0}
 
-          {:continue, %{state | handler_metadata: updated_handle_meta}}
+          updated_handler_meta =
+            Map.update(handler_meta, :early_stop, default, fn meta ->
+              Map.update(meta, :since_last_improvement, 0, fn x -> x + 1 end)
+            end)
+
+          {:continue, %{state | handler_metadata: updated_handler_meta}}
 
         true ->
-          {:halt, state}
+          {:halt_loop, state}
       end
     end
 
@@ -1243,35 +1274,43 @@ defmodule Axon.Loop do
         case mode do
           :min ->
             prev_criteria_value == nil or
-              Nx.less(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+              Nx.to_number(Nx.less(cur_criteria_value, prev_criteria_value)) == 1
 
           :max ->
             prev_criteria_value == nil or
-              Nx.greater(cur_criteria_value, prev_criteria_value) == Nx.tensor(1, type: {:u, 8})
+              Nx.to_number(Nx.greater(cur_criteria_value, prev_criteria_value)) == 1
         end
 
       over_patience? = since_last_improvement >= patience
 
       cond do
         improved? ->
+          default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
+
           updated_handler_meta =
-            handler_meta
-            |> Map.replace(monitor, cur_criteria_value)
-            |> Map.replace(:since_last_improvement, 0)
+            Map.update(handler_meta, :reduce_lr, default, fn meta ->
+              meta
+              |> Map.update(monitor, cur_criteria_value, fn _ -> cur_criteria_value end)
+              |> Map.update(:since_last_improvement, 0, fn _ -> 0 end)
+            end)
 
           {:continue, %{state | handler_metadata: updated_handler_meta}}
 
         not improved? and not over_patience? ->
-          updated_handle_meta =
-            Map.update(handler_meta, :since_last_improvement, 0, fn x -> x + 1 end)
+          default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
 
-          {:continue, %{state | handler_metadata: updated_handle_meta}}
+          updated_handler_meta =
+            Map.update(handler_meta, :reduce_lr, default, fn meta ->
+              Map.update(meta, :since_last_improvement, 0, fn x -> x + 1 end)
+            end)
+
+          {:continue, %{state | handler_metadata: updated_handler_meta}}
 
         true ->
+          default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
+
           updated_handler_meta =
-            handler_meta
-            |> Map.replace(monitor, cur_criteria_value)
-            |> Map.replace(:since_last_improvement, 0)
+            Map.update(handler_meta, :reduce_lr, default, fn _ -> default end)
 
           updated_lr = Nx.multiply(current_lr, factor)
 

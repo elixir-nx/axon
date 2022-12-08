@@ -571,13 +571,198 @@ defmodule Axon.LoopTest do
         |> Axon.Loop.handle(
           :epoch_completed,
           fn %{metrics: metrics} = state ->
-            IO.inspect(metrics)
             assert Map.has_key?(metrics, "validation_accuracy")
             {:continue, state}
           end,
           fn %{epoch: epoch} -> epoch == 1 end
         )
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+      end)
+    end
+  end
+
+  describe "early_stop" do
+    test "adds correct handler metadata to loop state" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, Enum.take(data, 5))
+        |> Axon.Loop.early_stop("validation_accuracy", mode: :max)
+        |> Axon.Loop.handle(
+          :epoch_completed,
+          fn %{handler_metadata: meta} = state ->
+            assert %{early_stop: %{"validation_accuracy" => _, :since_last_improvement => _}} =
+                     meta
+
+            {:continue, state}
+          end,
+          fn %{epoch: epoch} -> epoch == 1 end
+        )
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+      end)
+    end
+
+    test "early stops if metric does not improve with mode max" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      # metric is a counter when combined with running_sum,
+      # so in mode min we can always guarantee this increases
+      my_metric = fn _, _ -> 1 end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state =
+          model
+          |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+          |> Axon.Loop.metric(my_metric, "counter", :running_sum)
+          |> Axon.Loop.early_stop("counter", mode: :min, patience: 2)
+          # TODO: This API needs to change
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+
+        assert %{epoch: 3} = state
+      end)
+    end
+
+    test "early stops if metric does not improve with mode min" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      # metric is a counter when combined with running_sum,
+      # so in mode min we can always guarantee this increases
+      my_metric = fn _, _ -> -1 end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state =
+          model
+          |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+          |> Axon.Loop.metric(my_metric, "counter", :running_sum)
+          |> Axon.Loop.early_stop("counter", mode: :max, patience: 2)
+          # TODO: This API needs to change
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+
+        assert %{epoch: 3} = state
+      end)
+    end
+  end
+
+  describe "reduce_lr_on_plateau" do
+    test "adds correct handler metadata to loop state" do
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, Enum.take(data, 5))
+        |> Axon.Loop.reduce_lr_on_plateau("validation_accuracy", mode: :max)
+        |> Axon.Loop.handle(
+          :epoch_completed,
+          fn %{handler_metadata: meta} = state ->
+            assert %{reduce_lr: %{"validation_accuracy" => _, :since_last_improvement => _}} =
+                     meta
+
+            {:continue, state}
+          end,
+          fn %{epoch: epoch} -> epoch == 1 end
+        )
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+      end)
+    end
+
+    test "reduces stateful learning rate by factor with mode min" do
+      initial_lr = 10
+
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      # metric is a counter when combined with running_sum,
+      # so in mode min we can always guarantee this increases
+      my_metric = fn _, _ -> 1 end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state =
+          model
+          |> Axon.Loop.trainer(:binary_cross_entropy, Axon.Optimizers.sgd(initial_lr))
+          |> Axon.Loop.metric(my_metric, "counter", :running_sum)
+          |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :min, patience: 2)
+          # TODO: This API needs to change
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.run(data, %{}, epochs: 7, iterations: 5)
+
+        assert %{step_state: %{optimizer_state: optimizer_state}} = state
+        # TODO: This is a strong assumption
+        assert %{scale: lr} = elem(optimizer_state, 0)
+        assert_all_close(lr, Nx.tensor(-2.5))
+      end)
+    end
+
+    test "reduces stateful learning rate by factor with mode max" do
+      initial_lr = 10
+
+      model = Axon.input("input") |> Axon.dense(1)
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      # metric is a counter when combined with running_sum,
+      # so in mode min we can always guarantee this increases
+      my_metric = fn _, _ -> -1 end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state =
+          model
+          |> Axon.Loop.trainer(:binary_cross_entropy, Axon.Optimizers.sgd(initial_lr))
+          |> Axon.Loop.metric(my_metric, "counter", :running_sum)
+          |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :max, patience: 2)
+          # TODO: This API needs to change
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.run(data, %{}, epochs: 7, iterations: 5)
+
+        assert %{step_state: %{optimizer_state: optimizer_state}} = state
+        # TODO: This is a strong assumption
+        assert %{scale: lr} = elem(optimizer_state, 0)
+        assert_all_close(lr, Nx.tensor(-2.5))
       end)
     end
   end
