@@ -983,15 +983,25 @@ defmodule Axon.Updates do
         Nx.add(x, Nx.as_type(u, Nx.type(x)))
       end)
 
-    transform({new_params, state}, fn
-      {new_params, nil} ->
-        new_params
+    merge_state(new_params, state)
+  end
 
-      {new_params, state} ->
-        Map.merge(new_params, state, fn _, s1, s2 ->
-          Map.merge(s1, s2, fn _, _, s -> s end)
-        end)
-    end)
+  deftransformp merge_state(params, state) do
+    case {params, state} do
+      {params, nil} ->
+        params
+
+      {params, state} ->
+        merge_inner(params, state)
+    end
+  end
+
+  defp merge_inner(%Nx.Tensor{}, %Nx.Tensor{} = state) do
+    state
+  end
+
+  defp merge_inner(params, state) when is_map(params) and is_map(state) do
+    Map.merge(params, state, fn _, s1, s2 -> merge_inner(s1, s2) end)
   end
 
   ## Helpers

@@ -168,7 +168,7 @@ defmodule Axon.Compiler do
           %{params | key => value}
 
         _ ->
-          Logger.warning("found unused key in initial parameters map #{inspect(key)}")
+          Logger.warning("found unexpected key in the initial parameters map: #{inspect(key)}")
           params
       end
     end)
@@ -436,6 +436,13 @@ defmodule Axon.Compiler do
           result_cache,
           fn_stacktrace
         )
+
+      state =
+        if map_size(state) == 0 do
+          state
+        else
+          %{name => state}
+        end
 
       {out, {state, result_cache}}
     end
