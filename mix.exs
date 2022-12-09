@@ -40,7 +40,8 @@ defmodule Axon.MixProject do
       {:nx, "~> 0.4.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
-      {:kino, "~> 0.7", optional: true}
+      {:kino, "~> 0.7", optional: true},
+      {:kino_vega_lite, "~> 0.1.7", optional: true}
     ]
   end
 
