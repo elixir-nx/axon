@@ -636,7 +636,11 @@ defmodule Axon.LayersTest do
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
-        Axon.Layers.lp_pool(input, kernel_size: {2, 2}, window_dilations: [2, 2], channels: :first)
+        Axon.Layers.lp_pool(input,
+          kernel_size: {2, 2},
+          window_dilations: [2, 2],
+          channels: :first
+        )
 
       last =
         Axon.Layers.lp_pool(t_input,

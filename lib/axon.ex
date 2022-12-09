@@ -2837,11 +2837,15 @@ defmodule Axon do
   end
 
   @doc """
-  Freezes parameters returned from `fun` in the given model.
+  Freezes parameters returned from the given function or predicate.
 
-  `fun` takes the model's parameter list and returns the list of
-  parameters it wishes to freeze. `fun` defaults to the identity
-  function, freezing all of the parameters in `model`.
+  `fun` can be a predicate `:all`, `up: n`, or `down: n`. `:all`
+  freezes all parameters in the model, `up: n` freezes the first `n`
+  layers up (starting from output), and `down: n` freezes the first `n`
+  layers down (starting from input).
+
+  `fun` may also be a predicate function which takes a parameter and
+  returns `true` if a parameter should be frozen or `false` otherwise.
 
   Freezing parameters is useful when performing transfer learning
   to leverage features learned from another problem in a new problem.
@@ -2870,21 +2874,124 @@ defmodule Axon do
   the update process.
   """
   @doc type: :model
-  def freeze(%Axon{} = model, fun \\ & &1) when is_function(fun, 1) do
-    parameters =
-      reduce_nodes(model, MapSet.new(), fn %Axon.Node{parameters: params}, acc ->
-        Enum.reduce(params, acc, fn param, acc ->
-          MapSet.put(acc, param)
-        end)
+  def freeze(%Axon{} = model, fun_or_predicate \\ :all) do
+    parameters_per_layer =
+      reduce_nodes(model, [], fn %Axon.Node{parameters: params}, acc ->
+        layer_params =
+          Enum.reduce(params, [], fn param, inner_acc ->
+            [param | inner_acc]
+          end)
+
+        [layer_params | acc]
       end)
 
-    parameters_to_freeze = fun.(Enum.to_list(parameters))
+    parameters_to_freeze =
+      case fun_or_predicate do
+        :all ->
+          List.flatten(parameters_per_layer)
+
+        [{:up, n}] ->
+          parameters_per_layer
+          |> Enum.reverse()
+          |> Enum.take(n)
+          |> List.flatten()
+
+        [{:down, n}] ->
+          parameters_per_layer
+          |> Enum.reverse()
+          |> Enum.drop(n)
+          |> List.flatten()
+
+        fun ->
+          parameters_per_layer
+          |> List.flatten()
+          |> Enum.filter(fun)
+      end
 
     map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
       frozen_params =
         Enum.map(params, fn %{id: param_id} = v ->
           if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
             %{v | frozen: true}
+          else
+            v
+          end
+        end)
+
+      %{axon_node | parameters: frozen_params}
+    end)
+  end
+
+  @doc """
+  Unfreezes parameters returned from the given function or predicate.
+
+  `fun` can be a predicate `:all`, `up: n`, or `down: n`. `:all`
+  freezes all parameters in the model, `up: n` unfreezes the first `n`
+  layers up (starting from output), and `down: n` freezes the first `n`
+  layers down (starting from input).
+
+  `fun` may also be a predicate function which takes a parameter and
+  returns `true` if a parameter should be unfrozen or `false` otherwise.
+
+  Unfreezing parameters is useful when fine tuning a model which you
+  have previously frozen and performed transfer learning on. You may
+  want to unfreeze some of the later frozen layers in a model and
+  fine tune them specifically for your application:
+
+      cnn_base = get_pretrained_cnn_base()
+      model =
+        frozen_model
+        |> Axon.unfreeze(up: 25)
+
+      model
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.0005))
+      |> Axon.Loop.run(data, epochs: 10)
+
+  When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
+  which zeros out the gradient with respect to the frozen parameter. Gradients
+  of frozen parameters will return `0.0`, meaning they won't be changed during
+  the update process.
+  """
+  @doc type: :model
+  def unfreeze(%Axon{} = model, fun_or_predicate \\ :all) do
+    parameters_per_layer =
+      reduce_nodes(model, [], fn %Axon.Node{parameters: params}, acc ->
+        layer_params =
+          Enum.reduce(params, [], fn param, inner_acc ->
+            [param | inner_acc]
+          end)
+
+        [layer_params | acc]
+      end)
+
+    parameters_to_freeze =
+      case fun_or_predicate do
+        :all ->
+          List.flatten(parameters_per_layer)
+
+        [{:up, n}] ->
+          parameters_per_layer
+          |> Enum.reverse()
+          |> Enum.take(n)
+          |> List.flatten()
+
+        [{:down, n}] ->
+          parameters_per_layer
+          |> Enum.reverse()
+          |> Enum.drop(n)
+          |> List.flatten()
+
+        fun ->
+          parameters_per_layer
+          |> List.flatten()
+          |> Enum.filter(fun)
+      end
+
+    map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
+      frozen_params =
+        Enum.map(params, fn %{id: param_id} = v ->
+          if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
+            %{v | frozen: false}
           else
             v
           end
@@ -3143,8 +3250,9 @@ defmodule Axon do
 
   """
   @doc type: :graph
-  def map_nodes(%Axon{nodes: nodes} = axon, fun) when is_function(fun, 1) do
-    updated_nodes = Map.new(nodes, fn {id, axon_node} -> {id, fun.(axon_node)} end)
+  def map_nodes(%Axon{output: id, nodes: nodes} = axon, fun) when is_function(fun, 1) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+    updated_nodes = Map.new(inorder_nodes, fn %{id: id} = axon_node -> {id, fun.(axon_node)} end)
     %{axon | nodes: updated_nodes}
   end
 
@@ -3172,10 +3280,63 @@ defmodule Axon do
 
   """
   @doc type: :graph
-  def reduce_nodes(%Axon{nodes: nodes}, acc, fun) when is_function(fun, 2) do
-    nodes
-    |> Map.values()
-    |> Enum.reduce(acc, fun)
+  def reduce_nodes(%Axon{output: id, nodes: nodes}, acc, fun) when is_function(fun, 2) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+
+    Enum.reduce(inorder_nodes, acc, fun)
+  end
+
+  defp traverse_nodes(id, nodes, acc, visited) do
+    if MapSet.member?(visited, id) do
+      {acc, visited}
+    else
+      %{op: op, parent: parents} = parent = nodes[id]
+
+      {acc, visited} =
+        case op do
+          :container ->
+            [container] = parents
+
+            deep_reduce(container, {acc, visited}, fn pid, {acc, visited} ->
+              traverse_nodes(pid, nodes, acc, visited)
+            end)
+
+          _ ->
+            Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
+              traverse_nodes(pid, nodes, acc, visited)
+            end)
+        end
+
+      {[parent | acc], MapSet.put(visited, id)}
+    end
+  end
+
+  # TODO: Do not duplicate
+  defp deep_reduce(item, acc, fun) when is_integer(item) do
+    fun.(item, acc)
+  end
+
+  defp deep_reduce(map, acc, fun) do
+    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
+  end
+
+  defp recur_deep_reduce(value, acc, fun) do
+    case value do
+      %Axon{} = val ->
+        fun.(val, acc)
+
+      %Nx.Tensor{} = val ->
+        fun.(val, acc)
+
+      %{axon: :axon} = val ->
+        fun.(val, acc)
+
+      val when is_integer(val) ->
+        fun.(val, acc)
+
+      val ->
+        deep_reduce(val, acc, fun)
+    end
   end
 
   defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
@@ -3195,6 +3356,19 @@ defmodule Axon do
       container ->
         deep_map_reduce(container, acc, fun)
     end
+  end
+
+  @doc """
+  Pops the top node off of the graph.
+
+  This returns the popped node and the updated graph:
+
+      {_node, model} = Axon.pop_node(model)
+  """
+  @doc type: :graph
+  def pop_node(%Axon{nodes: nodes, output: id} = axon) do
+    {%{parent: [parent_id]} = popped, nodes} = Map.pop!(nodes, id)
+    {popped, %{axon | nodes: nodes, output: parent_id}}
   end
 
   @doc """

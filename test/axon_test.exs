@@ -775,6 +775,69 @@ defmodule AxonTest do
                parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]
              } = nodes[id]
     end
+
+    test "uses predicates correctly" do
+      model =
+        Axon.input("input", shape: {nil, 784})
+        |> Axon.dense(128)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+        |> Axon.freeze(up: 2)
+
+      Axon.reduce_nodes(model, 0, fn layer, i ->
+        if i < 2 do
+          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
+                   layer
+        end
+
+        i + 1
+      end)
+
+      model =
+        Axon.input("input", shape: {nil, 784})
+        |> Axon.dense(128)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+        |> Axon.freeze(down: 2)
+
+      Axon.reduce_nodes(model, 0, fn layer, i ->
+        if i == 2 do
+          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
+                   layer
+        end
+
+        i + 1
+      end)
+    end
+
+    test "unfreezes correctly" do
+      model =
+        Axon.input("input", shape: {nil, 784})
+        |> Axon.dense(128)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+        |> Axon.freeze(up: 2)
+
+      Axon.reduce_nodes(model, 0, fn layer, i ->
+        if i < 2 do
+          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
+                   layer
+        end
+
+        i + 1
+      end)
+
+      model = Axon.unfreeze(model, up: 2)
+
+      Axon.reduce_nodes(model, 0, fn layer, i ->
+        if i < 2 do
+          assert %{parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]} =
+                   layer
+        end
+
+        i + 1
+      end)
+    end
   end
 
   describe "inspection" do
