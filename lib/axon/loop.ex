@@ -1305,6 +1305,64 @@ defmodule Axon.Loop do
   end
 
   @doc """
+  Adds a handler function which updates a `VegaLite`.
+
+  By default, this will run after every iteration.
+
+  You must specify an empty line plot to push to. By default, this will monitor your loop's loss, but you may specify a different metric. The `:y` axis will be the iteration count, labeled `"step"`. The metric must match the name given to the `:x` axis in your `VegaLite` plot:
+
+      plot =
+        Vl.new()
+        |> Vl.mark(:line)
+        |> Vl.encode_field(:x, "step", type: :quantitative)
+        |> Vl.encode_field(:y, "loss", type: :quantitative)
+        |> Kino.VegaLite.new()
+        |> Kino.render()
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.plot(plot)
+  """
+  def plot(loop, plot, metric \\ "loss", event \\ :iteration_completed, filter \\ :always) do
+    assert_kino_vega_lite!("plot/5")
+
+    handle(
+      loop,
+      event,
+      fn %{
+           metrics: %{^metric => metric},
+           iteration: iteration,
+           epoch: epoch,
+           max_iteration: max_iteration
+         } = state ->
+        iteration = absolute_iteration(iteration, epoch, max_iteration)
+        Kino.VegaLite.push(plot, %{"step" => iteration, "loss" => Nx.to_number(metric)})
+        {:continue, state}
+      end,
+      filter
+    )
+  end
+
+  defp absolute_iteration(iteration, _epoch, -1), do: iteration
+
+  defp absolute_iteration(iteration, epoch, max_iteration),
+    do: epoch * max_iteration + iteration
+
+  defp assert_kino_vega_lite!(fn_name) do
+    unless Code.ensure_loaded?(Kino.VegaLite) do
+      raise RuntimeError, """
+      #{fn_name} depends on the :kino_vega_lite package.
+
+      You can install it by adding
+
+          {:kino_vega_lite, "~> 0.1.7"}
+
+      to your dependency list.
+      """
+    end
+  end
+
+  @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
 
