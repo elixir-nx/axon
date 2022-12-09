@@ -1304,6 +1304,8 @@ defmodule Axon.Loop do
     )
   end
 
+  @compile {:no_warn_undefined, Kino.VegaLite}
+
   @doc """
   Adds a handler function which updates a `VegaLite`.
 
