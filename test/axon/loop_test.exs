@@ -213,7 +213,7 @@ defmodule Axon.LoopTest do
       model_state = init_fn.(inp, %{})
 
       {init_fn, step_fn} = Axon.Loop.eval_step(model)
-      pstate = apply(Nx.Defn.jit(init_fn), [Nx.tensor(1), model_state])
+      pstate = apply(Nx.Defn.jit(init_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, model_state])
 
       # Older versions of the loop API had backend mismatches,
       # so just verify there was a successful result here
@@ -457,6 +457,234 @@ defmodule Axon.LoopTest do
     end
   end
 
+  describe "events" do
+    def run_dummy_loop!(event, epochs, iterations) do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      model
+      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+      |> send_handler(event)
+      |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
+    end
+
+    def send_handler(loop, event) do
+      Axon.Loop.handle(loop, event, fn state ->
+        send(self(), event)
+        {:continue, state}
+      end)
+    end
+
+    test "fires correctly on :started" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:started, 5, 10)
+
+        assert_received :started
+        refute_received :started
+      end)
+    end
+
+    test "fires correctly on :epoch_started" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:epoch_started, 5, 10)
+      end)
+
+      for _ <- 1..5 do
+        assert_received :epoch_started
+      end
+
+      refute_received :epoch_started
+    end
+
+    test "fires correctly on :epoch_completed" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:epoch_completed, 5, 10)
+      end)
+
+      for _ <- 1..5 do
+        assert_received :epoch_completed
+      end
+
+      refute_received :epoch_completed
+    end
+
+    test "fires correctly on :iteration_started" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:iteration_started, 5, 10)
+      end)
+
+      for _ <- 1..50 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+    end
+
+    test "fires correctly on :iteration_completed" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:iteration_completed, 5, 10)
+      end)
+
+      for _ <- 1..50 do
+        assert_received :iteration_completed
+      end
+
+      refute_received :iteration_completed
+    end
+
+    test "fires correctly on :completed" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:completed, 5, 10)
+      end)
+
+      assert_received :completed
+      refute_received :completed
+    end
+
+    test "fires correctly on :epoch_halted" do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.handle(:iteration_completed, fn state ->
+          {:halt_epoch, state}
+        end)
+        |> send_handler(:epoch_halted)
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 10)
+      end)
+
+      for _ <- 1..5 do
+        assert_received :epoch_halted
+      end
+
+      refute_received :epoch_halted
+    end
+
+    test "fires correctly on :halted" do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.handle(:iteration_completed, fn state ->
+          {:halt_loop, state}
+        end)
+        |> send_handler(:halted)
+        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 10)
+      end)
+
+      assert_received :halted
+      refute_received :halted
+    end
+
+    test "events fire in order" do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> send_handler(:started)
+        |> send_handler(:epoch_started)
+        |> send_handler(:iteration_started)
+        |> send_handler(:iteration_completed)
+        |> send_handler(:epoch_completed)
+        |> send_handler(:completed)
+        |> Axon.Loop.run(data, %{}, epochs: 1, iterations: 1)
+      end)
+
+      assert_received :started
+      assert_received :epoch_started
+      assert_received :iteration_started
+      assert_received :iteration_completed
+      assert_received :epoch_completed
+      assert_received :completed
+
+      refute_received _
+    end
+  end
+
+  describe "filters" do
+    def run_dummy_loop!(event, filter, epochs, iterations) do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      model
+      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+      |> send_handler(event, filter)
+      |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
+    end
+
+    def send_handler(loop, event, filter) do
+      Axon.Loop.handle(
+        loop,
+        event,
+        fn state ->
+          send(self(), event)
+          {:continue, state}
+        end,
+        filter
+      )
+    end
+
+    test "supports an :always filter" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:iteration_started, :always, 5, 10)
+      end)
+
+      for _ <- 1..50 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+    end
+
+    test "supports an every: n filter" do
+      ExUnit.CaptureIO.capture_io(fn ->
+        run_dummy_loop!(:iteration_started, [every: 2], 5, 10)
+      end)
+
+      for _ <- 1..25 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+    end
+  end
+
   describe "serialization" do
     test "serialize_state/deserialize_state preserve loop state" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
@@ -493,6 +721,7 @@ defmodule Axon.LoopTest do
   describe "checkpoint" do
     setup do
       File.rm_rf!("checkpoint")
+      File.rm_rf!("checkpoint_custom_path")
 
       loop =
         Axon.input("input", shape: {nil, 1})
@@ -507,7 +736,7 @@ defmodule Axon.LoopTest do
       |> Loop.checkpoint()
       |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
 
-      assert ["checkpoint_0.ckpt", "checkpoint_1.ckpt", "checkpoint_2.ckpt"] ==
+      assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()
     end
 
@@ -518,6 +747,15 @@ defmodule Axon.LoopTest do
 
       assert ["ckp_0.ckpt", "ckp_1.ckpt", "ckp_2.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()
+    end
+
+    test "uses a custom path", %{loop: loop} do
+      loop
+      |> Loop.checkpoint(path: "checkpoint_custom_path")
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
+
+      assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
+               File.ls!("checkpoint_custom_path") |> Enum.sort()
     end
   end
 
@@ -578,6 +816,11 @@ defmodule Axon.LoopTest do
         )
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)
+    end
+
+    test "does not force recompilation after running" do
+      # TODO: I can't come up with a good test for this :(
+      flunk()
     end
   end
 
@@ -764,6 +1007,13 @@ defmodule Axon.LoopTest do
         assert %{scale: lr} = elem(optimizer_state, 0)
         assert_all_close(lr, Nx.tensor(-2.5))
       end)
+    end
+  end
+
+  describe "cache" do
+    test "trainer is always cached after epoch 0, iter 0" do
+      # TODO
+      flunk()
     end
   end
 end
