@@ -1307,11 +1307,11 @@ defmodule Axon.Loop do
   @compile {:no_warn_undefined, Kino.VegaLite}
 
   @doc """
-  Adds a handler function which updates a `VegaLite`.
+  Adds a handler function which updates a `VegaLite` plot.
 
   By default, this will run after every iteration.
 
-  You must specify an empty line plot to push to. By default, this will monitor your loop's loss, but you may specify a different metric. The `:y` axis will be the iteration count, labeled `"step"`. The metric must match the name given to the `:x` axis in your `VegaLite` plot:
+  You must specify a plot to push to and a metric to track. The `:x` axis will be the iteration count, labeled `"step"`. The metric must match the name given to the `:y` axis in your `VegaLite` plot:
 
       plot =
         Vl.new()
@@ -1323,25 +1323,32 @@ defmodule Axon.Loop do
 
       model
       |> Axon.Loop.trainer(loss, optim)
-      |> Axon.Loop.plot(plot)
+      |> Axon.Loop.plot(plot, "loss")
+
+  ## Options
+
+    * `:event` - event to fire handler on. Defaults to `:iteration_completed`.
+
+    * `:filter` - event filter to attach to handler. Defaults to `:always`.
   """
-  def plot(loop, plot, metric \\ "loss", event \\ :iteration_completed, filter \\ :always) do
+  def plot(loop, plot, metric, opts \\ []) do
     assert_kino_vega_lite!("plot/5")
+    opts = Keyword.validate!(opts, [event: :iteration_completed, filter: :always])
 
     handle(
       loop,
-      event,
+      opts[:event],
       fn %{
-           metrics: %{^metric => metric},
+           metrics: %{^metric => metric_value},
            iteration: iteration,
            epoch: epoch,
            max_iteration: max_iteration
          } = state ->
         iteration = absolute_iteration(iteration, epoch, max_iteration)
-        Kino.VegaLite.push(plot, %{"step" => iteration, "loss" => Nx.to_number(metric)})
+        Kino.VegaLite.push(plot, %{"step" => iteration, metric => Nx.to_number(metric_value)})
         {:continue, state}
       end,
-      filter
+      opts[:filter]
     )
   end
 
