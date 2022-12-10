@@ -1333,29 +1333,43 @@ defmodule Axon.Loop do
   """
   def plot(loop, plot, metric, opts \\ []) do
     assert_kino_vega_lite!("plot/5")
-    opts = Keyword.validate!(opts, [event: :iteration_completed, filter: :always])
+
+    opts = Keyword.validate!(opts, event: :iteration_completed, filter: :always)
 
     handle(
       loop,
       opts[:event],
       fn %{
-           metrics: %{^metric => metric_value},
-           iteration: iteration,
-           epoch: epoch,
-           max_iteration: max_iteration
+           metrics: metrics,
+           handler_metadata: handler_meta
          } = state ->
-        iteration = absolute_iteration(iteration, epoch, max_iteration)
-        Kino.VegaLite.push(plot, %{"step" => iteration, metric => Nx.to_number(metric_value)})
-        {:continue, state}
+        unless Map.has_key?(metrics, metric) do
+          raise ArgumentError,
+                "invalid metric to plot, key #{inspect(metric)} not present in metrics"
+        end
+
+        {iteration, handler_meta} = absolute_iteration(handler_meta)
+
+        Kino.VegaLite.push(plot, %{
+          "step" => iteration,
+          metric => Nx.to_number(metrics[metric])
+        })
+
+        {:continue, %{state | handler_metadata: handler_meta}}
       end,
       opts[:filter]
     )
   end
 
-  defp absolute_iteration(iteration, _epoch, -1), do: iteration
+  defp absolute_iteration(
+         %{"plot" => %{"absolute_iteration" => absolute_iteration}} = handler_meta
+       ),
+       do:
+         {absolute_iteration,
+          put_in(handler_meta, ["plot", "absolute_iteration"], absolute_iteration + 1)}
 
-  defp absolute_iteration(iteration, epoch, max_iteration),
-    do: epoch * max_iteration + iteration
+  defp absolute_iteration(handler_meta),
+    do: {0, Map.put(handler_meta, "plot", %{"absolute_iteration" => 1})}
 
   defp assert_kino_vega_lite!(fn_name) do
     unless Code.ensure_loaded?(Kino.VegaLite) do
