@@ -62,17 +62,33 @@ defmodule Axon.Metrics do
       >
 
   """
-  defn accuracy(y_true, y_pred) do
-    if elem(Nx.shape(y_pred), Nx.rank(y_pred) - 1) == 1 do
-      y_pred
-      |> Nx.greater(0.5)
-      |> Nx.equal(y_true)
-      |> Nx.mean()
-    else
-      y_true
-      |> Nx.argmax(axis: -1)
-      |> Nx.equal(Nx.argmax(y_pred, axis: -1))
-      |> Nx.mean()
+  defn accuracy(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, from_logits: false, sparse: false)
+
+    accuracy_transform(y_true, y_pred, opts[:from_logits], opts[:sparse])
+  end
+
+  deftransform accuracy_transform(y_true, y_pred, from_logits, sparse) do
+    case Nx.shape(y_pred) do
+      {_batch, 1} ->
+        y_pred = if from_logits, do: Axon.Activations.sigmoid(y_pred), else: y_pred
+
+        y_true = if sparse, do: y_true, else: Nx.argmax(y_true, axis: -1)
+
+        y_pred
+        |> Nx.greater(0.5)
+        |> Nx.equal(y_true)
+        |> Nx.mean()
+
+      {_batch, _labels} ->
+        y_pred = if from_logits, do: Axon.Activations.softmax(y_pred), else: y_pred
+
+        y_true = if sparse, do: y_true, else: Nx.argmax(y_true, axis: -1)
+
+        y_pred
+        |> Nx.argmax(axis: -1)
+        |> Nx.equal(y_true)
+        |> Nx.mean()
     end
   end
 

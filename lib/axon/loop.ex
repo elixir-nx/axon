@@ -440,18 +440,22 @@ defmodule Axon.Loop do
     steps = opts[:steps]
 
     # TODO: this explodes the graph
-    if Nx.greater_equal(gradient_step, steps - 1) do
-      {updates, new_optimizer_state} =
-        update_optimizer_fn.(gradients, optimizer_state, model_state)
+    {_, new_model_state, _, new_optimizer_state, new_gradient_state, new_gradient_step, _} =
+      while {gradients, model_state, new_state, optimizer_state, gradient_state, gradient_step, flag = Nx.tensor(1)}, flag do
+        if Nx.greater_equal(gradient_step, steps - 1) do
+          {updates, new_optimizer_state} =
+            update_optimizer_fn.(gradients, optimizer_state, model_state)
 
-      new_gradient_state = zeros_like(model_state)
-      new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
-      {new_model_state, new_optimizer_state, new_gradient_state, 0}
-    else
-      acc_gradients = deep_merge(gradient_state, gradients, fn x, y -> x + y end)
-      {model_state, optimizer_state, acc_gradients, gradient_step + 1}
-    end
-    |> inspect_expr()
+          new_gradient_state = zeros_like(model_state)
+          new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+          {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0, Nx.tensor(0)}
+        else
+          acc_gradients = deep_merge(gradient_state, gradients, fn x, y -> x + y end)
+          {gradients, model_state, new_state, optimizer_state, acc_gradients, gradient_step + 1, Nx.tensor(0)}
+        end
+      end
+
+    {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step}
   end
 
   defp raise_bad_training_inputs!(data, state) do
