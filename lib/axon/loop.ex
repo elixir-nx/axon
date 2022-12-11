@@ -1304,6 +1304,87 @@ defmodule Axon.Loop do
     )
   end
 
+  @compile {:no_warn_undefined, Kino.VegaLite}
+
+  @doc """
+  Adds a handler function which updates a `VegaLite` plot.
+
+  By default, this will run after every iteration.
+
+  You must specify a plot to push to and a metric to track. The `:x` axis will be the iteration count, labeled `"step"`. The metric must match the name given to the `:y` axis in your `VegaLite` plot:
+
+      plot =
+        Vl.new()
+        |> Vl.mark(:line)
+        |> Vl.encode_field(:x, "step", type: :quantitative)
+        |> Vl.encode_field(:y, "loss", type: :quantitative)
+        |> Kino.VegaLite.new()
+        |> Kino.render()
+
+      model
+      |> Axon.Loop.trainer(loss, optim)
+      |> Axon.Loop.plot(plot, "loss")
+
+  ## Options
+
+    * `:event` - event to fire handler on. Defaults to `:iteration_completed`.
+
+    * `:filter` - event filter to attach to handler. Defaults to `:always`.
+  """
+  def plot(loop, plot, metric, opts \\ []) do
+    assert_kino_vega_lite!("plot/5")
+
+    opts = Keyword.validate!(opts, event: :iteration_completed, filter: :always)
+
+    handle(
+      loop,
+      opts[:event],
+      fn %{
+           metrics: metrics,
+           handler_metadata: handler_meta
+         } = state ->
+        unless Map.has_key?(metrics, metric) do
+          raise ArgumentError,
+                "invalid metric to plot, key #{inspect(metric)} not present in metrics"
+        end
+
+        {iteration, handler_meta} = absolute_iteration(handler_meta)
+
+        Kino.VegaLite.push(plot, %{
+          "step" => iteration,
+          metric => Nx.to_number(metrics[metric])
+        })
+
+        {:continue, %{state | handler_metadata: handler_meta}}
+      end,
+      opts[:filter]
+    )
+  end
+
+  defp absolute_iteration(
+         %{"plot" => %{"absolute_iteration" => absolute_iteration}} = handler_meta
+       ),
+       do:
+         {absolute_iteration,
+          put_in(handler_meta, ["plot", "absolute_iteration"], absolute_iteration + 1)}
+
+  defp absolute_iteration(handler_meta),
+    do: {0, Map.put(handler_meta, "plot", %{"absolute_iteration" => 1})}
+
+  defp assert_kino_vega_lite!(fn_name) do
+    unless Code.ensure_loaded?(Kino.VegaLite) do
+      raise RuntimeError, """
+      #{fn_name} depends on the :kino_vega_lite package.
+
+      You can install it by adding
+
+          {:kino_vega_lite, "~> 0.1.7"}
+
+      to your dependency list.
+      """
+    end
+  end
+
   @doc """
   Attaches `state` to the given loop in order to resume looping
   from a previous state.
