@@ -39,6 +39,9 @@ defmodule Axon.Loop.State do
   `handler_metadata` is a metadata field for storing loop handler metadata.
   For example, loop checkpoints with specific metric criteria can store
   previous best metrics in the handler meta for use between iterations.
+
+  `event_counts` is a metadata field which stores information about the number
+  of times each event has been fired. This is useful when creating custom filters.
   """
   @enforce_keys [:step_state]
   defstruct [
@@ -49,6 +52,16 @@ defmodule Axon.Loop.State do
     iteration: 0,
     max_iteration: -1,
     metrics: %{},
-    times: %{}
+    times: %{},
+    event_counts: %{
+      started: 0,
+      epoch_started: 0,
+      iteration_started: 0,
+      iteration_completed: 0,
+      epoch_completed: 0,
+      epoch_halted: 0,
+      halted: 0,
+      completed: 0
+    }
   ]
 end
