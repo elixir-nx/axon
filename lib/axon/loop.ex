@@ -1528,6 +1528,10 @@ defmodule Axon.Loop do
       functions. JIT compilation must be used for gradient computations. Defaults
       to true.
 
+    * `:strict?` - whether or not to compile step functions strictly. If this flag
+      is set, the loop will raise on any cache miss during the training loop. Defaults
+      to true.
+
     * `:debug` - run loop in debug mode to trace loop progress. Defaults to
       false.
 
@@ -1538,7 +1542,8 @@ defmodule Axon.Loop do
   def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
-    {jit_compile?, jit_opts} = Keyword.pop(opts, :jit_compile?, true)
+    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
+    {strict?, jit_opts} = Keyword.pop(opts, :strict?, true)
     debug? = Keyword.get(opts, :debug, false)
 
     %Loop{
@@ -1611,7 +1616,7 @@ defmodule Axon.Loop do
           {:halted, final_metrics_map, state}
 
         {:continue, state} ->
-          batch_fn = {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, jit_opts}
+          batch_fn = {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
 
           epoch_start..epoch_end//1
           |> Enum.reduce_while(
@@ -1738,11 +1743,16 @@ defmodule Axon.Loop do
 
           batch_fn =
             case batch_fn do
-              {:non_compiled, batch_fn, jit_compile?, jit_opts} ->
-                if jit_compile? do
-                  Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
-                else
-                  batch_fn
+              {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts} ->
+                cond do
+                  jit_compile? and strict? ->
+                    Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+
+                  jit_compile? ->
+                    Nx.Defn.jit(batch_fn, jit_opts)
+
+                  true ->
+                    batch_fn
                 end
 
               {:compiled, batch_fn} ->

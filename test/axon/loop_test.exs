@@ -387,7 +387,8 @@ defmodule Axon.LoopTest do
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
         %{},
-        epochs: 5
+        epochs: 5,
+        strict?: false
       )
     end
 
@@ -426,7 +427,8 @@ defmodule Axon.LoopTest do
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
         %{},
-        epochs: 5
+        epochs: 5,
+        strict?: false
       )
     end
   end
@@ -817,11 +819,6 @@ defmodule Axon.LoopTest do
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)
     end
-
-    test "does not force recompilation after running" do
-      # TODO: I can't come up with a good test for this :(
-      flunk()
-    end
   end
 
   describe "early_stop" do
@@ -1007,13 +1004,6 @@ defmodule Axon.LoopTest do
         assert %{scale: lr} = elem(optimizer_state, 0)
         assert_all_close(lr, Nx.tensor(-2.5))
       end)
-    end
-  end
-
-  describe "cache" do
-    test "trainer is always cached after epoch 0, iter 0" do
-      # TODO
-      flunk()
     end
   end
 end
