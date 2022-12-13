@@ -63,7 +63,7 @@ defmodule Axon.LossesTest do
         Nx.tensor(0.6024014353752136)
       )
 
-      assert_equal(
+      assert_all_close(
         Axon.Losses.categorical_cross_entropy(y_true, y_pred,
           class_weights: weights,
           reduction: :sum

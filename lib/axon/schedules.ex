@@ -24,6 +24,36 @@ defmodule Axon.Schedules do
   import Nx.Defn
   import Axon.Shared
 
+  @doc """
+  Linear decay schedule.
+
+  ## Options
+
+    * `:init_value` - initial_value. Defaults to `1.0e-2`.
+
+    * `:warmup` - scheduler warmup steps. Defaults to `0`
+
+    * `:steps` - total number of decay steps. Defaults to `1000`
+  """
+  def linear_decay(opts \\ []) do
+    &apply_linear_decay(&1, opts)
+  end
+
+  defnp apply_linear_decay(step, opts \\ []) do
+    opts =
+      keyword!(opts,
+        init_value: 1.0e-2,
+        warmup: 0,
+        steps: 1000
+      )
+
+    if step < opts[:warmup] do
+      step / Nx.max(1, opts[:warmup])
+    else
+      Nx.max(0.0, (opts[:steps] - step) / Nx.max(1, opts[:steps] - opts[:warmup]))
+    end
+  end
+
   @doc ~S"""
   Exponential decay schedule.
 
