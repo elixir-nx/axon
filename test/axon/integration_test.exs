@@ -144,4 +144,44 @@ defmodule Axon.IntegrationTest do
       assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
     end)
   end
+
+  test "deterministic training test" do
+    {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+    train =
+      train
+      |> Stream.map(fn {xs, ys} ->
+        {xs, one_hot(ys, num_classes: 2)}
+      end)
+      |> Enum.to_list()
+
+    model =
+      Axon.input("input")
+      |> Axon.dense(16)
+      |> Axon.dropout(rate: 0.1)
+      |> Axon.dense(2, activation: :softmax)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      %{metrics: metrics1, step_state: step_state1} =
+        model
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3), seed: 1)
+        # TODO: Fix default output transform
+        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, train)
+        |> Axon.Loop.run(train, %{}, epochs: 10)
+
+      %{metrics: metrics2, step_state: step_state2} =
+        model
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3), seed: 1)
+        # TODO: Fix default output transform
+        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, train)
+        |> Axon.Loop.run(train, %{}, epochs: 10)
+
+      assert_equal(metrics1, metrics2)
+      assert_equal(step_state1, step_state2)
+    end)
+  end
 end
