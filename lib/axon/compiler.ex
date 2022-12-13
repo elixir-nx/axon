@@ -470,8 +470,6 @@ defmodule Axon.Compiler do
     {id, {Map.put(cache, id, model_funs), op_counts}}
   end
 
-  @dropout_layers [:dropout, :spatial_dropout, :feature_alpha_dropout, :alpha_dropout]
-
   defp recur_model_funs(
          %Axon.Node{
            id: id,
@@ -526,7 +524,6 @@ defmodule Axon.Compiler do
         layer_params,
         hooks,
         mode,
-        key,
         stacktrace
       )
 
@@ -606,7 +603,6 @@ defmodule Axon.Compiler do
          layer_params,
          hooks,
          mode,
-         key,
          layer_stacktrace
        ) do
     # Recurse graph inputs and invoke cache to get parent results,
@@ -646,18 +642,23 @@ defmodule Axon.Compiler do
       # parameter map, so we just need to extract them and then apply
       # freezing and dtype policy
       parameter_inputs =
-        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
+        Enum.map(layer_params, fn %{type: type, name: v, frozen: frz} ->
           param = params[name][v]
 
-          if param != nil do
-            safe_as_type(maybe_freeze(param, frz), compute)
-          else
-            raise ArgumentError,
-                  "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
-                    " was not present in the given parameter map, this can" <>
-                    " happen if you are using parameters intended for another" <>
-                    " model or did not initialize portions of your model with" <>
-                    " Axon.init/3"
+          cond do
+            param != nil and should_cast?(type, compute) ->
+              safe_as_type(maybe_freeze(param, frz), compute)
+
+            param != nil ->
+              maybe_freeze(param, frz)
+
+            true ->
+              raise ArgumentError,
+                    "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
+                      " was not present in the given parameter map, this can" <>
+                      " happen if you are using parameters intended for another" <>
+                      " model or did not initialize portions of your model with" <>
+                      " Axon.init/3"
           end
         end)
 
@@ -671,16 +672,6 @@ defmodule Axon.Compiler do
           :parameter, {layer_inputs, [param | rest], inputs} ->
             {layer_inputs, rest, [param | inputs]}
         end)
-
-      # TODO: Hack for dropout with key, fix with a better implementation
-      opts =
-        if op in @dropout_layers do
-          <<data::unsigned-size(32), _rest::binary>> = :erlang.md5(name)
-          dropout_key = Nx.Random.fold_in(key, data)
-          opts ++ [key: dropout_key]
-        else
-          opts
-        end
 
       # Compute arguments to be forwarded and ensure `:mode` is included
       # for inference/training behavior dependent functions
@@ -885,6 +876,10 @@ defmodule Axon.Compiler do
       container ->
         deep_new(container, &Nx.as_type(&1, type))
     end
+  end
+
+  defp should_cast?(type1, type2) do
+    not Nx.Type.integer?(type1) and not Nx.Type.integer?(type2)
   end
 
   defp safe_shape(container_or_tensor) do

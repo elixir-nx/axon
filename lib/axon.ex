@@ -336,8 +336,9 @@ defmodule Axon do
   @doc type: :special
   def param(name, shape, opts \\ [])
       when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform)
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32})
     initializer = validate_initializer!(opts[:initializer])
+    type = opts[:type] || {:f, 32}
 
     id = System.unique_integer([:positive, :monotonic])
 
@@ -345,6 +346,7 @@ defmodule Axon do
       id: id,
       name: name,
       shape: shape,
+      type: type,
       initializer: initializer
     }
   end
@@ -1382,14 +1384,19 @@ defmodule Axon do
   end
 
   defp dropout(%Axon{} = x, dropout, opts) do
-    opts = Keyword.validate!(opts, [:name, rate: 0.5])
+    opts = Keyword.validate!(opts, [:name, :seed, rate: 0.5])
+    seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.Defn.Expr)
 
     if opts[:rate] < 0 or opts[:rate] >= 1 do
       raise ArgumentError,
             "The dropout rate needs to be >= 0 and < 1, got #{inspect(opts[:rate])}"
     end
 
-    layer(dropout, [x],
+    key_state =
+      param("key", fn _ -> Nx.shape(key) end, type: {:u, 32}, initializer: fn _, _ -> key end)
+
+    layer(dropout, [x, key_state],
       name: opts[:name],
       rate: opts[:rate],
       op_name: dropout

@@ -1015,14 +1015,59 @@ defmodule CompilerTest do
   @dropout_layers [:dropout, :feature_alpha_dropout, :spatial_dropout, :alpha_dropout]
 
   describe "dropout" do
-    test "initializes with no params" do
+    test "initializes with key" do
       for dropout <- @dropout_layers do
-        model = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
+        model =
+          apply(Axon, dropout, [
+            Axon.input("input", shape: {nil, 1, 32}),
+            [name: "dropout", seed: 0]
+          ])
 
         input = Nx.random_uniform({1, 1, 32})
 
         assert {init_fn, _predict_fn} = Axon.build(model)
-        assert %{} = init_fn.(input, %{})
+        assert %{"dropout" => %{"key" => key}} = init_fn.(input, %{})
+        assert_equal(key, Nx.Random.key(0))
+      end
+    end
+
+    test "same key results in same mask" do
+      for dropout <- @dropout_layers do
+        model =
+          apply(Axon, dropout, [
+            Axon.input("input", shape: {nil, 1, 32}),
+            [name: "dropout", seed: 0]
+          ])
+
+        input = Nx.random_uniform({1, 1, 32})
+
+        assert {init_fn, predict_fn} = Axon.build(model, mode: :train)
+
+        params = init_fn.(input, %{})
+        result1 = predict_fn.(params, input)
+        result2 = predict_fn.(params, input)
+
+        assert_equal(result1, result2)
+      end
+    end
+
+    test "does not return same mask with updated key in training mode" do
+      for dropout <- @dropout_layers do
+        model =
+          apply(Axon, dropout, [
+            Axon.input("input", shape: {nil, 32, 32}),
+            [rate: 0.5, name: "dropout", seed: 0]
+          ])
+
+        input = Nx.random_uniform({1, 16, 32})
+
+        assert {init_fn, predict_fn} = Axon.build(model, mode: :train)
+
+        params = init_fn.(input, %{})
+        %{prediction: result1, state: new_state} = predict_fn.(params, input)
+        %{prediction: result2} = predict_fn.(new_state, input)
+
+        assert_not_equal(result1, result2)
       end
     end
 
@@ -1031,8 +1076,8 @@ defmodule CompilerTest do
         model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.build(model1, mode: :train)
-        %{prediction: result1} = predict_fn.(%{}, input1)
+        assert {init_fn, predict_fn} = Axon.build(model1, mode: :train)
+        %{prediction: result1} = predict_fn.(init_fn.(input1, %{}), input1)
 
         assert Nx.shape(result1) == {1, 1, 32}
         assert Nx.type(result1) == {:f, 32}
@@ -1041,8 +1086,8 @@ defmodule CompilerTest do
         model2 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 8, 4})])
         input2 = Nx.random_uniform({1, 1, 8, 4}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.build(model2, mode: :train)
-        %{prediction: result2} = predict_fn.(%{}, input2)
+        assert {init_fn, predict_fn} = Axon.build(model2, mode: :train)
+        %{prediction: result2} = predict_fn.(init_fn.(input2, %{}), input2)
 
         assert Nx.shape(result2) == {1, 1, 8, 4}
         assert Nx.type(result2) == {:f, 32}
@@ -1051,8 +1096,8 @@ defmodule CompilerTest do
         model3 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 8, 4, 2})])
         input3 = Nx.random_uniform({1, 1, 8, 4, 2}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.build(model3, mode: :train)
-        %{prediction: result3} = predict_fn.(%{}, input3)
+        assert {init_fn, predict_fn} = Axon.build(model3, mode: :train)
+        %{prediction: result3} = predict_fn.(init_fn.(input3, %{}), input3)
 
         assert Nx.shape(result3) == {1, 1, 8, 4, 2}
         assert Nx.type(result3) == {:f, 32}
@@ -1066,9 +1111,9 @@ defmodule CompilerTest do
         model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32}), opts1])
         input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
 
-        assert {_, predict_fn} = Axon.build(model1, mode: :train)
+        assert {init_fn, predict_fn} = Axon.build(model1, mode: :train)
 
-        %{prediction: result} = predict_fn.(%{}, input1)
+        %{prediction: result} = predict_fn.(init_fn.(input1, %{}), input1)
 
         assert Nx.shape(result) == {1, 1, 32}
         assert Nx.type(result) == {:f, 32}
@@ -1094,7 +1139,8 @@ defmodule CompilerTest do
         model = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
         input = Nx.random_uniform({1, 1, 32})
 
-        assert_equal(Axon.predict(model, %{}, input), input)
+        {init_fn, predict_fn} = Axon.build(model)
+        assert_equal(predict_fn.(init_fn.(input, %{}), input), input)
       end
     end
   end
