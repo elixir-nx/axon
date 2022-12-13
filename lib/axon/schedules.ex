@@ -29,14 +29,12 @@ defmodule Axon.Schedules do
 
   ## Options
 
-    * `:init_value` - initial_value. Defaults to `1.0e-2`.
-
     * `:warmup` - scheduler warmup steps. Defaults to `0`
 
     * `:steps` - total number of decay steps. Defaults to `1000`
   """
-  def linear_decay(opts \\ []) do
-    &apply_linear_decay(&1, opts)
+  def linear_decay(init_value, opts \\ []) do
+    &apply_linear_decay(&1, [{:init_value, init_value} | opts])
   end
 
   defnp apply_linear_decay(step, opts \\ []) do
@@ -61,18 +59,19 @@ defmodule Axon.Schedules do
 
   ## Options
 
-    * `:init_value` - initial value. $\gamma$ in above formulation.
-      Defaults to `1.0e-2`
     * `:decay_rate` - rate of decay. $r$ in above formulation.
       Defaults to `0.95`
+
     * `:transition_steps` - steps per transition. $k$ in above
       formulation. Defaults to `10`
+
     * `:transition_begin` - step to begin transition. Defaults to `0`
+
     * `:staircase` - discretize outputs. Defaults to `false`
 
   """
-  def exponential_decay(opts \\ []) do
-    &apply_exponential_decay(&1, opts)
+  def exponential_decay(init_value, opts \\ []) do
+    &apply_exponential_decay(&1, [{:init_value, init_value} | opts])
   end
 
   defnp apply_exponential_decay(step, opts \\ []) do
@@ -122,10 +121,9 @@ defmodule Axon.Schedules do
 
   ## Options
 
-    * `:init_value` - initial value. $\gamma_0$  in above formulation.
-      Defaults to `1.0e-2`
     * `:decay_steps` - number of steps to apply decay for.
       $k$ in above formulation. Defaults to `10`
+
     * `:alpha` - minimum value of multiplier adjusting learning rate.
       $\alpha$ in above formulation. Defaults to `0.0`
 
@@ -134,8 +132,8 @@ defmodule Axon.Schedules do
     * [SGDR: Stochastic Gradient Descent with Warm Restarts](https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx)
 
   """
-  def cosine_decay(opts \\ []) do
-    &apply_cosine_decay(&1, opts)
+  def cosine_decay(init_value, opts \\ []) do
+    &apply_cosine_decay(&1, [{:init_value, init_value} | opts])
   end
 
   defnp apply_cosine_decay(step, opts \\ []) do
@@ -161,14 +159,9 @@ defmodule Axon.Schedules do
 
   $$\gamma(t) = \gamma_0$$
 
-  ## Options
-
-    * `:init_value` - initial value. $\gamma_0$ in above formulation.
-      Defaults to `1.0e-2`
-
   """
-  def constant(opts \\ []) do
-    &apply_constant(&1, opts)
+  def constant(init_value, opts \\ []) do
+    &apply_constant(&1, [{:init_value, init_value} | opts])
   end
 
   defnp apply_constant(_step, opts \\ []) do
@@ -183,17 +176,17 @@ defmodule Axon.Schedules do
 
   ## Options
 
-    * `:init_value` - initial value. $\gamma_0$ in above formulation.
-      Defaults to `1.0e-2`
     * `:end_value` - end value of annealed scalar. $\gamma_n$ in above formulation.
       Defaults to `1.0e-3`
+
     * `:power` - power of polynomial. $p$ in above formulation. Defaults to `2`
+
     * `:transition_steps` - number of steps over which annealing takes place.
       $k$ in above formulation. Defaults to `10`
 
   """
-  def polynomial_decay(opts \\ []) do
-    &apply_polynomial_decay(&1, opts)
+  def polynomial_decay(init_value, opts \\ []) do
+    &apply_polynomial_decay(&1, [{:init_value, init_value} | opts])
   end
 
   defnp apply_polynomial_decay(step, opts \\ []) do
