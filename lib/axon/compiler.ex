@@ -42,11 +42,12 @@ defmodule Axon.Compiler do
         to_model_funs(id, nodes, {%{}, %{}}, mode, key)
       end)
 
-    cache = Map.new(cache, fn {_, {int_id, value}} -> {int_id, value} end)
-
     if debug? do
       Logger.debug("Axon finished graph traversal in #{us_to_ms(time)}ms")
     end
+
+    predict_cache =
+      Map.new(cache, fn {_, {int_id, %{predict: predict}}} -> {int_id, %{predict: predict}} end)
 
     predict_fun = fn params, inputs ->
       {:current_stacktrace, [_process_info, _fn | stacktrace]} =
@@ -57,13 +58,27 @@ defmodule Axon.Compiler do
           case mode do
             :train ->
               {pred_expr, {state_expr, _}} =
-                cache[root_id][:predict].(params, inputs, %{}, cache, %{}, stacktrace)
+                predict_cache[root_id][:predict].(
+                  params,
+                  inputs,
+                  %{},
+                  predict_cache,
+                  %{},
+                  stacktrace
+                )
 
               %{prediction: pred_expr, state: state_expr}
 
             :inference ->
               {pred_expr, _} =
-                cache[root_id][:predict].(params, inputs, %{}, cache, %{}, stacktrace)
+                predict_cache[root_id][:predict].(
+                  params,
+                  inputs,
+                  %{},
+                  predict_cache,
+                  %{},
+                  stacktrace
+                )
 
               pred_expr
           end
@@ -83,6 +98,7 @@ defmodule Axon.Compiler do
       result
     end
 
+    init_cache = Map.new(cache, fn {_, {int_id, funs}} -> {int_id, funs} end)
     key = Nx.backend_copy(key, Nx.Defn.Expr)
 
     init_fun = fn template, init_params ->
@@ -92,7 +108,10 @@ defmodule Axon.Compiler do
       {time, params} =
         :timer.tc(fn ->
           param_keys = get_keys(nodes, key)
-          {_, {params, _}} = cache[root_id][:init].(template, cache, %{}, stacktrace, param_keys)
+
+          {_, {params, _}} =
+            init_cache[root_id][:init].(template, init_cache, %{}, stacktrace, param_keys)
+
           params
         end)
 
@@ -118,21 +137,21 @@ defmodule Axon.Compiler do
           keys =
             Enum.reduce(params, keys, fn
               %Axon.Parameter{name: param_name, initializer: fun}, keys ->
-              {:arity, arity} = Function.info(fun, :arity)
+                {:arity, arity} = Function.info(fun, :arity)
 
-              cond do
-                arity == 2 ->
-                  keys
+                cond do
+                  arity == 2 ->
+                    keys
 
-                arity == 3 ->
-                  <<data::unsigned-size(32), _rest::binary>> =
-                    :erlang.md5(name <> "." <> param_name)
+                  arity == 3 ->
+                    <<data::unsigned-size(32), _rest::binary>> =
+                      :erlang.md5(name <> "." <> param_name)
 
-                  [{{id, param_name}, data} | keys]
+                    [{{id, param_name}, data} | keys]
 
-                true ->
-                  raise ArgumentError, "bad initializer arity"
-              end
+                  true ->
+                    raise ArgumentError, "bad initializer arity"
+                end
             end)
 
           {keys, op_counts}
@@ -240,7 +259,8 @@ defmodule Axon.Compiler do
          {cache, op_counts},
          mode,
          key
-        ) when node_mode != :both and node_mode != mode do
+       )
+       when node_mode != :both and node_mode != mode do
     recur_model_funs(nodes[parent], nodes, {cache, op_counts}, mode, key)
   end
 
