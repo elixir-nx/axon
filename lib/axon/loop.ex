@@ -1616,7 +1616,8 @@ defmodule Axon.Loop do
           {:halted, final_metrics_map, state}
 
         {:continue, state} ->
-          batch_fn = {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
+          batch_fn =
+            {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
 
           epoch_start..epoch_end//1
           |> Enum.reduce_while(

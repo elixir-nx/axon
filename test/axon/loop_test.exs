@@ -308,8 +308,8 @@ defmodule Axon.LoopTest do
       # Torchx cannot compute u64-output sum, so we need to force a signed type
       output = %{
         foo: 1,
-        y_true: Nx.tensor([1, 0, 1]),
-        y_pred: Nx.tensor([0.8, 0.2, 0.8])
+        y_true: Nx.tensor([[1, 0, 1]]),
+        y_pred: Nx.tensor([[0.8, 0.2, 0.8]])
       }
 
       cur_avg_acc = 0.5
@@ -941,7 +941,7 @@ defmodule Axon.LoopTest do
     end
 
     test "reduces stateful learning rate by factor with mode min" do
-      initial_lr = 10
+      initial_lr = 10.0
 
       model = Axon.input("input") |> Axon.dense(1)
 
@@ -974,7 +974,7 @@ defmodule Axon.LoopTest do
     end
 
     test "reduces stateful learning rate by factor with mode max" do
-      initial_lr = 10
+      initial_lr = 10.0
 
       model = Axon.input("input") |> Axon.dense(1)
 

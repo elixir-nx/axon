@@ -73,8 +73,6 @@ defmodule Axon.Metrics do
       {_batch, 1} ->
         y_pred = if from_logits, do: Axon.Activations.sigmoid(y_pred), else: y_pred
 
-        y_true = if sparse, do: y_true, else: Nx.argmax(y_true, axis: -1)
-
         y_pred
         |> Nx.greater(0.5)
         |> Nx.equal(y_true)

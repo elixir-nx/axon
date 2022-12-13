@@ -31,3 +31,4 @@ examples/vision/humans/
 /config/
 
 /checkpoint/
+/checkpoint_custom_path/
