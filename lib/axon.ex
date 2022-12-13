@@ -2879,51 +2879,44 @@ defmodule Axon do
   the update process.
   """
   @doc type: :model
-  def freeze(%Axon{} = model, fun_or_predicate \\ :all) do
-    parameters_per_layer =
-      reduce_nodes(model, [], fn %Axon.Node{parameters: params}, acc ->
-        layer_params =
-          Enum.reduce(params, [], fn param, inner_acc ->
-            [param | inner_acc]
-          end)
+  def freeze(model, fun_or_predicate \\ :all) do
+    freeze(model, fun_or_predicate, true)
+  end
 
-        [layer_params | acc]
-      end)
+  defp freeze(%Axon{output: id, nodes: nodes} = axon, fun_or_predicate, flag) do
+    {nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
 
-    parameters_to_freeze =
+    nodes =
       case fun_or_predicate do
         :all ->
-          List.flatten(parameters_per_layer)
+          freeze_nodes(nodes, flag)
 
         [{:up, n}] ->
-          parameters_per_layer
-          |> Enum.reverse()
-          |> Enum.take(n)
-          |> List.flatten()
+          {pre, post} = Enum.split(nodes, n)
+          freeze_nodes(pre, flag) ++ post
 
         [{:down, n}] ->
-          parameters_per_layer
-          |> Enum.reverse()
-          |> Enum.drop(n)
-          |> List.flatten()
+          {pre, post} = Enum.split(nodes, -n)
+          pre ++ freeze_nodes(post, flag)
 
         fun ->
-          parameters_per_layer
-          |> List.flatten()
-          |> Enum.filter(fun)
+          Enum.map(nodes, fn %Axon.Node{parameters: params} = axon_node ->
+            %{
+              axon_node
+              | parameters:
+                  Enum.map(params, fn p ->
+                    if fun.(p), do: %{p | frozen: flag}, else: p
+                  end)
+            }
+          end)
       end
 
-    map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
-      frozen_params =
-        Enum.map(params, fn %{name: param_name} = v ->
-          if Enum.any?(parameters_to_freeze, fn %{name: name} -> param_name == name end) do
-            %{v | frozen: true}
-          else
-            v
-          end
-        end)
+    %{axon | nodes: Map.new(nodes, fn %{id: id} = node -> {id, node} end)}
+  end
 
-      %{axon_node | parameters: frozen_params}
+  defp freeze_nodes(nodes, flag) do
+    Enum.map(nodes, fn %Axon.Node{parameters: params} = axon_node ->
+      %{axon_node | parameters: Enum.map(params, fn p -> %{p | frozen: flag} end)}
     end)
   end
 
@@ -2958,52 +2951,8 @@ defmodule Axon do
   the update process.
   """
   @doc type: :model
-  def unfreeze(%Axon{} = model, fun_or_predicate \\ :all) do
-    parameters_per_layer =
-      reduce_nodes(model, [], fn %Axon.Node{parameters: params}, acc ->
-        layer_params =
-          Enum.reduce(params, [], fn param, inner_acc ->
-            [param | inner_acc]
-          end)
-
-        [layer_params | acc]
-      end)
-
-    parameters_to_freeze =
-      case fun_or_predicate do
-        :all ->
-          List.flatten(parameters_per_layer)
-
-        [{:up, n}] ->
-          parameters_per_layer
-          |> Enum.reverse()
-          |> Enum.take(n)
-          |> List.flatten()
-
-        [{:down, n}] ->
-          parameters_per_layer
-          |> Enum.reverse()
-          |> Enum.drop(n)
-          |> List.flatten()
-
-        fun ->
-          parameters_per_layer
-          |> List.flatten()
-          |> Enum.filter(fun)
-      end
-
-    map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
-      frozen_params =
-        Enum.map(params, fn %{name: param_name} = v ->
-          if Enum.any?(parameters_to_freeze, fn %{name: name} -> param_name == name end) do
-            %{v | frozen: false}
-          else
-            v
-          end
-        end)
-
-      %{axon_node | parameters: frozen_params}
-    end)
+  def unfreeze(model, fun_or_predicate \\ :all) do
+    freeze(model, fun_or_predicate, false)
   end
 
   @doc """

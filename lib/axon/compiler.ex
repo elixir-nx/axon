@@ -36,9 +36,9 @@ defmodule Axon.Compiler do
     key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
     key = Nx.backend_copy(key, Nx.Defn.Expr)
 
+    # TODO: Key should not be part of model funs because it is not deterministic
+    # Once we remove it here, we should change Nx.backend_copy above to Nx.BinaryBackend
     {time, {root_id, {cache, _op_counts}}} =
-      # TODO: Key should not be part of model funs because it is not deterministic
-      # Once we remove it here, we should change Nx.backend_copy above to Nx.BinaryBackend
       :timer.tc(fn ->
         to_model_funs(id, nodes, {%{}, %{}}, mode, key)
       end)
