@@ -24,7 +24,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.adabelief(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.adabelief(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -53,7 +53,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.adagrad(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.adagrad(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -82,7 +82,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.adam(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.adam(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -111,7 +111,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.adamw(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.adamw(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -140,7 +140,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.lamb(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.lamb(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor([1.0])}
@@ -169,7 +169,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.noisy_sgd(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.noisy_sgd(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -198,7 +198,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.radam(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.radam(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -249,7 +249,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.rmsprop(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.rmsprop(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -278,7 +278,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.sgd(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.sgd(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
@@ -307,7 +307,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with schedule" do
-      optimizer = Axon.Optimizers.yogi(Axon.Schedules.constant(init_value: @learning_rate))
+      optimizer = Axon.Optimizers.yogi(Axon.Schedules.constant(@learning_rate))
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor(1.0)}
