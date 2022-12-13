@@ -340,10 +340,7 @@ defmodule Axon do
     initializer = validate_initializer!(opts[:initializer])
     type = opts[:type] || {:f, 32}
 
-    id = System.unique_integer([:positive, :monotonic])
-
     %Axon.Parameter{
-      id: id,
       name: name,
       shape: shape,
       type: type,
@@ -2729,7 +2726,8 @@ defmodule Axon do
 
   defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer) do
     initializer = initializer || :glorot_uniform
-    key = Nx.Random.key(:erlang.system_time()) |> Nx.backend_copy(Nx.Defn.Expr)
+    # TODO: This key should be managed by the compiler
+    key = Nx.Random.key(:erlang.system_time()) |> Nx.backend_copy(Nx.BinaryBackend)
 
     name =
       case parent_name do
@@ -2917,8 +2915,8 @@ defmodule Axon do
 
     map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
       frozen_params =
-        Enum.map(params, fn %{id: param_id} = v ->
-          if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
+        Enum.map(params, fn %{name: param_name} = v ->
+          if Enum.any?(parameters_to_freeze, fn %{name: name} -> param_name == name end) do
             %{v | frozen: true}
           else
             v
@@ -2996,8 +2994,8 @@ defmodule Axon do
 
     map_nodes(model, fn %Axon.Node{parameters: params} = axon_node ->
       frozen_params =
-        Enum.map(params, fn %{id: param_id} = v ->
-          if Enum.any?(parameters_to_freeze, fn %{id: id} -> param_id == id end) do
+        Enum.map(params, fn %{name: param_name} = v ->
+          if Enum.any?(parameters_to_freeze, fn %{name: name} -> param_name == name end) do
             %{v | frozen: false}
           else
             v

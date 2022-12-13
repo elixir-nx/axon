@@ -37,6 +37,8 @@ defmodule Axon.Compiler do
     key = Nx.backend_copy(key, Nx.Defn.Expr)
 
     {time, {root_id, {cache, _op_counts}}} =
+      # TODO: Key should not be part of model funs because it is not deterministic
+      # Once we remove it here, we should change Nx.backend_copy above to Nx.BinaryBackend
       :timer.tc(fn ->
         to_model_funs(id, nodes, {%{}, %{}}, mode, key)
       end)
@@ -234,8 +236,7 @@ defmodule Axon.Compiler do
          _
        ) do
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
-
-    tensor = Nx.backend_copy(tensor, Nx.Defn.Expr)
+    tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
 
     predict_fun = fn _params, _inputs, state, _cache, result_cache, _fn_stacktrace ->
       out = safe_as_type(tensor, output)

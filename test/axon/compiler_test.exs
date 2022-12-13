@@ -5250,4 +5250,13 @@ defmodule CompilerTest do
       )
     end
   end
+
+  describe "determinism" do
+    test "builds the same model multiple times" do
+      builder = fn -> Axon.input("input", shape: {nil, 784}) |> Axon.dense(128) end
+      {_, predict_fn1} = Axon.Compiler.build(builder.(), [])
+      {_, predict_fn2} = Axon.Compiler.build(builder.(), [])
+      assert predict_fn1 == predict_fn2
+    end
+  end
 end
