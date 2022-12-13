@@ -271,8 +271,8 @@ defmodule Axon do
     {name, opts} = Keyword.pop(opts, :name)
     {op_name, layer_opts} = Keyword.pop(opts, :op_name, :custom)
 
-    {id, name} = unique_identifiers(op_name, name)
-
+    id = System.unique_integer([:positive, :monotonic])
+    name = name(op_name, name)
     axon_node = make_node(id, op, name, op_name, inputs, params, args, layer_opts)
 
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
@@ -3729,27 +3729,22 @@ defmodule Axon do
   # Names are generated lazily at inspect, initialization, and compile
   # time, so for name we return a function which takes `op` and `op_count`
   # and returns a unique name for the given model.
-  defp unique_identifiers(type, nil) do
-    id = System.unique_integer([:positive, :monotonic])
-
-    name = fn op, op_counts ->
+  defp name(type, nil) do
+    fn op, op_counts ->
       count = op_counts[op] || 0
       Atom.to_string(type) <> "_#{count}"
     end
-
-    {id, name}
   end
 
-  defp unique_identifiers(_type, name_fn) when is_function(name_fn, 2) do
-    id = System.unique_integer([:positive, :monotonic])
-    {id, name_fn}
+  defp name(_type, name_fn) when is_function(name_fn, 2) do
+    name_fn
   end
 
-  defp unique_identifiers(_type, name) when is_binary(name) do
-    {System.unique_integer([:positive, :monotonic]), fn _, _ -> name end}
+  defp name(_type, name) when is_binary(name) do
+    fn _, _ -> name end
   end
 
-  defp unique_identifiers(_, name) do
+  defp name(_type, name) do
     raise ArgumentError,
           "expected layer name to be a binary, a function or nil, " <>
             "got: #{inspect(name)}"
