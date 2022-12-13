@@ -43,6 +43,8 @@ defmodule Axon.Compiler do
         to_model_funs(id, nodes, {%{}, %{}}, mode, key)
       end)
 
+    cache = Map.new(cache, fn {_, {int_id, value}} -> {int_id, value} end)
+
     if debug? do
       Logger.debug("Axon finished graph traversal in #{us_to_ms(time)}ms")
     end
@@ -186,11 +188,15 @@ defmodule Axon.Compiler do
 
   defp to_model_funs(id, nodes, {cache, op_counts}, mode, key) do
     case cache do
-      %{^id => _} ->
-        {id, {cache, op_counts}}
+      %{^id => {int_id, _}} ->
+        {int_id, {cache, op_counts}}
 
       %{} ->
-        recur_model_funs(nodes[id], nodes, {cache, op_counts}, mode, key)
+        {id, model_funs, cache, op_counts} =
+          recur_model_funs(nodes[id], nodes, {cache, op_counts}, mode, key)
+
+        int_id = map_size(cache)
+        {int_id, {Map.put(cache, id, {int_id, model_funs}), op_counts}}
     end
   end
 
@@ -249,7 +255,7 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -289,7 +295,7 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -321,7 +327,7 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -389,7 +395,7 @@ defmodule Axon.Compiler do
 
     model_funs = %{predict: predict_fun, init: init_fun}
 
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -466,9 +472,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-
-    # Then we return the cache, op_counts, and original namespace
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -545,7 +549,7 @@ defmodule Axon.Compiler do
       )
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, {Map.put(cache, id, model_funs), op_counts}}
+    {id, model_funs, cache, op_counts}
   end
 
   defp get_input(inputs, name, optional?) do
