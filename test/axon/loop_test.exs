@@ -645,7 +645,7 @@ defmodule Axon.LoopTest do
         end)
 
       model
-      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd, :identity, log: -1)
       |> send_handler(event, filter)
       |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
     end
@@ -663,9 +663,7 @@ defmodule Axon.LoopTest do
     end
 
     test "supports an :always filter" do
-      ExUnit.CaptureIO.capture_io(fn ->
-        run_dummy_loop!(:iteration_started, :always, 5, 10)
-      end)
+      run_dummy_loop!(:iteration_started, :always, 5, 10)
 
       for _ <- 1..50 do
         assert_received :iteration_started
@@ -675,14 +673,96 @@ defmodule Axon.LoopTest do
     end
 
     test "supports an every: n filter" do
-      ExUnit.CaptureIO.capture_io(fn ->
-        run_dummy_loop!(:iteration_started, [every: 2], 5, 10)
-      end)
+      run_dummy_loop!(:iteration_started, [every: 2], 5, 10)
 
       for _ <- 1..25 do
         assert_received :iteration_started
       end
 
+      refute_received :iteration_started
+
+      run_dummy_loop!(:iteration_completed, [every: 3], 3, 10)
+
+      for _ <- 1..10 do
+        assert_received :iteration_completed
+      end
+
+      refute_received :iteration_completed
+    end
+
+    test "supports after: n filter" do
+      run_dummy_loop!(:iteration_started, [after: 10], 5, 10)
+
+      for _ <- 1..40 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+
+      run_dummy_loop!(:iteration_completed, [after: 10], 5, 10)
+
+      for _ <- 1..40 do
+        assert_received :iteration_completed
+      end
+
+      refute_received :iteration_completed
+    end
+
+    test "supports before: n filter" do
+      run_dummy_loop!(:iteration_started, [before: 10], 5, 10)
+
+      for _ <- 1..9 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+
+      run_dummy_loop!(:iteration_completed, [before: 10], 5, 10)
+
+      for _ <- 1..9 do
+        assert_received :iteration_completed
+      end
+
+      refute_received :iteration_completed
+    end
+
+    test "supports once: n filter" do
+      run_dummy_loop!(:iteration_started, [once: 30], 5, 10)
+
+      assert_received :iteration_started
+      refute_received :iteration_started
+
+      run_dummy_loop!(:iteration_completed, [once: 30], 5, 10)
+
+      assert_received :iteration_completed
+      refute_received :iteration_completed
+    end
+
+    test "supports hybrid filter" do
+      run_dummy_loop!(:iteration_started, [every: 2, after: 10, before: 40], 5, 10)
+
+      for _ <- 1..15 do
+        assert_received :iteration_started
+      end
+
+      refute_received :iteration_started
+    end
+
+    test "supports :first filter" do
+      run_dummy_loop!(:iteration_started, :first, 5, 10)
+
+      assert_received :iteration_started
+      refute_received :iteration_started
+    end
+
+    test "supports function filter" do
+      fun = fn
+        %{event_counts: counts}, event -> counts[event] == 5
+      end
+
+      run_dummy_loop!(:iteration_started, fun, 5, 10)
+
+      assert_received :iteration_started
       refute_received :iteration_started
     end
   end
@@ -814,7 +894,7 @@ defmodule Axon.LoopTest do
             assert Map.has_key?(metrics, "validation_accuracy")
             {:continue, state}
           end,
-          fn %{epoch: epoch} -> epoch == 1 end
+          fn %{epoch: epoch}, _ -> epoch == 1 end
         )
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)
@@ -846,7 +926,7 @@ defmodule Axon.LoopTest do
 
             {:continue, state}
           end,
-          fn %{epoch: epoch} -> epoch == 1 end
+          fn %{epoch: epoch}, _ -> epoch == 1 end
         )
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)
@@ -934,7 +1014,7 @@ defmodule Axon.LoopTest do
 
             {:continue, state}
           end,
-          fn %{epoch: epoch} -> epoch == 1 end
+          fn %{epoch: epoch}, _ -> epoch == 1 end
         )
         |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
       end)

@@ -1868,7 +1868,9 @@ defmodule Axon.Loop do
         Logger.debug("Axon.Loop fired event #{inspect(event)}")
       end
 
-      if filter.(state) do
+      state = update_counts(state, event)
+
+      if filter.(state, event) do
         case handler.(state) do
           {:continue, %State{} = state} ->
             if debug? do
@@ -1906,6 +1908,10 @@ defmodule Axon.Loop do
         {:cont, {:continue, state}}
       end
     end)
+  end
+
+  defp update_counts(%State{event_counts: event_counts} = state, event) do
+    %{state | event_counts: Map.update(event_counts, event, 1, fn x -> x + 1 end)}
   end
 
   # Halts an epoch during looping
@@ -2155,28 +2161,42 @@ defmodule Axon.Loop do
   # Builds a filter function from an atom, keyword list, or function. A
   # valid filter is an atom which matches on of the valid predicates `:always`
   # or `:once`, a keyword which matches one of the valid predicate-value pairs
-  # such as `every: N`, or a function which takes loop state and returns `true`
-  # or `false`.
-  #
-  # TODO(seanmor5): In order to handle custom events and predicate filters,
-  # we will need to track event firings in the loop state.
+  # such as `every: N`, or a function which takes loop state and the current event
+  # and returns `true` to run the handler of `false` to avoid it.
   defp build_filter_fn(filter) do
     case filter do
       :always ->
-        fn _ -> true end
+        fn _, _ -> true end
 
       :first ->
-        fn
-          %State{epoch: 0, iteration: 0} -> true
-          _ -> false
+        fn %State{event_counts: counts}, event ->
+          counts[event] == 1
         end
 
-      [{:every, n} | _] ->
-        fn %State{iteration: iter} ->
-          Kernel.rem(iter, n) == 0
-        end
+      filters when is_list(filters) ->
+        Enum.reduce(filters, fn _, _ -> true end, fn
+          {:every, n}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_every_n(state, event, n)
+            end
 
-      fun when is_function(fun, 1) ->
+          {:before, n}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_before_n(state, event, n)
+            end
+
+          {:after, n}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_after_n(state, event, n)
+            end
+
+          {:once, n}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_once_n(state, event, n)
+            end
+        end)
+
+      fun when is_function(fun, 2) ->
         fun
 
       invalid ->
@@ -2184,9 +2204,25 @@ defmodule Axon.Loop do
               "Invalid filter #{inspect(invalid)}, a valid filter" <>
                 " is an atom which matches a valid filter predicate" <>
                 " such as :always or :once, a keyword of predicate-value" <>
-                " pairs such as every: N, or an arity-1 function which takes" <>
-                " loop state and returns true or false"
+                " pairs such as every: N, or an arity-2 function which takes" <>
+                " loop state and current event and returns true or false"
     end
+  end
+
+  defp filter_every_n(%State{event_counts: counts}, event, n) do
+    rem(counts[event] - 1, n) == 0
+  end
+
+  defp filter_after_n(%State{event_counts: counts}, event, n) do
+    counts[event] > n
+  end
+
+  defp filter_before_n(%State{event_counts: counts}, event, n) do
+    counts[event] < n
+  end
+
+  defp filter_once_n(%State{event_counts: counts}, event, n) do
+    counts[event] == n
   end
 
   # JIT-compiles the given function if jit_compile? is true
