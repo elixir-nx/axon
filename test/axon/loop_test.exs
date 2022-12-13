@@ -645,7 +645,7 @@ defmodule Axon.LoopTest do
         end)
 
       model
-      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd, :identity, log: -1)
+      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd, log: -1)
       |> send_handler(event, filter)
       |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
     end
