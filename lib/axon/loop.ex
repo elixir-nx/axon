@@ -308,9 +308,29 @@ defmodule Axon.Loop do
   arity-3 function which scales gradient updates with respect to input parameters,
   optimizer state, and gradients. See `Axon.Updates` for more information on building
   optimizers.
+
+  ## Options
+
+    * `:seed` - seed to use when constructing models. Seed controls random initialization
+      of model parameters. Defaults to no seed which constructs a random seed for you at
+      model build time.
+
+    * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
+      doing mixed precision training for numerical stability. Defaults to `:identity` or
+      no loss-scaling.
+
+    * `:gradient_accumulation_steps` - number of gradient accumulation steps to take during
+      training. Gradient accumulation decreases the number of updates by accumulating gradients
+      between steps, increasing the effective batch size on smaller devices. Defaults to 1.
   """
-  def train_step(model, loss, optimizer, loss_scale \\ :identity, steps \\ 1) do
-    {init_model_fn, forward_model_fn} = build_model_fns(model, :train)
+  def train_step(model, loss, optimizer, opts \\ []) do
+    opts = Keyword.validate!(opts, [:seed, loss_scale: :identity, gradient_accumulation_steps: 1])
+
+    seed = opts[:seed]
+    loss_scale = opts[:loss_scale] || :identity
+    gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
+
+    {init_model_fn, forward_model_fn} = build_model_fns(model, :train, seed)
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
     {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
@@ -353,9 +373,9 @@ defmodule Axon.Loop do
           scaled =
             loss
             |> scale_loss.(loss_scale_state)
-            |> Nx.divide(steps)
+            |> Nx.divide(gradient_accumulation_steps)
 
-          {scaled, Nx.divide(loss, steps)}
+          {scaled, Nx.divide(loss, gradient_accumulation_steps)}
         end)
 
       {model_out, scaled_loss, unscaled_loss}
@@ -388,7 +408,7 @@ defmodule Axon.Loop do
         new_loss =
           loss
           |> Nx.multiply(i)
-          |> Nx.add(Nx.multiply(batch_unscaled_loss, steps))
+          |> Nx.add(Nx.multiply(batch_unscaled_loss, gradient_accumulation_steps))
           |> Nx.divide(Nx.add(i, 1))
 
         {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step} =
@@ -400,7 +420,7 @@ defmodule Axon.Loop do
             gradient_state,
             gradient_step,
             update_optimizer_fn,
-            steps: steps
+            steps: gradient_accumulation_steps
           )
 
         %{
@@ -487,7 +507,7 @@ defmodule Axon.Loop do
   single evaluation step.
   """
   def eval_step(model) do
-    {_, forward_model_fn} = build_model_fns(model, :inference)
+    {_, forward_model_fn} = build_model_fns(model, :inference, nil)
 
     init_fn = fn
       {inp, tar}, state ->
@@ -647,22 +667,49 @@ defmodule Axon.Loop do
       loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
 
       model
-      |> Axon.Loop.trainer(loss_weights)
+      |> Axon.Loop.trainer(loss_weights, :sgd)
       |> Axon.Loop.run(data)
 
   ## Options
 
     * `:log` - training loss and metric log interval. Set to 0 to silence
       training logs. Defaults to 50
+
+    * `:seed` - seed to use when constructing models. Seed controls random initialization
+      of model parameters. Defaults to no seed which constructs a random seed for you at
+      model build time.
+
+    * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
+      doing mixed precision training for numerical stability. Defaults to `:identity` or
+      no loss-scaling.
+
+    * `:gradient_accumulation_steps` - number of gradient accumulation steps to take during
+      training. Gradient accumulation decreases the number of updates by accumulating gradients
+      between steps, increasing the effective batch size on smaller devices. Defaults to 1.
   """
-  def trainer(model, loss, optimizer, loss_scale \\ :identity, opts \\ []) do
+  def trainer(model, loss, optimizer, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, [
+        :seed,
+        log: 50,
+        loss_scale: :identity,
+        gradient_accumulation_steps: 1
+      ])
+
     log_interval = opts[:log] || 50
     gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
+    loss_scale = opts[:loss_scale] || :identity
+    seed = opts[:seed]
+
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
 
     {init_fn, step_fn} =
-      train_step(model, loss_fn, optimizer, loss_scale, gradient_accumulation_steps)
+      train_step(model, loss_fn, optimizer,
+        loss_scale: loss_scale,
+        gradient_accumulation_steps: gradient_accumulation_steps,
+        seed: seed
+      )
 
     output_transform = fn state -> state.step_state[:model_state] end
 
@@ -1958,16 +2005,23 @@ defmodule Axon.Loop do
   # a tuple of Axon structs, or a tuple of init / forward
   # functions. Model functions are essentially just model
   # init / apply functions.
-  defp build_model_fns(%Axon{} = model, mode) do
-    Axon.build(model, mode: mode)
+  defp build_model_fns(%Axon{} = model, mode, seed) do
+    opts =
+      if seed != nil do
+        [mode: mode, key: Nx.Random.key(seed)]
+      else
+        [mode: mode]
+      end
+
+    Axon.build(model, opts)
   end
 
-  defp build_model_fns({init_fn, forward_fn}, _)
+  defp build_model_fns({init_fn, forward_fn}, _, _seed)
        when is_function(init_fn, 2) and is_function(forward_fn, 2) do
     {init_fn, forward_fn}
   end
 
-  defp build_model_fns(invalid, _) do
+  defp build_model_fns(invalid, _, _) do
     raise ArgumentError,
           "Invalid model #{inspect(invalid)}, a valid model" <>
             " is an Axon struct or a tuple of {init_fn, forward_fn} with signatures" <>
