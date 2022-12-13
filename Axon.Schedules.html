@@ -13,7 +13,7 @@
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
     <script src="dist/handlebars.templates-IV5W3OL2.js"></script>
-    <script src="dist/sidebar_items-9B7DCA9E.js"></script>
+    <script src="dist/sidebar_items-05DBE2B7.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -173,6 +173,16 @@ any supported <a href="https://hexdocs.pm/nx/0.4.1/Nx.html"><code class="inline"
 
     <div class="summary-row">
       <div class="summary-signature">
+        <a href="#linear_decay/1" translate="no">linear_decay(opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Linear decay schedule.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
         <a href="#polynomial_decay/1" translate="no">polynomial_decay(opts \\ [])</a>
 
       </div>
@@ -206,7 +216,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">constant(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L140" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L170" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -237,7 +247,7 @@ Defaults to <code class="inline">1.0e-2</code></li></ul>
     </a>
     <h1 class="signature" translate="no">cosine_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L107" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L137" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -276,7 +286,7 @@ $\alpha$ in above formulation. Defaults to <code class="inline">0.0</code></li><
     </a>
     <h1 class="signature" translate="no">exponential_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L44" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L74" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -298,6 +308,36 @@ Defaults to <code class="inline">0.95</code></li><li><code class="inline">:trans
 formulation. Defaults to <code class="inline">10</code></li><li><code class="inline">:transition_begin</code> - step to begin transition. Defaults to <code class="inline">0</code></li><li><code class="inline">:staircase</code> - discretize outputs. Defaults to <code class="inline">false</code></li></ul>
   </section>
 </section>
+<section class="detail" id="linear_decay/1">
+
+    <span id="linear_decay/0"></span>
+
+  <div class="detail-header">
+    <a href="#linear_decay/1" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">linear_decay(opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L38" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Linear decay schedule.</p><h2 id="linear_decay/1-options" class="section-heading">
+  <a href="#linear_decay/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
+  <p class="sr-only">options</p>
+  </a>
+  Options
+</h2>
+<ul><li><p><code class="inline">:init_value</code> - initial_value. Defaults to <code class="inline">1.0e-2</code>.</p></li><li><p><code class="inline">:warmup</code> - scheduler warmup steps. Defaults to <code class="inline">0</code></p></li><li><p><code class="inline">:steps</code> - total number of decay steps. Defaults to <code class="inline">1000</code></p></li></ul>
+  </section>
+</section>
 <section class="detail" id="polynomial_decay/1">
 
     <span id="polynomial_decay/0"></span>
@@ -309,7 +349,7 @@ formulation. Defaults to <code class="inline">10</code></li><li><code class="inl
     </a>
     <h1 class="signature" translate="no">polynomial_decay(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L165" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.3.0/lib/axon/schedules.ex#L195" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
