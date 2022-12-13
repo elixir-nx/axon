@@ -114,7 +114,7 @@ defmodule CompilerTest do
       x2 = Axon.dense(input, 64)
       model = Axon.add(x1, x2)
 
-      {init_fn, _predict_fn} = Axon.build(model)
+      {init_fn, _predict_fn} = Axon.build(model, debug: true)
       %Axon.CompileError{} = exception = catch_error(init_fn.(Nx.template({1, 16}, :f32), %{}))
 
       message = Exception.message(exception)
