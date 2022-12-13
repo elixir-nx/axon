@@ -1667,8 +1667,7 @@ defmodule Axon.Layers do
 
     dropout(input, key,
       rate: opts[:rate],
-      noise_shape: noise_shape,
-      mode: opts[:mode]
+      noise_shape: noise_shape
     )
   end
 

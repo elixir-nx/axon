@@ -268,22 +268,23 @@ defmodule Axon do
     params = Enum.reverse(params)
     args = Enum.reverse(args)
 
+    {mode, opts} = Keyword.pop(opts, :mode, :both)
     {name, opts} = Keyword.pop(opts, :name)
-    {op_name, layer_opts} = Keyword.pop(opts, :op_name, :custom)
+    {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
+    name = name(op_name, name)
 
     id = System.unique_integer([:positive, :monotonic])
-    name = name(op_name, name)
-    axon_node = make_node(id, op, name, op_name, inputs, params, args, layer_opts)
-
+    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, opts)
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
   end
 
-  defp make_node(id, op, name, op_name, inputs, params, args, layer_opts) do
+  defp make_node(id, op, name, op_name, mode, inputs, params, args, layer_opts) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
     %Axon.Node{
       id: id,
+      mode: mode,
       name: name,
       parent: inputs,
       parameters: params,
@@ -1396,7 +1397,8 @@ defmodule Axon do
     layer(dropout, [x, key_state],
       name: opts[:name],
       rate: opts[:rate],
-      op_name: dropout
+      op_name: dropout,
+      mode: :train
     )
   end
 
@@ -3348,7 +3350,7 @@ defmodule Axon do
 
   ## Options
 
-    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
       to control differences in compilation at training or inference time.
       Defaults to `:inference`
 
@@ -3427,7 +3429,7 @@ defmodule Axon do
 
   ## Options
 
-    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
       to control differences in compilation at training or inference time.
       Defaults to `:inference`
 
@@ -3491,7 +3493,7 @@ defmodule Axon do
 
   ## Options
 
-    * `:mode` - one of `:inference` or `:training`. Forwarded to layers
+    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
       to control differences in compilation at training or inference time.
       Defaults to `:inference`
 
