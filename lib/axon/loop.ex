@@ -1048,18 +1048,13 @@ defmodule Axon.Loop do
     opts = Keyword.validate!(opts, event: :epoch_completed, filter: :always)
     event = opts[:event] || :epoch_completed
     filter = opts[:filter] || :always
+    evaluator = evaluator(model)
 
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
       metrics =
-        model
-        |> evaluator()
-        |> then(
-          &Enum.reduce(metric_fns, &1, fn {k, {_, v}}, loop ->
-            metric(loop, v, k)
-          end)
-        )
+        Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
         |> log(fn _ -> "\n" end, event: :completed)
         |> run(validation_data, model_state)
         |> Access.get(0)
@@ -1640,17 +1635,13 @@ defmodule Axon.Loop do
       Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
     end
 
-    final_metrics_map =
-      for i <- epoch_start..epoch_end do
-        {i, Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0)} end)}
-      end
-      |> Map.new()
-      |> Map.merge(loop_state.metrics)
-
     # TODO: Can we infer here?
-    zero_metrics =
-      metric_fns
-      |> Map.new(fn {k, _} -> {k, Nx.tensor(0, type: :f32)} end)
+    zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, type: :f32)} end)
+
+    final_metrics_map =
+      epoch_start..epoch_end
+      |> Map.new(&{&1, zero_metrics})
+      |> Map.merge(loop_state.metrics)
 
     loop_state = %{loop_state | metrics: zero_metrics}
 
@@ -1707,16 +1698,8 @@ defmodule Axon.Loop do
                           {:halt, {final_metrics_map, state}}
 
                         {:continue, state} ->
-                          zero_metrics =
-                            loop_state.metrics
-                            |> Map.take(Map.keys(metric_fns))
-                            |> Map.new(fn {k, v} -> {k, zeros_like(v)} end)
-
-                          final_metrics_map =
-                            Map.replace!(final_metrics_map, epoch, state.metrics)
-
                           {:cont,
-                           {batch_fn, final_metrics_map,
+                           {batch_fn, %{final_metrics_map | epoch => state.metrics},
                             %State{
                               state
                               | epoch: epoch + 1,
