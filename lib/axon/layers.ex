@@ -121,7 +121,7 @@ defmodule Axon.Layers do
     dense_impl(input, kernel, bias, opts)
   end
 
-  defnp dense_impl(input, kernel, bias, _opts \\ []) do
+  defnp dense_impl(input, kernel, bias, _opts) do
     assert_min_rank!("Axon.Layers.dense", "input", input, 2)
 
     input
@@ -182,7 +182,7 @@ defmodule Axon.Layers do
     bilinear_impl(input1, input2, kernel, bias, opts)
   end
 
-  defnp bilinear_impl(input1, input2, kernel, bias, _opts \\ []) do
+  defnp bilinear_impl(input1, input2, kernel, bias, _opts) do
     assert_min_rank!("Axon.Layers.bilinear", "input1", input1, 2)
     assert_min_rank!("Axon.Layers.bilinear", "input2", input2, 2)
     assert_equal_rank!("Axon.Layers.bilinear", "input1", input1, "input2", input2)
@@ -339,7 +339,7 @@ defmodule Axon.Layers do
     conv_impl(input, kernel, bias, opts)
   end
 
-  defnp conv_impl(input, kernel, bias, opts \\ []) do
+  defnp conv_impl(input, kernel, bias, opts) do
     assert_min_rank!("Axon.Layers.conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv", "input", input, "kernel", kernel)
 
@@ -478,7 +478,7 @@ defmodule Axon.Layers do
     conv_transpose_impl(input, kernel, bias, opts)
   end
 
-  defnp conv_transpose_impl(input, kernel, bias, opts \\ []) do
+  defnp conv_transpose_impl(input, kernel, bias, opts) do
     assert_min_rank!("Axon.Layers.conv_transpose", "input", input, 3)
     assert_equal_rank!("Axon.Layers.conv_transpose", "input", input, "kernel", kernel)
 
@@ -583,7 +583,7 @@ defmodule Axon.Layers do
     depthwise_conv_impl(inputs, kernel, bias, opts)
   end
 
-  defnp depthwise_conv_impl(input, kernel, bias, opts \\ []) do
+  defnp depthwise_conv_impl(input, kernel, bias, opts) do
     assert_min_rank!("Axon.Layers.depthwise_conv", "input", input, 3)
     assert_equal_rank!("Axon.Layers.depthwise_conv", "input", input, "kernel", kernel)
 

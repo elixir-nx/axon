@@ -1129,8 +1129,8 @@ defmodule CompilerTest do
 
         input = Nx.random_uniform({1, 1, 32})
 
-        assert {init_fn, predict_fn} = Axon.build(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
+        assert {init_fn, predict_fn} = Axon.build(mp_model, mode: :train)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input).prediction) == {:bf, 16}
       end
     end
 

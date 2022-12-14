@@ -240,9 +240,9 @@ defmodule Axon do
   to inference function except:
 
     * `:name` - layer name.
+    * `:op_name` - layer operation for inspection and building parameter map.
+    * `:mode` - if the layer should run only on `:inference` or `:train`. Defaults to `:both`
 
-    * `:op_name` - layer operation for inspection and building parameter
-      map.
 
   Note this means your layer should not use these as input options,
   as they will always be dropped during inference compilation.
@@ -3585,7 +3585,7 @@ defmodule Axon do
   @doc type: :model
   def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
     Logger.warning(
-      "Attempting to serialize an Axon model. Serialiation is discouraged" <>
+      "Attempting to serialize an Axon model. Serialization is discouraged" <>
         " and will be deprecated, then removed in future releases. You should" <>
         " keep your model definitions as code and serialize your parameters using" <>
         " `Nx.serialize/2`."
