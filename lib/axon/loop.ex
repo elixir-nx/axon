@@ -1406,7 +1406,7 @@ defmodule Axon.Loop do
   @compile {:no_warn_undefined, Kino.VegaLite}
 
   @doc """
-  Adds a handler function which updates a `VegaLite` plot.
+  Adds a handler function which updates a `Kino.VegaLite` plot.
 
   By default, this will run after every iteration.
 
@@ -1422,7 +1422,7 @@ defmodule Axon.Loop do
 
       model
       |> Axon.Loop.trainer(loss, optim)
-      |> Axon.Loop.plot(plot, "loss")
+      |> Axon.Loop.kino_vega_lite_plot(plot, "loss")
 
   ## Options
 
@@ -1430,7 +1430,7 @@ defmodule Axon.Loop do
 
     * `:filter` - event filter to attach to handler. Defaults to `:always`.
   """
-  def plot(loop, plot, metric, opts \\ []) do
+  def kino_vega_lite_plot(loop, plot, metric, opts \\ []) do
     assert_kino_vega_lite!("plot/5")
 
     opts = Keyword.validate!(opts, event: :iteration_completed, filter: :always)
