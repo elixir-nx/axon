@@ -736,7 +736,7 @@ defmodule Axon.LayersTest do
       assert_raise ArgumentError,
                    ~r/Axon.Layers.spatial_dropout: expected input shape to have at least rank 3/,
                    fn ->
-                     Axon.Layers.spatial_dropout(inp)
+                     Axon.Layers.spatial_dropout(inp, Nx.Random.key(0))
                    end
     end
   end
@@ -748,7 +748,7 @@ defmodule Axon.LayersTest do
       assert_raise ArgumentError,
                    ~r/Axon.Layers.feature_alpha_dropout: expected input shape to have at least rank 3/,
                    fn ->
-                     Axon.Layers.feature_alpha_dropout(inp)
+                     Axon.Layers.feature_alpha_dropout(inp, Nx.Random.key(0))
                    end
     end
   end
