@@ -2173,8 +2173,9 @@ defmodule Axon do
   def lstm(%Axon{} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    c = rnn_state(x, units, :lstm, opts[:name], "c", recurrent_initializer)
-    h = rnn_state(x, units, :lstm, opts[:name], "h", recurrent_initializer)
+    {seed, opts} = Keyword.pop_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    c = rnn_state(x, units, :lstm, opts[:name], "c", recurrent_initializer, seed)
+    h = rnn_state(x, units, :lstm, opts[:name], "h", recurrent_initializer, seed)
     lstm(x, {c, h}, units, opts)
   end
 
@@ -2371,7 +2372,8 @@ defmodule Axon do
       when is_integer(units) and units > 0
       when is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    h = rnn_state(x, units, :gru, opts[:name], "h", recurrent_initializer)
+    {seed, opts} = Keyword.pop_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    h = rnn_state(x, units, :gru, opts[:name], "h", recurrent_initializer, seed)
     gru(x, {h}, units, opts)
   end
 
@@ -2548,8 +2550,9 @@ defmodule Axon do
   def conv_lstm(%Axon{} = x, units, opts)
       when is_integer(units) and units > 0 and is_list(opts) do
     {recurrent_initializer, opts} = Keyword.pop(opts, :recurrent_initializer, :glorot_uniform)
-    c = rnn_state(x, units, :conv_lstm, opts[:name], "c", recurrent_initializer)
-    h = rnn_state(x, units, :conv_lstm, opts[:name], "h", recurrent_initializer)
+    {seed, opts} = Keyword.pop_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    c = rnn_state(x, units, :conv_lstm, opts[:name], "c", recurrent_initializer, seed)
+    h = rnn_state(x, units, :conv_lstm, opts[:name], "h", recurrent_initializer, seed)
     conv_lstm(x, {c, h}, units, opts)
   end
 
@@ -2726,10 +2729,12 @@ defmodule Axon do
     {output_sequence, {new_c, new_h}}
   end
 
-  defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer) do
+  defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer, seed) do
     initializer = initializer || :glorot_uniform
-    # TODO: This key should be managed by the compiler
-    key = Nx.Random.key(:erlang.system_time()) |> Nx.backend_copy(Nx.BinaryBackend)
+    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.BinaryBackend)
+
+    key_state =
+      param("key", fn _ -> Nx.shape(key) end, type: {:u, 32}, initializer: fn _, _ -> key end)
 
     name =
       case parent_name do
@@ -2742,7 +2747,7 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    fun = fn inputs, opts ->
+    fun = fn inputs, key, _opts ->
       shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
 
       case initializer do
@@ -2758,7 +2763,7 @@ defmodule Axon do
               fun.(shape, {:f, 32})
 
             arity == 3 ->
-              fun.(shape, {:f, 32}, opts[:key])
+              fun.(shape, {:f, 32}, key)
 
             true ->
               raise ArgumentError, "bad arity for initializer"
@@ -2766,7 +2771,7 @@ defmodule Axon do
       end
     end
 
-    layer(fun, [x], name: name, op_name: :recurrent_state, key: key)
+    layer(fun, [x, key_state], name: name, op_name: :recurrent_state)
   end
 
   @doc """
