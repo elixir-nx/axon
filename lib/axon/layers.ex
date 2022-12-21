@@ -502,9 +502,9 @@ defmodule Axon.Layers do
 
     padding =
       transform(
-        {Nx.shape(kernel), opts[:kernel_dilation], strides, opts[:padding]},
-        fn {shape, k_dilation, strides, padding} ->
-          Axon.Shape.conv_transpose_padding(shape, k_dilation, strides, padding)
+        {Nx.shape(kernel), opts[:kernel_dilation], strides, opts[:padding], opts[:channels]},
+        fn {shape, k_dilation, strides, padding, channels} ->
+          Axon.Shape.conv_transpose_padding(shape, k_dilation, strides, padding, channels)
         end
       )
 
