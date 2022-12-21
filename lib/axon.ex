@@ -1384,7 +1384,7 @@ defmodule Axon do
   defp dropout(%Axon{} = x, dropout, opts) do
     opts = Keyword.validate!(opts, [:name, :seed, rate: 0.5])
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
-    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.Defn.Expr)
+    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.BinaryBackend)
 
     if opts[:rate] < 0 or opts[:rate] >= 1 do
       raise ArgumentError,

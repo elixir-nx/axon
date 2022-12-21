@@ -1592,7 +1592,9 @@ defmodule Axon.Loop do
     {strict?, jit_opts} = Keyword.pop(opts, :strict?, true)
     debug? = Keyword.get(jit_opts, :debug, false)
 
-    Logger.debug("Forwarding options: #{inspect(jit_opts)} to JIT compiler")
+    if jit_opts != [] do
+      Logger.debug("Forwarding options: #{inspect(jit_opts)} to JIT compiler")
+    end
 
     %Loop{
       init: init_fn,

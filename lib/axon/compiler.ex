@@ -34,10 +34,8 @@ defmodule Axon.Compiler do
     debug? = Keyword.get(opts, :debug, false)
     mode = Keyword.get(opts, :mode, :inference)
     key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
-    config = %{mode: mode, key: key, debug?: debug?}
+    config = %{mode: mode, debug?: debug?}
 
-    # TODO: Key should not be part of model funs because it is not deterministic
-    # Once we remove it here, we should change Nx.backend_copy above to Nx.BinaryBackend
     {time, {root_id, {cache, _op_counts}}} =
       :timer.tc(fn ->
         to_model_funs(id, nodes, {%{}, %{}}, config)
@@ -100,7 +98,7 @@ defmodule Axon.Compiler do
     end
 
     init_cache = Map.new(cache, fn {_, {int_id, funs}} -> {int_id, funs} end)
-    key = Nx.backend_copy(key, Nx.Defn.Expr)
+    key = Nx.backend_copy(key, Nx.BinaryBackend)
 
     init_fun = fn template, init_params ->
       {:current_stacktrace, [_process_info, _fn | stacktrace]} =
