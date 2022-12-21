@@ -937,6 +937,10 @@ defmodule Axon.Loop do
 
       every: N # Trigger every `N` event
       only: N # Trigger on `N` event
+
+  **Warning: If you modify the step state in an event handler, it will trigger
+  potentially excessive recompilation and result in significant additinal overhead
+  during loop execution.**
   """
   # TODO(seanmor5): Custom events
   def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
