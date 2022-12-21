@@ -135,81 +135,67 @@ defmodule Axon.Losses do
     # both and perform this whole thing. If neither is set, we set this to
     # nil and then avoid the weighted avg later on.
     weights =
-      transform({y_true, opts[:positive_weight], opts[:negative_weight]}, fn
-        {_, nil, nil} ->
-          nil
-
-        {y_true, pos, nil} ->
-          Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, nil, neg} ->
-          Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, pos, neg} ->
-          Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
-      end)
+      case {opts[:positive_weight], opts[:negative_weight]} do
+        {nil, nil} -> nil
+        {pos, nil} -> Nx.take(Nx.tensor([1.0, pos]), y_true)
+        {nil, neg} -> Nx.take(Nx.tensor([neg, 1.0]), y_true)
+        {pos, neg} -> Nx.take(Nx.tensor([neg, pos]), y_true)
+      end
 
     # Merge types before computing loss to prevent under/overflow. This
     # can especially happen when targets are encoded as u8 tensors. We
     # need to do it after the weights though because weights require the
     # integer representation
-    {y_true, y_pred} =
-      transform({y_true, y_pred}, fn {y_true, y_pred} ->
-        merged_type = Nx.Type.merge(Nx.type(y_true), Nx.type(y_pred))
-        {Nx.as_type(y_true, merged_type), Nx.as_type(y_pred, merged_type)}
-      end)
+    merged_type = Nx.Type.merge(Nx.type(y_true), Nx.type(y_pred))
+    y_true = Nx.as_type(y_true, merged_type)
+    y_pred = Nx.as_type(y_pred, merged_type)
+
+    {logits?, logits} = logits(y_pred)
 
     loss_before_avg =
-      transform({opts[:from_logits], y_true, y_pred}, fn
-        {true, y_true, y_pred} ->
+      cond do
+        opts[:from_logits] ->
           logits =
-            case y_pred do
-              %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
-                Logger.warning(
-                  "Axon.Losses.binary_cross_entropy/3 received from_logits: true" <>
-                    " but y_pred was produced from sigmoid or softmax activation"
-                )
+            if logits? do
+              warn(
+                "Axon.Losses.binary_cross_entropy/3 received from_logits: true" <>
+                  " but y_pred was produced from sigmoid or softmax activation"
+              )
 
-                logits
-
-              _ ->
-                y_pred
+              logits
+            else
+              y_pred
             end
 
           sigmoid_cross_entropy_from_logits(y_true, logits)
 
-        {false, y_true, y_pred} ->
-          case y_pred do
-            %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
-              # This is the path Keras takes when the output is a sigmoid
-              # and it seems to be the more numerically stable path in those
-              # cases, so we cache logits as metadata in sigmoid and then use
-              # the logits to compute cross entropy here
-              sigmoid_cross_entropy_from_logits(y_true, logits)
+        logits? ->
+          # This is the path Keras takes when the output is a sigmoid
+          # and it seems to be the more numerically stable path in those
+          # cases, so we cache logits as metadata in sigmoid and then use
+          # the logits to compute cross entropy here
+          sigmoid_cross_entropy_from_logits(y_true, logits)
 
-            _ ->
-              # Otherwise we compute BCE with this path
-              eps = 1.0e-7
-              y_pred = Nx.clip(y_pred, eps, 1 - eps)
+        true ->
+          # Otherwise we compute BCE with this path
+          eps = 1.0e-7
+          y_pred = Nx.clip(y_pred, eps, 1 - eps)
 
-              # Compute cross entropy loss
-              p = y_true * Nx.log(y_pred + eps)
-              not_p = (1 - y_true) * Nx.log(1 - y_pred + eps)
+          # Compute cross entropy loss
+          p = y_true * Nx.log(y_pred + eps)
+          not_p = (1 - y_true) * Nx.log(1 - y_pred + eps)
 
-              Nx.negate(p + not_p)
-          end
-      end)
+          Nx.negate(p + not_p)
+      end
 
     # Rather than add a redundant multiplication here if there are no weights,
     # we'll match on the weights value above.
     possibly_weighted_avg_loss =
-      transform({loss_before_avg, weights}, fn
-        {loss, nil} ->
-          Nx.mean(loss, axes: [-1])
-
-        {loss, weights} ->
-          Nx.mean(weights * loss)
-      end)
+      if weights?(weights) do
+        Nx.mean(weights * loss_before_avg)
+      else
+        Nx.mean(loss_before_avg, axes: [-1])
+      end
 
     reduction(possibly_weighted_avg_loss, opts[:reduction])
   end
@@ -289,161 +275,142 @@ defmodule Axon.Losses do
       >
 
   """
-  defn categorical_cross_entropy(y_true, y_pred, opts \\ []) do
-    opts = keyword!(opts, class_weights: nil, reduction: :none, from_logits: false, sparse: false)
+  deftransform categorical_cross_entropy(y_true, y_pred, opts \\ []) do
+    opts =
+      Keyword.validate!(opts,
+        class_weights: nil,
+        reduction: :none,
+        from_logits: false,
+        sparse: false
+      )
 
-    # As with binary cross entropy, we try to avoid the weights calculations
-    # if they are unnecessary. We also have to do some input validation to
-    # ensure the passed weights are correct for the given targets. The length
-    # of the weights list must match the size of the last dimension of the targets.
+    {weights, opts} = Keyword.pop(opts, :class_weights)
+    tensor_weights = if weights, do: Nx.tensor(weights), else: 1.0
+    opts = [weights?: weights != nil] ++ opts
+    categorical_cross_entropy_impl(y_true, y_pred, tensor_weights, opts)
+  end
+
+  defnp categorical_cross_entropy_impl(y_true, y_pred, weights, opts) do
+    weights? = opts[:weights?]
+
     weights =
-      transform({y_true, opts[:class_weights]}, fn
-        {_, nil} ->
-          nil
-
-        {y_true, [_ | _] = class_weights} ->
-          unless Elixir.Kernel.==(
-                   length(class_weights),
-                   elem(Nx.shape(y_true), Nx.rank(y_true) - 1)
-                 ) do
-            raise ArgumentError,
-                  "expected class weights to be a 1-dimensional list" <>
-                    " with size equal to the number of classes present" <>
-                    " in dataset, got #{inspect(class_weights)} for data" <>
-                    " with #{inspect(elem(Nx.shape(y_true), 1))} classes"
-          end
-
-          Nx.take(Nx.tensor(class_weights, backend: Nx.Defn.Expr), Nx.argmax(y_true, axis: 1))
-
-        {_, invalid} ->
+      if weights? do
+        if Nx.size(weights) != Nx.axis_size(y_true, -1) do
           raise ArgumentError,
                 "expected class weights to be a 1-dimensional list" <>
                   " with size equal to the number of classes present" <>
-                  " in dataset, got #{inspect(invalid)} for data" <>
+                  " in dataset, got #{inspect(weights)} for data" <>
                   " with #{inspect(elem(Nx.shape(y_true), 1))} classes"
-      end)
+        end
+
+        Nx.take(weights, Nx.argmax(y_true, axis: 1))
+      else
+        weights
+      end
+
+    sparse = opts[:sparse]
+    {logits?, logits} = logits(y_pred)
 
     loss_before_avg =
-      transform({opts[:from_logits], opts[:sparse], y_true, y_pred}, fn
-        {true, sparse, y_true, y_pred} ->
+      cond do
+        opts[:from_logits] ->
           logits =
-            case y_pred do
-              %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
-                Logger.warning(
-                  "Axon.Losses.categorical_cross_entropy/3 received from_logits: true" <>
-                    " but y_pred was produced from sigmoid or softmax activation"
-                )
+            if logits? do
+              warn(
+                "Axon.Losses.categorical_cross_entropy/3 received from_logits: true" <>
+                  " but y_pred was produced from sigmoid or softmax activation"
+              )
 
-                logits
-
-              _ ->
-                y_pred
+              logits
+            else
+              y_pred
             end
 
           softmax_cross_entropy_from_logits(y_true, logits, sparse: sparse)
 
-        {false, sparse, y_true, y_pred} ->
-          case y_pred do
-            %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
-              softmax_cross_entropy_from_logits(y_true, logits)
+        logits? ->
+          softmax_cross_entropy_from_logits(y_true, logits)
 
-            _ ->
-              case sparse do
-                true ->
-                  # If y_true is not at least rank 2, add a new axis to select
-                  # one index per value along the batch axis
-                  y_true =
-                    if Elixir.Kernel.<(Nx.rank(y_true), 2) do
-                      Nx.new_axis(y_true, -1)
-                    else
-                      y_true
-                    end
+        sparse ->
+          # If y_true is not at least rank 2, add a new axis to select
+          # one index per value along the batch axis
+          y_true =
+            if Nx.rank(y_true) < 2 do
+              Nx.new_axis(y_true, -1)
+            else
+              y_true
+            end
 
-                  # Now we need to ensure the last axis is size 1, e.g. 1 value
-                  # per index in the batch axis
-                  unless Elixir.Kernel.==(elem(Nx.shape(y_true), Nx.rank(y_true) - 1), 1) do
-                    raise ArgumentError,
-                          "target values must have size 1 in last dimension," <>
-                            " got shape #{inspect(Nx.shape(y_true))}"
-                  end
-
-                  y_pred
-                  |> Nx.take_along_axis(y_true, axis: -1)
-                  |> Nx.log()
-                  |> Nx.negate()
-                  |> Nx.sum(axes: [-1])
-
-                false ->
-                  y_true
-                  |> xlogy(y_pred)
-                  |> Nx.negate()
-                  |> Nx.sum(axes: [-1])
-              end
+          if Nx.axis_size(y_true, -1) != 1 do
+            raise ArgumentError,
+                  "target values must have size 1 in last dimension," <>
+                    " got shape #{inspect(Nx.shape(y_true))}"
           end
-      end)
+
+          y_pred
+          |> Nx.take_along_axis(y_true, axis: -1)
+          |> Nx.log()
+          |> Nx.negate()
+          |> Nx.sum(axes: [-1])
+
+        true ->
+          y_true
+          |> xlogy(y_pred)
+          |> Nx.negate()
+          |> Nx.sum(axes: [-1])
+      end
 
     possibly_weighted_avg_loss =
-      transform({weights, loss_before_avg}, fn
-        {nil, loss} ->
-          loss
-
-        {weights, loss} ->
-          weights * loss
-      end)
-
-    transform(
-      {opts[:reduction], weights, possibly_weighted_avg_loss},
-      fn
-        {:mean, weights, loss} ->
-          case weights do
-            nil ->
-              Nx.mean(loss)
-
-            weights ->
-              Nx.sum(loss) / Nx.sum(weights)
-          end
-
-        {:sum, _, loss} ->
-          Nx.sum(loss)
-
-        {:none, _, loss} ->
-          loss
+      if weights? do
+        weights * loss_before_avg
+      else
+        loss_before_avg
       end
-    )
+
+    case opts[:reduction] do
+      :mean ->
+        if weights? do
+          Nx.sum(possibly_weighted_avg_loss) / Nx.sum(weights)
+        else
+          Nx.mean(possibly_weighted_avg_loss)
+        end
+
+      :sum ->
+        Nx.sum(possibly_weighted_avg_loss)
+
+      :none ->
+        possibly_weighted_avg_loss
+    end
   end
 
   defnp softmax_cross_entropy_from_logits(y_true, y_pred, opts \\ []) do
     opts = keyword!(opts, sparse: false)
 
-    transform({opts[:sparse], y_true, y_pred}, fn
-      {true, y_true, y_pred} ->
-        # If y_true is not at least rank 2, add a new axis to select
-        # one index per value along the batch axis
-        y_true =
-          if Elixir.Kernel.<(Nx.rank(y_true), 2) do
-            Nx.new_axis(y_true, -1)
-          else
-            y_true
-          end
-
-        # Now we need to ensure the last axis is size 1, e.g. 1 value
-        # per index in the batch axis
-        unless Elixir.Kernel.==(elem(Nx.shape(y_true), Nx.rank(y_true) - 1), 1) do
-          raise ArgumentError,
-                "target values must have size 1 in last dimension," <>
-                  " got shape #{inspect(Nx.shape(y_true))}"
+    if opts[:sparse] do
+      # If y_true is not at least rank 2, add a new axis to select
+      # one index per value along the batch axis
+      y_true =
+        if Nx.rank(y_true) < 2 do
+          Nx.new_axis(y_true, -1)
+        else
+          y_true
         end
 
-        # Finally compute the loss of values taken from targets
-        # along last axis
-        -Nx.sum(
-          Nx.take_along_axis(Axon.Activations.log_softmax(y_pred, axis: -1), y_true, axis: -1),
-          axes: [-1]
-        )
+      if Nx.axis_size(y_true, -1) != 1 do
+        raise ArgumentError,
+              "target values must have size 1 in last dimension," <>
+                " got shape #{inspect(Nx.shape(y_true))}"
+      end
 
-      {false, y_true, y_pred} ->
-        -Nx.sum(y_true * Axon.Activations.log_softmax(y_pred, axis: -1), axes: [-1])
-    end)
+      # Finally compute the loss of values taken from targets
+      # along last axis
+      -Nx.sum(
+        Nx.take_along_axis(Axon.Activations.log_softmax(y_pred, axis: -1), y_true, axis: -1),
+        axes: [-1]
+      )
+    else
+      -Nx.sum(y_true * Axon.Activations.log_softmax(y_pred, axis: -1), axes: [-1])
+    end
   end
 
   @doc ~S"""
@@ -1161,13 +1128,26 @@ defmodule Axon.Losses do
   end
 
   defnp reduction(loss, reduction \\ :none) do
-    transform(
-      {reduction, loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    case reduction do
+      :mean -> Nx.mean(loss)
+      :sum -> Nx.sum(loss)
+      :none -> loss
+    end
   end
+
+  deftransformp logits(tensor) do
+    case tensor do
+      %Nx.Tensor{data: %Nx.Defn.Expr{op: :metadata, args: [_, %{logits: logits}]}} ->
+        {true, logits}
+
+      _ ->
+        {false, nil}
+    end
+  end
+
+  deftransformp warn(message) do
+    Logger.warning(message)
+  end
+
+  deftransformp weights?(weights), do: weights != nil
 end
