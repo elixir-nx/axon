@@ -4,6 +4,7 @@ defmodule Axon.Node do
   defstruct [
     :id,
     :name,
+    :mode,
     :parent,
     :parameters,
     :args,

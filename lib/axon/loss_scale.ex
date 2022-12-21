@@ -35,7 +35,7 @@ defmodule Axon.LossScale do
   Implements static loss-scale.
   """
   def static(loss_scale \\ @default_loss_scale) do
-    loss_scale = Nx.backend_copy(loss_scale, Nx.Defn.Expr)
+    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
     {fn -> init_static(loss_scale) end, &scale_static/2, &unscale_static/2}
   end
 
@@ -64,7 +64,7 @@ defmodule Axon.LossScale do
   Implements dynamic loss-scale.
   """
   def dynamic(loss_scale \\ @default_loss_scale, opts \\ []) do
-    loss_scale = Nx.backend_copy(loss_scale, Nx.Defn.Expr)
+    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
 
     {
       fn -> init_dynamic(loss_scale) end,

@@ -114,7 +114,7 @@ defmodule CompilerTest do
       x2 = Axon.dense(input, 64)
       model = Axon.add(x1, x2)
 
-      {init_fn, _predict_fn} = Axon.build(model)
+      {init_fn, _predict_fn} = Axon.build(model, debug: true)
       %Axon.CompileError{} = exception = catch_error(init_fn.(Nx.template({1, 16}, :f32), %{}))
 
       message = Exception.message(exception)
@@ -1025,7 +1025,7 @@ defmodule CompilerTest do
 
         input = Nx.random_uniform({1, 1, 32})
 
-        assert {init_fn, _predict_fn} = Axon.build(model)
+        assert {init_fn, _predict_fn} = Axon.build(model, mode: :train)
         assert %{"dropout" => %{"key" => key}} = init_fn.(input, %{})
         assert_equal(key, Nx.Random.key(0))
       end
@@ -1073,13 +1073,13 @@ defmodule CompilerTest do
 
     test "computes forward pass with default options" do
       for dropout <- @dropout_layers do
-        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32})])
-        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 32, 32})])
+        input1 = Nx.random_uniform({1, 32, 32}, type: {:f, 32})
 
         assert {init_fn, predict_fn} = Axon.build(model1, mode: :train)
         %{prediction: result1} = predict_fn.(init_fn.(input1, %{}), input1)
 
-        assert Nx.shape(result1) == {1, 1, 32}
+        assert Nx.shape(result1) == {1, 32, 32}
         assert Nx.type(result1) == {:f, 32}
         assert_not_equal(result1, input1)
 
@@ -1107,15 +1107,15 @@ defmodule CompilerTest do
 
     test "computes forward pass with custom options" do
       for dropout <- @dropout_layers do
-        opts1 = [rate: 0.25]
-        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 1, 32}), opts1])
-        input1 = Nx.random_uniform({1, 1, 32}, type: {:f, 32})
+        opts1 = [rate: 0.5]
+        model1 = apply(Axon, dropout, [Axon.input("input", shape: {nil, 32, 128}), opts1])
+        input1 = Nx.random_uniform({1, 32, 128}, type: {:f, 32})
 
         assert {init_fn, predict_fn} = Axon.build(model1, mode: :train)
 
         %{prediction: result} = predict_fn.(init_fn.(input1, %{}), input1)
 
-        assert Nx.shape(result) == {1, 1, 32}
+        assert Nx.shape(result) == {1, 32, 128}
         assert Nx.type(result) == {:f, 32}
         assert_not_equal(result, input1)
       end
@@ -1129,8 +1129,8 @@ defmodule CompilerTest do
 
         input = Nx.random_uniform({1, 1, 32})
 
-        assert {init_fn, predict_fn} = Axon.build(mp_model)
-        assert Nx.type(predict_fn.(init_fn.(input, %{}), input)) == {:bf, 16}
+        assert {init_fn, predict_fn} = Axon.build(mp_model, mode: :train)
+        assert Nx.type(predict_fn.(init_fn.(input, %{}), input).prediction) == {:bf, 16}
       end
     end
 
@@ -5248,6 +5248,15 @@ defmodule CompilerTest do
         Axon.predict(model, %{}, %{"lazy_container" => input}),
         Nx.tensor([[1.0, 3.0]])
       )
+    end
+  end
+
+  describe "determinism" do
+    test "builds the same model multiple times" do
+      builder = fn -> Axon.input("input", shape: {nil, 784}) |> Axon.dense(128) end
+      {_, predict_fn1} = Axon.Compiler.build(builder.(), [])
+      {_, predict_fn2} = Axon.Compiler.build(builder.(), [])
+      assert predict_fn1 == predict_fn2
     end
   end
 end
