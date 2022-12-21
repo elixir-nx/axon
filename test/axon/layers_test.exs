@@ -224,6 +224,19 @@ defmodule Axon.LayersTest do
   end
 
   describe "conv_transpose" do
+    test "channels first same as channels last" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({3, 1, 4, 4})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv_transpose(input, kernel, bias, channels: :first)
+      last = Axon.Layers.conv_transpose(t_input, t_kernel, bias, channels: :last)
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "correct valid padding, no strides" do
       inp = Nx.iota({1, 1, 4}, type: {:f, 32})
       kernel = Nx.iota({3, 1, 2}, type: {:f, 32})

@@ -341,12 +341,20 @@ defmodule Axon.Shape do
   @doc """
   Calculates the padding needed for a transposed convolution.
   """
-  def conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding)
+  def conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding, channels)
       when padding in [:valid, :same] do
     kernel_spatial_dims =
-      kernel_shape
-      |> Tuple.delete_at(0)
-      |> Tuple.delete_at(0)
+      case channels do
+        :first ->
+          kernel_shape
+          |> Tuple.delete_at(0)
+          |> Tuple.delete_at(0)
+
+        :last ->
+          kernel_shape
+          |> Tuple.delete_at(tuple_size(kernel_shape) - 1)
+          |> Tuple.delete_at(tuple_size(kernel_shape) - 2)
+      end
 
     kernel_dilation =
       if is_list(kernel_dilation),
@@ -387,7 +395,7 @@ defmodule Axon.Shape do
     end
   end
 
-  def conv_transpose_padding(_, _, _, padding), do: padding
+  def conv_transpose_padding(_, _, _, padding, _), do: padding
 
   @doc """
   Calculates the shape of a depthwise convolution kernel given the
