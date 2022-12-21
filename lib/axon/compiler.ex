@@ -531,16 +531,6 @@ defmodule Axon.Compiler do
     name = name_fn.(op_name, op_counts)
     op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
 
-    # TODO: Hack for dropout with key, fix with a better implementation
-    opts =
-      if op in @dropout_layers do
-        <<data::unsigned-size(32), _rest::binary>> = :erlang.md5(name)
-        dropout_key = Nx.Random.fold_in(config.key, data) |> Nx.backend_copy(Nx.BinaryBackend)
-        [key: dropout_key] ++ opts
-      else
-        opts
-      end
-
     stacktrace = if debug?, do: stacktrace, else: []
 
     # Each model builds two functions: predict_fun and init_fun
