@@ -562,6 +562,37 @@ defmodule Axon do
     end
   end
 
+  defp deep_merge(left, right, fun) do
+    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
+      {merged, []} ->
+        merged
+
+      {_merged, _leftover} ->
+        raise ArgumentError,
+              "unable to merge arguments with incompatible" <>
+                " structure"
+    end
+  end
+
+  defp leaves(container) do
+    container
+    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
+    |> Enum.reverse()
+  end
+
+  defp recur_merge(left, [right | right_leaves], fun) do
+    case {left, right} do
+      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {%Axon{} = left, %Axon{} = right} ->
+        {fun.(left, right), right_leaves}
+
+      {left, right} ->
+        {deep_merge(left, right, fun), right_leaves}
+    end
+  end
+
   @doc """
   Wraps an Axon model into a namespace.
 
@@ -2150,6 +2181,32 @@ defmodule Axon do
   end
 
   @doc """
+  Applies the given forward function bidirectionally and merges
+  the results with the given merge function.
+
+  This is most commonly used with RNNs to capture the dependencies
+  of a sequence in both directions.
+
+  ## Options
+
+    * `axis` - Axis to reverse.
+  """
+  def bidirectional(%Axon{} = input, forward_fun, merge_fun, opts \\ [])
+      when is_function(forward_fun, 1) and is_function(merge_fun, 2) do
+    opts = Keyword.validate!(opts, axis: 1)
+
+    forward_out = forward_fun.(input)
+
+    backward_out =
+      input
+      |> Axon.nx(&Nx.reverse(&1, axes: [opts[:axis]]))
+      |> forward_fun.()
+      |> deep_new(&Axon.nx(&1, fn x -> Nx.reverse(x, axes: [opts[:axis]]) end))
+
+    deep_merge(forward_out, backward_out, merge_fun)
+  end
+
+  @doc """
   See `lstm/3`.
   """
   @doc type: :recurrent
@@ -2747,7 +2804,7 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    fun = fn inputs, key, _opts ->
+    fun = fn inputs, key, opts ->
       shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
 
       case initializer do
