@@ -946,10 +946,81 @@ defmodule Axon.LayersTest do
     end
   end
 
+  describe "lstm_cell" do
+    test "cell function matches results expected from pytorch" do
+      seq = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_seq.npy")
+      c = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_c.npy")
+      h = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_h.npy")
+      wii = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wii.npy")
+      wif = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wif.npy")
+      wig = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wig.npy")
+      wio = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wio.npy")
+      whi = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whi.npy")
+      whf = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whf.npy")
+      whg = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whg.npy")
+      who = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_who.npy")
+      bi = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bi.npy")
+      bf = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bf.npy")
+      bg = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bg.npy")
+      bo = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bo.npy")
+      expected_c = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_output_c.npy")
+      expected_h = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_output_h.npy")
+
+      {_, {new_c, new_h}} =
+        Axon.Layers.lstm_cell(
+          seq,
+          {c, h},
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo}
+        )
+
+      assert_all_close(new_c, expected_c)
+      assert_all_close(new_h, expected_h)
+    end
+  end
+
+  describe "lstm" do
+    test "matches results expected from pytorch with dynamic unroll" do
+      seq = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_seq.npy")
+      c = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_c.npy") |> Nx.squeeze()
+      h = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_h.npy") |> Nx.squeeze()
+      wii = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wii.npy")
+      wif = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wif.npy")
+      wig = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wig.npy")
+      wio = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wio.npy")
+      whi = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whi.npy")
+      whf = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whf.npy")
+      whg = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whg.npy")
+      who = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_who.npy")
+      bi = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bi.npy")
+      bf = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bf.npy")
+      bg = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bg.npy")
+      bo = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bo.npy")
+      expected_seq = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_seq.npy")
+      expected_c = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_c.npy")
+      expected_h = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_h.npy")
+
+      {new_seq, {new_c, new_h}} =
+        Axon.Layers.lstm(
+          seq,
+          {c, h},
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo},
+          unroll: :dynamic
+        )
+
+      assert_all_close(new_seq, expected_seq)
+      assert_all_close(new_c, expected_c)
+      assert_all_close(new_h, expected_h)
+    end
+  end
+
   describe "dynamic_unroll" do
     test "computes carry and output identical to static_unroll" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -993,7 +1064,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for hidden kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1040,7 +1111,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static_unroll for hidden kernel w.r.t carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1080,7 +1151,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1120,7 +1191,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1162,7 +1233,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1204,7 +1275,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),

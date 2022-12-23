@@ -2258,8 +2258,10 @@ defmodule Axon.Layers do
       while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias},
             Nx.less(i, time_steps) do
         sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
+        sequence = Nx.squeeze(sequence, axes: [1])
         indices = compute_indices(i, feature_dims)
         {output, carry} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
+        output = Nx.new_axis(output, 1)
         update_sequence = Nx.put_slice(init_sequence, indices, output)
         {i + 1, carry, update_sequence, input_sequence, input_kernel, recurrent_kernel, bias}
       end
@@ -2273,8 +2275,9 @@ defmodule Axon.Layers do
 
   deftransformp unroll_initial_shape_transform(cell_fn, inp, carry, inp_kernel, hid_kernel, bias) do
     seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
+    seq = Nx.squeeze(seq, axes: [1])
     {seq, _} = cell_fn.(seq, carry, inp_kernel, hid_kernel, bias)
-    put_elem(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+    Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
   end
 
   @doc """
@@ -2307,11 +2310,12 @@ defmodule Axon.Layers do
       for t <- 0..(time_steps - 1), reduce: {carry, []} do
         {carry, outputs} ->
           input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
+          input = Nx.squeeze(input, axes: [1])
           {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
           {carry, [output | outputs]}
       end
 
-    {Nx.concatenate(Enum.reverse(outputs), axis: 1), carry}
+    {Nx.stack(Enum.reverse(outputs), axis: 1), carry}
   end
 
   @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
@@ -2336,8 +2340,8 @@ defmodule Axon.Layers do
         Keyword.validate!(opts,
           mode: :inference,
           unroll: :static,
-          activation: :sigmoid,
-          gate: :tanh,
+          activation: :tanh,
+          gate: :sigmoid,
           conv_opts: []
         )
 
