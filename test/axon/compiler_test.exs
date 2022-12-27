@@ -1143,6 +1143,17 @@ defmodule CompilerTest do
         assert_equal(predict_fn.(init_fn.(input, %{}), input), input)
       end
     end
+
+    test "initializes correctly when node appears with and without dropout" do
+      for dropout <- @dropout_layers do
+        input = Axon.input("input", shape: {nil, 1, 32})
+        model = Axon.add([input, apply(Axon, dropout, [input])])
+        input = Nx.random_uniform({1, 1, 32})
+
+        {init_fn, _predict_fn} = Axon.build(model)
+        assert %{} = init_fn.(input, %{})
+      end
+    end
   end
 
   describe "convolution" do
