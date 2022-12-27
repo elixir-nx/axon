@@ -2804,7 +2804,7 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    fun = fn inputs, key, opts ->
+    fun = fn inputs, key, _opts ->
       shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
 
       case initializer do
