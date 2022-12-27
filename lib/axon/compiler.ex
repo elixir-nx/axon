@@ -33,7 +33,7 @@ defmodule Axon.Compiler do
   def build(%Axon{output: id, nodes: nodes}, opts) do
     debug? = Keyword.get(opts, :debug, false)
     mode = Keyword.get(opts, :mode, :inference)
-    key = Keyword.get_lazy(opts, :key, fn -> Nx.Random.key(:erlang.system_time()) end)
+    seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
     config = %{mode: mode, debug?: debug?}
 
     {time, {root_id, {cache, _op_counts}}} =
@@ -98,7 +98,6 @@ defmodule Axon.Compiler do
     end
 
     init_cache = Map.new(cache, fn {_, {int_id, funs}} -> {int_id, funs} end)
-    key = Nx.backend_copy(key, Nx.BinaryBackend)
 
     init_fun = fn template, init_params ->
       {:current_stacktrace, [_process_info, _fn | stacktrace]} =
@@ -106,7 +105,7 @@ defmodule Axon.Compiler do
 
       {time, params} =
         :timer.tc(fn ->
-          param_keys = get_keys(nodes, key)
+          param_keys = get_keys(nodes, seed)
 
           {_, {params, _}} =
             init_cache[root_id][:init].(template, init_cache, %{}, stacktrace, param_keys)
@@ -126,7 +125,7 @@ defmodule Axon.Compiler do
     {init_fun, predict_fun}
   end
 
-  defp get_keys(nodes, key) do
+  defp get_keys(nodes, seed) do
     {ids_and_data, _op_counts} =
       Enum.reduce(nodes, {[], %{}}, fn
         {_, %Axon.Node{id: id, op: op, name: name_fn, parameters: params}}, {keys, op_counts} ->
@@ -163,6 +162,8 @@ defmodule Axon.Compiler do
         %{}
 
       [_ | _] = ids ->
+        key = Nx.Random.key(seed)
+
         keys_tensor =
           data
           |> Nx.tensor(type: :u32)
