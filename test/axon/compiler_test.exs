@@ -5258,5 +5258,16 @@ defmodule CompilerTest do
       {_, predict_fn2} = Axon.Compiler.build(builder.(), [])
       assert predict_fn1 == predict_fn2
     end
+
+    test "builds a model with dropout" do
+      builder = fn ->
+        node = Axon.input("input", shape: {nil, 784})
+        Axon.add(Axon.dropout(node), node)
+      end
+
+      {_, predict_fn1} = Axon.Compiler.build(builder.(), [])
+      {_, predict_fn2} = Axon.Compiler.build(builder.(), [])
+      assert predict_fn1 == predict_fn2
+    end
   end
 end
