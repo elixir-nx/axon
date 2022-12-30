@@ -1,7 +1,7 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
+  {:axon, "~> 0.3.0"},
   # {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"}
+  {:nx, "~> 0.4.1"}
 ])
 
 # Specify EXLA as the default defn compiler
