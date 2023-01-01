@@ -253,13 +253,24 @@ defmodule Axon.Compiler do
 
   # If the node is ignored for the current mode, we pass through and recur next
   defp recur_model_funs(
-         %Axon.Node{mode: node_mode, parent: [parent | _]},
+         %Axon.Node{id: id, mode: node_mode, parent: [parent | _]},
          nodes,
          {cache, op_counts},
          config
        )
        when node_mode != :both and node_mode != config.mode do
-    recur_model_funs(nodes[parent], nodes, {cache, op_counts}, config)
+    {parent_id, {cache, op_counts}} = to_model_funs(parent, nodes, {cache, op_counts}, config)
+
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
+      call_predict_cache(parent_id, params, inputs, state, cache, result_cache, fn_stacktrace)
+    end
+
+    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
+      call_init_cache(parent_id, template, %{}, cache, result_cache, fn_stacktrace, keys)
+    end
+
+    model_funs = %{predict: predict_fun, init: init_fun}
+    {id, model_funs, cache, op_counts}
   end
 
   defp recur_model_funs(
@@ -345,7 +356,7 @@ defmodule Axon.Compiler do
 
       out = with %Axon.None{} <- out, do: %Axon.None{__propagate__: false}
 
-      {safe_shape(out), {params, result_cache}}
+      {out, {params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
