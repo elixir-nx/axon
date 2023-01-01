@@ -598,7 +598,7 @@ defmodule Axon.Compiler do
 
         _ ->
           raise ArgumentError,
-                "invalid input given to model, expected input" <>
+                "invalid input given to model," <>
                   " expected input to be a tensor or a map" <>
                   " corresponding to correct input names"
       end
