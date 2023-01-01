@@ -326,11 +326,10 @@ defmodule Axon.Loop do
   def train_step(model, loss, optimizer, opts \\ []) do
     opts = Keyword.validate!(opts, [:seed, loss_scale: :identity, gradient_accumulation_steps: 1])
 
-    seed = opts[:seed]
     loss_scale = opts[:loss_scale] || :identity
     gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
 
-    {init_model_fn, forward_model_fn} = build_model_fns(model, :train, seed)
+    {init_model_fn, forward_model_fn} = build_model_fns(model, :train, opts)
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
     {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
@@ -507,7 +506,7 @@ defmodule Axon.Loop do
   single evaluation step.
   """
   def eval_step(model) do
-    {_, forward_model_fn} = build_model_fns(model, :inference, nil)
+    {_, forward_model_fn} = build_model_fns(model, :inference, [])
 
     init_fn = fn
       {inp, tar}, state ->
@@ -688,29 +687,14 @@ defmodule Axon.Loop do
       between steps, increasing the effective batch size on smaller devices. Defaults to 1.
   """
   def trainer(model, loss, optimizer, opts \\ []) do
-    opts =
-      Keyword.validate!(opts, [
-        :seed,
-        log: 50,
-        loss_scale: :identity,
-        gradient_accumulation_steps: 1
-      ])
-
-    log_interval = opts[:log] || 50
-    gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
-    loss_scale = opts[:loss_scale] || :identity
-    seed = opts[:seed]
+    opts = Keyword.validate!(opts, [:seed, :loss_scale, :gradient_accumulation_steps, log: 50])
 
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
+    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_cale, :seed])
+    {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
-    {init_fn, step_fn} =
-      train_step(model, loss_fn, optimizer,
-        loss_scale: loss_scale,
-        gradient_accumulation_steps: gradient_accumulation_steps,
-        seed: seed
-      )
-
+    log_interval = opts[:log] || 50
     output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
@@ -2002,18 +1986,11 @@ defmodule Axon.Loop do
   # a tuple of Axon structs, or a tuple of init / forward
   # functions. Model functions are essentially just model
   # init / apply functions.
-  defp build_model_fns(%Axon{} = model, mode, seed) do
-    opts =
-      if seed != nil do
-        [mode: mode, key: Nx.Random.key(seed)]
-      else
-        [mode: mode]
-      end
-
-    Axon.build(model, opts)
+  defp build_model_fns(%Axon{} = model, mode, opts) do
+    Axon.build(model, [mode: mode] ++ opts)
   end
 
-  defp build_model_fns({init_fn, forward_fn}, _, _seed)
+  defp build_model_fns({init_fn, forward_fn}, _, _opts)
        when is_function(init_fn, 2) and is_function(forward_fn, 2) do
     {init_fn, forward_fn}
   end

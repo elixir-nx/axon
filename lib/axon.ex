@@ -1415,7 +1415,6 @@ defmodule Axon do
   defp dropout(%Axon{} = x, dropout, opts) do
     opts = Keyword.validate!(opts, [:name, :seed, rate: 0.5])
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
-    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.BinaryBackend)
 
     if opts[:rate] < 0 or opts[:rate] >= 1 do
       raise ArgumentError,
@@ -1423,7 +1422,10 @@ defmodule Axon do
     end
 
     key_state =
-      param("key", fn _ -> Nx.shape(key) end, type: {:u, 32}, initializer: fn _, _ -> key end)
+      param("key", fn _ -> {2} end,
+        type: {:u, 32},
+        initializer: fn _, _ -> Nx.Random.key(seed) end
+      )
 
     layer(dropout, [x, key_state],
       name: opts[:name],
@@ -2788,10 +2790,12 @@ defmodule Axon do
 
   defp rnn_state(x, units, rnn_type, parent_name, state_name, initializer, seed) do
     initializer = initializer || :glorot_uniform
-    key = Nx.Random.key(seed) |> Nx.backend_copy(Nx.BinaryBackend)
 
     key_state =
-      param("key", fn _ -> Nx.shape(key) end, type: {:u, 32}, initializer: fn _, _ -> key end)
+      param("key", fn _ -> {2} end,
+        type: {:u, 32},
+        initializer: fn _, _ -> Nx.Random.key(seed) end
+      )
 
     name =
       case parent_name do
