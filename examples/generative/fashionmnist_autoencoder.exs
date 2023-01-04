@@ -22,7 +22,7 @@ defmodule Fashionmist do
     defp decoder(x) do
       x
       |> Axon.dense(784, activation: :sigmoid)
-      |> Axon.reshape({1, 28, 28})
+      |> Axon.reshape({:batch, 1, 28, 28})
     end
 
     def build_model(input_shape, latent_dim) do
