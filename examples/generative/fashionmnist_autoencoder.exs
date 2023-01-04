@@ -1,8 +1,8 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.6"}
+  {:axon, "~> 0.3.0"},
+  {:exla, "~> 0.4.1"},
+  {:nx, "~> 0.4.1"},
+  {:scidata, "~> 0.1.9"}
 ])
 
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
