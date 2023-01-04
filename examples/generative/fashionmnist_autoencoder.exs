@@ -8,7 +8,7 @@ Mix.install([
 # Configure default platform with accelerator precedence as tpu > cuda > rocm > host
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
-defmodule Fashionmist do
+defmodule FashionMNIST do
   require Axon
   alias Axon.Loop.State
 
@@ -71,4 +71,4 @@ defmodule Fashionmist do
   end
 end
 
-Fashionmist.run()
+FashionMNIST.run()
