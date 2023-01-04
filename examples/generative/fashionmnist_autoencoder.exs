@@ -57,7 +57,7 @@ defmodule FashionMNIST do
 
     sample_image =
       train_images
-      |> hd()
+      |> Enum.fetch!(0)
       |> Nx.slice_along_axis(0, 1)
       |> Nx.reshape({1, 1, 28, 28})
 
