@@ -10,7 +10,6 @@ EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule FashionMNIST do
   require Axon
-  alias Axon.Loop.State
 
   defmodule Autoencoder do
     defp encoder(x, latent_dim) do
