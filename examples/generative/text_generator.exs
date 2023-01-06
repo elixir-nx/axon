@@ -1,9 +1,9 @@
 # Based on https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.2.1"},
-  {:exla, "~> 0.2.2"},
-  {:req, "~> 0.3.0"}
+  {:axon, "~> 0.3.0"},
+  {:nx, "~> 0.4.1"},
+  {:exla, "~> 0.4.1"},
+  {:req, "~> 0.3.3"}
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
