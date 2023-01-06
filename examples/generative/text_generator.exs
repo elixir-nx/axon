@@ -59,7 +59,7 @@ defmodule TextGenerator do
       |> Nx.tensor()
       |> Nx.divide(characters_count)
       |> Nx.reshape({:auto, @sequence_length, 1})
-      |> Nx.to_batched_list(@batch_size)
+      |> Nx.to_batched(@batch_size)
 
     train_labels =
       text
@@ -68,7 +68,7 @@ defmodule TextGenerator do
       |> Nx.tensor()
       |> Nx.reshape({:auto, 1})
       |> Nx.equal(Nx.iota({characters_count}))
-      |> Nx.to_batched_list(@batch_size)
+      |> Nx.to_batched(@batch_size)
 
     {train_data, train_labels}
   end
