@@ -18,7 +18,7 @@ defmodule TextGenerator do
   def build_model(characters_count) do
     Axon.input("input_chars", shape: {nil, @sequence_length, 1})
     |> Axon.lstm(256)
-    |> then(fn {_, out} -> out end)
+    |> then(fn {out, _} -> out end)
     |> Axon.nx(fn t -> t[[0..-1//1, -1]] end)
     |> Axon.dropout(rate: 0.2)
     |> Axon.dense(characters_count, activation: :softmax)
