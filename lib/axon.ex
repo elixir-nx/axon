@@ -266,8 +266,8 @@ defmodule Axon do
   your application (controllers, live views, async jobs, etc.). Having a
   tensor input you would do:
 
-      input = %{"pixel_values" => ...}
-      batch = Nx.Batch.concatenate([input])
+      inputs = %{"pixel_values" => ...}
+      batch = Nx.Batch.concatenate([inputs])
       result = Nx.Serving.batched_run(MyApp.Serving, batch)
 
   Usually you also want to do pre/post-processing of the model input/output.
