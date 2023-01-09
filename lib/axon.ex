@@ -267,7 +267,7 @@ defmodule Axon do
   tensor input you would do:
 
       batch = Nx.Batch.concatenate([input])
-      result = Nx.Serving.batched_run(ModelServing, batch)
+      result = Nx.Serving.batched_run(MyApp.Serving, batch)
 
   Usually you also want to do pre/post-processing of the model input/output.
   You could make those preparations directly before/after `Nx.Serving.batched_run/2`,
