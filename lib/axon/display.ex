@@ -30,7 +30,7 @@ defmodule Axon.Display do
       Axon.Display.as_table(model, input)
   """
   def as_table(%Axon{output: id, nodes: nodes}, input_templates) do
-    assert_table_rex!("ax_table/2")
+    assert_table_rex!("as_table/2")
 
     title = "Model"
     header = ["Layer", "Input Shape", "Output Shape", "Options", "Parameters"]
