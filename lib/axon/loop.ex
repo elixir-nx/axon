@@ -459,28 +459,29 @@ defmodule Axon.Loop do
     steps = opts[:steps]
 
     # TODO: temporarily disabled
+    # while {gradients, model_state, new_state, optimizer_state, gradient_state, gradient_step,
+    # flag = Nx.tensor(1)},
+    # flag do
+    # if Nx.greater_equal(gradient_step, steps - 1) do
     {_, new_model_state, _, new_optimizer_state, new_gradient_state, new_gradient_step, _} =
-      # while {gradients, model_state, new_state, optimizer_state, gradient_state, gradient_step,
-             # flag = Nx.tensor(1)},
-            # flag do
-        # if Nx.greater_equal(gradient_step, steps - 1) do
-          (
-            {updates, new_optimizer_state} =
-              update_optimizer_fn.(gradients, optimizer_state, model_state)
+      (
+        {updates, new_optimizer_state} =
+          update_optimizer_fn.(gradients, optimizer_state, model_state)
 
-            new_gradient_state = zeros_like(model_state)
-            new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+        new_gradient_state = zeros_like(model_state)
+        new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
 
-            {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0,
-             Nx.tensor(0)}
-          )
-      #   else
-      #     acc_gradients = deep_merge(gradient_state, gradients, fn x, y -> x + y end)
+        {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0,
+         Nx.tensor(0)}
+      )
 
-      #     {gradients, model_state, new_state, optimizer_state, acc_gradients, gradient_step + 1,
-      #      Nx.tensor(0)}
-      #   end
-      # end
+    #   else
+    #     acc_gradients = deep_merge(gradient_state, gradients, fn x, y -> x + y end)
+
+    #     {gradients, model_state, new_state, optimizer_state, acc_gradients, gradient_step + 1,
+    #      Nx.tensor(0)}
+    #   end
+    # end
 
     {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step}
   end
@@ -756,7 +757,7 @@ defmodule Axon.Loop do
   end
 
   @doc """
-  Creates a supervised evaluator from a model and model state.
+  Creates a supervised evaluator from a model.
 
   An evaluator can be used for things such as testing and validation of models
   after or during training. It assumes `model` is an Axon struct, container of
@@ -776,9 +777,18 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.evaluator()
       |> Axon.Loop.metric("Accuracy", :accuracy)
+  
+  You must pass a compatible trained model state to `Axon.Loop.run/4` when using
+  supervised evaluation loops. For example, if you've binded the result of a training
+  run to `trained_model_state`, you can run the trained model through an evaluation
+  run like this:
 
-  Applies an output transform which returns the map of metrics accumulated over
-  the given loop.
+      model
+      |> Axon.Loop.evaluator()
+      |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
+
+  This function applies an output transform which returns the map of metrics accumulated
+  over the given loop.
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
