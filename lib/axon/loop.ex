@@ -777,7 +777,7 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.evaluator()
       |> Axon.Loop.metric("Accuracy", :accuracy)
-  
+
   You must pass a compatible trained model state to `Axon.Loop.run/4` when using
   supervised evaluation loops. For example, if you've binded the result of a training
   run to `trained_model_state`, you can run the trained model through an evaluation
