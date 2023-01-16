@@ -62,7 +62,7 @@ defmodule Axon.Updates do
       end
 
       defnp init_my_update(params) do
-        state = zeros_like(params)
+        state = zeros_like(params, type: :f32)
         %{state: state}
       end
 
@@ -165,8 +165,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_adam(params) do
-    mus = zeros_like(params)
-    nus = zeros_like(params)
+    mus = zeros_like(params, type: :f32)
+    nus = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mus, nu: nus, count: count}
   end
@@ -333,8 +333,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_belief(params) do
-    mus = zeros_like(params)
-    nus = zeros_like(params)
+    mus = zeros_like(params, type: :f32)
+    nus = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mus, nu: nus, count: count}
   end
@@ -394,7 +394,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_stddev(params, value) do
-    mu = zeros_like(params)
+    mu = zeros_like(params, type: :f32)
     nu = fulls_like(params, value)
     %{mu: mu, nu: nu}
   end
@@ -486,8 +486,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_radam(params) do
-    mu = zeros_like(params)
-    nu = zeros_like(params)
+    mu = zeros_like(params, type: :f32)
+    nu = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mu, nu: nu, count: count}
   end
@@ -564,7 +564,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_trace(params) do
-    trace = zeros_like(params)
+    trace = zeros_like(params, type: :f32)
     %{trace: trace}
   end
 

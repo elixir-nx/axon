@@ -129,14 +129,15 @@ defmodule Axon.Shared do
   Creates a zeros-like structure which matches the structure
   of the input.
   """
-  defn zeros_like(params) do
-    transform(
-      params,
-      &deep_new(&1, fn x ->
-        fun = Axon.Initializers.zeros()
-        fun.(Nx.shape(x), Nx.type(x))
-      end)
-    )
+  deftransform zeros_like(params, opts \\ []) do
+    opts = Keyword.validate!(opts, [:type])
+    fun = Axon.Initializers.zeros()
+
+    deep_new(params, fn x ->
+      type = opts[:type] || Nx.type(x)
+      fun = Axon.Initializers.zeros()
+      fun.(Nx.shape(x), type)
+    end)
   end
 
   @doc """
