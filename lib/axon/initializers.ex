@@ -609,7 +609,7 @@ defmodule Axon.Initializers do
     fans = compute_fans(opts[:shape])
     denominator = compute_denominator(fans, opts[:mode])
 
-    variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), Nx.max(denominator, 1.0))
+    variance = Nx.divide(Nx.as_type(opts[:scale], opts[:type]), Nx.max(denominator, 1.0))
 
     apply_distribution(key, opts[:distribution], variance, shape: opts[:shape], type: opts[:type])
   end

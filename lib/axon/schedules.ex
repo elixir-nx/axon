@@ -22,7 +22,6 @@ defmodule Axon.Schedules do
   """
 
   import Nx.Defn
-  import Axon.Shared
 
   @doc """
   Linear decay schedule.
@@ -86,7 +85,7 @@ defmodule Axon.Schedules do
 
     init_value = opts[:init_value]
     rate = opts[:decay_rate]
-    staircase? = to_predicate(opts[:staircase])
+    staircase? = opts[:staircase]
     k = opts[:transition_steps]
     start = opts[:transition_begin]
 
@@ -166,7 +165,7 @@ defmodule Axon.Schedules do
 
   defnp apply_constant(_step, opts \\ []) do
     opts = keyword!(opts, init_value: 0.01)
-    Nx.tensor(opts[:init_value])
+    opts[:init_value]
   end
 
   @doc ~S"""
