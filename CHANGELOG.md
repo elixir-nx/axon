@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.0 (2022-01-19)
+
+### Enhancements
+
+* Add `Axon.pop_nodes/2` for popping nodes off of a graph
+* Update `Axon.freeze/2` and `Axon.unfreeze/2` for manipulating frozen portions of Axon graph
+* Add `Axon.Loop.monitor/5` for firing events based on loop state criteria
+* Add `Axon.Loop.kino_vega_lite_plot/4` for producing Kino plots during training
+* Add `Axon.Schedules.linear_decay/1`
+* Performance boosts to `Axon.Loop` which prevent compilation cache misses in most Axon training and evaluation loops
+* Add global event counts for more correct filtering during Axon loops
+* Use layer state to manage dropout keys, making training more deterministic when starting from the same key
+* Make building Axon models fully deterministic
+* Add a bidirectional combinator
+
+### Bug Fixes
+
+* Fix issue with namespaced stateful models not updating correctly during training
+* Fix bug in `Axon.Loop.early_stop/3` which incorrectly tracked progress and would not early stop loop
+* Fix bug in `Axon.Loop.reduce_lr_on_plateau/3` which incorrectly tracked progress and would not reduce learning rate
+* Fix bug in `Axon.Layers.conv_transpose/4` when using channels last
+
 ## v0.3.1 (2022-12-07)
 
 ### Enhancements
