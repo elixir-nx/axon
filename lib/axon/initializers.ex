@@ -174,20 +174,16 @@ defmodule Axon.Initializers do
 
   """
   def uniform(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 1.0e-2)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 1.0e-2
-      uniform_impl(key, shape: shape, type: type, scale: scale)
+      uniform_impl(key, scale, shape: shape, type: type)
     end
   end
 
-  defnp uniform_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2])
-    shape = Nx.shape(opts[:shape])
-
-    Nx.Random.uniform_split(key, Nx.negate(opts[:scale]), opts[:scale],
-      type: opts[:type],
-      shape: shape
-    )
+  defnp uniform_impl(key, scale, opts) do
+    Nx.Random.uniform_split(key, Nx.negate(scale), scale, opts)
   end
 
   @doc """
@@ -216,16 +212,13 @@ defmodule Axon.Initializers do
 
   """
   def normal(opts \\ []) do
-    fn shape, type, key ->
-      scale = opts[:scale] || 1.0e-2
-      mean = opts[:mean] || 0.0
-      normal_impl(key, shape: shape, type: type, scale: scale, mean: mean)
-    end
-  end
+    opts = Keyword.validate!(opts, scale: 1.0e-2, mean: 0.0)
+    scale = Keyword.fetch!(opts, :scale)
+    mean = Keyword.fetch!(opts, :mean)
 
-  defnp normal_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0e-2, mean: 0.0])
-    Nx.Random.normal_split(key, opts[:mean], opts[:scale], shape: opts[:shape], type: opts[:type])
+    fn shape, type, key ->
+      Nx.Random.normal_split(key, mean, scale, type: type, shape: shape)
+    end
   end
 
   @doc """
@@ -261,23 +254,19 @@ defmodule Axon.Initializers do
 
   """
   def lecun_uniform(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 1.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 1.0
-      lecun_uniform_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_in,
+        distribution: :uniform
+      )
     end
-  end
-
-  defnp lecun_uniform_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_in,
-      distribution: :uniform
-    )
   end
 
   @doc """
@@ -313,23 +302,19 @@ defmodule Axon.Initializers do
 
   """
   def lecun_normal(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 1.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 1.0
-      lecun_normal_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_in,
+        distribution: :truncated_normal
+      )
     end
-  end
-
-  defnp lecun_normal_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_in,
-      distribution: :truncated_normal
-    )
   end
 
   @doc """
@@ -368,23 +353,19 @@ defmodule Axon.Initializers do
 
   """
   def glorot_uniform(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 1.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 1.0
-      glorot_uniform_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_avg,
+        distribution: :uniform
+      )
     end
-  end
-
-  defnp glorot_uniform_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_avg,
-      distribution: :uniform
-    )
   end
 
   @doc """
@@ -423,23 +404,19 @@ defmodule Axon.Initializers do
 
   """
   def glorot_normal(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 1.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 1.0
-      glorot_normal_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_avg,
+        distribution: :truncated_normal
+      )
     end
-  end
-
-  defnp glorot_normal_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_avg,
-      distribution: :truncated_normal
-    )
   end
 
   @doc """
@@ -475,23 +452,19 @@ defmodule Axon.Initializers do
 
   """
   def he_uniform(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 2.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 2.0
-      he_uniform_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_in,
+        distribution: :uniform
+      )
     end
-  end
-
-  defnp he_uniform_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_in,
-      distribution: :uniform
-    )
   end
 
   @doc """
@@ -527,23 +500,19 @@ defmodule Axon.Initializers do
 
   """
   def he_normal(opts \\ []) do
+    opts = Keyword.validate!(opts, scale: 2.0)
+    scale = Keyword.fetch!(opts, :scale)
+
     fn shape, type, key ->
-      scale = opts[:scale] || 2.0
-      he_normal_impl(key, shape: shape, type: type, scale: scale)
+      variance_scaling_impl(
+        key,
+        scale,
+        shape: shape,
+        type: type,
+        mode: :fan_in,
+        distribution: :truncated_normal
+      )
     end
-  end
-
-  defnp he_normal_impl(key, opts \\ []) do
-    opts = keyword!(opts, [:shape, type: {:f, 32}, scale: 2.0])
-
-    variance_scaling_impl(
-      key,
-      shape: opts[:shape],
-      type: opts[:type],
-      scale: opts[:scale],
-      mode: :fan_in,
-      distribution: :truncated_normal
-    )
   end
 
   @doc """
@@ -586,30 +555,29 @@ defmodule Axon.Initializers do
 
   """
   def variance_scaling(opts \\ []) do
-    fn shape, type, key ->
-      scale = opts[:scale] || 1.0
-      mode = opts[:mode] || :fan_in
-      distribution = opts[:distribution] || :normal
+    opts = Keyword.validate!(opts, scale: 1.0, mode: :fan_in, distribution: :normal)
+    scale = Keyword.fetch!(opts, :scale)
+    mode = Keyword.fetch!(opts, :mode)
+    distribution = Keyword.fetch!(opts, :distribution)
 
+    fn shape, type, key ->
       variance_scaling_impl(
         key,
+        scale,
         shape: shape,
         type: type,
-        scale: scale,
         mode: mode,
         distribution: distribution
       )
     end
   end
 
-  defnp variance_scaling_impl(key, opts \\ []) do
-    opts =
-      keyword!(opts, [:shape, type: {:f, 32}, scale: 1.0, mode: :fan_in, distribution: :normal])
+  defnp variance_scaling_impl(key, scale, opts \\ []) do
+    opts = keyword!(opts, [:shape, type: {:f, 32}, mode: :fan_in, distribution: :normal])
 
     fans = compute_fans(opts[:shape])
     denominator = compute_denominator(fans, opts[:mode])
-
-    variance = Nx.divide(Nx.tensor(opts[:scale], type: opts[:type]), Nx.max(denominator, 1.0))
+    variance = Nx.as_type(scale, opts[:type]) / Nx.max(denominator, 1.0)
 
     apply_distribution(key, opts[:distribution], variance, shape: opts[:shape], type: opts[:type])
   end

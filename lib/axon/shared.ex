@@ -119,13 +119,6 @@ defmodule Axon.Shared do
   end
 
   @doc """
-  Transforms the given Elixir value into a scalar predicate.
-  """
-  defn to_predicate(term) do
-    transform(term, fn term -> if term, do: 1, else: 0 end)
-  end
-
-  @doc """
   Creates a zeros-like structure which matches the structure
   of the input.
   """
@@ -135,7 +128,6 @@ defmodule Axon.Shared do
 
     deep_new(params, fn x ->
       type = opts[:type] || Nx.type(x)
-      fun = Axon.Initializers.zeros()
       fun.(Nx.shape(x), type)
     end)
   end
@@ -143,14 +135,12 @@ defmodule Axon.Shared do
   @doc """
   Creates a fulls-like tuple of inputs.
   """
-  defn fulls_like(params, value) do
-    transform(
-      params,
-      &deep_new(&1, fn x ->
-        fun = Axon.Initializers.full(value)
-        fun.(Nx.shape(x), Nx.type(x))
-      end)
-    )
+  deftransform fulls_like(params, value) do
+    fun = Axon.Initializers.full(value)
+
+    deep_new(params, fn x ->
+      fun.(Nx.shape(x), Nx.type(x))
+    end)
   end
 
   @doc """
