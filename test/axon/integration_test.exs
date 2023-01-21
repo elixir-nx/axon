@@ -184,4 +184,58 @@ defmodule Axon.IntegrationTest do
       assert_equal(step_state1, step_state2)
     end)
   end
+
+  test "dropout with certain optimizers regression test" do
+    {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+    train =
+      train
+      |> Stream.map(fn {xs, ys} ->
+        {xs, one_hot(ys, num_classes: 2)}
+      end)
+      |> Enum.to_list()
+
+    [{x_test, _}] = Enum.take(train, 1)
+
+    model =
+      Axon.input("input")
+      |> Axon.dense(16)
+      |> Axon.dropout(rate: 0.1)
+      |> Axon.dense(2, activation: :softmax)
+
+    optimizers = [
+      Axon.Optimizers.rmsprop(5.0e-3, centered: true),
+      Axon.Optimizers.rmsprop(5.0e-3, centered: false),
+      :adagrad,
+      :yogi
+    ]
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      for optim <- optimizers do
+        results =
+          model
+          |> Axon.Loop.trainer(:categorical_cross_entropy, optim)
+          # TODO: Fix default output transform
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.validate(model, train)
+          |> Axon.Loop.run(train, %{}, epochs: 10)
+
+        assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                 results
+
+        eval_results =
+          model
+          |> Axon.Loop.evaluator()
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.run(train, model_state)
+
+        assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+        assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
+        assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+        assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+      end
+    end)
+  end
 end

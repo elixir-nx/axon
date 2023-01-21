@@ -219,7 +219,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_rss(params, value) do
-    sum_of_squares = fulls_like(params, value)
+    sum_of_squares = fulls_like(params, value, type: :f32)
     %{sum_of_squares: sum_of_squares}
   end
 
@@ -278,7 +278,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_rms(params, scale) do
-    nu = fulls_like(params, scale)
+    nu = fulls_like(params, scale, type: :f32)
     %{nu: nu}
   end
 
@@ -395,7 +395,7 @@ defmodule Axon.Updates do
 
   defnp init_scale_by_stddev(params, value) do
     mu = zeros_like(params, type: :f32)
-    nu = fulls_like(params, value)
+    nu = fulls_like(params, value, type: :f32)
     %{mu: mu, nu: nu}
   end
 
@@ -860,7 +860,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_yogi(params, value) do
-    value = fulls_like(params, value)
+    value = fulls_like(params, value, type: :f32)
     mu = value
     nu = value
     count = Nx.tensor(0)
