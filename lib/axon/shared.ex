@@ -135,11 +135,13 @@ defmodule Axon.Shared do
   @doc """
   Creates a fulls-like tuple of inputs.
   """
-  deftransform fulls_like(params, value) do
+  deftransform fulls_like(params, value, opts \\ []) do
+    opts = Keyword.validate!(opts, [:type])
     fun = Axon.Initializers.full(value)
 
     deep_new(params, fn x ->
-      fun.(Nx.shape(x), Nx.type(x))
+      type = opts[:type] || Nx.type(x)
+      fun.(Nx.shape(x), type)
     end)
   end
 
