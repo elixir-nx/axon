@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.4.1"
+  @version "0.5.0-dev"
 
   def project do
     [
