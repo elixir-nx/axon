@@ -85,16 +85,14 @@ defmodule Axon.Activations do
   """
   defn celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-
-    transform(
-      opts[:alpha],
-      fn x ->
-        if Elixir.Kernel.==(x, 0),
-          do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
-      end
-    )
+    validate_celu_alpha!(opts[:alpha])
 
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
+  end
+
+  deftransformp validate_celu_alpha!(alpha) do
+    if alpha == 0,
+      do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
   end
 
   @doc ~S"""
@@ -376,7 +374,7 @@ defmodule Axon.Activations do
   """
   defn log_sumexp(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-    axes = transform(opts[:axis], &List.wrap/1)
+    axes = wrap(opts[:axis])
 
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
@@ -456,12 +454,6 @@ defmodule Axon.Activations do
   """
   defn log_softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-
-    transform({x, opts}, fn {x, opts} ->
-      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
-        raise ArgumentError, "log_softmax axis must be within rank of tensor"
-      end
-    end)
 
     shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
 
@@ -594,7 +586,7 @@ defmodule Axon.Activations do
   defn sigmoid(x) do
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
-    transform(Nx.sigmoid(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+    cache_logits(x, Nx.sigmoid(x))
   end
 
   @doc ~S"""
@@ -708,13 +700,7 @@ defmodule Axon.Activations do
   """
   defn softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-    axes = transform(opts[:axis], &List.wrap/1)
-
-    transform({x, axes}, fn {x, axes} ->
-      Enum.each(axes, fn axis ->
-        Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
-      end)
-    end)
+    axes = wrap(opts[:axis])
 
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
@@ -745,7 +731,7 @@ defmodule Axon.Activations do
 
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
-    transform(res, &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+    cache_logits(x, res)
   end
 
   @doc ~S"""
@@ -837,4 +823,12 @@ defmodule Axon.Activations do
 
   """
   defn tanh(x), do: Nx.tanh(x)
+
+  ## Helpers
+
+  deftransformp cache_logits(input, output) do
+    Nx.Defn.Expr.metadata(output, %{logits: input})
+  end
+
+  deftransformp wrap(axis), do: List.wrap(axis)
 end
