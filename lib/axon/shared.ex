@@ -228,6 +228,14 @@ defmodule Axon.Shared do
     end
   end
 
+  ## List transforms in defn
+
+  deftransform list_duplicate(value, size) do
+    List.duplicate(value, size)
+  end
+
+  deftransform list_wrap(value), do: List.wrap(value)
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else, like another library

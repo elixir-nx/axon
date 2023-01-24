@@ -1,6 +1,8 @@
 defmodule Axon.Shape do
   @moduledoc false
 
+  import Nx.Defn
+
   # Collection of shape calculations for calculating the
   # output and trainable parameter shapes for high-level
   # layers.
@@ -319,8 +321,11 @@ defmodule Axon.Shape do
   the input bias shape is a vector, otherwise we'll just
   attempt to let it broadcast itself.
   """
-  def conv_bias_reshape(input_shape, spatial_rank, channels) do
-    case input_shape do
+  deftransform conv_bias_reshape(input, bias, channels) do
+    bias_shape = Nx.shape(bias)
+    spatial_rank = Nx.rank(input) - 2
+
+    case bias_shape do
       {} ->
         {}
 
@@ -339,10 +344,50 @@ defmodule Axon.Shape do
   end
 
   @doc """
+  Calculates the permutation options to pass to convolution
+  based on channels configuration.
+
+  It returns both the input/output permutation and the kernel
+  permutation.
+  """
+  deftransform conv_permutations(input, channels) do
+    rank = Nx.rank(input)
+
+    case channels do
+      :first ->
+        perm = Enum.to_list(0..(rank - 1))
+        {perm, perm}
+
+      :last ->
+        spatial = Enum.to_list(1..(rank - 2)//1)
+        perm = [0, rank - 1 | spatial]
+        kernel_perm = [rank - 1, rank - 2] ++ Enum.to_list(0..(rank - 3)//1)
+        {perm, kernel_perm}
+
+      invalid ->
+        raise ArgumentError, "invalid channel configuration, #{inspect(invalid)}"
+    end
+  end
+
+  @doc """
+  Calculates strides for transposed convolution.
+  """
+  deftransform conv_transpose_strides(input, strides) do
+    rank = Nx.rank(input) - 2
+
+    case strides do
+      [_ | _] = strides -> strides
+      strides -> List.duplicate(strides, rank)
+    end
+  end
+
+  @doc """
   Calculates the padding needed for a transposed convolution.
   """
-  def conv_transpose_padding(kernel_shape, kernel_dilation, strides, padding, channels)
-      when padding in [:valid, :same] do
+  deftransform conv_transpose_padding(kernel, kernel_dilation, strides, padding, channels)
+               when padding in [:valid, :same] do
+    kernel_shape = Nx.shape(kernel)
+
     kernel_spatial_dims =
       case channels do
         :first ->
@@ -395,7 +440,7 @@ defmodule Axon.Shape do
     end
   end
 
-  def conv_transpose_padding(_, _, _, padding, _), do: padding
+  deftransform conv_transpose_padding(_, _, _, padding, _), do: padding
 
   @doc """
   Calculates the shape of a depthwise convolution kernel given the
@@ -632,7 +677,9 @@ defmodule Axon.Shape do
   across batch or channel dimensions, so we just specify
   a size of `1` for each of those.
   """
-  def pool_window_size(window, spatial_rank, channels) do
+  deftransform pool_window_size(input, window, channels) do
+    spatial_rank = Nx.rank(input) - 2
+
     spatial_dims =
       case window do
         x when is_integer(x) ->
@@ -655,20 +702,70 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Computes the window size from the given parent shape.
+  Calculates the window strides of a pooling operation.
   """
-  def adaptive_pool_window_size(parent_shape, nil, channels) do
-    case channels do
-      :first ->
-        parent_shape |> Tuple.delete_at(0) |> Tuple.delete_at(0)
+  deftransform pool_window_strides(input, strides, window_dimensions, channels) do
+    rank = Nx.rank(input)
 
-      :last ->
-        parent_shape |> Tuple.delete_at(tuple_size(parent_shape) - 1) |> Tuple.delete_at(0)
+    case {strides, channels} do
+      {nil, _} -> Tuple.to_list(window_dimensions)
+      {[_ | _] = strides, :first} -> [1, 1 | strides]
+      {[_ | _] = strides, :last} -> [1 | strides] ++ [1]
+      {strides, :first} -> [1, 1 | List.duplicate(strides, rank - 2)]
+      {strides, :last} -> [1 | List.duplicate(strides, rank - 2)] ++ [1]
     end
   end
 
-  def adaptive_pool_window_size(parent_shape, output_size, _channels) do
-    inner_rank = Nx.rank(parent_shape) - 2
+  @doc """
+  Calculates window dilations of a pooling operation.
+  """
+  deftransform pool_window_dilations(input, window_dilations, channels) do
+    rank = Nx.rank(input)
+
+    case {window_dilations, channels} do
+      {nil, _} -> List.duplicate(1, rank)
+      {[_ | _] = dilations, :first} -> [1, 1 | dilations]
+      {[_ | _] = dilations, :last} -> [1 | dilations] ++ [1]
+      {dilations, :first} -> [1, 1 | List.duplicate(dilations, rank - 2)]
+      {dilations, :last} -> [1 | List.duplicate(dilations, rank - 2)] ++ [1]
+    end
+  end
+
+  @doc """
+  Calculates padding of a pooling operation based on input padding
+  and channels configuration.
+  """
+  deftransform pool_window_padding(padding, channels) do
+    case {padding, channels} do
+      {:same, _} -> :same
+      {:valid, _} -> :valid
+      {padding, :first} -> [{0, 0}, {0, 0} | padding]
+      {padding, :last} -> [{0, 0} | padding] ++ [{0, 0}]
+    end
+  end
+
+  @doc """
+  Computes the adaptive pooling output size from the given parent
+  shape, output shape and channels configuration.
+  """
+  deftransform adaptive_pool_output_size(input, nil, channels) do
+    parent_shape = Nx.shape(input)
+
+    case channels do
+      :first ->
+        parent_shape
+        |> Tuple.delete_at(0)
+        |> Tuple.delete_at(0)
+
+      :last ->
+        parent_shape
+        |> Tuple.delete_at(tuple_size(parent_shape) - 1)
+        |> Tuple.delete_at(0)
+    end
+  end
+
+  deftransform adaptive_pool_output_size(input, output_size, _channels) do
+    inner_rank = Nx.rank(input) - 2
     tuple_or_duplicate(:output_size, output_size, inner_rank)
   end
 
@@ -684,7 +781,10 @@ defmodule Axon.Shape do
 
   This preserves the size of the channel/batch dimension.
   """
-  def adaptive_pool_window_strides(input_shape, output_spatial, spatial_rank, channels) do
+  deftransform adaptive_pool_window_strides(input, output_spatial, channels) do
+    input_shape = Nx.shape(input)
+    spatial_rank = Nx.rank(input) - 2
+
     idx =
       if channels == :first do
         1
@@ -733,13 +833,15 @@ defmodule Axon.Shape do
 
   This preserves the size of the channel/batch dimension.
   """
-  def adaptive_pool_window_size(
-        input_shape,
-        stride,
-        output_spatial,
-        spatial_rank,
-        channels
-      ) do
+  deftransform adaptive_pool_window_size(
+                 input,
+                 stride,
+                 output_spatial,
+                 channels
+               ) do
+    input_shape = Nx.shape(input)
+    spatial_rank = Nx.rank(input) - 2
+
     strides =
       case channels do
         :first ->
@@ -813,16 +915,22 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reduction axes for batch normalization.
   """
-  def batch_norm_axes(axes, channel_index) do
-    axes
-    |> Enum.filter(&(&1 != channel_index))
+  deftransform batch_norm_axes(input, channel_index) do
+    axis = Nx.Shape.normalize_axis(Nx.shape(input), channel_index, Nx.names(input))
+
+    input
+    |> Nx.axes()
+    |> Enum.filter(&(&1 != axis))
   end
 
   @doc """
   Calculates the reduction axes for instance normalization.
   """
-  def instance_norm_axes(axes, channel_index) do
-    reduction_axes = axes -- [0, channel_index]
+  deftransform instance_norm_axes(input, channel_index) do
+    axis = Nx.Shape.normalize_axis(Nx.shape(input), channel_index, Nx.names(input))
+    axes = Nx.axes(input)
+
+    reduction_axes = axes -- [0, axis]
 
     if reduction_axes == [] do
       raise ArgumentError, "rank of input shape must be at least 3"
@@ -834,14 +942,17 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reduction axes for group normalization.
   """
-  def group_norm_axes(rank, channel_index) do
-    Enum.to_list(1..(rank - 1)) -- [channel_index]
+  deftransform group_norm_axes(input, channel_index) do
+    Enum.to_list(1..(Nx.rank(input) - 1)) -- [channel_index]
   end
 
   @doc """
   Calculates the reshape for group normalization.
   """
-  def group_norm_shape(shape, num_groups, channel_index) do
+  deftransform group_norm_shape(input, num_groups, channel_index) do
+    shape = Nx.shape(input)
+    channel_index = Nx.Shape.normalize_axis(shape, channel_index, Nx.names(input))
+
     channels = elem(shape, channel_index)
     group_size = div(channels, num_groups)
 
@@ -851,41 +962,24 @@ defmodule Axon.Shape do
   end
 
   @doc """
-  Calculates the shape after a flatten layer, which
-  flattens the non-minibatch dimensions into a single
-  dimension.
-
-  ## Examples
-
-      iex> Axon.Shape.flatten({nil, 1, 28, 28})
-      {nil, 784}
-
-      iex> Axon.Shape.flatten({32, 128})
-      {32, 128}
-
-      iex> Axon.Shape.flatten({nil, 10, 10})
-      {nil, 100}
-  """
-  def flatten(shape) do
-    out_units = Nx.size(Tuple.delete_at(shape, 0))
-
-    {elem(shape, 0), out_units}
-  end
-
-  @doc """
   Computes split sizes for the given splits.
   """
-  def split(shape, n, axis) do
+  deftransform split(input, index, splits, axis) do
+    shape = Nx.shape(input)
+
     nil_names = List.duplicate(nil, Nx.rank(shape))
     axis = Nx.Shape.normalize_axis(shape, axis, nil_names)
 
-    unless rem(elem(shape, axis), n) == 0 do
+    unless rem(elem(shape, axis), splits) == 0 do
       raise ArgumentError,
-            "unable to create #{n} even splits along axis #{axis}" <>
+            "unable to create #{splits} even splits along axis #{axis}" <>
               " of size #{elem(shape, axis)}"
     end
 
-    div(elem(shape, axis), n)
+    slice_size = div(elem(shape, axis), splits)
+
+    offset = index * slice_size
+    {offset, slice_size}
   end
 
   @doc """
@@ -898,13 +992,15 @@ defmodule Axon.Shape do
 
   ## Examples
 
-      iex> Axon.Shape.spatial_dropout_noise_shape({nil, 3, 28, 28}, :first)
-      {nil, 1, 28, 28}
+      iex> Axon.Shape.spatial_dropout_noise_shape({1, 3, 28, 28}, :first)
+      {1, 1, 28, 28}
 
-      iex> Axon.Shape.spatial_dropout_noise_shape({nil, 28, 28, 3}, :last)
-      {nil, 28, 28, 1}
+      iex> Axon.Shape.spatial_dropout_noise_shape({1, 28, 28, 3}, :last)
+      {1, 28, 28, 1}
   """
-  def spatial_dropout_noise_shape(input_shape, channels) do
+  deftransform spatial_dropout_noise_shape(input, channels) do
+    input_shape = Nx.shape(input)
+
     if channels == :first do
       :erlang.setelement(2, input_shape, 1)
     else
@@ -970,6 +1066,22 @@ defmodule Axon.Shape do
     end
 
     {elem(shape, 0), 1, units}
+  end
+
+  @doc """
+  Returns the reduction axes for a global pooling operation
+  based on the input rank and channels configuration.
+  """
+  deftransform global_pool_axes(input, channels) do
+    rank = Nx.rank(input)
+
+    case channels do
+      :last ->
+        Enum.to_list(1..(rank - 2))
+
+      :first ->
+        Enum.to_list(2..(rank - 1))
+    end
   end
 
   defp tuple_or_duplicate(key, tuple_or_integer, rank) do

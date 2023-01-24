@@ -198,6 +198,19 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with strides" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({3, 1, 4, 4})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv(input, kernel, bias, channels: :first, strides: [1, 2])
+      last = Axon.Layers.conv(t_input, t_kernel, bias, channels: :last, strides: [1, 2])
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
       kernel = Nx.iota({2, 1, 1})
@@ -233,6 +246,19 @@ defmodule Axon.LayersTest do
 
       first = Axon.Layers.conv_transpose(input, kernel, bias, channels: :first)
       last = Axon.Layers.conv_transpose(t_input, t_kernel, bias, channels: :last)
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
+    test "channels first same as channels last with strides" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = Nx.random_uniform({3, 1, 4, 4})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv_transpose(input, kernel, bias, channels: :first, strides: [1, 2])
+      last = Axon.Layers.conv_transpose(t_input, t_kernel, bias, channels: :last, strides: [1, 2])
 
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
@@ -579,6 +605,27 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with custom padding" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
 
@@ -622,6 +669,27 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with custom padding" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
 
@@ -660,6 +728,27 @@ defmodule Axon.LayersTest do
           kernel_size: {2, 2},
           window_dilations: [2, 2],
           channels: :last
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
+    test "channels last same as channels first with custom padding" do
+      input = Nx.random_uniform({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
         )
 
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
