@@ -613,23 +613,48 @@ defmodule Axon.LoopTest do
       ExUnit.CaptureIO.capture_io(fn ->
         model
         |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-        |> send_handler(:started)
-        |> send_handler(:epoch_started)
-        |> send_handler(:iteration_started)
-        |> send_handler(:iteration_completed)
-        |> send_handler(:epoch_completed)
-        |> send_handler(:completed)
-        |> Axon.Loop.run(data, %{}, epochs: 1, iterations: 1)
+        |> send_handler_with_state(:started)
+        |> send_handler_with_state(:epoch_started)
+        |> send_handler_with_state(:iteration_started, fn state ->
+          if state.epoch == 0 and state.iteration == 0 do
+            :halt_epoch
+          else
+            :continue
+          end
+        end)
+        |> send_handler_with_state(:iteration_completed)
+        |> send_handler_with_state(:epoch_halted, fn state ->
+          if state.epoch == 0 do
+            :halt_epoch
+          else
+            :continue
+          end
+        end)
+        |> send_handler_with_state(:epoch_completed)
+        |> send_handler_with_state(:completed)
+        |> Axon.Loop.run(data, %{}, epochs: 2, iterations: 2)
       end)
 
-      assert_received :started
-      assert_received :epoch_started
-      assert_received :iteration_started
-      assert_received :iteration_completed
-      assert_received :epoch_completed
-      assert_received :completed
+      assert_received {:started, %{epoch: 0, iteration: 0}, t0}
+      assert_received {:epoch_started, %{epoch: 0, iteration: 0}, t1}
+      assert_received {:iteration_started, %{epoch: 0, iteration: 0}, t2}
+      assert_received {:epoch_halted, %{epoch: 0, iteration: 0}, t3}
+      assert_received {:epoch_started, %{epoch: 1, iteration: 0}, t4}
+      assert_received {:iteration_started, %{epoch: 1, iteration: 0}, t5}
+      assert_received {:iteration_completed, %{epoch: 1, iteration: 0}, t6}
+      assert_received {:iteration_started, %{epoch: 1, iteration: 1}, t7}
+
+      # t8 and t9 inverted to show that these don't need to be matched
+      # in the correct order this is handled by the assertion with sort below
+      assert_received {:epoch_completed, %{epoch: 1, iteration: 2}, t9}
+      assert_received {:iteration_completed, %{epoch: 1, iteration: 1}, t8}
+      assert_received {:completed, %{epoch: 2, iteration: 0}, t10}
 
       refute_received _
+
+      # ensure that events are received in the correct order
+      times = [t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10]
+      assert times == Enum.sort(times, {:asc, NaiveDateTime})
     end
   end
 
@@ -659,6 +684,18 @@ defmodule Axon.LoopTest do
           {:continue, state}
         end,
         filter
+      )
+    end
+
+    def send_handler_with_state(loop, event, action_fn \\ fn _ -> :continue end) do
+      Axon.Loop.handle(
+        loop,
+        event,
+        fn state ->
+          Process.sleep(1)
+          send(self(), {event, state, NaiveDateTime.utc_now()})
+          {action_fn.(state), state}
+        end
       )
     end
 
