@@ -162,7 +162,8 @@ defmodule Axon.Loop do
       :halt_loop  # Halt looping
 
   It is important to notice that `:halt_epoch` does the same
-  as `:continue` if not accompanied by an `:epoch_halted` handler.
+  as `:continue` if not accompanied by an `:epoch_halted` handler
+  that also emits a `:halt_epoch` instruction.
 
   And `state` is an updated `Axon.Loop.State` struct. Handler functions take as input
   the current loop state.
