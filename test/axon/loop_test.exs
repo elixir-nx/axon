@@ -644,10 +644,11 @@ defmodule Axon.LoopTest do
       assert_received {:iteration_completed, %{epoch: 1, iteration: 0}, t6}
       assert_received {:iteration_started, %{epoch: 1, iteration: 1}, t7}
 
-      # t8 and t9 inverted to show that these don't need to be matched
+      # t8, t9 and t10 out of order to show that these don't need to be matched
       # in the correct order this is handled by the assertion with sort below
       assert_received {:epoch_completed, %{epoch: 1, iteration: 2}, t9}
       assert_received {:iteration_completed, %{epoch: 1, iteration: 1}, t8}
+
       assert_received {:completed, %{epoch: 2, iteration: 0}, t10}
 
       refute_received _
