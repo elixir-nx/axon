@@ -3457,7 +3457,10 @@ defmodule Axon do
   @doc """
   Builds the given model to `{init_fn, predict_fn}`.
 
-  Once built, a model can be passed as argument to `Nx.Defn`.
+  The given functions can be either given as arguments to `Nx.Defn`
+  functions or be invoked directly, to perform just-in-time compilation
+  and execution. If you want to compile the model (instead of just-in-time)
+  based on a predefined initialization shape, see `compile/4`.
 
   ## `init_fn`
 
@@ -3506,8 +3509,7 @@ defmodule Axon do
 
   This function makes use of the built-in `Nx.Defn.compile/3`. Note
   that passing inputs which differ in shape or type from the templates
-  provided to this function will result in potentially expensive
-  recompilation.
+  provided to this function will result in a crash.
   """
   @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
@@ -3615,8 +3617,10 @@ defmodule Axon do
   end
 
   @doc """
-  Compiles and runs the given Axon model with `params` on
-  `input` with the given compiler options.
+  Builds and runs the given Axon `model` with `params` and `input`.
+
+  This is equivalent to calling `build/2` and then invoking the
+  predict function.
 
   ## Options
 
