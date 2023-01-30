@@ -5,7 +5,7 @@ defmodule Axon.Loop do
 
   Inspired heavily by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
 
-  The main abstraction is the `%Loop{}` struct, which controls a nested
+  The main abstraction is the `%Axon.Loop{}` struct, which controls a nested
   reduction of the form:
 
       Enum.reduce(1..max_epochs, state, fn epoch, state ->
@@ -14,7 +14,7 @@ defmodule Axon.Loop do
 
   `data` is assumed to be an `Enumerable` or `Stream` of input data which is
   handled by a processing function, `batch_step`. The purpose of the loop
-  abstraction is to take away much of the boilerplate used in solving machine
+  abstraction is to take away much of the boilerplate code used in solving machine
   learning tasks. Tasks such as normalizing a dataset, hyperparameter optimization,
   or training machine learning models boil down to writing one function:
 
@@ -44,10 +44,10 @@ defmodule Axon.Loop do
   dataset for `N` epochs before finally returning the trained model state. By defining
   1 function, we've created a training loop that works for most machine learning models.
 
-  In actuality, the loop abstraction accumulates a struct, `Axon.Loop.State`, which looks
+  In actuality, the loop abstraction accumulates a struct, `%Axon.Loop.State{}`, which looks
   like (assuming `container` is a generic Elixir container of tensors, e.g. map, tuple, etc.):
 
-      %State{
+      %Axon.Loop.State{
         epoch: integer(),
         max_epoch: integer(),
         iteration: integer(),
@@ -89,6 +89,15 @@ defmodule Axon.Loop do
         new_state = # ...do something...
         new_state
       end
+
+  Note that any optimization and training anonymous functions that need to be used in the
+  `batch_step` function can be passed as extra arguments. For example:
+
+      step_with_training_arguments = fn data, state, optimizer_update_fn, state_update_fn ->
+        # ...do something...
+      end
+
+      step = &(step_with_training_arguments.(&1, &2, actual_optimizer_update_fn, actual_state_update_fn))
 
   ## Metrics
 
@@ -191,8 +200,7 @@ defmodule Axon.Loop do
 
   In order to execute a loop, you should use `Axon.Loop.run/3`:
 
-      loop
-      |> Axon.Loop.run(data, epochs: 10)
+      Axon.Loop.run(loop, data, epochs: 10)
 
   ## Resuming loops
 
@@ -304,10 +312,12 @@ defmodule Axon.Loop do
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
-  initializes the optimizer state from attached parameters and `update_fn` is an
-  arity-3 function which scales gradient updates with respect to input parameters,
-  optimizer state, and gradients. See `Axon.Updates` for more information on building
-  optimizers.
+  initializes the optimizer state from the model parameters and `update_fn` is an
+  arity-3 function that receives `(gradient, optimizer_state, model_parameters)` and
+  scales gradient updates with respect to input parameters, optimizer state, and gradients.
+  The `update_fn` returns `{scaled_updates, optimizer_state}`, which can then be applied to
+  the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
+  See `Axon.Updates` for more information on building optimizers.
 
   ## Options
 
