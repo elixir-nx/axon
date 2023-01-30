@@ -52,7 +52,7 @@ model =
 loop =
   model
   |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-  |> Axon.Loop.handle(:epoch_completed, &CustomEventHandler.my_weird_handler/1)
+  |> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.my_weird_handler/1)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -190,7 +190,7 @@ The loop will immediately stop executing and return the current state at the tim
 ```elixir
 model
 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-|> Axon.Loop.handle(:epoch_completed, &CustomEventHandler.always_halts/1)
+|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.always_halts/1)
 |> Axon.Loop.run(train_data, %{}, epochs: 5, iterations: 100)
 ```
 
@@ -283,8 +283,8 @@ If you run these handlers in conjunction, the loop will not terminate prematurel
 ```elixir
 model
 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-|> Axon.Loop.handle(:iteration_completed, &CustomEventHandler.always_halts_epoch/1)
-|> Axon.Loop.handle(:epoch_completed, &CustomEventHandler.always_halts_loop/1)
+|> Axon.Loop.handle_event(:iteration_completed, &CustomEventHandler.always_halts_epoch/1)
+|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.always_halts_loop/1)
 |> Axon.Loop.run(train_data, %{}, epochs: 5, iterations: 100)
 ```
 
