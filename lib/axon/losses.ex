@@ -134,20 +134,7 @@ defmodule Axon.Losses do
     # altogether if necessary. If either of them is set, then we need to set
     # both and perform this whole thing. If neither is set, we set this to
     # nil and then avoid the weighted avg later on.
-    weights =
-      transform({y_true, opts[:positive_weight], opts[:negative_weight]}, fn
-        {_, nil, nil} ->
-          nil
-
-        {y_true, pos, nil} ->
-          Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, nil, neg} ->
-          Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, pos, neg} ->
-          Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
-      end)
+    weights = get_weights(y_true, opts[:positive_weight], opts[:negative_weight])
 
     # Merge types before computing loss to prevent under/overflow. This
     # can especially happen when targets are encoded as u8 tensors. We
@@ -205,6 +192,22 @@ defmodule Axon.Losses do
       end
 
     reduction(possibly_weighted_avg_loss, opts[:reduction])
+  end
+
+  deftransformp get_weights(y_true, pos, neg) do
+    case {y_true, pos, neg} do
+      {_, nil, nil} ->
+        nil
+
+      {y_true, pos, nil} ->
+        Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
+
+      {y_true, nil, neg} ->
+        Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
+
+      {y_true, pos, neg} ->
+        Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
+    end
   end
 
   defnp sigmoid_cross_entropy_from_logits(y_true, y_pred) do
@@ -895,14 +898,7 @@ defmodule Axon.Losses do
     n12 = Nx.max(w1 * w2, eps)
     loss = w12 / n12
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -1019,14 +1015,11 @@ defmodule Axon.Losses do
         {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, s_true, y_pred}
       end
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    case opts[:reduction] do
+      :mean -> Nx.divide(loss, l_true) |> Nx.mean()
+      :sum -> Nx.sum(loss)
+      :none -> loss
+    end
   end
 
   defnp get_limits(y_true, s_max, t_max) do

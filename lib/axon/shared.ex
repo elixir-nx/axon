@@ -11,111 +11,87 @@ defmodule Axon.Shared do
   @doc """
   Asserts `lhs` has same shape as `rhs`.
   """
-  defn assert_shape!(caller, lhs_name, lhs, rhs_name, rhs) do
-    transform(
-      {lhs, rhs},
-      fn {lhs, rhs} ->
-        lhs = Nx.shape(lhs)
-        rhs = Nx.shape(rhs)
+  deftransform assert_shape!(caller, lhs_name, lhs, rhs_name, rhs) do
+    lhs = Nx.shape(lhs)
+    rhs = Nx.shape(rhs)
 
-        unless Elixir.Kernel.==(lhs, rhs) do
-          raise ArgumentError,
-                "#{caller}: expected input shapes #{lhs_name} and #{rhs_name}" <>
-                  " to be equal, got #{inspect(lhs)} != #{inspect(rhs)}"
-        end
-      end
-    )
+    unless lhs == rhs do
+      raise ArgumentError,
+            "#{caller}: expected input shapes #{lhs_name} and #{rhs_name}" <>
+              " to be equal, got #{inspect(lhs)} != #{inspect(rhs)}"
+    end
   end
 
   @doc """
   Asserts all shapes are equal.
   """
-  defn assert_shape!(caller, shape_names, shapes) do
-    transform(shapes, fn [shape | shapes] ->
-      equal? =
-        Enum.all?(shapes, fn cur_shape ->
-          Elixir.Kernel.==(Nx.shape(cur_shape), Nx.shape(shape))
-        end)
+  deftransform assert_shape!(caller, shape_names, [shape | shapes]) do
+    equal? =
+      Enum.all?(shapes, fn cur_shape ->
+        Nx.shape(cur_shape) == Nx.shape(shape)
+      end)
 
-      unless equal? do
-        raise ArgumentError,
-              "#{caller}: expected all input shapes #{inspect(shape_names)}" <>
-                " to be equal, got #{inspect(shapes)}"
-      end
-    end)
+    unless equal? do
+      raise ArgumentError,
+            "#{caller}: expected all input shapes #{inspect(shape_names)}" <>
+              " to be equal, got #{inspect(shapes)}"
+    end
   end
 
   @doc """
   Asserts `inp` has explicit rank `rank`.
   """
-  defn assert_rank!(caller, inp_name, inp, rank) do
-    transform(
-      {inp, rank},
-      fn {x, y} ->
-        x = Nx.rank(x)
+  deftransform assert_rank!(caller, inp_name, inp, rank) do
+    x = Nx.rank(inp)
 
-        unless Elixir.Kernel.==(x, y) do
-          raise ArgumentError,
-                "#{caller}: expected #{inp_name} to have rank equal to #{y}," <>
-                  " got #{x} != #{y}"
-        end
-      end
-    )
+    unless x == rank do
+      raise ArgumentError,
+            "#{caller}: expected #{inp_name} to have rank equal to #{rank}," <>
+              " got #{x} != #{rank}"
+    end
   end
 
   @doc """
   Asserts `lhs` has same rank as `rhs`.
   """
-  defn assert_equal_rank!(caller, lhs_name, lhs, rhs_name, rhs) do
-    transform(
-      {lhs, rhs},
-      fn {x, y} ->
-        x = if is_integer(x), do: x, else: Nx.rank(x)
-        y = if is_integer(y), do: y, else: Nx.rank(y)
+  deftransform assert_equal_rank!(caller, lhs_name, lhs, rhs_name, rhs) do
+    x = if is_integer(lhs), do: lhs, else: Nx.rank(lhs)
+    y = if is_integer(rhs), do: rhs, else: Nx.rank(rhs)
 
-        unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError,
-                "#{caller}: expected #{lhs_name} and #{rhs_name} ranks to be equal" <>
-                  " got #{x} != #{y}"
-        end
-      end
-    )
+    unless x >= y do
+      raise ArgumentError,
+            "#{caller}: expected #{lhs_name} and #{rhs_name} ranks to be equal" <>
+              " got #{x} != #{y}"
+    end
   end
 
   @doc """
   Asserts all ranks are equal.
   """
-  defn assert_equal_rank!(caller, rank_names, ranks) do
-    transform(ranks, fn [rank | ranks] ->
-      equal? =
-        Enum.all?(ranks, fn cur_rank ->
-          Elixir.Kernel.==(Nx.rank(cur_rank), Nx.rank(rank))
-        end)
+  deftransform assert_equal_rank!(caller, rank_names, [rank | ranks]) do
+    equal? =
+      Enum.all?(ranks, fn cur_rank ->
+        Nx.rank(cur_rank) == Nx.rank(rank)
+      end)
 
-      unless equal? do
-        raise ArgumentError,
-              "#{caller}: expected all input ranks #{inspect(rank_names)}" <>
-                " to be equal, got #{inspect(ranks)}"
-      end
-    end)
+    unless equal? do
+      raise ArgumentError,
+            "#{caller}: expected all input ranks #{inspect(rank_names)}" <>
+              " to be equal, got #{inspect(ranks)}"
+    end
   end
 
   @doc """
   Asserts `lhs` has at least rank `rhs`.
   """
-  defn assert_min_rank!(caller, name, lhs, rhs) do
-    transform(
-      {lhs, rhs},
-      fn {x, y} ->
-        x = if is_integer(x), do: x, else: Nx.rank(x)
-        y = if is_integer(y), do: y, else: Nx.rank(y)
+  deftransform assert_min_rank!(caller, name, lhs, rhs) do
+    x = if is_integer(lhs), do: lhs, else: Nx.rank(lhs)
+    y = if is_integer(rhs), do: rhs, else: Nx.rank(rhs)
 
-        unless Elixir.Kernel.>=(x, y) do
-          raise ArgumentError,
-                "#{caller}: expected #{name} shape to have at least rank #{y}, got rank #{x}"
-        end
-      end
-    )
+    unless x >= y do
+      raise ArgumentError,
+            "#{caller}: expected #{name} shape to have at least rank #{y}, got rank #{x}"
+    end
   end
 
   @doc """
@@ -252,18 +228,17 @@ defmodule Axon.Shared do
     end
   end
 
+  ## List transforms in defn
+
+  deftransform list_duplicate(value, size) do
+    List.duplicate(value, size)
+  end
+
+  deftransform list_wrap(value), do: List.wrap(value)
+
   ## Numerical Helpers
 
   # TODO: These should be contained somewhere else, like another library
-
-  defn logsumexp(x, opts \\ []) do
-    opts = keyword!(opts, axes: [], keep_axes: false)
-
-    x
-    |> Nx.exp()
-    |> Nx.sum(opts)
-    |> Nx.log()
-  end
 
   defn xlogy(x, y) do
     x_ok = Nx.not_equal(x, 0.0)

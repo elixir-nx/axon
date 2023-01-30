@@ -43,12 +43,7 @@ defmodule Axon.Updates do
       end
 
       defnp apply_scale(x, _params, step) do
-        transform(
-          {x, step},
-          fn {updates, step} ->
-            deep_new(updates, fn x -> Nx.multiply(x, step) end)
-          end
-        )
+        deep_new(updates, fn x -> Nx.multiply(x, step) end)
       end
 
   Notice how the function given to `stateless/2` is defined within `defn`.
@@ -68,9 +63,7 @@ defmodule Axon.Updates do
 
       defnp apply_my_update(updates, state) do
         new_state = deep_new(state, fn v -> Nx.add(v, 0.01) end)
-        updates = transform({updates, new_state}, fn {updates, state} ->
-          deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
-        end)
+        updates = deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
         {updates, %{state: new_state}}
       end
 
@@ -525,10 +518,8 @@ defmodule Axon.Updates do
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
     r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
 
-    transform({r, mu, nu, eps_root, eps}, fn {r, mu, nu, eps_root, eps} ->
-      deep_merge(mu, nu, fn m, v ->
-        r * m / (Nx.sqrt(v + eps_root) + eps)
-      end)
+    deep_merge(mu, nu, fn m, v ->
+      r * m / (Nx.sqrt(v + eps_root) + eps)
     end)
   end
 
@@ -678,16 +669,16 @@ defmodule Axon.Updates do
   end
 
   defnp apply_centralize(x, _params, _opts \\ []) do
-    transform(x, fn x ->
-      deep_new(x, fn z ->
-        if Elixir.Kernel.>(Nx.rank(z), 1) do
-          axes = tl(Nx.axes(z))
-          z - Nx.mean(z, axes: axes, keep_axes: true)
-        else
-          z
-        end
-      end)
-    end)
+    deep_new(x, &centralize_for_rank/1)
+  end
+
+  deftransformp centralize_for_rank(input) do
+    if Nx.rank(input) > 1 do
+      input
+      |> Nx.subtract(Nx.mean(input, axes: tl(Nx.axes(input)), keep_axes: true))
+    else
+      input
+    end
   end
 
   @doc """

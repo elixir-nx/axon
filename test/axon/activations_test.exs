@@ -700,7 +700,7 @@ defmodule Axon.ActivationsTest do
 
   describe "log_softmax" do
     test "raises on bad axis" do
-      assert_raise ArgumentError, ~r/log_softmax axis must be within rank of tensor/, fn ->
+      assert_raise ArgumentError, "given axis (2) invalid for shape with rank 2", fn ->
         Axon.Activations.log_softmax(Nx.iota({1, 3}), axis: 2)
       end
     end
@@ -1143,6 +1143,22 @@ defmodule Axon.ActivationsTest do
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.sigmoid(&1))) end), [a])
       assert_all_close(expected, actual)
     end
+
+    defn cache_test_sigmoid(x) do
+      x
+      |> Axon.Activations.sigmoid()
+      |> get_cached()
+    end
+
+    deftransformp get_cached(res) do
+      %{data: %{args: [_, %{logits: inp}]}} = res
+      inp
+    end
+
+    test "caches input logits" do
+      {a, _key} = Nx.Random.uniform(Nx.Random.key(42), shape: {10, 10})
+      assert_all_close(cache_test_sigmoid(a), a)
+    end
   end
 
   describe "silu" do
@@ -1347,6 +1363,17 @@ defmodule Axon.ActivationsTest do
       expected = Nx.tensor([[[0.0, 0.0]], [[0.0, 0.0]]])
       actual = apply(jit(fn x -> grad(x, &Nx.sum(Axon.Activations.softmax(&1))) end), [a])
       assert_all_close(expected, actual, atol: 1.0e-7)
+    end
+
+    defn cache_test_softmax(x) do
+      x
+      |> Axon.Activations.softmax()
+      |> get_cached()
+    end
+
+    test "caches input logits" do
+      {a, _key} = Nx.Random.uniform(Nx.Random.key(42), shape: {10, 10})
+      assert_all_close(cache_test_softmax(a), a)
     end
   end
 
