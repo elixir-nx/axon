@@ -1015,7 +1015,11 @@ defmodule Axon.Losses do
         {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, s_true, y_pred}
       end
 
-    ctc_reduction(loss, l_true, opts[:reduction])
+    case opts[:reduction] do
+      :mean -> Nx.divide(loss, l_true) |> Nx.mean()
+      :sum -> Nx.sum(loss)
+      :none -> loss
+    end
   end
 
   defnp get_limits(y_true, s_max, t_max) do
@@ -1121,14 +1125,6 @@ defmodule Axon.Losses do
       end
 
     t0_prob
-  end
-
-  deftransformp ctc_reduction(loss, l_true, reduction) do
-    case {reduction, loss} do
-      {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
-      {:sum, loss} -> Nx.sum(loss)
-      {:none, loss} -> loss
-    end
   end
 
   defnp reduction(loss, reduction \\ :none) do

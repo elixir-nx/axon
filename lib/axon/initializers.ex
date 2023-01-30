@@ -684,7 +684,20 @@ defmodule Axon.Initializers do
 
     assert_min_rank!("Axon.Initializers.orthogonal", "input_shape", shape, 2)
 
-    {{m, n}, random_seed} = get_orthogonal_seed(key, shape, distribution, type)
+    {m, n} = get_flat_shape(shape)
+
+    random_seed =
+      case distribution do
+        :uniform ->
+          Nx.Random.uniform_split(key, 0.0, 1.0, shape: {m, n}, type: type)
+
+        :normal ->
+          Nx.Random.normal_split(key, 0.0, 1.0, shape: {m, n}, type: type)
+
+        dist ->
+          raise ArgumentError,
+                "invalid distribution #{inspect(dist)} passed to orthogonal/1"
+      end
 
     {q, _r} = Nx.LinAlg.qr(random_seed, mode: :complete)
 
@@ -696,31 +709,15 @@ defmodule Axon.Initializers do
     rand
   end
 
-  deftransformp get_orthogonal_seed(key, shape, distribution, type) do
-    flat_shape =
-      if tuple_size(shape) > 2 do
-        tuple_list = shape |> Tuple.to_list() |> Enum.reverse()
-        n = hd(tuple_list)
-        m = Enum.reduce(tl(tuple_list), 1, &(&1 * &2))
-        {m, n}
-      else
-        shape
-      end
-
-    out =
-      case distribution do
-        :uniform ->
-          Nx.Random.uniform_split(key, 0.0, 1.0, shape: flat_shape, type: type)
-
-        :normal ->
-          Nx.Random.normal_split(key, 0.0, 1.0, shape: flat_shape, type: type)
-
-        dist ->
-          raise ArgumentError,
-                "invalid distribution #{inspect(dist)} passed to orthogonal/1"
-      end
-
-    {flat_shape, out}
+  deftransformp get_flat_shape(shape) do
+    if tuple_size(shape) > 2 do
+      tuple_list = shape |> Tuple.to_list() |> Enum.reverse()
+      n = hd(tuple_list)
+      m = Enum.reduce(tl(tuple_list), 1, &(&1 * &2))
+      {m, n}
+    else
+      shape
+    end
   end
 
   # Variance scaling branches
