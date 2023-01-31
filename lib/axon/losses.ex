@@ -853,7 +853,7 @@ defmodule Axon.Losses do
     loss =
       y_true
       |> Nx.subtract(y_pred)
-      |> Nx.power(2)
+      |> Nx.pow(2)
       |> Nx.mean(axes: [-1])
 
     reduction(loss, opts[:reduction])

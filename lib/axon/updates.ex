@@ -220,7 +220,7 @@ defmodule Axon.Updates do
     opts = keyword!(opts, eps: 1.0e-7)
     eps = opts[:eps]
 
-    sum_of_squares = deep_merge(x, sum_of_squares, fn g, z -> Nx.power(g, 2) + z end)
+    sum_of_squares = deep_merge(x, sum_of_squares, fn g, z -> Nx.pow(g, 2) + z end)
 
     inv_sqrt_squares = deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
 
@@ -402,7 +402,7 @@ defmodule Axon.Updates do
 
     mu_nu =
       deep_merge(mu, nu, fn m, n ->
-        Nx.rsqrt(-Nx.power(m, 2) + n + eps)
+        Nx.rsqrt(-Nx.pow(m, 2) + n + eps)
       end)
 
     x = deep_merge(x, mu_nu, fn g, mn -> g * mn end)
@@ -499,7 +499,7 @@ defmodule Axon.Updates do
     nu = update_moment(x, nu, b2, 2)
     count_inc = count + 1
 
-    b2t = Nx.power(b2, count_inc)
+    b2t = Nx.pow(b2, count_inc)
     ro = ro_inf - 2 * count_inc * b2t / (1 - b2t)
 
     mu_hat = bias_correction(mu, b1, count + 1)
@@ -637,7 +637,7 @@ defmodule Axon.Updates do
     sum_gs =
       deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
         leaf
-        |> Nx.power(2)
+        |> Nx.pow(2)
         |> Nx.sum()
         |> Nx.add(acc)
       end)
@@ -800,7 +800,7 @@ defmodule Axon.Updates do
 
   defnp apply_add_noise(x, %{count: count}, _params, opts \\ []) do
     opts = keyword!(opts, eta: 0.01, gamma: 0.55)
-    var = opts[:eta] / Nx.power(count + 1, opts[:gamma])
+    var = opts[:eta] / Nx.pow(count + 1, opts[:gamma])
 
     noise = deep_new(x, fn z -> Nx.random_normal(z) end)
 
@@ -869,7 +869,7 @@ defmodule Axon.Updates do
 
     nu =
       deep_merge(x, nu, fn g, v ->
-        v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
+        v - (1 - b2) * Nx.sign(v - Nx.pow(g, 2)) * Nx.pow(g, 2)
       end)
 
     mu_hat = bias_correction(mu, b1, count + 1)
@@ -998,11 +998,11 @@ defmodule Axon.Updates do
   ## Helpers
 
   defnp update_moment(x, moment, decay, order) do
-    deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
+    deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.pow(g, order) + decay * z end)
   end
 
   defnp bias_correction(moment, decay, count) do
-    deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
+    deep_new(moment, fn z -> z / (1 - Nx.pow(decay, count)) end)
   end
 
   defnp safe_norm(g, min_norm) do

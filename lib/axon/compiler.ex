@@ -889,9 +889,9 @@ defmodule Axon.Compiler do
 
       if event? and mode? do
         if on_event == :backward do
-          Nx.Defn.Kernel.custom_grad(expr, fn _ans, g ->
+          Nx.Defn.Kernel.custom_grad(expr, [expr], fn g ->
             hooked_g = Nx.Defn.Kernel.hook(g, hook_fn)
-            [{expr, hooked_g}]
+            [hooked_g]
           end)
         else
           Nx.Defn.Kernel.hook(expr, hook_fn)

@@ -163,6 +163,13 @@ defmodule AxonTestUtil do
     end
   end
 
+  def random(shape, opts \\ []) do
+    Nx.Random.uniform_split(Nx.Random.key(:erlang.system_time()), 0.0, 1.0,
+      shape: shape,
+      type: opts[:type] || :f32
+    )
+  end
+
   def get_test_data(
         train_samples,
         test_samples,

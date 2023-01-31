@@ -103,7 +103,7 @@ defmodule Axon.Schedules do
 
     decayed_value =
       rate
-      |> Nx.power(p)
+      |> Nx.pow(p)
       |> Nx.multiply(init_value)
 
     Nx.select(
@@ -210,7 +210,7 @@ defmodule Axon.Schedules do
     |> Nx.divide(k)
     |> Nx.negate()
     |> Nx.add(1)
-    |> Nx.power(p)
+    |> Nx.pow(p)
     |> Nx.multiply(Nx.subtract(init_value, end_value))
     |> Nx.add(end_value)
   end

@@ -518,7 +518,7 @@ defmodule Axon.Activations do
     custom_grad(
       Nx.max(x, 0),
       [x],
-      fn g -> [{x, Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))}] end
+      fn g -> [Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))] end
     )
   end
 
