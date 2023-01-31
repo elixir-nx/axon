@@ -37,7 +37,7 @@ defmodule Axon.Optimizers do
         end
       end
 
-      model_params = Nx.random_uniform({784, 10})
+      {model_params, _key} = Nx.Random.uniform(key, shape: {784, 10})
       {init_fn, update_fn} = Axon.Optimizers.adam(0.005)
 
       optimizer_state =

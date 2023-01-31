@@ -7,7 +7,7 @@ defmodule Axon.LossScale do
   precision during the model training process. Each loss-scale
   implementation here returns a 3-tuple of the functions:
 
-      {init_fn, scale_fn, unscale_fn, adjust_fn} = Axon.LossScale.static(Nx.power(2, 15))
+      {init_fn, scale_fn, unscale_fn, adjust_fn} = Axon.LossScale.static(Nx.pow(2, 15))
 
   You can use these to scale/unscale loss and gradients as well
   as adjust the loss scale state.

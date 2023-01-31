@@ -952,13 +952,13 @@ defmodule Axon.Layers do
     norm = opts[:norm]
 
     input
-    |> Nx.power(norm)
+    |> Nx.pow(norm)
     |> Nx.window_sum(window_dimensions,
       strides: strides,
       padding: padding,
       window_dilations: dilations
     )
-    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
+    |> Nx.pow(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   @doc """
@@ -1078,9 +1078,9 @@ defmodule Axon.Layers do
       Axon.Shape.adaptive_pool_window_size(input, window_strides, output_size, opts[:channels])
 
     input
-    |> Nx.power(norm)
+    |> Nx.pow(norm)
     |> Nx.window_sum(window_dimensions, padding: :valid, strides: window_strides)
-    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
+    |> Nx.pow(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   ## Normalization
@@ -1438,7 +1438,7 @@ defmodule Axon.Layers do
 
     mask = Nx.less(rand, keep_prob)
 
-    a = Nx.rsqrt(keep_prob * Nx.power(Nx.tensor(1, type: Nx.type(input)) * alpha_p, 2))
+    a = Nx.rsqrt(keep_prob * Nx.pow(Nx.tensor(1, type: Nx.type(input)) * alpha_p, 2))
     b = -a * alpha_p * rate
 
     x = Nx.select(mask, input, alpha_p)
@@ -1661,9 +1661,9 @@ defmodule Axon.Layers do
     all_but_batch_and_feature = Axon.Shape.global_pool_axes(input, opts[:channels])
 
     input
-    |> Nx.power(norm)
+    |> Nx.pow(norm)
     |> Nx.sum(axes: all_but_batch_and_feature, keep_axes: opts[:keep_axes])
-    |> Nx.power(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
+    |> Nx.pow(Nx.divide(Nx.tensor(1, type: Nx.type(input)), norm))
   end
 
   ## Sparse

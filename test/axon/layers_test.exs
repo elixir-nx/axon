@@ -186,9 +186,9 @@ defmodule Axon.LayersTest do
 
   describe "conv" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -199,9 +199,9 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with strides" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -238,9 +238,9 @@ defmodule Axon.LayersTest do
 
   describe "conv_transpose" do
     test "channels first same as channels last" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -251,9 +251,9 @@ defmodule Axon.LayersTest do
     end
 
     test "channels first same as channels last with strides" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -448,9 +448,9 @@ defmodule Axon.LayersTest do
 
   describe "depthwise conv" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 28, 28})
+      input = random({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({6, 1, 4, 4})
+      kernel = random({6, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -487,11 +487,11 @@ defmodule Axon.LayersTest do
 
   describe "separable_conv2d" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 28, 28})
+      input = random({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      k1 = Nx.random_uniform({6, 1, 4, 1})
+      k1 = random({6, 1, 4, 1})
       t_k1 = Nx.transpose(k1, axes: [2, 3, 1, 0])
-      k2 = Nx.random_uniform({6, 1, 1, 4})
+      k2 = random({6, 1, 1, 4})
       t_k2 = Nx.transpose(k2, axes: [2, 3, 1, 0])
       b1 = Nx.tensor(0.0)
       b2 = Nx.tensor(0.0)
@@ -530,13 +530,13 @@ defmodule Axon.LayersTest do
 
   describe "separable_conv3d" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 8, 8, 8})
+      input = random({1, 3, 8, 8, 8})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 4, 1])
-      k1 = Nx.random_uniform({6, 1, 4, 1, 1})
+      k1 = random({6, 1, 4, 1, 1})
       t_k1 = Nx.transpose(k1, axes: [2, 3, 4, 1, 0])
-      k2 = Nx.random_uniform({6, 1, 1, 4, 1})
+      k2 = random({6, 1, 1, 4, 1})
       t_k2 = Nx.transpose(k2, axes: [2, 3, 4, 1, 0])
-      k3 = Nx.random_uniform({6, 1, 1, 1, 4})
+      k3 = random({6, 1, 1, 1, 4})
       t_k3 = Nx.transpose(k3, axes: [2, 3, 4, 1, 0])
       b1 = b2 = b3 = Nx.tensor(0.0)
 
@@ -575,7 +575,7 @@ defmodule Axon.LayersTest do
 
   describe "max_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -585,7 +585,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -606,7 +606,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with custom padding" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -639,7 +639,7 @@ defmodule Axon.LayersTest do
 
   describe "avg_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -649,7 +649,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -670,7 +670,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with custom padding" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -703,7 +703,7 @@ defmodule Axon.LayersTest do
 
   describe "lp pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -713,7 +713,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -734,7 +734,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with custom padding" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -767,7 +767,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive avg pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25}, channels: :first)
@@ -789,7 +789,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive max pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25}, channels: :first)
@@ -811,7 +811,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive lp pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25}, channels: :first)
@@ -857,7 +857,7 @@ defmodule Axon.LayersTest do
 
   describe "global_max_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_max_pool(input, channels: :first)
@@ -879,7 +879,7 @@ defmodule Axon.LayersTest do
 
   describe "global_avg_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_avg_pool(input, channels: :first)
@@ -901,7 +901,7 @@ defmodule Axon.LayersTest do
 
   describe "global_lp_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_lp_pool(input, channels: :first)
