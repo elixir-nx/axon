@@ -771,6 +771,9 @@ defmodule Axon.Updates do
   Adds random Gaussian noise to the input.
 
   ## Options
+      
+      * `:seed` - Random seed to use. Defaults to the
+        current system time.
 
       * `:eta` - Controls amount of noise to add.
         Defaults to `0.01`.
@@ -791,22 +794,26 @@ defmodule Axon.Updates do
 
   def add_noise({init_fn, apply_fn} = combinator, opts)
       when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
-    stateful(combinator, &init_add_noise/1, &apply_add_noise(&1, &2, &3, opts))
+    {seed, opts} = Keyword.pop_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    stateful(combinator, &init_add_noise(&1, seed: seed), &apply_add_noise(&1, &2, &3, opts))
   end
 
-  defnp init_add_noise(_params) do
-    %{count: Nx.tensor(0)}
+  defnp init_add_noise(_params, opts \\ []) do
+    %{count: Nx.tensor(0), key: Nx.Random.key(opts[:seed])}
   end
 
-  defnp apply_add_noise(x, %{count: count}, _params, opts \\ []) do
+  defnp apply_add_noise(x, %{count: count, key: key}, _params, opts \\ []) do
     opts = keyword!(opts, eta: 0.01, gamma: 0.55)
     var = opts[:eta] / Nx.pow(count + 1, opts[:gamma])
 
-    noise = deep_new(x, fn z -> Nx.random_normal(z) end)
+    {noise, key} =
+      deep_map_reduce(x, key, fn z, key ->
+        Nx.Random.normal(key, shape: Nx.shape(z), type: Nx.type(z))
+      end)
 
     updates = deep_merge(x, noise, fn g, n -> g + var * n end)
 
-    {updates, %{count: count + 1}}
+    {updates, %{count: count + 1, key: key}}
   end
 
   @doc """
