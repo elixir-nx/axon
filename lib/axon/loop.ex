@@ -1811,9 +1811,6 @@ defmodule Axon.Loop do
             Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
           end
 
-          # Force a garbage collection so any device or copied data is deallocated.
-          :erlang.garbage_collect()
-
           batch_fn = {:compiled, batch_fn}
           state = %{state | step_state: new_step_state, metrics: new_metrics}
 
