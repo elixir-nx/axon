@@ -156,10 +156,10 @@ defmodule Axon.Loop do
         :completed            # On loop completion
       ]
 
-  You can attach event handlers to events using `Axon.Loop.handle/4`:
+  You can attach event handlers to events using `Axon.Loop.handle_event/4`:
 
       loop
-      |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 100)
+      |> Axon.Loop.handle_event(:iteration_completed, &log_metrics/1, every: 100)
       |> Axon.Loop.run(data)
 
   The above will trigger `log_metrics/1` every 100 times the `:iteration_completed` event
@@ -177,10 +177,10 @@ defmodule Axon.Loop do
   to the loop. If you have two handlers on the same event, they will trigger in order:
 
       loop
-      |> Axon.Loop.handle(:epoch_completed, &normalize_state/1) # Runs first
-      |> Axon.Loop.handle(:epoch_completed, &log_state/1) # Runs second
+      |> Axon.Loop.handle_event(:epoch_completed, &normalize_state/1) # Runs first
+      |> Axon.Loop.handle_event(:epoch_completed, &log_state/1) # Runs second
 
-  You may provide filters to filter when event handlers trigger. See `Axon.Loop.handle/4`
+  You may provide filters to filter when event handlers trigger. See `Axon.Loop.handle_event/4`
   for more details on valid filters.
 
   ## Factories
@@ -907,8 +907,8 @@ defmodule Axon.Loop do
   loop:
 
       loop
-      |> Axon.Loop.handle(:epoch_started, &normalize_step_state/1) # executes first
-      |> Axon.Loop.handle(:epoch_started, &log_step_state/1) # executes second
+      |> Axon.Loop.handle_event(:epoch_started, &normalize_step_state/1) # executes first
+      |> Axon.Loop.handle_event(:epoch_started, &log_step_state/1) # executes second
 
   Thus, if you have separate handlers which alter or depend on loop state,
   you need to ensure they are ordered correctly, or combined into a single
@@ -944,8 +944,7 @@ defmodule Axon.Loop do
   potentially excessive recompilation and result in significant additinal overhead
   during loop execution.**
   """
-  # TODO(seanmor5): Custom events
-  def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
+  def handle_event(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
     filter = build_filter_fn(filter)
 
     handle_fns =
@@ -961,6 +960,12 @@ defmodule Axon.Loop do
       end
 
     %Loop{loop | handlers: handle_fns}
+  end
+
+  @doc false
+  @deprecated "handle/4 is deprecated, use handle_event/4 instead"
+  def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
+    handle_event(loop, event, handler, filter)
   end
 
   @doc """
@@ -1001,7 +1006,7 @@ defmodule Axon.Loop do
       end
     end
 
-    handle(loop, event, log_fn, filter)
+    handle_event(loop, event, log_fn, filter)
   end
 
   @doc """
@@ -1072,7 +1077,7 @@ defmodule Axon.Loop do
       {:continue, %{state | metrics: metrics}}
     end
 
-    handle(loop, event, validation_loop, filter)
+    handle_event(loop, event, validation_loop, filter)
   end
 
   @doc """
@@ -1120,7 +1125,7 @@ defmodule Axon.Loop do
     mode = opts[:mode] || :min
     patience = opts[:patience] || 3
 
-    handle(loop, event, &monitor_impl(&1, metric, fun, name, mode, patience), filter)
+    handle_event(loop, event, &monitor_impl(&1, metric, fun, name, mode, patience), filter)
   end
 
   defp monitor_impl(
@@ -1273,7 +1278,7 @@ defmodule Axon.Loop do
         filter: filter
       )
     else
-      handle(loop, event, checkpoint_fun, filter)
+      handle_event(loop, event, checkpoint_fun, filter)
     end
   end
 
@@ -1437,7 +1442,7 @@ defmodule Axon.Loop do
 
     opts = Keyword.validate!(opts, event: :iteration_completed, filter: :always)
 
-    handle(
+    handle_event(
       loop,
       opts[:event],
       fn %{
