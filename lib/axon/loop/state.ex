@@ -18,9 +18,6 @@ defmodule Axon.Loop.State do
   `epoch` is the current epoch, starting at 0, of the nested loop.
   Defaults to 0.
 
-  `max_epoch` is the maximum number of epochs the loop should run
-  for. Defaults to 1.
-
   `iteration` is the current iteration of the inner loop. In supervised
   settings, this will be the current batch. Defaults to 0.
 
@@ -36,6 +33,9 @@ defmodule Axon.Loop.State do
   `step_state` is the step state as defined by the loop's processing
   initialization and update functions. `step_state` is a required field.
 
+  `status` is the status of the loop. One of `:completed` or `:halted` to
+  indicate the loop run was completed successfully or halted prematurely.
+
   `handler_metadata` is a metadata field for storing loop handler metadata.
   For example, loop checkpoints with specific metric criteria can store
   previous best metrics in the handler meta for use between iterations.
@@ -46,9 +46,9 @@ defmodule Axon.Loop.State do
   @enforce_keys [:step_state]
   defstruct [
     :step_state,
+    :status,
     handler_metadata: %{},
-    epoch: 0,
-    max_epoch: 1,
+    epoch: -1,
     iteration: 0,
     max_iteration: -1,
     metrics: %{},
