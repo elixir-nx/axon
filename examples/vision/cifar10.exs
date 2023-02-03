@@ -25,18 +25,18 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     |> Enum.split(1500)
   end
 
   defp build_model(input_shape) do
     Axon.input("input", shape: input_shape)
-    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu, padding: :same)
     |> Axon.batch_norm()
-    |> Axon.max_pool(kernel_size: {2, 2})
-    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
+    |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu, padding: :same)
     |> Axon.batch_norm()
-    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
     |> Axon.flatten()
     |> Axon.dense(64, activation: :relu)
     |> Axon.dropout(rate: 0.5)
