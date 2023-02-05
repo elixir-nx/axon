@@ -31,12 +31,12 @@ defmodule Cifar do
 
   defp build_model(input_shape) do
     Axon.input("input", shape: input_shape)
-    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu, padding: :same)
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu, channels: :first)
     |> Axon.batch_norm()
-    |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
-    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu, padding: :same)
+    |> Axon.max_pool(kernel_size: {2, 2})
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu, channels: :first)
     |> Axon.batch_norm()
-    |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
+    |> Axon.max_pool(kernel_size: {2, 2})
     |> Axon.flatten()
     |> Axon.dense(64, activation: :relu)
     |> Axon.dropout(rate: 0.5)
