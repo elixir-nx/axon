@@ -14,7 +14,8 @@ defmodule Cifar do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 3, 32, 32})
+    |> Nx.reshape({elem(shape, 0), 3, 32, 32}, names: [:n, :c, :h, :w])
+    |> Nx.transpose(axes: [:n, :h, :w, :c])
     |> Nx.divide(255.0)
     |> Nx.to_batched(32)
     |> Enum.split(1500)
@@ -31,10 +32,10 @@ defmodule Cifar do
 
   defp build_model(input_shape) do
     Axon.input("input", shape: input_shape)
-    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu, channels: :first)
+    |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
     |> Axon.batch_norm()
     |> Axon.max_pool(kernel_size: {2, 2})
-    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu, channels: :first)
+    |> Axon.conv(64, kernel_size: {3, 3}, activation: :relu)
     |> Axon.batch_norm()
     |> Axon.max_pool(kernel_size: {2, 2})
     |> Axon.flatten()
