@@ -241,7 +241,7 @@ defmodule Axon.Layers do
       Defaults to `1` or no dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## Examples
 
@@ -412,7 +412,7 @@ defmodule Axon.Layers do
       Defaults to `1` or no dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## Examples
 
@@ -535,7 +535,7 @@ defmodule Axon.Layers do
       Defaults to `1` or no dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   """
   @doc type: :convolutional
@@ -627,7 +627,7 @@ defmodule Axon.Layers do
       Defaults to `1` or no dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## References
 
@@ -694,7 +694,7 @@ defmodule Axon.Layers do
       Defaults to `1` or no dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## References
 
@@ -751,7 +751,7 @@ defmodule Axon.Layers do
       dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## Examples
 
@@ -834,7 +834,7 @@ defmodule Axon.Layers do
       dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
   """
   @doc type: :pooling
   defn avg_pool(input, opts \\ []) do
@@ -906,7 +906,7 @@ defmodule Axon.Layers do
       dilation.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
 
   ## Examples
 
@@ -983,7 +983,7 @@ defmodule Axon.Layers do
       Required.
 
     * `:channels ` - channel configuration. One of `:first` or `:last`.
-      Defaults to `:first`.
+      Defaults to `:last`.
   """
   @doc type: :pooling
   defn adaptive_avg_pool(input, opts \\ []) do
