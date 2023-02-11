@@ -1501,7 +1501,8 @@ defmodule Axon do
   @pooling_layers [
     {:max_pool, "Max pool", "a"},
     {:avg_pool, "Average pool", "an"},
-    {:lp_pool, "Power average pool", "a"}
+    {:lp_pool, "Power average pool", "a"},
+    {:blur_pool, "Blur pool", "a"}
   ]
 
   for {pool, name, a_or_an} <- @pooling_layers do

@@ -962,6 +962,54 @@ defmodule Axon.Layers do
   end
 
   @doc """
+  Functional implementation of a 2-dimensional blur pooling layer.
+
+  Blur pooling applies a spatial low-pass filter to the input. It is
+  often applied before pooling and convolutional layers as a way to
+  increase model accuracy without much additional computation cost.
+  
+  The blur pooling implementation follows from [MosaicML](https://github.com/mosaicml/composer/blob/dev/composer/algorithms/blurpool/blurpool_layers.py).
+  """
+  @doc type: :pooling
+  defn blur_pool(input, opts \\ []) do
+    assert_rank!(input, "input", 4)
+    opts = keyword!(opts, [strides: 1, channels: :last])
+    filter = Nx.tensor([[[
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1],
+    ]]]) * 1 / 16.0
+
+    output_channels =
+      case opts[:channels] do
+        :last ->
+          Nx.axis_size(input, 3)
+
+        :first ->
+          Nx.axis_size(input, 1)
+      end
+
+    filter = Nx.broadcast(filter, {output_channels, 1, 3, 3})
+    conv(input, filter, strides: opts[:strides], padding: padding_for_filter(filter), feature_group_size: output_channels)
+  end
+
+  deftransformp padding_for_filter(filter) do
+    {_, _, h, w} = Nx.shape(filter)
+    cond do
+      rem(h, 2) == 0 ->
+        raise ArgumentError, "filter height must be odd"
+
+      rem (w, 2) == 0 ->
+        raise ArgumentError, "filter width must be odd"
+
+      true ->
+        :ok
+    end
+
+   [{div(h, 2), div(h, 2)}, {div(w, 2), div(w, 2)}]
+  end
+
+  @doc """
   Functional implementation of general dimensional adaptive average
   pooling.
 
