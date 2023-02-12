@@ -1190,7 +1190,8 @@ defmodule Axon.Losses do
     * `:smoothing` - smoothing factor. Defaults to 0.1
   """
   def label_smoothing(loss_fun, opts \\ []) when is_function(loss_fun, 2) do
-    opts = Keyword.validate!(opts, [smoothing: 0.1])
+    opts = Keyword.validate!(opts, smoothing: 0.1)
+
     fn y_true, y_pred ->
       smoothed = apply_label_smoothing(y_true, y_pred, smoothing: opts[:smoothing])
       loss_fun.(smoothed, y_pred)
@@ -1213,11 +1214,11 @@ defmodule Axon.Losses do
     * [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)
   """
   defn apply_label_smoothing(y_true, y_pred, opts \\ []) do
-    opts = keyword!(opts, [smoothing: 0.1])
+    opts = keyword!(opts, smoothing: 0.1)
     n_classes = Nx.axis_size(y_pred, 1)
-    (y_true * (1 - opts[:smoothing])) + (opts[:smoothing] / n_classes)
+    y_true * (1 - opts[:smoothing]) + opts[:smoothing] / n_classes
   end
-  
+
   ## Helpers
 
   defnp reduction(loss, reduction \\ :none) do
