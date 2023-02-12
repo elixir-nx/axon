@@ -6,13 +6,29 @@ defmodule Axon.CompileError do
     formatted_mfa = Exception.format_mfa(module, fun, arity)
     formatted_msg = Exception.format(:error, exception.exception, exception.compile_stacktrace)
 
+    layer_info =
+      if exception.layer_stacktrace != [] do
+        """
+
+        The layer was defined at:
+
+        #{Exception.format_stacktrace(exception.layer_stacktrace)}
+        """
+      else
+        """
+
+        (pass debug: true to build/compile see where the layer was defined)
+
+        """
+      end
+
     """
     exception found when compiling layer #{formatted_mfa} named #{exception.name}:
 
-        #{indent(formatted_msg)}
-    The layer was defined at:
+        #{indent(formatted_msg)}\
 
-    #{Exception.format_stacktrace(exception.layer_stacktrace)}
+    #{layer_info}\
+
     Compiling of the model was initiated at:
     """
   end
