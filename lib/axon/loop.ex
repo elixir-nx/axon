@@ -964,7 +964,7 @@ defmodule Axon.Loop do
 
   @doc false
   @deprecated "handle/4 is deprecated, use handle_event/4 instead"
-  def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
+  def handle(%Loop{} = loop, event, handler, filter \\ :always) do
     handle_event(loop, event, handler, filter)
   end
 
