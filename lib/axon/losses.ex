@@ -1214,6 +1214,9 @@ defmodule Axon.Losses do
     * [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)
   """
   defn apply_label_smoothing(y_true, y_pred, opts \\ []) do
+    assert_min_rank!("apply_label_smoothing", "y_true", y_true, 2)
+    assert_min_rank!("apply_label_smoothing", "y_pred", y_pred, 2)
+
     opts = keyword!(opts, smoothing: 0.1)
     n_classes = Nx.axis_size(y_pred, 1)
     y_true * (1 - opts[:smoothing]) + opts[:smoothing] / n_classes

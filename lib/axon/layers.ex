@@ -972,8 +972,8 @@ defmodule Axon.Layers do
   """
   @doc type: :pooling
   defn blur_pool(input, opts \\ []) do
-    assert_rank!("blur_pool", input, "input", 4)
-    opts = keyword!(opts, strides: 1, channels: :last)
+    assert_rank!("blur_pool", "input", input, 4)
+    opts = keyword!(opts, strides: 1, channels: :last, mode: :train)
 
     filter =
       Nx.tensor([

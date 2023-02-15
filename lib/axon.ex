@@ -1501,8 +1501,7 @@ defmodule Axon do
   @pooling_layers [
     {:max_pool, "Max pool", "a"},
     {:avg_pool, "Average pool", "an"},
-    {:lp_pool, "Power average pool", "a"},
-    {:blur_pool, "Blur pool", "a"}
+    {:lp_pool, "Power average pool", "a"}
   ]
 
   for {pool, name, a_or_an} <- @pooling_layers do
@@ -1581,6 +1580,42 @@ defmodule Axon do
       end
 
     layer(pool, [x], opts)
+  end
+
+  @doc """
+  Adds a blur pooling layer to the network.
+
+  See `Axon.Layers.blur_pool/2` for more details.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:strides` - stride during convolution. Defaults to size of kernel.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
+      Defaults to `:last`.
+  """
+  def blur_pool(%Axon{} = x, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :strides,
+        channels: :last
+      ])
+
+    strides = opts[:strides]
+    channels = opts[:channels]
+    name = opts[:name]
+
+    opts = [
+      name: name,
+      strides: strides,
+      channels: channels,
+      op_name: :blur_pool
+    ]
+
+    layer(:blur_pool, [x], opts)
   end
 
   ## Adaptive Pooling
