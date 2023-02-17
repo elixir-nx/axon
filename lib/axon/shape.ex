@@ -942,8 +942,8 @@ defmodule Axon.Shape do
   @doc """
   Calculates the reduction axes for group normalization.
   """
-  deftransform group_norm_axes(input, channel_index) do
-    Enum.to_list(1..(Nx.rank(input) - 1)) -- [channel_index]
+  deftransform group_norm_axes(x, channel_index) do
+    Enum.to_list(1..(Nx.rank(x) - 1)) -- [channel_index]
   end
 
   @doc """
@@ -951,7 +951,7 @@ defmodule Axon.Shape do
   """
   deftransform group_norm_shape(input, num_groups, channel_index) do
     shape = Nx.shape(input)
-    channel_index = Nx.Shape.normalize_axis(shape, channel_index, Nx.names(input))
+    channel_index = Nx.Shape.normalize_axis(Nx.shape(input), channel_index, Nx.names(input))
 
     channels = elem(shape, channel_index)
     group_size = div(channels, num_groups)
