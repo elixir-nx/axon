@@ -1207,22 +1207,27 @@ defmodule Axon.Layers do
   defn group_norm(input, gamma, beta, opts \\ []) do
     opts = keyword!(opts, [:num_groups, epsilon: 1.0e-5, channel_index: -1, mode: :inference])
 
+    channel_axis = normalize_group_norm_channel_axis(input, opts[:channel_index])
+
     group_shape = Axon.Shape.group_norm_shape(input, opts[:num_groups], opts[:channel_index])
     num_channels = Nx.axis_size(input, opts[:channel_index])
 
     parameter_shape = norm_parameter_reshape(input, num_channels, opts[:channel_index])
-
     gamma = Nx.reshape(gamma, parameter_shape)
     beta = Nx.reshape(beta, parameter_shape)
 
     x = Nx.reshape(input, group_shape)
 
-    axes = Axon.Shape.group_norm_axes(x, opts[:channel_index])
+    axes = Axon.Shape.group_norm_axes(x, channel_axis)
 
     {mean, var} = mean_and_variance(x, axes: axes)
     x = (x - mean) * Nx.rsqrt(var + opts[:epsilon])
     x = Nx.reshape(x, input)
     x * gamma + beta
+  end
+
+  deftransformp normalize_group_norm_channel_axis(input, channel_index) do
+    Nx.Shape.normalize_axis(Nx.shape(input), channel_index, Nx.shape(input))
   end
 
   @doc ~S"""

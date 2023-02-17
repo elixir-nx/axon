@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.1 (2022-02-17)
+
+### Bug Fixes
+
+* Fixed incorrect results from group normalization
+
 ## v0.5.0 (2022-02-16)
 
 ### Enhancements
