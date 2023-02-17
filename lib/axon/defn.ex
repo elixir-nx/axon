@@ -19,4 +19,7 @@ defmodule Axon.Defn do
 
   @impl true
   def __compile__(_, _, _, _), do: raise("not implemented")
+
+  @impl true
+  def __partitions_options__(_), do: raise("not implemented")
 end

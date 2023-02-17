@@ -152,8 +152,6 @@ defmodule Axon.Loop do
         :iteration_completed, # On iteration complete
         :epoch_completed,     # On epoch complete
         :epoch_halted,        # On epoch halt, if early halted
-        :halted,              # On loop halt, if early halted
-        :completed            # On loop completion
       ]
 
   You can attach event handlers to events using `Axon.Loop.handle_event/4`:
@@ -229,9 +227,7 @@ defmodule Axon.Loop do
     :iteration_started,
     :iteration_completed,
     :epoch_completed,
-    :epoch_halted,
-    :halted,
-    :completed
+    :epoch_halted
   ]
 
   @default_handlers %{
@@ -896,8 +892,6 @@ defmodule Axon.Loop do
         :iteration_completed, # On iteration complete
         :epoch_completed,     # On epoch complete
         :epoch_halted,        # On epoch halt, if early halted
-        :halted,              # On loop halt, if early halted
-        :completed            # On loop completion
       ]
 
   Generally, event handlers are side-effecting operations which provide some
@@ -1066,7 +1060,6 @@ defmodule Axon.Loop do
 
       metrics =
         Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
-        |> log(fn _ -> "\n" end, event: :completed)
         |> run(validation_data, model_state)
         |> Access.get(0)
         |> Map.new(fn {k, v} ->
@@ -1733,8 +1726,7 @@ defmodule Axon.Loop do
           end
       end
 
-    {_, state} = fire_event(status, handler_fns, state, debug?)
-    state = %State{state | metrics: final_metrics}
+    state = %State{state | metrics: final_metrics, status: status}
 
     output_transform.(state)
   end

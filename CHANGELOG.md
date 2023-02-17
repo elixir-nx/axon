@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.0 (2022-02-16)
+
+### Enhancements
+
+* Bump Nx dependency
+* Update documentation to account for channels last default
+* Improve error message in compilation/build errors for models
+* Remove deprecated `transform`
+
+### Deprecations
+
+* Deprecate `Axon.Loop.handle/4`
+
+## v0.4.1 (2022-01-21)
+
+### Bug Fixes
+
+* Fixed a shape mismatch when training with certain optimizers
+
 ## v0.4.0 (2022-01-19)
 
 ### Enhancements
