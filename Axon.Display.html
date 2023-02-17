@@ -5,9 +5,9 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.29.1">
-    <meta name="project" content="Axon v0.4.1">
+    <meta name="project" content="Axon v0.5.0">
 
-    <title>Axon.Display — Axon v0.4.1</title>
+    <title>Axon.Display — Axon v0.5.0</title>
     <link rel="stylesheet" href="dist/html-elixir-V2ETBPMB.css" />
 
 
@@ -72,7 +72,7 @@
 Axon
       </a>
       <strong class="sidebar-projectVersion" translate="no">
-        v0.4.1
+        v0.5.0
       </strong>
     </div>
     <ul class="sidebar-listNav">
@@ -100,13 +100,13 @@ Axon
 </button>
 
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.4.1/lib/axon/display.ex#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.5.0/lib/axon/display.ex#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
   <span translate="no">Axon.Display</span> 
-  <small class="app-vsn" translate="no">(Axon v0.4.1)</small>
+  <small class="app-vsn" translate="no">(Axon v0.5.0)</small>
 
 </h1>
 
@@ -176,7 +176,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">as_graph(axon, input_templates, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.4.1/lib/axon/display.ex#L266" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.5.0/lib/axon/display.ex#L266" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -201,7 +201,7 @@ value can either be <code class="inline">:top_down</code> or <code class="inline
   </a>
   Examples
 </h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8666779057-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="8666779057-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8666779057-2">(</span><span class="mi">32</span><span class="p" data-group-id="8666779057-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="2689321858-1">(</span><span class="p" data-group-id="2689321858-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="2689321858-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="2689321858-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="8796290558-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="8796290558-1">)</span></code></pre>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1450721523-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="1450721523-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1450721523-2">(</span><span class="mi">32</span><span class="p" data-group-id="1450721523-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="4647726604-1">(</span><span class="p" data-group-id="4647726604-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4647726604-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="4647726604-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="2095186660-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="2095186660-1">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="as_table/2">
@@ -213,7 +213,7 @@ value can either be <code class="inline">:top_down</code> or <code class="inline
     </a>
     <h1 class="signature" translate="no">as_table(axon, input_templates)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.4.1/lib/axon/display.ex#L32" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.5.0/lib/axon/display.ex#L32" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -231,7 +231,7 @@ a dependency in your project to make use of this function.</p><h2 id="as_table/2
   </a>
   Examples
 </h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="3905436084-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="3905436084-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="3905436084-2">(</span><span class="mi">32</span><span class="p" data-group-id="3905436084-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="4875830346-1">(</span><span class="p" data-group-id="4875830346-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4875830346-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="4875830346-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="5839963846-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="5839963846-1">)</span></code></pre>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="0603941151-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="0603941151-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0603941151-2">(</span><span class="mi">32</span><span class="p" data-group-id="0603941151-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="3668226979-1">(</span><span class="p" data-group-id="3668226979-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3668226979-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="3668226979-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="0095910587-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="0095910587-1">)</span></code></pre>
   </section>
 </section>
 
@@ -242,11 +242,11 @@ a dependency in your project to make use of this function.</p><h2 id="as_table/2
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.4.1" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.5.0" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.4.1">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.5.0">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.4.1/show/lib/axon/display.ex">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.5.0/show/lib/axon/display.ex">current file</a>)
 
             </span>
 
