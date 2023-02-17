@@ -227,7 +227,7 @@ defmodule Axon.Loop do
     :iteration_started,
     :iteration_completed,
     :epoch_completed,
-    :epoch_halted,
+    :epoch_halted
   ]
 
   @default_handlers %{
