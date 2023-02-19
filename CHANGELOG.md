@@ -1,12 +1,12 @@
 # Changelog
 
-## v0.5.1 (2022-02-17)
+## v0.5.1 (2023-02-17)
 
 ### Bug Fixes
 
 * Fixed incorrect results from group normalization
 
-## v0.5.0 (2022-02-16)
+## v0.5.0 (2023-02-16)
 
 ### Enhancements
 
@@ -19,13 +19,13 @@
 
 * Deprecate `Axon.Loop.handle/4`
 
-## v0.4.1 (2022-01-21)
+## v0.4.1 (2023-01-21)
 
 ### Bug Fixes
 
 * Fixed a shape mismatch when training with certain optimizers
 
-## v0.4.0 (2022-01-19)
+## v0.4.0 (2023-01-19)
 
 ### Enhancements
 
