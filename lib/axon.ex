@@ -3480,16 +3480,19 @@ defmodule Axon do
 
   ## Options
 
-    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
-      to control differences in compilation at training or inference time.
-      Defaults to `:inference`
+    * `:compiler` - the underlying `Nx.Defn` compiler to perform
+      JIT compilation when the functions are invoked. If none is
+      passed, it uses the default compiler configured in `Nx.Defn`;
 
     * `:debug` - if `true`, will log graph traversal and generation
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
-  All other options are forwarded to the default JIT compiler
-  or backend.
+    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+  All other options are forwarded to the underlying JIT compiler.
   """
   @doc type: :model
   def build(model, opts \\ []) when is_list(opts) do
