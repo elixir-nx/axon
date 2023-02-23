@@ -3513,6 +3513,10 @@ defmodule Axon do
   This function makes use of the built-in `Nx.Defn.compile/3`. Note
   that passing inputs which differ in shape or type from the templates
   provided to this function will result in a crash.
+
+  ## Options
+
+  It accepts the same options as `build/2`.
   """
   @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
