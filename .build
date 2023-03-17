@@ -48,9 +48,9 @@ credit_card_fraud.html
 custom_layers.html
 custom_models_loss_optimizers.html
 dist/handlebars.runtime-NWIB6V2M.js
-dist/handlebars.templates-IV5W3OL2.js
-dist/html-XN2TSG4M.js
-dist/html-elixir-V2ETBPMB.css
+dist/handlebars.templates-XRYTXUVD.js
+dist/html-EHGDP2LQ.js
+dist/html-elixir-MB5C7R66.css
 dist/inconsolata-latin-400-normal-RGKDDNDD.woff2
 dist/inconsolata-latin-700-normal-DTS2D7TO.woff2
 dist/inconsolata-latin-ext-400-normal-K7HVGTP7.woff2
@@ -58,8 +58,10 @@ dist/inconsolata-latin-ext-700-normal-4MPBLFZC.woff2
 dist/inconsolata-vietnamese-400-normal-IGQPHHJH.woff2
 dist/inconsolata-vietnamese-700-normal-LHEGSN35.woff2
 dist/lato-latin-300-normal-YUMVEFOL.woff2
+dist/lato-latin-400-normal-W7754I4D.woff2
 dist/lato-latin-700-normal-2XVSBPG4.woff2
 dist/lato-latin-ext-300-normal-VPGGJKJL.woff2
+dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/merriweather-cyrillic-300-italic-M6KMXZSZ.woff2
 dist/merriweather-cyrillic-300-normal-7PAAHU3N.woff2
@@ -72,7 +74,7 @@ dist/merriweather-latin-ext-300-normal-K6L27CZ5.woff2
 dist/merriweather-vietnamese-300-italic-EHHNZPUO.woff2
 dist/merriweather-vietnamese-300-normal-U376L4Z4.woff2
 dist/remixicon-NKANDIL5.woff2
-dist/search_items-84A14355.js
+dist/search_items-509BFF6F.js
 dist/sidebar_items-C7C9D24C.js
 fashionmnist_autoencoder.html
 fashionmnist_vae.html
