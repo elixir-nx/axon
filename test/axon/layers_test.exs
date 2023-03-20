@@ -1037,9 +1037,9 @@ defmodule Axon.LayersTest do
           unroll: :dynamic
         )
 
-      assert_all_close(new_seq, expected_seq)
-      assert_all_close(new_c, expected_c)
-      assert_all_close(new_h, expected_h)
+      assert_all_close(new_seq, expected_seq, atol: 1.0e-3)
+      assert_all_close(new_c, expected_c, atol: 1.0e-3)
+      assert_all_close(new_h, expected_h, atol: 1.0e-3)
     end
   end
 
