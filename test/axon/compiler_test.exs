@@ -3913,7 +3913,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input = random({1, 8, 2})
-      carry = {zeros({1, 1, 2})}
+      carry = {zeros({1, 2})}
 
       assert {init_fn, predict_fn} = Axon.build(model)
 

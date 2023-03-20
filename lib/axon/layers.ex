@@ -2173,7 +2173,7 @@ defmodule Axon.Layers do
     {hh} = hidden_kernel
     {bi} = bias
 
-    {input, {cell, hidden}} = rank_down({input, carry})
+    {cell, hidden} = rank_down(carry)
 
     gates =
       Nx.add(
@@ -2187,7 +2187,7 @@ defmodule Axon.Layers do
     new_c = f * cell + Axon.Activations.sigmoid(i) * Axon.Activations.tanh(g)
     new_h = Axon.Activations.sigmoid(o) * Axon.Activations.tanh(new_c)
 
-    rank_up({new_h, {new_c, new_h}})
+    {new_h, rank_up({new_c, new_h})}
   end
 
   deftransformp split_gates(gates) do
@@ -2204,18 +2204,18 @@ defmodule Axon.Layers do
     |> List.to_tuple()
   end
 
-  deftransformp rank_down({input, {cell, hidden}}) do
-    [cell, hidden, input] =
-      for tensor <- [cell, hidden, input] do
+  deftransformp rank_down({cell, hidden}) do
+    [cell, hidden] =
+      for tensor <- [cell, hidden] do
         Nx.squeeze(tensor, axes: [1])
       end
 
-    {input, {cell, hidden}}
+    {cell, hidden}
   end
 
-  deftransformp rank_up({input, {cell, hidden}}) do
-    [cell, hidden, input] =
-      for tensor <- [cell, hidden, input] do
+  deftransformp rank_up({cell, hidden}) do
+    [cell, hidden] =
+      for tensor <- [cell, hidden] do
         new_shape =
           Nx.shape(tensor)
           |> Tuple.insert_at(1, 1)
@@ -2223,7 +2223,7 @@ defmodule Axon.Layers do
         Nx.reshape(tensor, new_shape)
       end
 
-    {input, {cell, hidden}}
+    {cell, hidden}
   end
 
   @doc """

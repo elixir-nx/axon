@@ -948,23 +948,34 @@ defmodule Axon.LayersTest do
 
   describe "lstm_cell" do
     test "cell function matches results expected from pytorch" do
-      seq = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_seq.npy")
-      c = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_c.npy")
-      h = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_input_h.npy")
-      wii = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wii.npy")
-      wif = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wif.npy")
-      wig = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wig.npy")
-      wio = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_wio.npy")
-      whi = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whi.npy")
-      whf = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whf.npy")
-      whg = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_whg.npy")
-      who = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_who.npy")
-      bi = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bi.npy")
-      bf = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bf.npy")
-      bg = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bg.npy")
-      bo = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_bo.npy")
-      expected_c = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_output_c.npy")
-      expected_h = Nx.from_numpy("test/fixtures/lstm_cell_test/test_lstm_cell_output_h.npy")
+      seq =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_seq.npy")
+        |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_c.npy") |> Nx.load_numpy!()
+
+      h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_h.npy") |> Nx.load_numpy!()
+
+      wii = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bo.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_h.npy") |> Nx.load_numpy!()
 
       {_, {new_c, new_h}} =
         Axon.Layers.lstm_cell(
@@ -982,24 +993,39 @@ defmodule Axon.LayersTest do
 
   describe "lstm" do
     test "matches results expected from pytorch with dynamic unroll" do
-      seq = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_seq.npy")
-      c = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_c.npy") |> Nx.squeeze()
-      h = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_input_h.npy") |> Nx.squeeze()
-      wii = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wii.npy")
-      wif = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wif.npy")
-      wig = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wig.npy")
-      wio = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_wio.npy")
-      whi = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whi.npy")
-      whf = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whf.npy")
-      whg = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_whg.npy")
-      who = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_who.npy")
-      bi = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bi.npy")
-      bf = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bf.npy")
-      bg = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bg.npy")
-      bo = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_bo.npy")
-      expected_seq = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_seq.npy")
-      expected_c = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_c.npy")
-      expected_h = Nx.from_numpy("test/fixtures/lstm_test/test_lstm_output_h.npy")
+      seq = File.read!("test/fixtures/lstm_test/test_lstm_input_seq.npy") |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_c.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      h =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_h.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      wii = File.read!("test/fixtures/lstm_test/test_lstm_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_test/test_lstm_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_test/test_lstm_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_test/test_lstm_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_test/test_lstm_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_test/test_lstm_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_test/test_lstm_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_test/test_lstm_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_test/test_lstm_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_test/test_lstm_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_test/test_lstm_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_test/test_lstm_bo.npy") |> Nx.load_numpy!()
+
+      expected_seq =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_seq.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_h.npy") |> Nx.load_numpy!()
 
       {new_seq, {new_c, new_h}} =
         Axon.Layers.lstm(
