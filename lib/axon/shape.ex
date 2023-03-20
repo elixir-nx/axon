@@ -1065,7 +1065,7 @@ defmodule Axon.Shape do
               " got #{inspect(shape)}"
     end
 
-    {elem(shape, 0), 1, units}
+    {elem(shape, 0), units}
   end
 
   @doc """

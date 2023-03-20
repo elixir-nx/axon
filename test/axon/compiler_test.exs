@@ -464,7 +464,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _predict_fn} = Axon.build(model1)
       assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
-      assert_equal(kernel, zeros({1, 1, 2}))
+      assert_equal(kernel, zeros({1, 2}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
@@ -3173,7 +3173,7 @@ defmodule CompilerTest do
 
       input = random({1, 8, 2}, type: {:f, 32})
 
-      init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
+      init_carry = {zeros({1, 2}), zeros({1, 2})}
 
       assert {init_fn, predict_fn} = Axon.build(model)
 
@@ -3215,7 +3215,7 @@ defmodule CompilerTest do
 
       input1 = random({1, 8, 2}, type: {:f, 32})
 
-      init_carry1 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
+      init_carry1 = {zeros({1, 2}), zeros({1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Layers.lstm_cell(
@@ -3255,7 +3255,7 @@ defmodule CompilerTest do
 
       input2 = random({1, 8, 2}, type: {:f, 32})
 
-      init_carry2 = {zeros({1, 1, 2}), zeros({1, 1, 2})}
+      init_carry2 = {zeros({1, 2}), zeros({1, 2})}
 
       cell_fn2 = &Axon.Layers.lstm_cell/5
 
@@ -3291,7 +3291,7 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        init_carry = {zeros({1, 1, 2}), zeros({1, 1, 2})}
+        init_carry = {zeros({1, 2}), zeros({1, 2})}
 
         {_, carry} =
           Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, init_carry, ei, eh, eb)
@@ -3361,7 +3361,7 @@ defmodule CompilerTest do
              } = params = init_fn.(input, %{})
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
-      c = {zeros({1, 1, 2}), zeros({1, 1, 2})}
+      c = {zeros({1, 2}), zeros({1, 2})}
 
       assert_equal(
         predict_fn.(params, input),
@@ -3913,7 +3913,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input = random({1, 8, 2})
-      carry = {zeros({1, 1, 2})}
+      carry = {zeros({1, 2})}
 
       assert {init_fn, predict_fn} = Axon.build(model)
 
@@ -3943,7 +3943,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input1 = random({1, 8, 2})
-      carry1 = {zeros({1, 1, 2})}
+      carry1 = {zeros({1, 2})}
 
       cell_fn1 = fn i, c, k, h, b ->
         Axon.Layers.gru_cell(
@@ -3982,7 +3982,7 @@ defmodule CompilerTest do
         |> Axon.container()
 
       input2 = random({1, 8, 2})
-      carry2 = {zeros({1, 1, 2})}
+      carry2 = {zeros({1, 2})}
 
       assert {init_fn, predict_fn} = Axon.build(model2)
 
@@ -4008,8 +4008,9 @@ defmodule CompilerTest do
       seq = Axon.input("input", shape: {nil, 8, 2})
       {_, carry} = Axon.gru(seq, 2, name: "encode", recurrent_initializer: :zeros)
       model = Axon.gru(seq, carry, 2, name: "decode") |> Axon.container()
+
       input = random({1, 8, 2})
-      carry = {zeros({1, 1, 2})}
+      carry = {zeros({1, 2})}
 
       equiv_fn = fn inp, enc, dec ->
         {ei, eh, eb} = enc
@@ -4079,7 +4080,7 @@ defmodule CompilerTest do
              } = params = init_fn.(input, %{})
 
       b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
-      c = {zeros({1, 1, 2})}
+      c = {zeros({1, 2})}
 
       assert_all_close(
         predict_fn.(params, input),

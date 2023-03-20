@@ -946,10 +946,107 @@ defmodule Axon.LayersTest do
     end
   end
 
+  describe "lstm_cell" do
+    test "cell function matches results expected from pytorch" do
+      seq =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_seq.npy")
+        |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_c.npy") |> Nx.load_numpy!()
+
+      h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_h.npy") |> Nx.load_numpy!()
+
+      wii = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bo.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_h.npy") |> Nx.load_numpy!()
+
+      {_, {new_c, new_h}} =
+        Axon.Layers.lstm_cell(
+          seq,
+          {c, h},
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo}
+        )
+
+      assert_all_close(new_c, expected_c)
+      assert_all_close(new_h, expected_h)
+    end
+  end
+
+  describe "lstm" do
+    test "matches results expected from pytorch with dynamic unroll" do
+      seq = File.read!("test/fixtures/lstm_test/test_lstm_input_seq.npy") |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_c.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      h =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_h.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      wii = File.read!("test/fixtures/lstm_test/test_lstm_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_test/test_lstm_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_test/test_lstm_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_test/test_lstm_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_test/test_lstm_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_test/test_lstm_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_test/test_lstm_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_test/test_lstm_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_test/test_lstm_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_test/test_lstm_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_test/test_lstm_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_test/test_lstm_bo.npy") |> Nx.load_numpy!()
+
+      expected_seq =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_seq.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_h.npy") |> Nx.load_numpy!()
+
+      {new_seq, {new_c, new_h}} =
+        Axon.Layers.lstm(
+          seq,
+          {c, h},
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo},
+          unroll: :dynamic
+        )
+
+      assert_all_close(new_seq, expected_seq, atol: 1.0e-3)
+      assert_all_close(new_c, expected_c, atol: 1.0e-3)
+      assert_all_close(new_h, expected_h, atol: 1.0e-3)
+    end
+  end
+
   describe "dynamic_unroll" do
     test "computes carry and output identical to static_unroll" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -993,7 +1090,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for hidden kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1040,7 +1137,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static_unroll for hidden kernel w.r.t carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1080,7 +1177,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1120,7 +1217,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1162,7 +1259,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1204,7 +1301,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
