@@ -185,7 +185,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model, compiler: EXLA, mode: :train)
 
-      init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
       predict_fn.(params, inputs)
 
   `predict_fn` by default runs in inference mode, which performs certain
