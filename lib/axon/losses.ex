@@ -960,6 +960,56 @@ defmodule Axon.Losses do
   end
 
   @doc """
+  Huber loss.
+
+  ## Argumet Shapes
+
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
+
+  ## Options
+
+    * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
+      Defaults to `:none`.
+
+    * `:delta` - the point where the Huber loss function changes from a quadratic to linear.
+      Defaults to `1.0`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[1], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.huber(y_true, y_pred)
+      #Nx.Tensor<
+        f32[3][1]
+        [
+          [0.019999997690320015],
+          [0.04499998688697815],
+          [0.004999990575015545]
+        ]
+      >
+
+      iex> y_true = Nx.tensor([[1], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.huber(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.02333332598209381
+      >
+  """
+  defn huber(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, reduction: :none, delta: 1.0)
+
+    delta = opts[:delta]
+
+    abs_diff = Nx.abs(y_pred - y_true)
+
+    (abs_diff <= delta)
+    |> Nx.select(0.5 * abs_diff ** 2, delta * abs_diff - 0.5 * delta ** 2)
+    |> reduction(opts[:reduction])
+  end
+
+  @doc """
   Connectionist Temporal Classification loss.
 
   ## Argument Shapes
