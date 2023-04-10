@@ -972,7 +972,8 @@ defmodule Axon.Losses do
     * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
       Defaults to `:none`.
 
-    * `:delta` - clip for values larger than `delta`
+    * `:delta` - the point where the Huber loss function changes from a quadratic to linear.
+      Defaults to `1.0`.
 
   ## Examples
 
@@ -997,7 +998,7 @@ defmodule Axon.Losses do
       >
   """
   defn huber(y_true, y_pred, opts \\ []) do
-    opts = keyword!(opts, [reduction: :none, delta: 1.0])
+    opts = keyword!(opts, reduction: :none, delta: 1.0)
 
     delta = opts[:delta]
 
