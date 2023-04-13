@@ -2240,4 +2240,27 @@ defmodule Axon.UpdatesTest do
       assert_all_close(actual_next_trace_e, expected_next_trace_e)
     end
   end
+
+  describe "apply_state/2" do
+    test "merges new state into state map" do
+      params = %{
+        a: Nx.tensor([1.0]),
+        b: %{
+          c: Nx.tensor([[1.0, 2.0, 3.0]])
+        },
+        d: %{e: Nx.tensor(2.0)}
+      }
+
+      state = %{a: Nx.tensor([2.0]), d: %{e: Nx.tensor(1.0)}}
+
+      new_state = apply_state(params, state)
+      assert new_state == %{
+        a: Nx.tensor([2.0]),
+        b: %{
+          c: Nx.tensor([[1.0, 2.0, 3.0]])
+        },
+        d: %{e: Nx.tensor(1.0)}
+      }
+    end
+  end
 end

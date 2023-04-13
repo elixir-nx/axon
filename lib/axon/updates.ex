@@ -984,6 +984,14 @@ defmodule Axon.Updates do
     merge_state(new_params, state)
   end
 
+  @doc """
+  Updates the state within the given model state map and an
+  updated model state.
+  """
+  deftransform apply_state(params, state) do
+    merge_state(params, state)
+  end
+
   deftransformp merge_state(params, state) do
     case {params, state} do
       {params, nil} ->
