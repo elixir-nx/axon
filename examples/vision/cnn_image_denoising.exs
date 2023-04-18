@@ -1,11 +1,9 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.6"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
-
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule MnistDenoising do
   require Axon
@@ -48,7 +46,7 @@ defmodule MnistDenoising do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.reshape({elem(shape, 0), 28, 28, 1})
     |> Nx.divide(255.0)
     |> Nx.to_batched_list(@batch_size)
     # Test split
@@ -65,7 +63,7 @@ defmodule MnistDenoising do
   defp display_image(images) do
     images
     |> Nx.slice_along_axis(0, 1)
-    |> Nx.reshape({1, 28, 28})
+    |> Nx.reshape({28, 28, 1})
     |> Nx.to_heatmap()
     |> IO.inspect()
   end
@@ -77,8 +75,7 @@ defmodule MnistDenoising do
   end
 
   defp encoder(input_shape) do
-    input_shape
-    |> Axon.input("input")
+    Axon.input("input", shape: input_shape)
     |> Axon.conv(32, kernel_size: {3, 3}, padding: :same, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2}, padding: :same)
     |> Axon.conv(32, kernel_size: {3, 3}, padding: :same, activation: :relu)

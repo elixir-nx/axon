@@ -1,14 +1,9 @@
 Mix.install([
   {:stb_image, "~> 0.5.2"},
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"}
 ])
-
-EXLA.set_as_nx_default(
-  [:tpu, :cuda, :rocm, :host],
-  run_options: [keep_on_device: true]
-)
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State

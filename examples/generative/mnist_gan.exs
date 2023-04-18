@@ -1,8 +1,8 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.6"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
 
 EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
@@ -17,7 +17,7 @@ defmodule MNISTGAN do
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 1, 28, 28})
     |> Nx.divide(255.0)
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
   end
 
   defp build_generator(z_dim) do
@@ -33,7 +33,7 @@ defmodule MNISTGAN do
     |> Axon.batch_norm()
     |> Axon.dense(784)
     |> Axon.tanh()
-    |> Axon.reshape({1, 28, 28})
+    |> Axon.reshape({:batch, 28, 28, 1})
   end
 
   defp build_discriminator(input_shape) do
@@ -53,7 +53,10 @@ defmodule MNISTGAN do
     |> Nx.divide(Nx.add(i, 1))
   end
 
-  defn init(d_params, g_params, init_optim_d, init_optim_g) do
+  defn init(template, init_d, init_g, init_optim_d, init_optim_g) do
+    d_params = init_d.(template, %{})
+    g_params = init_g.(Nx.broadcast(0.0, {1, 100}), %{})
+
     %{
       iteration: Nx.tensor(0),
       discriminator: %{
@@ -132,11 +135,11 @@ defmodule MNISTGAN do
     {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
     {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
 
-    {d_init_params, d_model} = Axon.compile(d_model, mode: :train)
-    {g_init_params, g_model} = Axon.compile(g_model, mode: :train)
+    {init_d, d_model} = Axon.build(d_model, mode: :train)
+    {init_g, g_model} = Axon.build(g_model, mode: :train)
 
     step = &batch_step(d_model, g_model, optim_d, optim_g, &1, &2)
-    init = fn %{} -> init(d_init_params, g_init_params, init_optim_d, init_optim_g) end
+    init = fn template, _state -> init(template, init_d, init_g, init_optim_d, init_optim_g) end
 
     Axon.Loop.loop(step, init)
   end
@@ -168,16 +171,14 @@ defmodule MNISTGAN do
     train_images = transform_images(images)
 
     generator = build_generator(100)
-    discriminator = build_discriminator({nil, 1, 28, 28})
+    discriminator = build_discriminator({nil, 28, 28, 1})
 
     discriminator
     |> train_loop(generator)
-    |> Axon.Loop.log(:iteration_completed, &log_iteration/1, :stdio, every: 50)
+    |> Axon.Loop.log(&log_iteration/1, event: :iteration_completed, device: :stdio, filter: [every: 50])
     |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
     |> Axon.Loop.run(train_images, %{}, epochs: 10, compiler: EXLA)
   end
 end
-
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 MNISTGAN.run()
