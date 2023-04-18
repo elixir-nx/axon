@@ -1,12 +1,10 @@
 # Based on https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
 Mix.install([
-  {:axon, "~> 0.3.0"},
-  {:nx, "~> 0.4.1"},
-  {:exla, "~> 0.4.1"},
+  {:axon, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:exla, "~> 0.5"},
   {:req, "~> 0.3.3"}
 ])
-
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule TextGenerator do
   require Axon

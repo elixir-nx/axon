@@ -1,11 +1,8 @@
 Mix.install([
-  {:axon, "~> 0.3.0"},
-  # {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.4.1"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"}
 ])
-
-# Specify EXLA as the default defn compiler
-# EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Power do
   require Axon
@@ -37,7 +34,7 @@ defmodule Power do
       Stream.repeatedly(fn ->
         # Batch size of 32
         x = Nx.random_uniform({32, 1}, -10, 10, type: {:f, 32})
-        {x, {Nx.power(x, 2), Nx.power(x, 3)}}
+        {x, {Nx.pow(x, 2), Nx.pow(x, 3)}}
       end)
 
     # Create the training loop, notice we specify 2 MSE objectives, 1 for the first
@@ -62,7 +59,7 @@ defmodule Power do
     params =
       model
       |> Axon.Loop.trainer([mean_squared_error: 0.5, mean_squared_error: 0.5], :adam)
-      |> Axon.Loop.run(data, %{}, iterations: 250, epochs: 5)
+      |> Axon.Loop.run(data, %{}, iterations: 250, epochs: 5, compiler: EXLA)
 
     IO.inspect(Axon.predict(model, params, Nx.tensor([[3]])))
   end

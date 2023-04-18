@@ -1,12 +1,9 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.3"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
-
-# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Cifar do
   require Axon
@@ -14,7 +11,7 @@ defmodule Cifar do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 3, 32, 32})
+    |> Nx.reshape({elem(shape, 0), 32, 32, 3})
     |> Nx.divide(255.0)
     |> Nx.to_batched_list(32)
     |> Enum.split(1500)

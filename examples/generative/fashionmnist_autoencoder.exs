@@ -1,12 +1,9 @@
 Mix.install([
-  {:axon, "~> 0.3.0"},
-  {:exla, "~> 0.4.1"},
-  {:nx, "~> 0.4.1"},
-  {:scidata, "~> 0.1.9"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
-
-# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule FashionMNIST do
   require Axon
