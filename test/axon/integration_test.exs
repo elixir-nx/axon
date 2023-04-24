@@ -145,6 +145,44 @@ defmodule Axon.IntegrationTest do
     end)
   end
 
+  test "paulo's failing test" do
+    {train, _test} = get_test_data(100, 0, 10, {4, 10}, 2, 1337)
+
+    train =
+      train
+      |> Stream.map(fn {xs, ys} ->
+        {xs, ys}
+      end)
+      |> Enum.to_list()
+
+    [{x_test, _}] = Enum.take(train, 1)
+
+    input = Axon.input("input_series", shape: put_elem(Nx.shape(x_test), 0, nil))
+
+    model =
+      input
+      |> Axon.lstm(128, activation: :relu)
+      |> elem(0)
+      |> Axon.dropout(rate: 0.25)
+      |> Axon.lstm(64, activation: :relu)
+      |> elem(0)
+      |> Axon.dropout(rate: 0.25)
+      |> Axon.lstm(32, activation: :relu)
+      |> elem(0)
+      |> Axon.dropout(rate: 0.25)
+      |> Axon.dense(1)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      results =
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, Axon.Optimizers.adam())
+        |> Axon.Loop.run(train, %{}, epochs: 10)
+
+      assert %{"dense_0" => _} = results
+    end)
+
+  end
+
   test "gradient accumulation test" do
     {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
 
