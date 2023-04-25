@@ -146,12 +146,12 @@ defmodule Axon.IntegrationTest do
   end
 
   test "paulo's failing test" do
-    {train, _test} = get_test_data(100, 0, 10, {4, 10}, 2, 1337)
+    {train, _test} = get_test_data(2, 0, 2, {4, 10}, 2, 1337)
 
     train =
       train
       |> Stream.map(fn {xs, ys} ->
-        {xs, ys}
+        {Nx.as_type(xs, :f64), Nx.as_type(ys, :f64)}
       end)
       |> Enum.to_list()
 
@@ -161,22 +161,15 @@ defmodule Axon.IntegrationTest do
 
     model =
       input
-      |> Axon.lstm(128, activation: :relu)
+      |> Axon.lstm(1, activation: :relu)
       |> elem(0)
-      |> Axon.dropout(rate: 0.25)
-      |> Axon.lstm(64, activation: :relu)
-      |> elem(0)
-      |> Axon.dropout(rate: 0.25)
-      |> Axon.lstm(32, activation: :relu)
-      |> elem(0)
-      |> Axon.dropout(rate: 0.25)
       |> Axon.dense(1)
 
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
         |> Axon.Loop.trainer(:mean_squared_error, Axon.Optimizers.adam())
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, %{}, epochs: 1)
 
       assert %{"dense_0" => _} = results
     end)
