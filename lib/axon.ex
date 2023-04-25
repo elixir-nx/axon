@@ -1728,7 +1728,7 @@ defmodule Axon do
       * `:channel_index` - input feature index used for calculating
         mean and variance. Defaults to `-1`.
 
-      * `:epsilon` - numerical stability term.
+      * `:epsilon` - numerical stability term. Defaults to `1.0e-5`.
 
     """
     @doc type: :normalization

@@ -1109,7 +1109,7 @@ defmodule Axon.Layers do
 
     * `:momentum` - momentum to use for EMA update.
 
-    * `:training?` - if true, uses training mode batch norm. Defaults to false.
+    * `:mode` - if `:train`, uses training mode batch norm. Defaults to `:inference`.
 
   ## References
 

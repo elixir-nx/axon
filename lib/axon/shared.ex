@@ -250,25 +250,20 @@ defmodule Axon.Shared do
   defn reciprocal(x), do: Nx.divide(1, x)
 
   defn normalize(input, mean, variance, gamma, bias, opts \\ []) do
-    opts = keyword!(opts, epsilon: 1.0e-6)
+    [epsilon: epsilon] = keyword!(opts, epsilon: 1.0e-6)
 
+    # The select is so that we improve numerical stability by clipping
+    # both insignificant values of variance and NaNs to epsilon.
     scale =
-      variance
-      |> Nx.add(opts[:epsilon])
-      |> Nx.rsqrt()
-      |> Nx.multiply(gamma)
+      gamma * Nx.select(variance >= epsilon, Nx.rsqrt(variance + epsilon), Nx.rsqrt(epsilon))
 
-    input
-    |> Nx.subtract(mean)
-    |> Nx.multiply(scale)
-    |> Nx.add(bias)
+    scale * (input - mean) + bias
   end
 
   defn mean_and_variance(input, opts \\ []) do
     opts = keyword!(opts, [:axes])
     mean = Nx.mean(input, axes: opts[:axes], keep_axes: true)
-    mean_of_squares = Nx.mean(Nx.multiply(input, input), axes: opts[:axes], keep_axes: true)
-    square_of_mean = Nx.multiply(mean, mean)
-    {mean, mean_of_squares - square_of_mean}
+    var = Nx.variance(input, axes: opts[:axes], keep_axes: true)
+    {mean, var}
   end
 end
