@@ -239,7 +239,7 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:decay` - EMA decay rate. Defaults to `0.9`.
+      * `:decay` - EMA decay rate. Defaults to `0.95`.
 
       * `:eps` - numerical stability term. Defaults to `1.0e-8`.
 
@@ -276,7 +276,7 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale_by_rms(x, %{nu: nu}, _params, opts \\ []) do
-    opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
+    opts = keyword!(opts, decay: 0.95, eps: 1.0e-8)
     decay = opts[:decay]
     eps = opts[:eps]
 
@@ -355,7 +355,7 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:decay` - EMA decay rate. Defaults to `0.9`.
+      * `:decay` - EMA decay rate. Defaults to `0.95`.
 
       * `:eps` - numerical stability term. Defaults to `1.0e-8`.
 
@@ -393,7 +393,7 @@ defmodule Axon.Updates do
   end
 
   defnp apply_scale_by_stddev(x, %{mu: mu, nu: nu}, _params, opts \\ []) do
-    opts = keyword!(opts, decay: 0.9, eps: 1.0e-8)
+    opts = keyword!(opts, decay: 0.95, eps: 1.0e-8)
     decay = opts[:decay]
     eps = opts[:eps]
 
@@ -529,7 +529,7 @@ defmodule Axon.Updates do
   ## Options
 
     * `:decay` - decay rate for tracing past updates. Defaults
-      to `0.9`
+      to `0.95`
     * `:nesterov` - whether to use Nesterov momentum. Defaults
       to `false`
 
@@ -560,7 +560,7 @@ defmodule Axon.Updates do
   end
 
   defnp apply_trace(x, %{trace: trace}, _params, opts \\ []) do
-    opts = keyword!(opts, decay: 0.9, nesterov: false)
+    opts = keyword!(opts, decay: 0.95, nesterov: false)
     decay = opts[:decay]
 
     update_trace = deep_merge(x, trace, fn g, t -> t * decay + g end)
@@ -688,7 +688,7 @@ defmodule Axon.Updates do
 
   ## Options
 
-      * `:decay` - Rate of decay. Defaults to `0.0`.
+      * `:decay` - Rate of decay. Defaults to `0.95`.
   """
   def add_decayed_weights(combinator_or_opts \\ [])
 
@@ -704,7 +704,7 @@ defmodule Axon.Updates do
   def add_decayed_weights({init_fn, apply_fn} = combinator, opts)
       when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
     stateless(combinator, fn updates, params ->
-      opts = Nx.Defn.Kernel.keyword!(opts, decay: 0.0)
+      opts = Nx.Defn.Kernel.keyword!(opts, decay: 0.95)
       # Decay can be a tensor, that's why we preprocess it before-hand
       # and pass it as argument to defn instead of as an option.
       apply_weight_decay(updates, params, opts[:decay])
