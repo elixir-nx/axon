@@ -771,7 +771,7 @@ defmodule Axon.Updates do
   Adds random Gaussian noise to the input.
 
   ## Options
-      
+
       * `:seed` - Random seed to use. Defaults to the
         current system time.
 

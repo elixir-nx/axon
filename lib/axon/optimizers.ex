@@ -118,10 +118,10 @@ defmodule Axon.Optimizers do
     * `:b2` - second moment decay. Defaults to `0.999`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
     * `:eps_root` - numerical stability term. Defaults to `0.0`
-    * `:decay` - weight decay. Defaults to `0.0`
+    * `:decay` - weight decay. Defaults to `0.95`
   """
   def adamw(learning_rate \\ 1.0e-3, opts \\ []) do
-    {decay, opts} = Keyword.pop(opts, :decay, 0.0)
+    {decay, opts} = Keyword.pop(opts, :decay, 0.95)
 
     Updates.scale_by_adam(opts)
     |> Updates.add_decayed_weights(decay: decay)
@@ -137,7 +137,7 @@ defmodule Axon.Optimizers do
     * `:b2` - second moment decay. Defaults to `0.999`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
     * `:eps_root` - numerical stability term. Defaults to `0.0`
-    * `:decay` - weight decay. Defaults to `0.0`
+    * `:decay` - weight decay. Defaults to `0.95`
     * `:min_norm` - minimum norm value. Defaults to `0.0`
 
   ## References
@@ -145,7 +145,7 @@ defmodule Axon.Optimizers do
     * [Large Batch Optimization for Deep Learning: Training BERT in 76 minutes](https://arxiv.org/abs/1904.00962)
   """
   def lamb(learning_rate \\ 1.0e-2, opts \\ []) do
-    {decay, opts} = Keyword.pop(opts, :decay, 0.0)
+    {decay, opts} = Keyword.pop(opts, :decay, 0.95)
     {min_norm, opts} = Keyword.pop(opts, :min_norm, 0.0)
 
     Updates.scale_by_adam(opts)
@@ -197,13 +197,13 @@ defmodule Axon.Optimizers do
       to value of this term.
     * `:nesterov` - whether or not to use nesterov momentum. Defaults to `false`
     * `:initial_scale` - initial value of EMA. Defaults to `0.0`
-    * `:decay` - EMA decay rate. Defaults to `0.9`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
   """
   def rmsprop(learning_rate \\ 1.0e-2, opts \\ []) do
-    {centered, opts} = Keyword.pop(opts, :centered, false)
-    {nesterov?, opts} = Keyword.pop(opts, :nesterov, false)
-    {momentum, opts} = Keyword.pop(opts, :momentum, nil)
+    opts = Keyword.validate!(opts, [:momentum, centered: false, nesterov: false, decay: 0.95])
+    centered = opts[:centered]
+    nesterov? = opts[:nesterov]
+    momentum = opts[:momentum]
 
     combinator =
       if centered do
