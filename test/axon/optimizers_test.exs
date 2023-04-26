@@ -218,8 +218,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss centered case" do
-      optimizer =
-        Axon.Optimizers.rmsprop(@learning_rate, centered: true, initial_scale: 0.1, decay: 0.8)
+      optimizer = Axon.Optimizers.rmsprop(@learning_rate, centered: true, decay: 0.8)
 
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
@@ -229,7 +228,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss rms case" do
-      optimizer = Axon.Optimizers.rmsprop(@learning_rate, initial_scale: 0.1, decay: 0.8)
+      optimizer = Axon.Optimizers.rmsprop(@learning_rate, decay: 0.8)
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations
       x0 = %{"x0" => Nx.tensor([1.0])}
@@ -238,8 +237,7 @@ defmodule OptimizersTest do
     end
 
     test "correctly optimizes simple loss with momentum" do
-      optimizer =
-        Axon.Optimizers.rmsprop(@learning_rate, initial_scale: 0.1, decay: 0.8, momentum: 0.9)
+      optimizer = Axon.Optimizers.rmsprop(@learning_rate, decay: 0.8, momentum: 0.9)
 
       loss_fn = fn %{"x0" => x} -> Nx.multiply(x, x) end
       num_steps = @iterations

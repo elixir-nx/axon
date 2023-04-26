@@ -1257,7 +1257,7 @@ defmodule Axon.UpdatesTest do
   describe "scale_by_rms" do
     test "constructs a stateful transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_rms()
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {rms_state} = init_fn.(params)
@@ -1277,7 +1277,7 @@ defmodule Axon.UpdatesTest do
 
     test "composes with itself" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_rms() |> scale_by_rms()
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9) |> scale_by_rms(decay: 0.9)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {rms_state_1, rms_state_2} = init_fn.(params)
@@ -1289,7 +1289,7 @@ defmodule Axon.UpdatesTest do
 
     test "composes with stateless transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_rms() |> scale(1.0e-2)
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9) |> scale(1.0e-2)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {rms_state} = init_fn.(params)
@@ -1298,7 +1298,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with simple container" do
-      assert {init_fn, update_fn} = scale_by_rms()
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9)
       params = %{a: Nx.tensor([0.77100057, 0.98078091, 0.78499164])}
       updates = %{a: Nx.tensor([0.25156708, 0.30524656, 0.97350756])}
       state = init_fn.(params)
@@ -1314,7 +1314,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with nested container" do
-      assert {init_fn, update_fn} = scale_by_rms()
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9)
 
       params = %{
         a: %{
@@ -1348,7 +1348,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "supports generic container" do
-      assert {init_fn, update_fn} = scale_by_rms()
+      assert {init_fn, update_fn} = scale_by_rms(decay: 0.9)
 
       params = {
         {
@@ -1646,7 +1646,7 @@ defmodule Axon.UpdatesTest do
   describe "scale_by_stddev" do
     test "constructs a stateful transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_stddev()
+      assert {init_fn, update_fn} = scale_by_stddev(decay: 0.9)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {stddev_state} = init_fn.(params)
@@ -1657,7 +1657,7 @@ defmodule Axon.UpdatesTest do
 
     test "constructs a stateful transformation with options" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_stddev(initial_scale: 0.5)
+      assert {init_fn, update_fn} = scale_by_stddev(decay: 0.9, initial_scale: 0.5)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {stddev_state} = init_fn.(params)
@@ -1670,7 +1670,8 @@ defmodule Axon.UpdatesTest do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
 
       assert {init_fn, update_fn} =
-               scale_by_stddev(initial_scale: 0.1) |> scale_by_stddev(initial_scale: 0.2)
+               scale_by_stddev(decay: 0.9, initial_scale: 0.1)
+               |> scale_by_stddev(decay: 0.9, initial_scale: 0.2)
 
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
@@ -1685,7 +1686,10 @@ defmodule Axon.UpdatesTest do
 
     test "composes with stateless transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = scale_by_stddev(initial_scale: 0.1) |> scale(1.0e-2)
+
+      assert {init_fn, update_fn} =
+               scale_by_stddev(decay: 0.9, initial_scale: 0.1) |> scale(1.0e-2)
+
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {stddev_state} = init_fn.(params)
@@ -1695,7 +1699,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with simple container" do
-      assert {init_fn, update_fn} = scale_by_stddev()
+      assert {init_fn, update_fn} = scale_by_stddev(decay: 0.9)
       params = %{a: Nx.tensor([0.98013234, 0.0653057, 0.39361905])}
       updates = %{a: Nx.tensor([0.58050587, 0.04869076, 0.62340991])}
       state = init_fn.(params)
@@ -1713,7 +1717,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with nested container" do
-      assert {init_fn, update_fn} = scale_by_stddev()
+      assert {init_fn, update_fn} = scale_by_stddev(decay: 0.9)
 
       params = %{
         a: %{
@@ -1752,7 +1756,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "supports generic container" do
-      assert {init_fn, update_fn} = scale_by_stddev()
+      assert {init_fn, update_fn} = scale_by_stddev(decay: 0.9)
 
       params = {
         {
@@ -2066,7 +2070,7 @@ defmodule Axon.UpdatesTest do
   describe "trace" do
     test "constructs a stateful transformation" do
       params = %{a: Nx.tensor([1.0, 2.0, 3.0])}
-      assert {init_fn, update_fn} = trace()
+      assert {init_fn, update_fn} = trace(decay: 0.9)
       assert is_function(init_fn, 1)
       assert is_function(update_fn, 3)
       assert {trace_state} = init_fn.(params)
@@ -2157,7 +2161,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with simple container, nesterov: true" do
-      assert {init_fn, update_fn} = trace(nesterov: true)
+      assert {init_fn, update_fn} = trace(decay: 0.9, nesterov: true)
       params = %{a: Nx.tensor([0.05727068, 0.71336316, 0.52111667])}
       updates = %{a: Nx.tensor([0.99510349, 0.38321624, 0.37485662])}
       state = init_fn.(params)
@@ -2173,7 +2177,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "matches optax with nested container, nesterov: true" do
-      assert {init_fn, update_fn} = trace(nesterov: true)
+      assert {init_fn, update_fn} = trace(decay: 0.9, nesterov: true)
 
       params = %{
         a: %{
@@ -2207,7 +2211,7 @@ defmodule Axon.UpdatesTest do
     end
 
     test "supports generic container" do
-      assert {init_fn, update_fn} = trace(nesterov: true)
+      assert {init_fn, update_fn} = trace(decay: 0.9, nesterov: true)
 
       params = {
         {

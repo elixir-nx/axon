@@ -196,7 +196,6 @@ defmodule Axon.Optimizers do
     * `:momentum` - momentum term. If set, uses SGD with momentum and decay set
       to value of this term.
     * `:nesterov` - whether or not to use nesterov momentum. Defaults to `false`
-    * `:initial_scale` - initial value of EMA. Defaults to `0.0`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
   """
   def rmsprop(learning_rate \\ 1.0e-2, opts \\ []) do
@@ -207,9 +206,9 @@ defmodule Axon.Optimizers do
 
     combinator =
       if centered do
-        Updates.scale_by_stddev(opts)
+        Updates.scale_by_stddev(decay: opts[:decay])
       else
-        Updates.scale_by_rms(opts)
+        Updates.scale_by_rms(decay: opts[:decay])
       end
       |> scale_by_learning_rate(learning_rate)
 
