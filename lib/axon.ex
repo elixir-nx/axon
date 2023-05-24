@@ -3139,7 +3139,7 @@ defmodule Axon do
 
     updated_nodes =
       Map.update!(nodes, id, fn axon_node ->
-        %{axon_node | hooks: [{on_event, mode, fun}]}
+        %{axon_node | hooks: [{on_event, mode, fun} | axon_node.hooks]}
       end)
 
     %{axon | nodes: updated_nodes}
