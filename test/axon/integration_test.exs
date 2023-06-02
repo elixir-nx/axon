@@ -413,5 +413,62 @@ defmodule Axon.IntegrationTest do
         end)
       end
     end
+
+    test "mixed precision downcasts model when state is given to train" do
+      policy = Axon.MixedPrecision.create_policy(
+        params: {:f, 16},
+        compute: {:f, 16},
+        output: {:f, 16}
+      )
+
+      {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+      train =
+        train
+        |> Stream.map(fn {xs, ys} ->
+          {xs, one_hot(ys, num_classes: 2)}
+        end)
+        |> Enum.to_list()
+
+      [{x_test, _}] = Enum.take(train, 1)
+
+      model =
+        Axon.input("input")
+        |> Axon.dense(16)
+        |> Axon.dropout(rate: 0.1)
+        |> Axon.dense(2, activation: :softmax)
+
+      {init_fn, _} = Axon.build(model)
+      initial_state = init_fn.(Nx.template({1, 10}, :f32), %{})
+
+      mp_model = Axon.MixedPrecision.apply_policy(model, policy)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        results =
+          mp_model
+          |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: :dynamic)
+          # TODO: Fix default output transform
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.validate(model, train)
+          |> Axon.Loop.run(train, initial_state, epochs: 10)
+
+        assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                 results
+
+        eval_results =
+          model
+          |> Axon.Loop.evaluator()
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.run(train, model_state)
+
+        assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+        assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
+        assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+        assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+        assert Nx.type(model_state["dense_0"]["kernel"]) == policy.params
+      end)
+    end
   end
 end

@@ -202,8 +202,8 @@ defmodule Axon.Compiler do
         %{^key => %{} = nested} when not is_struct(nested) ->
           %{params | key => merge_params!(nested, value)}
 
-        %{^key => _} ->
-          %{params | key => value}
+        %{^key => template} ->
+          %{params | key => Nx.as_type(value, Nx.type(template))}
 
         _ ->
           Logger.warning("found unexpected key in the initial parameters map: #{inspect(key)}")
