@@ -4,8 +4,7 @@
 
 ```elixir
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:axon, github: "elixir-nx/axon"}
 ])
 ```
 
@@ -166,7 +165,7 @@ You can also use event handlers for things as simple as implementing custom logg
 ```elixir
 model
 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-|> Axon.Loop.log(:epoch_completed, fn _state -> "epoch is over\n" end, :stdio)
+|> Axon.Loop.log(fn _state -> "epoch is over\n" end, device: :stdio)
 |> Axon.Loop.run(train_data, %{}, epochs: 5, iterations: 100)
 ```
 
