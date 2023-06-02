@@ -415,11 +415,12 @@ defmodule Axon.IntegrationTest do
     end
 
     test "mixed precision downcasts model when state is given to train" do
-      policy = Axon.MixedPrecision.create_policy(
-        params: {:f, 16},
-        compute: {:f, 16},
-        output: {:f, 16}
-      )
+      policy =
+        Axon.MixedPrecision.create_policy(
+          params: {:f, 16},
+          compute: {:f, 16},
+          output: {:f, 16}
+        )
 
       {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
 
