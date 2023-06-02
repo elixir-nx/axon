@@ -973,7 +973,7 @@ defmodule Axon.Layers do
   @doc type: :pooling
   defn blur_pool(input, opts \\ []) do
     assert_rank!("blur_pool", "input", input, 4)
-    opts = keyword!(opts, strides: 1, channels: :last, mode: :train)
+    opts = keyword!(opts, channels: :last, mode: :train)
 
     filter =
       Nx.tensor([
@@ -995,13 +995,24 @@ defmodule Axon.Layers do
           Nx.axis_size(input, 1)
       end
 
-    filter = Nx.broadcast(filter, {output_channels, 1, 3, 3})
+    filter = compute_filter(filter, opts[:channels], output_channels)
 
     conv(input, filter,
-      strides: opts[:strides],
       padding: padding_for_filter(filter),
-      feature_group_size: output_channels
+      feature_group_size: output_channels,
+      channels: opts[:channels]
     )
+  end
+
+  deftransformp compute_filter(filter, :first, out_channels) do
+    filter_shape = put_elem(Nx.shape(filter), 0, out_channels)
+    Nx.broadcast(filter, filter_shape)
+  end
+
+  deftransformp compute_filter(filter, :last, out_channels) do
+    filter_shape = put_elem(Nx.shape(filter), 0, out_channels)
+    filter_permutation = [3, 2, 0, 1]
+    filter |> Nx.broadcast(filter_shape) |> Nx.transpose(axes: filter_permutation)
   end
 
   deftransformp padding_for_filter(filter) do

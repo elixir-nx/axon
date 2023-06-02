@@ -1591,7 +1591,7 @@ defmodule Axon do
 
     * `:name` - layer name.
 
-    * `:strides` - stride during convolution. Defaults to size of kernel.
+    * `:strides` - stride during convolution. Defaults to `1`.
 
     * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:last`.
@@ -1600,17 +1600,14 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
-        :strides,
         channels: :last
       ])
 
-    strides = opts[:strides]
     channels = opts[:channels]
     name = opts[:name]
 
     opts = [
       name: name,
-      strides: strides,
       channels: channels,
       op_name: :blur_pool
     ]

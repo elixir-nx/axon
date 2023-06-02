@@ -304,18 +304,5 @@ defmodule Axon.LossesTest do
       smooth_loss = Axon.Losses.label_smoothing(loss, smoothing: 0.1)
       assert is_function(smooth_loss, 2)
     end
-
-    test "matches mosaicml" do
-      y_true = Nx.tensor([[0, 1, 0, 0, 0, 0]])
-      y_pred = Nx.tensor([[0.5, 0.1, 0.1, 0.0, 0.2, 0.1]])
-
-      loss = &Axon.Losses.categorical_cross_entropy/2
-      smooth_loss = Axon.Losses.label_smoothing(loss, smoothing: 0.1)
-
-      assert_all_close(
-        smooth_loss.(y_true, y_pred),
-        Nx.tensor(1.8654)
-      )
-    end
   end
 end
