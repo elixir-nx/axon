@@ -813,6 +813,59 @@ defmodule CompilerTest do
     # end
   end
 
+  describe "blur_pool" do
+    test "initializes with no params" do
+      model = apply(Axon, :blur_pool, [Axon.input("input", shape: {nil, 32, 32, 1})])
+
+      input = random({1, 32, 32, 1})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert %{} = init_fn.(input, %{})
+    end
+
+    test "computes forward pass with default options" do
+      model2 = apply(Axon, :blur_pool, [Axon.input("input", shape: {nil, 8, 4, 1})])
+      input2 = random({1, 8, 4, 1}, type: {:f, 32})
+
+      assert {_, predict_fn} = Axon.build(model2)
+
+      assert_equal(
+        predict_fn.(%{}, input2),
+        apply(Axon.Layers, :blur_pool, [input2])
+      )
+    end
+
+    test "computes forward pass with output policy" do
+      model = apply(Axon, :blur_pool, [Axon.input("input", shape: {nil, 32, 32, 1})])
+      policy = AMP.create_policy(output: {:bf, 16})
+      mp_model = AMP.apply_policy(model, policy)
+
+      input = random({1, 32, 32, 1})
+
+      assert {init_fn, predict_fn} = Axon.build(mp_model)
+
+      assert Nx.type(predict_fn.(init_fn.(input, %{}), random({1, 32, 32, 1}))) ==
+               {:bf, 16}
+    end
+
+    test "computes forward pass with channels last" do
+      model =
+        apply(Axon, :blur_pool, [
+          Axon.input("input", shape: {nil, 32, 32, 1}),
+          [channels: :last]
+        ])
+
+      inp = random({1, 32, 32, 1})
+
+      assert {_, predict_fn} = Axon.build(model)
+
+      assert_equal(
+        predict_fn.(%{}, inp),
+        apply(Axon.Layers, :blur_pool, [inp, [channels: :last]])
+      )
+    end
+  end
+
   @adaptive_pooling_layers [:adaptive_avg_pool, :adaptive_max_pool, :adaptive_lp_pool]
 
   describe "adaptive pooling" do

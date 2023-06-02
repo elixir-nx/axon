@@ -284,4 +284,25 @@ defmodule Axon.LossesTest do
       )
     end
   end
+
+  describe "apply_label_smoothing" do
+    test "correctly smooths labels" do
+      y_true = Nx.tensor([[0, 1, 0, 0, 0, 0]])
+      y_pred = Nx.tensor([[0.5, 0.1, 0.1, 0.0, 0.2, 0.1]])
+
+      assert_all_close(
+        Axon.Losses.apply_label_smoothing(y_true, y_pred, smoothing: 0.1),
+        Nx.tensor([[0.0167, 0.9167, 0.0167, 0.0167, 0.0167, 0.0167]]),
+        atol: 1.0e-3
+      )
+    end
+  end
+
+  describe "label_smoothing" do
+    test "returns an arity-2 function from loss function" do
+      loss = &Axon.Losses.categorical_cross_entropy/2
+      smooth_loss = Axon.Losses.label_smoothing(loss, smoothing: 0.1)
+      assert is_function(smooth_loss, 2)
+    end
+  end
 end
