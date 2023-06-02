@@ -376,6 +376,14 @@ defmodule Axon.LoopTest do
           }
         end
       )
+      |> Loop.handle_event(
+        :completed,
+        fn %State{step_state: %{counter: counter}} = state ->
+          assert 4 = counter
+
+          {:continue, state}
+        end
+      )
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
         %{},
@@ -406,6 +414,14 @@ defmodule Axon.LoopTest do
                   end
             }
           }
+        end
+      )
+      |> Loop.handle_event(
+        :completed,
+        fn %State{step_state: %{counter: counter}} = state ->
+          assert {{4}, 4} = counter
+
+          {:continue, state}
         end
       )
       |> Loop.run(

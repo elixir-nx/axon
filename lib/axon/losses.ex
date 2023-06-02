@@ -1177,6 +1177,53 @@ defmodule Axon.Losses do
     t0_prob
   end
 
+  ## Modifiers
+
+  @doc """
+  Modifies the given loss function to smooth labels prior
+  to calculating loss.
+
+  See `apply_label_smoothing/2` for details.
+
+  ## Options
+
+    * `:smoothing` - smoothing factor. Defaults to 0.1
+  """
+  def label_smoothing(loss_fun, opts \\ []) when is_function(loss_fun, 2) do
+    opts = Keyword.validate!(opts, smoothing: 0.1)
+
+    fn y_true, y_pred ->
+      smoothed = apply_label_smoothing(y_true, y_pred, smoothing: opts[:smoothing])
+      loss_fun.(smoothed, y_pred)
+    end
+  end
+
+  @doc """
+  Applies label smoothing to the given labels.
+
+  Label smoothing is a regularization technique which shrink targets
+  towards a uniform distribution. Label smoothing can improve model
+  generalization.
+
+  ## Options
+
+    * `:smoothing` - smoothing factor. Defaults to 0.1
+
+  ## References
+
+    * [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)
+  """
+  defn apply_label_smoothing(y_true, y_pred, opts \\ []) do
+    assert_min_rank!("apply_label_smoothing", "y_true", y_true, 2)
+    assert_min_rank!("apply_label_smoothing", "y_pred", y_pred, 2)
+
+    opts = keyword!(opts, smoothing: 0.1)
+    n_classes = Nx.axis_size(y_pred, 1)
+    y_true * (1 - opts[:smoothing]) + opts[:smoothing] / n_classes
+  end
+
+  ## Helpers
+
   defnp reduction(loss, reduction \\ :none) do
     case reduction do
       :mean -> Nx.mean(loss)
