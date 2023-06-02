@@ -1,16 +1,13 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # Accelerating Axon
 
 ```elixir
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:exla, "~> 0.3.0", github: "elixir-nx/nx", sparse: "exla"},
-  {:torchx, github: "elixir-nx/nx", sparse: "torchx"},
-  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:axon, ">= 0.5.0"},
+  {:exla, ">= 0.5.0"},
+  {:torchx, ">= 0.5.0"},
   {:benchee, github: "akoutmos/benchee", branch: :adding_table_support},
   {:kino_benchee, github: "livebook-dev/kino_benchee"},
-  {:kino, "~> 0.7.0", override: true}
+  {:kino, ">= 0.9.0", override: true}
 ])
 ```
 
@@ -50,26 +47,38 @@ model =
 >
 ```
 
-By default, Axon will respect the default `defn` compilation options. You can set compilation options globally or per-process:
+## Global and Process Level Options
+
+By default, Axon will respect the default `defn` compilation options. You can set compilation options globally or per-process with `compiler`.
+
+Axon will respect the global and process-level Nx backend configuration options. You can set the default backend using `backend`. Backends are covered more indepth in the second half of this example.
+
+<!-- livebook:{"force_markdown":true} -->
 
 ```elixir
 # Sets the global compilation options
-Nx.Defn.global_default_options(compiler: EXLA)
+Nx.Defn.global_default_options(backend: EXLA, compiler: EXLA)
+# OR
+Nx.Defn.global_default_options(backend: Torchx.Backend)
+
 # Sets the process-level compilation options
-Nx.Defn.default_options(compiler: EXLA)
+Nx.Defn.default_options(backend: EXLA, compiler: EXLA)
+# OR
+Nx.Defn.default_options(backend: Torchx.Backend)
 ```
 
-<!-- livebook:{"output":true} -->
+Alternatively, you can specify in opts of the function call `backend`/`compiler`
 
-```
-[compiler: EXLA]
-```
+<!-- livebook:{"break_markdown":true} -->
 
 When you call `Axon.build/2`, Axon automatically marks your initialization and forward functions as JIT compiled functions. When you invoke them, they will compile a specialized version of the function using your default compiler options:
 
 ```elixir
-inputs = Nx.random_uniform({2, 128})
-{init_fn, predict_fn} = Axon.build(model)
+{inputs, _next_key} =
+  Nx.Random.key(9999)
+  |> Nx.Random.uniform(shape: {2, 128})
+
+{init_fn, predict_fn} = Axon.build(model, compiler: EXLA, backend: EXLA)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
 ```
@@ -78,9 +87,17 @@ predict_fn.(params, inputs)
 
 ```
 
-10:34:02.503 [info]  XLA service 0x7fbd5468c170 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
+15:39:26.463 [info] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
 
-10:34:02.785 [info]    StreamExecutor device (0): Host, Default Version
+15:39:26.473 [info] XLA service 0x7f3488329030 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+
+15:39:26.473 [info]   StreamExecutor device (0): NVIDIA GeForce RTX 3050 Ti Laptop GPU, Compute Capability 8.6
+
+15:39:26.473 [info] Using BFC allocator.
+
+15:39:26.473 [info] XLA backend allocating 3605004288 bytes on device 0 for BFCAllocator.
+
+15:39:28.272 [info] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
 
 ```
 
@@ -89,7 +106,7 @@ predict_fn.(params, inputs)
 ```
 #Nx.Tensor<
   f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1168769032.259095>
+  EXLA.Backend<cuda:0, 0.3278685746.4275699756.253533>
   [
     [1.0],
     [1.0]
@@ -104,19 +121,7 @@ Notice that the inspected tensor indicates the computation has been dispatched t
 If you feel like setting the global or process-level compilation options is too intrusive, you can opt for more explicit behavior in a few ways. First, you can specify the JIT compiler when you build the model:
 
 ```elixir
-# Set back to defaults
-Nx.Defn.global_default_options([])
-Nx.Defn.default_options([])
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-[compiler: EXLA]
-```
-
-```elixir
-{init_fn, predict_fn} = Axon.build(model, compiler: EXLA)
+{init_fn, predict_fn} = Axon.build(model, compiler: EXLA, backend: EXLA)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
 ```
@@ -126,7 +131,7 @@ predict_fn.(params, inputs)
 ```
 #Nx.Tensor<
   f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1168769032.259101>
+  EXLA.Backend<cuda:0, 0.3278685746.4275699756.253542>
   [
     [1.0],
     [1.0]
@@ -137,17 +142,17 @@ predict_fn.(params, inputs)
 You can also instead JIT compile functions explicitly via the `Nx.Defn.jit` or compiler-specific JIT APIs. This is useful when running benchmarks against various backends:
 
 ```elixir
-{init_fn, predict_fn} = Axon.build(model)
+{init_fn, predict_fn} = Axon.build(model, compiler: EXLA, backend: EXLA)
 
 # These will both JIT compile with EXLA
-exla_init_fn = Nx.Defn.jit(init_fn, compiler: EXLA)
+exla_init_fn = Nx.Defn.jit(init_fn, compiler: EXLA, backend: EXLA)
 exla_predict_fn = EXLA.jit(predict_fn)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>
+#Function<135.109794929/2 in Nx.Defn.Compiler.fun/2>
 ```
 
 ```elixir
@@ -176,11 +181,11 @@ Warning: the benchmark exla init is using an evaluated function.
   Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
 
 Operating System: Linux
-CPU Information: Intel(R) Core(TM) i7-7600U CPU @ 2.80GHz
-Number of Available Cores: 4
-Available memory: 24.95 GB
-Elixir 1.13.4
-Erlang 25.0.4
+CPU Information: 12th Gen Intel(R) Core(TM) i9-12900HK
+Number of Available Cores: 20
+Available memory: 62.47 GB
+Elixir 1.14.2
+Erlang 25.2.2
 
 Benchmark suite executing with the following configuration:
 warmup: 2 s
@@ -195,20 +200,26 @@ Benchmarking elixir init ...
 Benchmarking exla init ...
 
 Name                  ips        average  deviation         median         99th %
-exla init          3.79 K        0.26 ms   ±100.40%        0.24 ms        0.97 ms
-elixir init        0.52 K        1.91 ms    ±35.03%        1.72 ms        3.72 ms
+elixir init        773.80        1.29 ms    ±27.03%        1.21 ms        2.82 ms
+exla init          747.75        1.34 ms    ±29.51%        1.22 ms        2.89 ms
 
-Comparison:
-exla init          3.79 K
-elixir init        0.52 K - 7.25x slower +1.65 ms
+Comparison: 
+elixir init        773.80
+exla init          747.75 - 1.03x slower +0.0450 ms
 
 Memory usage statistics:
 
 Name           Memory usage
-exla init           9.80 KB
-elixir init       644.63 KB - 65.80x memory usage +634.83 KB
+elixir init        10.38 KB
+exla init          10.33 KB - 0.99x memory usage -0.05469 KB
 
 **All measurements for memory usage were the same**
+```
+
+<!-- livebook:{"output":true} -->
+
+```vega-lite
+null
 ```
 
 ```elixir
@@ -237,11 +248,11 @@ Warning: the benchmark exla predict is using an evaluated function.
   Alternatively, you can move the benchmark into a benchmark.exs file and run mix run benchmark.exs
 
 Operating System: Linux
-CPU Information: Intel(R) Core(TM) i7-7600U CPU @ 2.80GHz
-Number of Available Cores: 4
-Available memory: 24.95 GB
-Elixir 1.13.4
-Erlang 25.0.4
+CPU Information: 12th Gen Intel(R) Core(TM) i9-12900HK
+Number of Available Cores: 20
+Available memory: 62.47 GB
+Elixir 1.14.2
+Erlang 25.2.2
 
 Benchmark suite executing with the following configuration:
 warmup: 2 s
@@ -256,20 +267,26 @@ Benchmarking elixir predict ...
 Benchmarking exla predict ...
 
 Name                     ips        average  deviation         median         99th %
-exla predict          2.32 K        0.43 ms   ±147.05%        0.34 ms        1.61 ms
-elixir predict        0.28 K        3.53 ms    ±42.21%        3.11 ms        7.26 ms
+exla predict          6.31 K      158.45 μs    ±52.12%      133.59 μs      427.44 μs
+elixir predict        6.23 K      160.41 μs    ±55.15%      135.15 μs      447.12 μs
 
-Comparison:
-exla predict          2.32 K
-elixir predict        0.28 K - 8.20x slower +3.10 ms
+Comparison: 
+exla predict          6.31 K
+elixir predict        6.23 K - 1.01x slower +1.96 μs
 
 Memory usage statistics:
 
 Name              Memory usage
-exla predict          10.95 KB
-elixir predict        91.09 KB - 8.32x memory usage +80.14 KB
+exla predict          11.44 KB
+elixir predict        11.51 KB - 1.01x memory usage +0.0703 KB
 
 **All measurements for memory usage were the same**
+```
+
+<!-- livebook:{"output":true} -->
+
+```vega-lite
+null
 ```
 
 Notice how calls to EXLA variants are significantly faster than their Elixir counterparts. These speedups become more pronounced with more complex models and workflows.
@@ -282,25 +299,12 @@ It's important to note that in order to use a given library as an Nx compiler, i
 
 In addition to JIT-compilation, Axon also supports the usage of Nx backends. Nx backends are slightly different than Nx compilers in the sense that they do not fuse calls within numerical definitions. Backends are more eager, sacrificing a bit of performance for convenience. Torchx and EXLA both support running via backends.
 
-Again, Axon will respect the global and process-level Nx backend configuration options. You can set the default backend using:
-
-```elixir
-# Global default backend
-Nx.global_default_backend(Torchx.Backend)
-# Process default backend
-Nx.default_backend(Torchx.Backend)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{Nx.BinaryBackend, []}
-```
+<!-- livebook:{"break_markdown":true} -->
 
 Now when you invoke model functions, it will run them with the given backend:
 
 ```elixir
-{init_fn, predict_fn} = Axon.build(model)
+{init_fn, predict_fn} = Axon.build(model, backend: Torchx.Backend)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
 ```
@@ -310,7 +314,6 @@ predict_fn.(params, inputs)
 ```
 #Nx.Tensor<
   f32[2][1]
-  Torchx.Backend(cpu)
   [
     [1.0],
     [1.0]
@@ -319,20 +322,7 @@ predict_fn.(params, inputs)
 ```
 
 ```elixir
-# Global default backend
-Nx.global_default_backend(EXLA.Backend)
-# Process default backend
-Nx.default_backend(EXLA.Backend)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{Torchx.Backend, []}
-```
-
-```elixir
-{init_fn, predict_fn} = Axon.build(model)
+{init_fn, predict_fn} = Axon.build(model, compiler: EXLA, backend: EXLA)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
 ```
@@ -342,7 +332,7 @@ predict_fn.(params, inputs)
 ```
 #Nx.Tensor<
   f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1169293320.110725>
+  EXLA.Backend<cuda:0, 0.3278685746.4275961901.179470>
   [
     [1.0],
     [1.0]
