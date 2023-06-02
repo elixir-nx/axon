@@ -10,9 +10,11 @@ defmodule Axon.MixedPrecision.Policy do
     def inspect(policy, _opts) do
       force_unfit(
         concat([
+          "#Axon.MixedPrecision.Policy<",
           "p=#{Nx.Type.to_string(policy.params)} ",
           "c=#{Nx.Type.to_string(policy.compute)} ",
-          "o=#{Nx.Type.to_string(policy.output)}"
+          "o=#{Nx.Type.to_string(policy.output)}",
+          ">"
         ])
       )
     end
