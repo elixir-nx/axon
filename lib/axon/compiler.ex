@@ -203,13 +203,26 @@ defmodule Axon.Compiler do
           %{params | key => merge_params!(nested, value)}
 
         %{^key => template} ->
-          %{params | key => Nx.as_type(value, Nx.type(template))}
+          %{params | key => merge_type(key, template, value)}
 
         _ ->
           Logger.warning("found unexpected key in the initial parameters map: #{inspect(key)}")
           params
       end
     end)
+  end
+
+  defp merge_type(key, template, value) do
+    if Nx.type(template) != Nx.type(value) do
+      Logger.warning(
+        "initial type for parameter #{key} does not match policy," <>
+          " consider using Axon.MixedPrecision.cast before passing" <>
+          " initial state to model initialization function to avoid" <>
+          " type casts"
+      )
+    end
+
+    Nx.as_type(value, Nx.type(template))
   end
 
   def compile(graph, _opts) do
