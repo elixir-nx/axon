@@ -1,12 +1,9 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # Custom layers
 
 ```elixir
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:kino, "~> 0.7.0"}
+  {:axon, ">= 0.5.0"},
+  {:kino, ">= 0.9.0"}
 ])
 ```
 
@@ -28,7 +25,7 @@ To Axon, layers are really just `defn` implementations with special Axon inputs.
 The `defn` implementation looks like any other `defn` you'd write; however, it must always account for additional `opts` as an argument:
 
 ```elixir
-defmodule CustomLayers do
+defmodule CustomLayers0 do
   import Nx.Defn
 
   defn my_layer(input, opts \\ []) do
@@ -44,7 +41,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:my_layer, 2}}
+{:module, CustomLayers0, <<70, 79, 82, 49, 0, 0, 10, ...>>, true}
 ```
 
 Regardless of the options you configure your layer to accept, the `defn` implementation will always receive a `:mode` option indicating whether or not the model is running in training or inference mode. You can customize the behavior of your layer depending on the mode.
@@ -54,7 +51,7 @@ With an implementation defined, you need only to call `Axon.layer/3` to apply ou
 ```elixir
 input = Axon.input("data")
 
-out = Axon.layer(&CustomLayers.my_layer/2, [input])
+out = Axon.layer(&CustomLayers0.my_layer/2, [input])
 ```
 
 <!-- livebook:{"output":true} -->
@@ -86,7 +83,7 @@ graph TD;
 Notice that by default custom layers render with a default operation marked as `:custom`. This can make it difficult to determine which layer is which during inspection. You can control the rendering by passing `:op_name` to `Axon.layer/3`:
 
 ```elixir
-out = Axon.layer(&CustomLayers.my_layer/2, [input], op_name: :my_layer)
+out = Axon.layer(&CustomLayers0.my_layer/2, [input], op_name: :my_layer)
 
 Axon.Display.as_graph(out, template)
 ```
@@ -104,7 +101,7 @@ You can also control the name of your layer via the `:name` option. All other op
 
 ```elixir
 out =
-  Axon.layer(&CustomLayers.my_layer/2, [input],
+  Axon.layer(&CustomLayers0.my_layer/2, [input],
     name: "layer",
     op_name: :my_layer,
     alpha: 2.0
@@ -152,7 +149,7 @@ predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 Notice that this model does not have any trainable parameters because none of the layers have trainable parameters. You can introduce trainable parameters by passing inputs created with `Axon.param/3` to `Axon.layer/3`. For example, you can modify your original custom layer to take an additional trainable parameter:
 
 ```elixir
-defmodule CustomLayers do
+defmodule CustomLayers1 do
   import Nx.Defn
 
   defn my_layer(input, alpha, _opts \\ []) do
@@ -166,7 +163,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 11, ...>>, {:my_layer, 3}}
+{:module, CustomLayers1, <<70, 79, 82, 49, 0, 0, 10, ...>>, true}
 ```
 
 And then construct the layer with a regular Axon input and a trainable parameter:
@@ -174,7 +171,7 @@ And then construct the layer with a regular Axon input and a trainable parameter
 ```elixir
 alpha = Axon.param("alpha", fn _ -> {} end)
 
-out = Axon.layer(&CustomLayers.my_layer/3, [input, alpha], op_name: :my_layer)
+out = Axon.layer(&CustomLayers1.my_layer/3, [input, alpha], op_name: :my_layer)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -199,7 +196,7 @@ params = init_fn.(template, %{})
   "my_layer_0" => %{
     "alpha" => #Nx.Tensor<
       f32
-      1.194254994392395
+      -1.2601861953735352
     >
   }
 }
@@ -212,7 +209,7 @@ Notice how your model now initializes with a trainable parameter `"alpha"` for y
 If you plan on re-using custom layers in many locations, it's recommended that you wrap them in an Elixir function as an interface:
 
 ```elixir
-defmodule CustomLayers do
+defmodule CustomLayers2 do
   import Nx.Defn
 
   def my_layer(%Axon{} = input, opts \\ []) do
@@ -233,14 +230,14 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomLayers, <<70, 79, 82, 49, 0, 0, 13, ...>>, {:my_layer_impl, 3}}
+{:module, CustomLayers2, <<70, 79, 82, 49, 0, 0, 12, ...>>, true}
 ```
 
 ```elixir
 out =
   input
-  |> CustomLayers.my_layer()
-  |> CustomLayers.my_layer()
+  |> CustomLayers2.my_layer()
+  |> CustomLayers2.my_layer()
   |> Axon.dense(1)
 ```
 
@@ -263,10 +260,10 @@ Axon.Display.as_graph(out, template)
 ```mermaid
 graph TD;
 3[/"data (:input) {2, 8}"/];
-10["my_layer_0 (:my_layer) {2, 8}"];
-12["my_layer_1 (:my_layer) {2, 8}"];
-15["dense_0 (:dense) {2, 1}"];
-12 --> 15;
-10 --> 12;
-3 --> 10;
+8["my_layer_0 (:my_layer) {2, 8}"];
+9["my_layer_1 (:my_layer) {2, 8}"];
+10["dense_0 (:dense) {2, 1}"];
+9 --> 10;
+8 --> 9;
+3 --> 8;
 ```

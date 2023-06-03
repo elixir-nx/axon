@@ -1,11 +1,8 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # Writing custom event handlers
 
 ```elixir
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true}
+  {:axon, ">= 0.5.0"}
 ])
 ```
 
@@ -22,7 +19,7 @@ If you require functionality not offered by any of Axon's built-in event handler
 All event handlers must accept an `%Axon.Loop.State{}` struct and return a tuple of `{control_term, state}` where `control_term` is one of `:continue`, `:halt_epoch`, or `:halt_loop` and `state` is the updated loop state:
 
 ```elixir
-defmodule CustomEventHandler do
+defmodule CustomEventHandler0 do
   alias Axon.Loop.State
 
   def my_weird_handler(%State{} = state) do
@@ -35,7 +32,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomEventHandler, <<70, 79, 82, 49, 0, 0, 6, ...>>, {:my_weird_handler, 1}}
+{:module, CustomEventHandler0, <<70, 79, 82, 49, 0, 0, 6, ...>>, {:my_weird_handler, 1}}
 ```
 
 To register event handlers, you use `Axon.Loop.handle/4`:
@@ -52,34 +49,34 @@ model =
 loop =
   model
   |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-  |> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.my_weird_handler/1)
+  |> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler0.my_weird_handler/1)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
 #Axon.Loop<
+  metrics: %{
+    "loss" => {#Function<11.133813849/3 in Axon.Metrics.running_average/1>,
+     #Function<9.37390314/2 in Axon.Loop.build_loss_fn/1>}
+  },
   handlers: %{
     completed: [],
     epoch_completed: [
-      {&CustomEventHandler.my_weird_handler/1,
-       #Function<5.33119226/1 in Axon.Loop.build_filter_fn/1>},
-      {#Function<23.33119226/1 in Axon.Loop.log/5>,
-       #Function<5.33119226/1 in Axon.Loop.build_filter_fn/1>}
+      {&CustomEventHandler0.my_weird_handler/1,
+       #Function<6.37390314/2 in Axon.Loop.build_filter_fn/1>},
+      {#Function<27.37390314/1 in Axon.Loop.log/3>,
+       #Function<6.37390314/2 in Axon.Loop.build_filter_fn/1>}
     ],
     epoch_halted: [],
     epoch_started: [],
     halted: [],
     iteration_completed: [
-      {#Function<23.33119226/1 in Axon.Loop.log/5>,
-       #Function<3.33119226/1 in Axon.Loop.build_filter_fn/1>}
+      {#Function<27.37390314/1 in Axon.Loop.log/3>,
+       #Function<64.37390314/2 in Axon.Loop.build_filter_fn/1>}
     ],
     iteration_started: [],
     started: []
-  },
-  metrics: %{
-    "loss" => {#Function<12.46375131/3 in Axon.Metrics.running_average/1>,
-     #Function<6.33119226/2 in Axon.Loop.build_loss_fn/1>}
   },
   ...
 >
@@ -90,7 +87,11 @@ Axon will trigger your custom handler to run on the attached event:
 ```elixir
 train_data =
   Stream.repeatedly(fn ->
-    xs = Nx.random_normal({8, 1})
+    {xs, _next_key} =
+      :random.uniform(9999)
+      |> Nx.Random.key()
+      |> Nx.Random.normal(shape: {8, 1})
+
     ys = Nx.sin(xs)
     {xs, ys}
   end)
@@ -101,15 +102,15 @@ Axon.Loop.run(loop, train_data, %{}, epochs: 5, iterations: 100)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 100, loss: 0.1905403
+Epoch: 0, Batch: 50, loss: 0.0990703
 My weird handler: fired
-Epoch: 1, Batch: 100, loss: 0.1478554
+Epoch: 1, Batch: 50, loss: 0.0567622
 My weird handler: fired
-Epoch: 2, Batch: 100, loss: 0.1184390
+Epoch: 2, Batch: 50, loss: 0.0492784
 My weird handler: fired
-Epoch: 3, Batch: 100, loss: 0.0983292
+Epoch: 3, Batch: 50, loss: 0.0462587
 My weird handler: fired
-Epoch: 4, Batch: 100, loss: 0.0845697
+Epoch: 4, Batch: 50, loss: 0.0452806
 My weird handler: fired
 ```
 
@@ -120,46 +121,46 @@ My weird handler: fired
   "dense_0" => %{
     "bias" => #Nx.Tensor<
       f32[8]
-      [0.014659373089671135, 0.08941870182752609, -0.09661660343408585, 0.2650177478790283, -0.06400775164365768, -0.07953602075576782, 0.22094617784023285, -0.014790073968470097]
+      [0.10819189250469208, 0.008151392452418804, -0.0318693183362484, 0.010302421636879444, 0.15788722038269043, 0.05119801685214043, 0.14268818497657776, -0.11528034508228302]
     >,
     "kernel" => #Nx.Tensor<
       f32[1][8]
       [
-        [0.3581556975841522, 0.38828182220458984, -0.3311854302883148, -0.4059808552265167, 0.6334917545318604, 0.17008493840694427, -0.5630434155464172, 0.3790667653083801]
+        [-0.4275593161582947, 0.40442031621932983, 0.7287659645080566, -0.7832129597663879, 0.3329123258590698, -0.5598123073577881, 0.8389336466789246, 0.3197469413280487]
       ]
     >
   },
   "dense_1" => %{
     "bias" => #Nx.Tensor<
       f32[4]
-      [0.3047839403152466, -0.025677276775240898, 0.18113580346107483, 0.19019420444965363]
+      [0.0671013742685318, 0.13561469316482544, 0.06218714639544487, 0.2104845941066742]
     >,
     "kernel" => #Nx.Tensor<
       f32[8][4]
       [
-        [-0.25477269291877747, 0.28833284974098206, -0.25498083233833313, 0.40912926197052],
-        [-0.387851357460022, 0.009837300516664982, -0.48930269479751587, -0.6119663715362549],
-        [0.49769237637519836, -0.45746952295303345, -0.3886529505252838, -0.49895355105400085],
-        [0.6451961994171143, 0.16054697334766388, 0.27802371978759766, -0.15226426720619202],
-        [0.17125651240348816, -0.048851024359464645, 0.19429178535938263, 0.24933232367038727],
-        [0.5465306043624878, -0.15836869180202484, 0.39782997965812683, -0.3635501563549042],
-        [-0.36660289764404297, -0.011948992498219013, 0.48680511116981506, 0.5263928174972534],
-        [-0.6284276843070984, -0.5880372524261475, 0.004470183979719877, -0.4550755023956299]
+        [0.4444102942943573, 0.4518184959888458, 0.45315614342689514, 0.35392478108406067],
+        [0.008407601155340672, -0.6081852912902832, -0.05863206833600998, 0.14386630058288574],
+        [-0.010219200514256954, -0.5528244376182556, 0.3754919469356537, -0.6242967247962952],
+        [0.3531058132648468, -0.18348301947116852, -0.0019897441379725933, 0.41002658009529114],
+        [0.676723062992096, -0.09349705278873444, 0.1101854145526886, 0.06494166702032089],
+        [0.1534113883972168, 0.6402403116226196, 0.23490086197853088, -0.2196572870016098],
+        [0.5835862755775452, -0.6581316590309143, -0.3047991394996643, -0.07485166192054749],
+        [-0.6115342378616333, 0.3316897749900818, -0.3606548309326172, 0.3397740423679352]
       ]
     >
   },
   "dense_2" => %{
     "bias" => #Nx.Tensor<
       f32[1]
-      [0.7117368578910828]
+      [0.10111129283905029]
     >,
     "kernel" => #Nx.Tensor<
       f32[4][1]
       [
-        [-0.7743457555770874],
-        [0.3977936804294586],
-        [-1.0638943910598755],
-        [-0.6494196653366089]
+        [0.7433153390884399],
+        [-0.8213723301887512],
+        [-0.44361063838005066],
+        [-1.049617052078247]
       ]
     >
   }
@@ -169,7 +170,7 @@ My weird handler: fired
 You can use event handlers to early-stop a loop or loop epoch by returning a `:halt_*` control term. Halt control terms can be one of `:halt_epoch` or `:halt_loop`. `:halt_epoch` halts the current epoch and continues to the next. `:halt_loop` halts the loop altogether.
 
 ```elixir
-defmodule CustomEventHandler do
+defmodule CustomEventHandler1 do
   alias Axon.Loop.State
 
   def always_halts(%State{} = state) do
@@ -182,7 +183,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomEventHandler, <<70, 79, 82, 49, 0, 0, 6, ...>>, {:always_halts, 1}}
+{:module, CustomEventHandler1, <<70, 79, 82, 49, 0, 0, 6, ...>>, {:always_halts, 1}}
 ```
 
 The loop will immediately stop executing and return the current state at the time it was halted:
@@ -190,14 +191,14 @@ The loop will immediately stop executing and return the current state at the tim
 ```elixir
 model
 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.always_halts/1)
+|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler1.always_halts/1)
 |> Axon.Loop.run(train_data, %{}, epochs: 5, iterations: 100)
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 100, loss: 0.1967763
+Epoch: 0, Batch: 50, loss: 0.2201974
 stopping loop
 ```
 
@@ -208,46 +209,46 @@ stopping loop
   "dense_0" => %{
     "bias" => #Nx.Tensor<
       f32[8]
-      [-0.05958094820380211, 0.08930676430463791, -0.006259916350245476, 0.05067025125026703, 0.10981185734272003, -0.011248357594013214, -0.007601946126669645, 0.036958880722522736]
+      [0.07676638662815094, -0.18689222633838654, 0.10066182911396027, -0.021994125097990036, 0.12006694823503494, -0.014219668693840504, 0.13600556552410126, -0.017512166872620583]
     >,
     "kernel" => #Nx.Tensor<
       f32[1][8]
       [
-        [0.050393108278512955, -0.5486620664596558, 0.6901980042457581, 0.42280837893486023, 0.6446300745010376, 0.25207778811454773, -0.13566234707832336, 0.26625606417655945]
+        [-0.5354958772659302, -0.216745987534523, -0.5694359540939331, 0.023495405912399292, 0.17701618373394012, 0.011712944135069847, 0.5289720892906189, 0.07360327988862991]
       ]
     >
   },
   "dense_1" => %{
     "bias" => #Nx.Tensor<
       f32[4]
-      [-0.06729397922754288, 0.14259757101535797, -0.0020351663697510958, 0.16679106652736664]
+      [0.0012482400052249432, 0.09300543367862701, 0.08570009469985962, -0.018982920795679092]
     >,
     "kernel" => #Nx.Tensor<
       f32[8][4]
       [
-        [-0.5964004397392273, -0.5631846785545349, 0.15613533556461334, 0.1943722516298294],
-        [0.19513694941997528, -0.24765732884407043, -0.06751974672079086, 0.6707308292388916],
-        [-0.6826592087745667, -0.006577506195753813, -0.6097249984741211, -0.5801466703414917],
-        [-0.30076032876968384, 0.34819719195365906, -0.5906499028205872, -0.37741175293922424],
-        [0.16266342997550964, 0.7666646838188171, 0.6456886529922485, -0.4589986801147461],
-        [-0.2686948776245117, -0.06113003194332123, 0.22663049399852753, -0.12092678993940353],
-        [-0.5785921216011047, -0.641874372959137, -0.24317769706249237, -0.2897084951400757],
-        [0.14917287230491638, 0.24462535977363586, -0.64858478307724, -0.5138146877288818]
+        [0.3016211688518524, 0.31998082995414734, -0.3300730884075165, 0.24982869625091553],
+        [0.03864569962024689, -0.44071364402770996, 0.6553062200546265, -0.5294798612594604],
+        [0.25020459294319153, 0.7249991297721863, 0.15611837804317474, -0.5045580863952637],
+        [-0.5500670075416565, 0.15677094459533691, -0.6531851291656494, -0.09289993345737457],
+        [0.1618722379207611, 0.4479053020477295, 0.705923318862915, -0.3853490352630615],
+        [-0.6752215623855591, 0.577272891998291, -0.1268012821674347, 0.6133111715316772],
+        [0.5361366271972656, -0.2996085286140442, 0.28480708599090576, 0.47739118337631226],
+        [-0.6443014144897461, -0.2866927981376648, 0.023463081568479538, -0.1491370052099228]
       ]
     >
   },
   "dense_2" => %{
     "bias" => #Nx.Tensor<
       f32[1]
-      [-0.11649220436811447]
+      [0.0047520860098302364]
     >,
     "kernel" => #Nx.Tensor<
       f32[4][1]
       [
-        [0.7849427461624146],
-        [0.5966104865074158],
-        [-0.5520159602165222],
-        [-0.4974740147590637]
+        [0.3796459138393402],
+        [-0.9757304191589355],
+        [0.9530885815620422],
+        [-0.05134368687868118]
       ]
     >
   }
@@ -257,7 +258,7 @@ stopping loop
 Note that halting an epoch will fire a different event than completing an epoch. So if you implement a custom handler to halt the loop when an epoch completes, it will never fire if the epoch always halts prematurely:
 
 ```elixir
-defmodule CustomEventHandler do
+defmodule CustomEventHandler2 do
   alias Axon.Loop.State
 
   def always_halts_epoch(%State{} = state) do
@@ -275,7 +276,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, CustomEventHandler, <<70, 79, 82, 49, 0, 0, 7, ...>>, {:always_halts_loop, 1}}
+{:module, CustomEventHandler2, <<70, 79, 82, 49, 0, 0, 8, ...>>, {:always_halts_loop, 1}}
 ```
 
 If you run these handlers in conjunction, the loop will not terminate prematurely:
@@ -283,8 +284,8 @@ If you run these handlers in conjunction, the loop will not terminate prematurel
 ```elixir
 model
 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-|> Axon.Loop.handle_event(:iteration_completed, &CustomEventHandler.always_halts_epoch/1)
-|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler.always_halts_loop/1)
+|> Axon.Loop.handle_event(:iteration_completed, &CustomEventHandler2.always_halts_epoch/1)
+|> Axon.Loop.handle_event(:epoch_completed, &CustomEventHandler2.always_halts_loop/1)
 |> Axon.Loop.run(train_data, %{}, epochs: 5, iterations: 100)
 ```
 
@@ -293,13 +294,13 @@ model
 ```
 Epoch: 0, Batch: 0, loss: 0.0000000
 stopping epoch
-Epoch: 0, Batch: 0, loss: 0.7256396
+
 stopping epoch
-Epoch: 0, Batch: 0, loss: 0.4574284
+
 stopping epoch
-Epoch: 0, Batch: 0, loss: 0.4981923
+
 stopping epoch
-Epoch: 0, Batch: 0, loss: 0.4377063
+
 stopping epoch
 ```
 
@@ -310,46 +311,46 @@ stopping epoch
   "dense_0" => %{
     "bias" => #Nx.Tensor<
       f32[8]
-      [9.248655405826867e-4, -0.0038722341414541006, -0.0015197680331766605, -0.001993122510612011, -0.0015419051051139832, -0.004070846363902092, 0.001461982261389494, 0.0043989671394228935]
+      [0.009215549565851688, -0.005282022058963776, -0.0023747326340526342, 0.002623362001031637, 0.003890525083988905, 6.010813522152603e-4, -0.0024882694706320763, 0.0029246946796774864]
     >,
     "kernel" => #Nx.Tensor<
       f32[1][8]
       [
-        [-0.6537156701087952, 0.2857331335544586, -0.339731365442276, 0.46841081976890564, -0.5864744782447815, -0.364472359418869, -0.5385616421699524, -0.694677472114563]
+        [-0.3484582304954529, -0.39938971400260925, 0.03963512182235718, -0.3549930155277252, 0.09539157152175903, 0.5987873077392578, -0.23635399341583252, 0.01850329153239727]
       ]
     >
   },
   "dense_1" => %{
     "bias" => #Nx.Tensor<
       f32[4]
-      [0.0, -0.017093738541007042, 0.00152371556032449, -0.0019599769730120897]
+      [-0.00194685033056885, 0.007812315598130226, 0.01710106059908867, 0.0080711729824543]
     >,
     "kernel" => #Nx.Tensor<
       f32[8][4]
       [
-        [-0.21336764097213745, -0.6211493611335754, 0.676548957824707, 0.3768426477909088],
-        [-0.24921125173568726, 0.217195525765419, 0.23704318702220917, 0.1597728431224823],
-        [-0.12178827077150345, -0.4966273307800293, -0.283501535654068, 0.00888047181069851],
-        [-0.19504092633724213, 0.18697738647460938, 0.14705461263656616, 0.39286476373672485],
-        [-0.5945789813995361, -0.5958647727966309, -0.3320448100566864, -0.02747068926692009],
-        [-0.2157520055770874, -0.2990635335445404, -0.16008871793746948, 0.4921063184738159],
-        [-0.529068648815155, -0.383655846118927, -0.07292155921459198, -0.2834954559803009],
-        [-0.3056498169898987, -0.28507867455482483, 0.554026186466217, -0.24665579199790955]
+        [-0.6497661471366882, -0.3379145562648773, 0.3343344032764435, 0.4334254860877991],
+        [-0.37884217500686646, -0.41724908351898193, -0.19513007998466492, -0.22494879364967346],
+        [-0.42438197135925293, -0.40400123596191406, 0.5355109572410583, 0.4295356869697571],
+        [0.15086597204208374, 0.30529624223709106, 0.002222923096269369, 0.32834741473197937],
+        [-0.09336567670106888, 0.471781849861145, -0.06567475199699402, -0.4361487627029419],
+        [0.23664812743663788, 0.13572633266448975, -0.13837064802646637, -0.09471122920513153],
+        [0.6461064219474792, -0.2435072958469391, -0.04861235246062279, -0.1969985067844391],
+        [0.17856749892234802, 0.41614532470703125, -0.06008348613977432, -0.3271574079990387]
       ]
     >
   },
   "dense_2" => %{
     "bias" => #Nx.Tensor<
       f32[1]
-      [-0.010511377826333046]
+      [-0.005317525006830692]
     >,
     "kernel" => #Nx.Tensor<
       f32[4][1]
       [
-        [0.9865502119064331],
-        [-0.686279296875],
-        [-0.15436960756778717],
-        [0.18355509638786316]
+        [-0.07891849428415298],
+        [0.32653072476387024],
+        [-0.5885495543479919],
+        [-0.2781771719455719]
       ]
     >
   }
