@@ -3547,6 +3547,13 @@ defmodule Axon do
   """
   @doc type: :model
   def build(model, opts \\ []) when is_list(opts) do
+    if opts[:backend] do
+      IO.warn(
+        "the :backend option has no effect on Axon.build/2. " <>
+          "Use Nx.default_backend/1 to set a backend instead"
+      )
+    end
+
     {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
     opts = [on_conflict: :reuse] ++ opts
     {Nx.Defn.jit(init_fn, opts), Nx.Defn.jit(predict_fn, opts)}
