@@ -85,7 +85,7 @@ defmodule OnnxToAxon do
 
   ## Examples
 
-  # iex> OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
+      OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
 
   """
   def onnx_axon(path_to_onnx_file, path_to_axon_dir) do
