@@ -103,7 +103,7 @@ model =
 
 model_state =
   model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adamw(0.005))
   |> Axon.Loop.metric(:accuracy)
   |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 50)
   |> Axon.Loop.run(data, %{}, epochs: 10, compiler: EXLA)

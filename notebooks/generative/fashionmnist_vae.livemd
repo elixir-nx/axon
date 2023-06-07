@@ -251,7 +251,7 @@ end
 
 params =
   model
-  |> Axon.Loop.trainer(:mean_squared_error, Axon.Optimizers.adamw(0.001))
+  |> Axon.Loop.trainer(:mean_squared_error, Optimus.Optimizers.adamw(0.001))
   |> KinoAxon.kino_early_stop()
   |> Axon.Loop.handle(:iteration_completed, render_example_handler, every: 450)
   |> Axon.Loop.validate(model, test_data)
@@ -265,7 +265,7 @@ params =
 
 ## Splitting up the model
 
-Cool! We now have the parameters for a trained, simple autoencoder. Our next step is to split up the model so we can use the encoder and decoder separately. By doing that, we'll be able to take an image and *encode* it to get the model's compressed image representation (the latent vector). We can then manipulate the latent vector and run the manipulated latent vector through the *decoder* to get a new image.
+Cool! We now have the parameters for a trained, simple autoencoder. Our next step is to split up the model so we can use the encoder and decoder separately. By doing that, we'll be able to take an image and _encode_ it to get the model's compressed image representation (the latent vector). We can then manipulate the latent vector and run the manipulated latent vector through the _decoder_ to get a new image.
 
 Let's start by defining the encoder and decoder separately as two different models.
 
@@ -311,7 +311,7 @@ So all we need to do is create a new Map that plucks out the right layers from o
 
 Fortunately, since we gave each of the layers names, this requires no work at all - we can use the Map as it is since the layer names match up! Axon will ignore any extra keys so those won't be a problem.
 
-Note that naming the layers wasn't *required*, if the layers didn't have names we would have some renaming to do to get the names to match between the models. But giving them names made it very convenient :)
+Note that naming the layers wasn't _required_, if the layers didn't have names we would have some renaming to do to get the names to match between the models. But giving them names made it very convenient :)
 
 Let's try encoding an image, printing the latent and then decoding the latent using our split up model to make sure it's working.
 
@@ -474,7 +474,7 @@ end
 
 params =
   model
-  |> Axon.Loop.trainer(&CustomLoss.loss/2, Axon.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(&CustomLoss.loss/2, Optimus.Optimizers.adam(0.001))
   |> KinoAxon.kino_early_stop()
   |> Axon.Loop.handle(:epoch_completed, render_example_handler)
   |> Axon.Loop.validate(model, test_data)

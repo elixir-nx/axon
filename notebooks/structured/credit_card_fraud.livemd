@@ -17,7 +17,7 @@ alias Explorer.{DataFrame, Series}
 
 ## Introduction
 
-This time we will examine the Credit Card Fraud Dataset. Due to confidentiality, the original data were preprocessed by principal component analysis (PCA), and then 31 principal components were selected for the final data set. The dataset is highly imbalanced. The positive class (frauds) account for 0.172% of all transactions. Eventually, we will create a classifier which has not only great accuracy but, what is even more important, a high *recall* and *precision* - two metrics that are much more indicative of performance with imbalanced classification problems.
+This time we will examine the Credit Card Fraud Dataset. Due to confidentiality, the original data were preprocessed by principal component analysis (PCA), and then 31 principal components were selected for the final data set. The dataset is highly imbalanced. The positive class (frauds) account for 0.172% of all transactions. Eventually, we will create a classifier which has not only great accuracy but, what is even more important, a high _recall_ and _precision_ - two metrics that are much more indicative of performance with imbalanced classification problems.
 
 ## Data processing
 
@@ -139,7 +139,7 @@ IO.puts("# of fraudulent transactions (train): #{fraud}")
 IO.puts("% fraudlent transactions (train): #{100 * (fraud / (legit + fraud))}%")
 ```
 
-As always, we define our train loop. We are using *binary cross-entropy* as our loss function and Adam as the optimizer with a learning rate of 0.01. Then we immediately start the training passing our train portion of the dataset.
+As always, we define our train loop. We are using _binary cross-entropy_ as our loss function and Adam as the optimizer with a learning rate of 0.01. Then we immediately start the training passing our train portion of the dataset.
 
 ```elixir
 loss =
@@ -151,7 +151,7 @@ loss =
     reduction: :mean
   )
 
-optimizer = Axon.Optimizers.adam(1.0e-2)
+optimizer = Optimus.Optimizers.adam(1.0e-2)
 
 params =
   model

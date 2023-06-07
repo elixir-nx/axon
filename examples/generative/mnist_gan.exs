@@ -99,7 +99,7 @@ defmodule MNISTGAN do
     d_optimizer_state = state[:discriminator][:optimizer_state]
 
     {d_updates, d_optimizer_state} = optim_d.(d_grads, d_optimizer_state, d_params)
-    d_params = Axon.Updates.apply_updates(d_params, d_updates)
+    d_params = Optimus.Updates.apply_updates(d_params, d_updates)
 
     # Update G
     {g_loss, g_grads} =
@@ -114,7 +114,7 @@ defmodule MNISTGAN do
     g_optimizer_state = state[:generator][:optimizer_state]
 
     {g_updates, g_optimizer_state} = optim_g.(g_grads, g_optimizer_state, g_params)
-    g_params = Axon.Updates.apply_updates(g_params, g_updates)
+    g_params = Optimus.Updates.apply_updates(g_params, g_updates)
 
     %{
       iteration: iter + 1,
@@ -132,8 +132,8 @@ defmodule MNISTGAN do
   end
 
   defp train_loop(d_model, g_model) do
-    {init_optim_d, optim_d} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
-    {init_optim_g, optim_g} = Axon.Optimizers.adam(2.0e-3, b1: 0.5)
+    {init_optim_d, optim_d} = Optimus.Optimizers.adam(2.0e-3, b1: 0.5)
+    {init_optim_g, optim_g} = Optimus.Optimizers.adam(2.0e-3, b1: 0.5)
 
     {init_d, d_model} = Axon.build(d_model, mode: :train)
     {init_g, g_model} = Axon.build(g_model, mode: :train)
