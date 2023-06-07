@@ -35,10 +35,7 @@ Axon.Losses.html
 Axon.Metrics.html
 Axon.MixedPrecision.html
 Axon.None.html
-Axon.Optimizers.html
-Axon.Schedules.html
 Axon.StatefulOutput.html
-Axon.Updates.html
 Axon.html
 accelerating_axon.html
 api-reference.html
@@ -74,8 +71,8 @@ dist/merriweather-latin-ext-300-normal-K6L27CZ5.woff2
 dist/merriweather-vietnamese-300-italic-EHHNZPUO.woff2
 dist/merriweather-vietnamese-300-normal-U376L4Z4.woff2
 dist/remixicon-NKANDIL5.woff2
-dist/search_items-0F1AC69F.js
-dist/sidebar_items-8343E8F8.js
+dist/search_items-F5E940E0.js
+dist/sidebar_items-3461EB37.js
 fashionmnist_autoencoder.html
 fashionmnist_vae.html
 guides.html
