@@ -158,7 +158,7 @@ model =
 
 To train the network, we will use Axon's Loop API. It is pretty straightforward.
 
-For the loss function we can use *categorical cross-entropy* since we are dealing with categories (each character) in our output. For the optimizer we can use *Adam*.
+For the loss function we can use _categorical cross-entropy_ since we are dealing with categories (each character) in our output. For the optimizer we can use _Adam_.
 
 We will train our network for 20 epochs. Note that we are working with a fair amount data, so it may take a long time unless you run it on a GPU.
 
@@ -171,7 +171,7 @@ IO.puts("Total batches: #{Enum.count(train_batches)}")
 
 params =
   model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(0.001))
   |> Axon.Loop.run(Stream.zip(train_batches, result_batches), %{}, epochs: 20, compiler: EXLA)
 
 :ok
@@ -250,7 +250,7 @@ IO.puts("Total batches: #{Enum.count(train_batches)}")
 
 new_params =
   new_model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(0.001))
   |> Axon.Loop.run(Stream.zip(train_batches, result_batches), %{}, epochs: 50, compiler: EXLA)
 
 :ok

@@ -209,7 +209,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.from_state(state)
       |> Axon.Loop.run(data)
   """
-  require Axon.Updates
+  require Optimus.Updates
   require Logger
 
   alias __MODULE__, as: Loop
@@ -254,7 +254,7 @@ defmodule Axon.Loop do
     :soft_margin
   ]
 
-  @valid_axon_optimizers [
+  @valid_optimus_optimizers [
     :adabelief,
     :adagrad,
     :adam,
@@ -306,14 +306,14 @@ defmodule Axon.Loop do
   for multi-output models, or an arity-2 function representing a custom loss
   function.
 
-  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  `optimizer` must be an atom matching the name of a valid optimizer in `Optimus.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
   initializes the optimizer state from the model parameters and `update_fn` is an
   arity-3 function that receives `(gradient, optimizer_state, model_parameters)` and
   scales gradient updates with respect to input parameters, optimizer state, and gradients.
   The `update_fn` returns `{scaled_updates, optimizer_state}`, which can then be applied to
   the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
-  See `Axon.Updates` for more information on building optimizers.
+  See `Optimus.Updates` for more information on building optimizers.
 
   ## Options
 
@@ -473,7 +473,7 @@ defmodule Axon.Loop do
             update_optimizer_fn.(gradients, optimizer_state, model_state)
 
           new_gradient_state = zeros_like(model_state)
-          new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+          new_model_state = Optimus.Updates.apply_updates(model_state, updates, new_state)
 
           {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0,
            Nx.tensor(0)}
@@ -621,11 +621,11 @@ defmodule Axon.Loop do
   for multi-output models, or an arity-2 function representing a custom loss
   function.
 
-  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  `optimizer` must be an atom matching the name of a valid optimizer in `Optimus.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
   initializes the optimizer state from attached parameters and `update_fn` is an
   arity-3 function which scales gradient updates with respect to input parameters,
-  optimizer state, and gradients. See `Axon.Updates` for more information on building
+  optimizer state, and gradients. See `Optimus.Updates` for more information on building
   optimizers.
 
   This function creates a step function which outputs a map consisting of the following
@@ -654,7 +654,7 @@ defmodule Axon.Loop do
   ### Customizing Optimizer
 
       model
-      |> Axon.Loop.trainer(:binary_cross_entropy, Axon.Optimizers.adam(0.05))
+      |> Axon.Loop.trainer(:binary_cross_entropy, Optimus.Optimizers.adam(0.05))
       |> Axon.Loop.run(data)
 
   ### Custom loss
@@ -662,7 +662,7 @@ defmodule Axon.Loop do
       loss_fn = fn y_true, y_pred -> Nx.cos(y_true, y_pred) end
 
       model
-      |> Axon.Loop.trainer(loss_fn, Axon.Optimizers.rmsprop(0.01))
+      |> Axon.Loop.trainer(loss_fn, Optimus.Optimizers.rmsprop(0.01))
       |> Axon.Loop.run(data)
 
   ### Multiple objectives with multi-output model
@@ -2016,12 +2016,12 @@ defmodule Axon.Loop do
 
   # Builds optimizer init and update functions either from an atom
   # or a tuple of init / update functions. The init and update functions
-  # match the signatures of those defined in Axon.Updates. If the
+  # match the signatures of those defined in Optimus.Updates. If the
   # optimizer is an atom, it must match the name of a function in
-  # Axon.Optimizers.
+  # Optimus.Optimizers.
   defp build_optimizer_fns(optimizer)
-       when is_atom(optimizer) and optimizer in @valid_axon_optimizers do
-    apply(Axon.Optimizers, optimizer, [])
+       when is_atom(optimizer) and optimizer in @valid_optimus_optimizers do
+    apply(Optimus.Optimizers, optimizer, [])
   end
 
   defp build_optimizer_fns({init_optimizer_fn, update_optimizer_fn})
@@ -2032,8 +2032,8 @@ defmodule Axon.Loop do
   defp build_optimizer_fns(invalid) do
     raise ArgumentError,
           "Invalid optimizer #{inspect(invalid)}, a valid optimizer" <>
-            " is an atom matching the name of an optimizer in Axon.Optimizers" <>
-            " or a tuple of {init_fn, update_fn}. See Axon.Updates for more" <>
+            " is an atom matching the name of an optimizer in Optimus.Optimizers" <>
+            " or a tuple of {init_fn, update_fn}. See Optimus.Updates for more" <>
             " information on building optimizers using the low-level API"
   end
 

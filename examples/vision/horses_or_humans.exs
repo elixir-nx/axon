@@ -78,8 +78,8 @@ defmodule HorsesOrHumans do
 
   def run() do
     model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
-    optimizer = Axon.Optimizers.adam(1.0e-4)
-    centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
+    optimizer = Optimus.Optimizers.adam(1.0e-4)
+    centralized_optimizer = Optimus.Updates.compose(Optimus.Updates.centralize(), optimizer)
 
     data = data()
 

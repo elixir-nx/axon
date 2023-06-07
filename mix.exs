@@ -41,7 +41,8 @@ defmodule Axon.MixProject do
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.7", optional: true},
-      {:kino_vega_lite, "~> 0.1.7", optional: true}
+      {:kino_vega_lite, "~> 0.1.7", optional: true},
+      {:optimus, "~> 0.1", github: "elixir-nx/optimus"}
     ]
   end
 
@@ -168,11 +169,6 @@ defmodule Axon.MixProject do
           Axon.Metrics,
           Axon.Recurrent,
           Axon.LossScale
-        ],
-        Optimization: [
-          Axon.Optimizers,
-          Axon.Updates,
-          Axon.Schedules
         ],
         Loop: [
           Axon.Loop,

@@ -1,26 +1,5 @@
 defmodule Axon.Schedules do
-  @moduledoc """
-  Parameter Schedules.
-
-  Parameter schedules are often used to anneal hyperparameters
-  such as the learning rate during the training process. Schedules
-  provide a mapping from the current time step to a learning rate
-  or another hyperparameter.
-
-  Choosing a good learning rate and consequently a good learning
-  rate schedule is typically a process of trial and error. Learning
-  rates should be relatively small such that the learning curve
-  does not oscillate violently during the training process, but
-  not so small that learning proceeds too slowly. Using a
-  schedule slowly decreases oscillations during the training
-  process such that, as the model converges, training also
-  becomes more stable.
-
-  All of the functions in this module are implemented as
-  numerical functions and can be JIT or AOT compiled with
-  any supported `Nx` compiler.
-  """
-
+  @moduledoc false
   import Nx.Defn
 
   @doc """
@@ -32,6 +11,7 @@ defmodule Axon.Schedules do
 
     * `:steps` - total number of decay steps. Defaults to `1000`
   """
+  @deprecated "Use Optimus.Schedules.linear_decay/2 instead"
   def linear_decay(init_value, opts \\ []) do
     &apply_linear_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -69,6 +49,7 @@ defmodule Axon.Schedules do
     * `:staircase` - discretize outputs. Defaults to `false`
 
   """
+  @deprecated "Use Optimus.Schedules.exponential_decay/2 instead"
   def exponential_decay(init_value, opts \\ []) do
     &apply_exponential_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -131,6 +112,7 @@ defmodule Axon.Schedules do
     * [SGDR: Stochastic Gradient Descent with Warm Restarts](https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx)
 
   """
+  @deprecated "Use Optimus.Schedules.cosine_decay/2 instead"
   def cosine_decay(init_value, opts \\ []) do
     &apply_cosine_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -159,6 +141,7 @@ defmodule Axon.Schedules do
   $$\gamma(t) = \gamma_0$$
 
   """
+  @deprecated "Use Optimus.Schedules.constant/2 instead"
   def constant(init_value, opts \\ []) do
     &apply_constant(&1, [{:init_value, init_value} | opts])
   end
@@ -184,6 +167,7 @@ defmodule Axon.Schedules do
       $k$ in above formulation. Defaults to `10`
 
   """
+  @deprecated "Use Optimus.Schedules.polynomial_decay/2 instead"
   def polynomial_decay(init_value, opts \\ []) do
     &apply_polynomial_decay(&1, [{:init_value, init_value} | opts])
   end

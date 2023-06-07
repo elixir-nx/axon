@@ -167,7 +167,7 @@ defmodule CreditCardFraud do
         reduction: :mean
       )
 
-    optimizer = Axon.Optimizers.adam(1.0e-2)
+    optimizer = Optimus.Optimizers.adam(1.0e-2)
 
     model
     |> train_model(loss, optimizer, batched_train)
