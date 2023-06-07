@@ -1,6 +1,6 @@
 defmodule Axon.Optimizers do
   @moduledoc false
-  alias Axon.Updates
+  alias Optimus.Updates
 
   @doc """
   Adabelief optimizer.
