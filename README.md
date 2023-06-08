@@ -143,7 +143,7 @@ end
 
 ## Integration with other platforms
 
-See [Ortex](https://github.com/elixir-nx/ortex) which provides full-blown compatibility with the ONNX format via ONNX Runtime bindings. Alternatively, see [AxonONNX](https://github.com/elixir-nx/axon_onnx) to convert ONNX models to Axon models whenever possible to achieve better integration with Nx.
+See [Ortex](https://github.com/elixir-nx/ortex) which provides full-blown compatibility for running ONNX models via ONNX Runtime bindings. Alternatively, see [AxonONNX](https://github.com/elixir-nx/axon_onnx) to convert ONNX models to Axon models whenever possible to achieve better integration with Nx.
 
 ## Sponsors
 
