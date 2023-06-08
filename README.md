@@ -8,10 +8,9 @@ Axon consists of the following components:
 
   * Functional API – A low-level API of numerical definitions (defn) of which all other APIs build on.
   * Model Creation API – A high-level model creation API which manages model initialization and application.
-  * Optimization API – An API for creating and using first-order optimization techniques based on the [Optax](https://github.com/deepmind/optax) library.
   * Training API – An API for quickly training models, inspired by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
 
-Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network.
+Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network. Axon uses [Optimus](https://github.com/elixir-nx/optimus) for its optimization API.
 
 ## Overview
 
@@ -109,21 +108,7 @@ model_state =
   |> Axon.Loop.run(data, %{}, epochs: 10, compiler: EXLA)
 ```
 
-The step expects an optimizer as argument. The following are currently supported:
-
-* Adabelief
-* Adagrad
-* Adam
-* Adamw
-* Fromage
-* Lamb
-* Noisy SGD
-* Radam
-* RMSProp
-* SGD
-* Yogi
-
-It’s important to note that optimization API does not directly depend on Axon models. You can use the API to optimize any differentiable objective function.
+Axon uses [Optimus](https://github.com/elixir-nx/optimus) for its optimization API. It’s important to note that optimization API does not directly depend on Axon models. You can use the API to optimize any differentiable objective function.
 
 In the future we plan to support distributed training loops. We are also seeking ways to improve the performance of our training loops by running them entirely on native accelerators.
 
@@ -140,7 +125,7 @@ Then add Axon to your dependencies:
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.2.0"}
+    {:axon, "~> 0.5"}
   ]
 end
 ```
@@ -150,12 +135,15 @@ You'll also likely want to include an `Nx` compiler such as `EXLA` for any pract
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.2.0"},
-    {:exla, "~> 0.3.0"},
-    {:nx, "~> 0.3.0"}
+    {:axon, "~> 0.5"},
+    {:exla, "~> 0.5"},
   ]
 end
 ```
+
+## Integration with other platforms
+
+See [Ortex](https://github.com/elixir-nx/ortex) which provides full-blown compatibility with the ONNX format via ONNX Runtime bindings. Alternatively, see [AxonONNX](https://github.com/elixir-nx/axon_onnx) to convert ONNX models to Axon models whenever possible to achieve better integration with Nx.
 
 ## Sponsors
 
