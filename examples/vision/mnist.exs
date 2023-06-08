@@ -37,7 +37,7 @@ defmodule Mnist do
 
   defp train_model(model, train_images, train_labels, epochs) do
     model
-    |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adamw(0.005))
+    |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(0.005))
     |> Axon.Loop.metric(:accuracy, "Accuracy")
     |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs, compiler: EXLA)
   end

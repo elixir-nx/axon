@@ -9,7 +9,7 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
-  @deprecated "Use Optimus.Updates.scale/2 instead"
+  @deprecated "Use Polaris.Updates.scale/2 instead"
   def scale(combinator \\ identity(), step_size) do
     stateless(combinator, &apply_scale(&1, &2, step_size))
   end
@@ -24,7 +24,7 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
-  @deprecated "Use Optimus.Updates.scale_by_state/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_state/1 instead"
   def scale_by_state(combinator_or_step)
 
   def scale_by_state(step) when is_number(step) do
@@ -63,7 +63,7 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_adam/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_adam/1 instead"
   def scale_by_adam(combinator_or_opts \\ [])
 
   def scale_by_adam(opts) when is_list(opts) do
@@ -116,7 +116,7 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_rss/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_rss/1 instead"
   def scale_by_rss(combinator_or_opts \\ [])
 
   def scale_by_rss(opts) when is_list(opts) do
@@ -176,7 +176,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_rms/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_rms/1 instead"
   def scale_by_rms(combinator_or_opts \\ [])
 
   def scale_by_rms(opts) when is_list(opts) do
@@ -234,7 +234,7 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_belief/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_belief/1 instead"
   def scale_by_belief(combinator_or_opts \\ [])
 
   def scale_by_belief(opts) when is_list(opts) do
@@ -294,7 +294,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_stddev/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_stddev/1 instead"
   def scale_by_stddev(combinator_or_opts \\ [])
 
   def scale_by_stddev(opts) when is_list(opts) do
@@ -349,7 +349,7 @@ defmodule Axon.Updates do
   counter. You might need to update the schedule to operate
   on per-batch schedule rather than per-epoch.
   """
-  @deprecated "Use Optimus.Updates.scale_by_schedule/2 instead"
+  @deprecated "Use Polaris.Updates.scale_by_schedule/2 instead"
   def scale_by_schedule(combinator \\ identity(), schedule_fn) when is_function(schedule_fn, 1) do
     stateful(
       combinator,
@@ -390,7 +390,7 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
-  @deprecated "Use Optimus.Updates.scale_by_radam/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_radam/1 instead"
   def scale_by_radam(combinator_or_opts \\ [])
 
   def scale_by_radam(opts) when is_list(opts) do
@@ -467,7 +467,7 @@ defmodule Axon.Updates do
       to `false`
 
   """
-  @deprecated "Use Optimus.Updates.trace/1 instead"
+  @deprecated "Use Polaris.Updates.trace/1 instead"
   def trace(combinator_or_opts \\ [])
 
   def trace(opts) when is_list(opts) do
@@ -517,7 +517,7 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
-  @deprecated "Use Optimus.Updates.clip/1 instead"
+  @deprecated "Use Polaris.Updates.clip/1 instead"
   def clip(combinator_or_opts \\ [])
 
   def clip(opts) when is_list(opts) do
@@ -549,7 +549,7 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
-  @deprecated "Use Optimus.Updates.clip_by_global_norm/1 instead"
+  @deprecated "Use Polaris.Updates.clip_by_global_norm/1 instead"
   def clip_by_global_norm(combinator_or_opts \\ [])
 
   def clip_by_global_norm(opts) when is_list(opts) do
@@ -588,7 +588,7 @@ defmodule Axon.Updates do
   @doc """
   Centralizes input by shifting updates by their mean.
   """
-  @deprecated "Use Optimus.Updates.centralize/1 instead"
+  @deprecated "Use Polaris.Updates.centralize/1 instead"
   def centralize(combinator_or_opts \\ [])
 
   def centralize(opts) when is_list(opts) do
@@ -627,7 +627,7 @@ defmodule Axon.Updates do
 
       * `:decay` - Rate of decay. Defaults to `0.0`.
   """
-  @deprecated "Use Optimus.Updates.add_decayed_weights/1 instead"
+  @deprecated "Use Polaris.Updates.add_decayed_weights/1 instead"
   def add_decayed_weights(combinator_or_opts \\ [])
 
   def add_decayed_weights(opts) when is_list(opts) do
@@ -666,7 +666,7 @@ defmodule Axon.Updates do
 
       * `:eps` - Numerical stability term. Defaults to `0.0`.
   """
-  @deprecated "Use Optimus.Updates.scale_by_trust_ratio/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_trust_ratio/1 instead"
   def scale_by_trust_ratio(combinator_or_opts \\ [])
 
   def scale_by_trust_ratio(opts) when is_list(opts) do
@@ -720,7 +720,7 @@ defmodule Axon.Updates do
       * `:gamma` - Controls amount of noise to add.
         Defaults to `0.55`.
   """
-  @deprecated "Use Optimus.Updates.add_noise/1 instead"
+  @deprecated "Use Polaris.Updates.add_noise/1 instead"
   def add_noise(combinator_or_opts \\ [])
 
   def add_noise(opts) when is_list(opts) do
@@ -775,7 +775,7 @@ defmodule Axon.Updates do
 
       * [Adaptive Methods for Nonconvex Optimization](https://proceedings.neurips.cc/paper/2018/file/90365351ccc7437a1309dc64e4db32a3-Paper.pdf)
   """
-  @deprecated "Use Optimus.Updates.scale_by_yogi/1 instead"
+  @deprecated "Use Polaris.Updates.scale_by_yogi/1 instead"
   def scale_by_yogi(combinator_or_opts \\ [])
 
   def scale_by_yogi(opts) when is_list(opts) do
@@ -834,7 +834,7 @@ defmodule Axon.Updates do
   Stateless updates do not depend on an update state and thus
   only require an implementation of an update function.
   """
-  @deprecated "Use Optimus.Updates.stateless/2 instead"
+  @deprecated "Use Polaris.Updates.stateless/2 instead"
   def stateless({parent_init_fn, parent_apply_fn} \\ identity(), apply_fn) do
     apply_fn = fn updates, state, params ->
       {updates, state} = parent_apply_fn.(updates, state, params)
@@ -849,7 +849,7 @@ defmodule Axon.Updates do
 
   This is often as the initial update in many functions in this module.
   """
-  @deprecated "Use Optimus.Updates.identity/1 instead"
+  @deprecated "Use Polaris.Updates.identity/1 instead"
   def identity() do
     {fn _params -> {} end, fn updates, state, _params -> {updates, state} end}
   end
@@ -872,7 +872,7 @@ defmodule Axon.Updates do
       Axon.Updates.centralize()
       |> Axon.Updates.scale_by_rms()
   """
-  @deprecated "Use Optimus.Updates.compose/2 instead"
+  @deprecated "Use Polaris.Updates.compose/2 instead"
   def compose({init_fn1, apply_fn1}, {init_fn2, apply_fn2}) do
     init_fn = fn params ->
       state = init_fn1.(params)
@@ -898,7 +898,7 @@ defmodule Axon.Updates do
   implement some initialization function as well as an update
   function.
   """
-  @deprecated "Use Optimus.Updates.stateful/3 instead"
+  @deprecated "Use Polaris.Updates.stateful/3 instead"
   def stateful({parent_init_fn, parent_apply_fn} \\ identity(), init_fn, apply_fn) do
     init_fn = fn params ->
       state = parent_init_fn.(params)

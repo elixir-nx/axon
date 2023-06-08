@@ -42,7 +42,7 @@ defmodule Axon.MixProject do
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.7", optional: true},
       {:kino_vega_lite, "~> 0.1.7", optional: true},
-      {:optimus, "~> 0.1", github: "elixir-nx/optimus"}
+      {:polaris, "~> 0.1", github: "elixir-nx/polaris"}
     ]
   end
 

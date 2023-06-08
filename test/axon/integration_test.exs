@@ -26,7 +26,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -71,7 +71,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -119,7 +119,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -166,7 +166,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -211,7 +211,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3),
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3),
           gradient_accumulation_steps: 3
         )
         # TODO: Fix default output transform
@@ -256,7 +256,7 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       %{metrics: metrics1, step_state: step_state1} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3), seed: 1)
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -265,7 +265,7 @@ defmodule Axon.IntegrationTest do
 
       %{metrics: metrics2, step_state: step_state2} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3), seed: 1)
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -324,7 +324,7 @@ defmodule Axon.IntegrationTest do
             model
             |> Axon.Loop.trainer(
               :categorical_cross_entropy,
-              apply(Optimus.Optimizers, unquote(optimizer), unquote(args))
+              apply(Polaris.Optimizers, unquote(optimizer), unquote(args))
             )
             # TODO: Fix default output transform
             |> Map.update(:output_transform, nil, fn _ -> & &1 end)
