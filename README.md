@@ -10,7 +10,7 @@ Axon consists of the following components:
   * Model Creation API – A high-level model creation API which manages model initialization and application.
   * Training API – An API for quickly training models, inspired by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
 
-Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network. Axon uses [Optimus](https://github.com/elixir-nx/optimus) for its optimization API.
+Axon provides abstractions that enable easy integration while maintaining a level of separation between each component. You should be able to use any of the APIs without dependencies on others. By decoupling the APIs, Axon gives you full control over each aspect of creating and training a neural network. Axon uses [Polaris](https://github.com/elixir-nx/polaris) for its optimization API.
 
 ## Overview
 
@@ -102,13 +102,13 @@ model =
 
 model_state =
   model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Optimus.Optimizers.adamw(0.005))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(0.005))
   |> Axon.Loop.metric(:accuracy)
   |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 50)
   |> Axon.Loop.run(data, %{}, epochs: 10, compiler: EXLA)
 ```
 
-Axon uses [Optimus](https://github.com/elixir-nx/optimus) for its optimization API. It’s important to note that optimization API does not directly depend on Axon models. You can use the API to optimize any differentiable objective function.
+Axon uses [Polaris](https://github.com/elixir-nx/polaris) for its optimization API. It’s important to note that optimization API does not directly depend on Axon models. You can use the API to optimize any differentiable objective function.
 
 In the future we plan to support distributed training loops. We are also seeking ways to improve the performance of our training loops by running them entirely on native accelerators.
 

@@ -11,7 +11,7 @@ defmodule Axon.Schedules do
 
     * `:steps` - total number of decay steps. Defaults to `1000`
   """
-  @deprecated "Use Optimus.Schedules.linear_decay/2 instead"
+  @deprecated "Use Polaris.Schedules.linear_decay/2 instead"
   def linear_decay(init_value, opts \\ []) do
     &apply_linear_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -49,7 +49,7 @@ defmodule Axon.Schedules do
     * `:staircase` - discretize outputs. Defaults to `false`
 
   """
-  @deprecated "Use Optimus.Schedules.exponential_decay/2 instead"
+  @deprecated "Use Polaris.Schedules.exponential_decay/2 instead"
   def exponential_decay(init_value, opts \\ []) do
     &apply_exponential_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -112,7 +112,7 @@ defmodule Axon.Schedules do
     * [SGDR: Stochastic Gradient Descent with Warm Restarts](https://openreview.net/forum?id=Skq89Scxx&noteId=Skq89Scxx)
 
   """
-  @deprecated "Use Optimus.Schedules.cosine_decay/2 instead"
+  @deprecated "Use Polaris.Schedules.cosine_decay/2 instead"
   def cosine_decay(init_value, opts \\ []) do
     &apply_cosine_decay(&1, [{:init_value, init_value} | opts])
   end
@@ -141,7 +141,7 @@ defmodule Axon.Schedules do
   $$\gamma(t) = \gamma_0$$
 
   """
-  @deprecated "Use Optimus.Schedules.constant/2 instead"
+  @deprecated "Use Polaris.Schedules.constant/2 instead"
   def constant(init_value, opts \\ []) do
     &apply_constant(&1, [{:init_value, init_value} | opts])
   end
@@ -167,7 +167,7 @@ defmodule Axon.Schedules do
       $k$ in above formulation. Defaults to `10`
 
   """
-  @deprecated "Use Optimus.Schedules.polynomial_decay/2 instead"
+  @deprecated "Use Polaris.Schedules.polynomial_decay/2 instead"
   def polynomial_decay(init_value, opts \\ []) do
     &apply_polynomial_decay(&1, [{:init_value, init_value} | opts])
   end

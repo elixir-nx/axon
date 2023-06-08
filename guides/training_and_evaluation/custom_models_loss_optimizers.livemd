@@ -343,11 +343,11 @@ Epoch: 0, Batch: 1000, loss: 0.1098235
 
 ## Using custom optimizers in training loops
 
-As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Optimus.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
+As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Polaris.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
 
 You likely won't have to implement a custom optimizer; however, you should know how to construct optimizers with different hyperparameters and how to apply different modifiers to different optimizers to customize the optimization process.
 
-When you specify an optimizer as an atom in `Axon.Loop.trainer/3`, it maps directly to an optimizer declared in `Optimus.Optimizers`. You can instead opt to declare your optimizer directly. This is most useful for controlling things like the learning rate and various optimizer hyperparameters:
+When you specify an optimizer as an atom in `Axon.Loop.trainer/3`, it maps directly to an optimizer declared in `Polaris.Optimizers`. You can instead opt to declare your optimizer directly. This is most useful for controlling things like the learning rate and various optimizer hyperparameters:
 
 ```elixir
 train_data =
@@ -365,7 +365,7 @@ model =
   |> Axon.relu()
   |> Axon.dense(1)
 
-optimizer = {_init_optimizer_fn, _update_fn} = Optimus.Optimizers.sgd(1.0e-3)
+optimizer = {_init_optimizer_fn, _update_fn} = Polaris.Optimizers.sgd(1.0e-3)
 
 model
 |> Axon.Loop.trainer(:mean_squared_error, optimizer)

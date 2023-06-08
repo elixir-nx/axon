@@ -199,7 +199,7 @@ It's time to train our model. We specify the loss, optimizer and choose accuracy
 ```elixir
 data = HorsesHumans.DataProcessing.data_stream(files, batch_size)
 
-optimizer = Optimus.Optimizers.adam(1.0e-4)
+optimizer = Polaris.Optimizers.adam(1.0e-4)
 
 params =
   model
@@ -215,7 +215,7 @@ params =
 We can improve the training by applying gradient centralization. It is a technique with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents gradients from exploding.
 
 ```elixir
-centralized_optimizer = Optimus.Updates.compose(Optimus.Updates.centralize(), optimizer)
+centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
 model
 |> Axon.Loop.trainer(:categorical_cross_entropy, centralized_optimizer, :identity, log: 1)

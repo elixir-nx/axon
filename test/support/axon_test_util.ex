@@ -134,7 +134,7 @@ defmodule AxonTestUtil do
       {params, opt_state} = state
       gradients = Nx.Defn.grad(params, loss)
       {updates, new_state} = update_fn.(gradients, opt_state, params)
-      {Optimus.Updates.apply_updates(updates, params), new_state}
+      {Polaris.Updates.apply_updates(updates, params), new_state}
     end
 
     {params, _} =
