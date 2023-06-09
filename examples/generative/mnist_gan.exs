@@ -132,8 +132,8 @@ defmodule MNISTGAN do
   end
 
   defp train_loop(d_model, g_model) do
-    {init_optim_d, optim_d} = Polaris.Optimizers.adam(2.0e-3, b1: 0.5)
-    {init_optim_g, optim_g} = Polaris.Optimizers.adam(2.0e-3, b1: 0.5)
+    {init_optim_d, optim_d} = Polaris.Optimizers.adam(learning_rate: 2.0e-3, b1: 0.5)
+    {init_optim_g, optim_g} = Polaris.Optimizers.adam(learning_rate: 2.0e-3, b1: 0.5)
 
     {init_d, d_model} = Axon.build(d_model, mode: :train)
     {init_g, g_model} = Axon.build(g_model, mode: :train)

@@ -199,7 +199,7 @@ It's time to train our model. We specify the loss, optimizer and choose accuracy
 ```elixir
 data = HorsesHumans.DataProcessing.data_stream(files, batch_size)
 
-optimizer = Polaris.Optimizers.adam(1.0e-4)
+optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
 
 params =
   model

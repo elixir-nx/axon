@@ -78,7 +78,7 @@ defmodule HorsesOrHumans do
 
   def run() do
     model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
-    optimizer = Polaris.Optimizers.adam(1.0e-4)
+    optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
     centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
     data = data()

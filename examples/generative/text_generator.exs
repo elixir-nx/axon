@@ -95,7 +95,7 @@ defmodule TextGenerator do
 
     params =
       model
-      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(0.001))
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.001))
       |> Axon.Loop.run(Stream.zip(train_data, train_labels), %{}, epochs: 20, compiler: EXLA)
 
     init_sequence = """

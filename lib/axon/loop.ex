@@ -654,7 +654,7 @@ defmodule Axon.Loop do
   ### Customizing Optimizer
 
       model
-      |> Axon.Loop.trainer(:binary_cross_entropy, Polaris.Optimizers.adam(0.05))
+      |> Axon.Loop.trainer(:binary_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.05))
       |> Axon.Loop.run(data)
 
   ### Custom loss
@@ -662,7 +662,7 @@ defmodule Axon.Loop do
       loss_fn = fn y_true, y_pred -> Nx.cos(y_true, y_pred) end
 
       model
-      |> Axon.Loop.trainer(loss_fn, Polaris.Optimizers.rmsprop(0.01))
+      |> Axon.Loop.trainer(loss_fn, Polaris.Optimizers.rmsprop(learning_rate: 0.01))
       |> Axon.Loop.run(data)
 
   ### Multiple objectives with multi-output model
