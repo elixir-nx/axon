@@ -696,7 +696,7 @@ defmodule Axon.Loop do
 
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_cale, :seed])
+    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_scale, :seed])
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
