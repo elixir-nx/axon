@@ -24,7 +24,6 @@ defmodule Cifar do
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
     |> Nx.to_batched(32)
-    |> Enum.to_list()
     |> Enum.split(1500)
   end
 
