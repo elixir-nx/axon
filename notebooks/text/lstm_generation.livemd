@@ -171,7 +171,7 @@ IO.puts("Total batches: #{Enum.count(train_batches)}")
 
 params =
   model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.001))
   |> Axon.Loop.run(Stream.zip(train_batches, result_batches), %{}, epochs: 20, compiler: EXLA)
 
 :ok
@@ -250,7 +250,7 @@ IO.puts("Total batches: #{Enum.count(train_batches)}")
 
 new_params =
   new_model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.001))
   |> Axon.Loop.run(Stream.zip(train_batches, result_batches), %{}, epochs: 50, compiler: EXLA)
 
 :ok

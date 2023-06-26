@@ -16,7 +16,7 @@ defmodule Axon.Optimizers do
 
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
   """
-  @deprecated "Use Polaris.Optimizers.adabelief/2 instead"
+  @deprecated "Use Polaris.Optimizers.adabelief/1 instead"
   def adabelief(learning_rate \\ 1.0e-3, opts \\ []) do
     Updates.scale_by_belief(opts)
     |> scale_by_learning_rate(learning_rate)
@@ -33,7 +33,7 @@ defmodule Axon.Optimizers do
 
     * [Adaptive Subgradient Methods for Online Learning and Stochastic Optimization](https://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
   """
-  @deprecated "Use Polaris.Optimizers.adagrad/2 instead"
+  @deprecated "Use Polaris.Optimizers.adagrad/1 instead"
   def adagrad(learning_rate \\ 1.0e-3, opts \\ []) do
     Updates.scale_by_rss(opts)
     |> scale_by_learning_rate(learning_rate)
@@ -53,7 +53,7 @@ defmodule Axon.Optimizers do
 
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
   """
-  @deprecated "Use Polaris.Optimizers.adam/2 instead"
+  @deprecated "Use Polaris.Optimizers.adam/1 instead"
   def adam(learning_rate \\ 1.0e-3, opts \\ []) do
     Updates.scale_by_adam(opts)
     |> scale_by_learning_rate(learning_rate)
@@ -70,7 +70,7 @@ defmodule Axon.Optimizers do
     * `:eps_root` - numerical stability term. Defaults to `0.0`
     * `:decay` - weight decay. Defaults to `0.0`
   """
-  @deprecated "Use Polaris.Optimizers.adamw/2 instead"
+  @deprecated "Use Polaris.Optimizers.adamw/1 instead"
   def adamw(learning_rate \\ 1.0e-3, opts \\ []) do
     {decay, opts} = Keyword.pop(opts, :decay, 0.0)
 
@@ -95,7 +95,7 @@ defmodule Axon.Optimizers do
 
     * [Large Batch Optimization for Deep Learning: Training BERT in 76 minutes](https://arxiv.org/abs/1904.00962)
   """
-  @deprecated "Use Polaris.Optimizers.lamb/2 instead"
+  @deprecated "Use Polaris.Optimizers.lamb/1 instead"
   def lamb(learning_rate \\ 1.0e-2, opts \\ []) do
     {decay, opts} = Keyword.pop(opts, :decay, 0.0)
     {min_norm, opts} = Keyword.pop(opts, :min_norm, 0.0)
@@ -114,7 +114,7 @@ defmodule Axon.Optimizers do
     * `:eta` - used to compute variance of noise distribution. Defaults to `0.1`
     * `:gamma` - used to compute variance of noise distribution. Defaults to `0.55`
   """
-  @deprecated "Use Polaris.Optimizers.noisy_sgd/2 instead"
+  @deprecated "Use Polaris.Optimizers.noisy_sgd/1 instead"
   def noisy_sgd(learning_rate \\ 1.0e-2, opts \\ []) do
     scale_by_learning_rate(learning_rate)
     |> Updates.add_noise(opts)
@@ -135,7 +135,7 @@ defmodule Axon.Optimizers do
 
     * [On the Variance of Adaptive Learning Rate and Beyond](https://arxiv.org/pdf/1908.03265.pdf)
   """
-  @deprecated "Use Polaris.Optimizers.radam/2 instead"
+  @deprecated "Use Polaris.Optimizers.radam/1 instead"
   def radam(learning_rate \\ 1.0e-3, opts \\ []) do
     Updates.scale_by_radam(opts)
     |> scale_by_learning_rate(learning_rate)
@@ -154,7 +154,7 @@ defmodule Axon.Optimizers do
     * `:decay` - EMA decay rate. Defaults to `0.9`
     * `:eps` - numerical stability term. Defaults to `1.0e-8`
   """
-  @deprecated "Use Polaris.Optimizers.rmsprop/2 instead"
+  @deprecated "Use Polaris.Optimizers.rmsprop/1 instead"
   def rmsprop(learning_rate \\ 1.0e-2, opts \\ []) do
     {centered, opts} = Keyword.pop(opts, :centered, false)
     {nesterov?, opts} = Keyword.pop(opts, :nesterov, false)
@@ -182,7 +182,7 @@ defmodule Axon.Optimizers do
       to value of this term.
     * `:nesterov` - whether or not to use nesterov momentum. Defaults to `false`
   """
-  @deprecated "Use Polaris.Optimizers.sgd/2 instead"
+  @deprecated "Use Polaris.Optimizers.sgd/1 instead"
   def sgd(learning_rate \\ 1.0e-2, opts \\ []) do
     momentum = opts[:momentum]
     nesterov? = opts[:nesterov] || false
@@ -210,7 +210,7 @@ defmodule Axon.Optimizers do
 
     * [Adaptive Methods for Nonconvex Optimization](https://papers.nips.cc/paper/2018/file/90365351ccc7437a1309dc64e4db32a3-Paper.pdf)
   """
-  @deprecated "Use Polaris.Optimizers.yogi/2 instead"
+  @deprecated "Use Polaris.Optimizers.yogi/1 instead"
   def yogi(learning_rate \\ 1.0e-2, opts \\ []) do
     Updates.scale_by_yogi(opts)
     |> scale_by_learning_rate(learning_rate)

@@ -251,7 +251,7 @@ end
 
 params =
   model
-  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(0.001))
+  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(learning_rate: 0.001))
   |> KinoAxon.kino_early_stop()
   |> Axon.Loop.handle(:iteration_completed, render_example_handler, every: 450)
   |> Axon.Loop.validate(model, test_data)
@@ -474,7 +474,7 @@ end
 
 params =
   model
-  |> Axon.Loop.trainer(&CustomLoss.loss/2, Polaris.Optimizers.adam(0.001))
+  |> Axon.Loop.trainer(&CustomLoss.loss/2, Polaris.Optimizers.adam(learning_rate: 0.001))
   |> KinoAxon.kino_early_stop()
   |> Axon.Loop.handle(:epoch_completed, render_example_handler)
   |> Axon.Loop.validate(model, test_data)

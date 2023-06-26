@@ -26,7 +26,10 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -71,7 +74,10 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -119,7 +125,10 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -166,7 +175,10 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -211,7 +223,9 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3),
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
           gradient_accumulation_steps: 3
         )
         # TODO: Fix default output transform
@@ -256,7 +270,11 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       %{metrics: metrics1, step_state: step_state1} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
+          seed: 1
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -265,7 +283,11 @@ defmodule Axon.IntegrationTest do
 
       %{metrics: metrics2, step_state: step_state2} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
+          seed: 1
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -279,28 +301,30 @@ defmodule Axon.IntegrationTest do
 
   describe "optimizer integration" do
     @optimizers_and_args [
-      {:adabelief, [5.0e-3, []]},
-      {:adagrad, [5.0e-3, []]},
-      {:adam, [5.0e-3, []]},
-      {:adamw, [5.0e-3, []]},
-      {:adamw, [5.0e-3, [decay: 0.9]]},
-      {:lamb, [5.0e-3, []]},
-      {:lamb, [5.0e-3, [decay: 0.9]]},
-      {:lamb, [5.0e-3, [min_norm: 0.1]]},
-      {:lamb, [5.0e-3, [decay: 0.9, min_norm: 0.1]]},
-      {:noisy_sgd, [5.0e-3, []]},
-      {:radam, [5.0e-3, []]},
-      {:rmsprop, [5.0e-3, []]},
-      {:rmsprop, [5.0e-3, [centered: true]]},
-      {:rmsprop, [5.0e-3, [momentum: 0.9]]},
-      {:rmsprop, [5.0e-3, [nesterov: true, momentum: 0.9]]},
-      {:rmsprop, [5.0e-3, [centered: true, nesterov: true, momentum: 0.9]]},
-      {:sgd, [5.0e-3, []]},
-      {:sgd, [5.0e-3, [momentum: 0.9]]},
-      {:sgd, [5.0e-3, [momentum: 0.9, nesterov: true]]}
+      {:adabelief, [[learning_rate: 5.0e-3]]},
+      {:adagrad, [[learning_rate: 5.0e-3]]},
+      {:adam, [[learning_rate: 5.0e-3]]},
+      {:adamw, [[learning_rate: 5.0e-3]]},
+      {:adamw, [[learning_rate: 5.0e-3, decay: 0.9]]},
+      {:lamb, [[learning_rate: 5.0e-3]]},
+      {:lamb, [[learning_rate: 5.0e-3, decay: 0.9]]},
+      {:lamb, [[learning_rate: 5.0e-3, min_norm: 0.1]]},
+      {:lamb, [[learning_rate: 5.0e-3, decay: 0.9, min_norm: 0.1]]},
+      {:noisy_sgd, [[learning_rate: 5.0e-3]]},
+      {:radam, [[learning_rate: 5.0e-3]]},
+      {:rmsprop, [[learning_rate: 5.0e-3]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, centered: true]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, momentum: 0.9]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, nesterov: true, momentum: 0.9]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, centered: true, nesterov: true, momentum: 0.9]]},
+      {:sgd, [[learning_rate: 5.0e-3]]},
+      {:sgd, [[learning_rate: 5.0e-3, momentum: 0.9]]},
+      {:sgd, [[learning_rate: 5.0e-3, momentum: 0.9, nesterov: true]]}
     ]
 
-    for {optimizer, [lr, opts] = args} <- @optimizers_and_args do
+    for {optimizer, [opts] = args} <- @optimizers_and_args do
+      lr = opts[:learning_rate]
+
       test "#{optimizer}, learning_rate: #{lr}, opts: #{inspect(opts)} trains simple model with dropout" do
         {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
 
@@ -324,7 +348,7 @@ defmodule Axon.IntegrationTest do
             model
             |> Axon.Loop.trainer(
               :categorical_cross_entropy,
-              apply(Polaris.Optimizers, unquote(optimizer), unquote(args))
+              Polaris.Optimizers.unquote(optimizer)(unquote_splicing(args))
             )
             # TODO: Fix default output transform
             |> Map.update(:output_transform, nil, fn _ -> & &1 end)

@@ -209,7 +209,7 @@ defmodule Axon do
 
       model_state =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(0.005))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(learning_rate: 0.005))
         |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
 
   See `Polaris.Updates` and `Axon.Loop` for a more in-depth treatment of
@@ -3032,7 +3032,7 @@ defmodule Axon do
         |> Axon.dense(1000, activation: :softmax)
 
       model
-      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(0.005))
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.005))
       |> Axon.Loop.run(data, epochs: 10)
 
   When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
@@ -3104,7 +3104,7 @@ defmodule Axon do
         |> Axon.unfreeze(up: 25)
 
       model
-      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(0.0005))
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.0005))
       |> Axon.Loop.run(data, epochs: 10)
 
   When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,

@@ -82,7 +82,7 @@ defmodule Axon.LoopTest do
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
       model = Axon.input("input", shape: {nil, 1})
-      optimizer = Polaris.Optimizers.rmsprop(1.0e-3)
+      optimizer = Polaris.Optimizers.rmsprop(learning_rate: 1.0e-3)
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, optimizer)
@@ -735,7 +735,7 @@ defmodule Axon.LoopTest do
   describe "serialization" do
     test "serialize_state/deserialize_state preserve loop state" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
-      optimizer = Polaris.Optimizers.adam(1.0e-2)
+      optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-2)
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
@@ -1004,7 +1004,10 @@ defmodule Axon.LoopTest do
       ExUnit.CaptureIO.capture_io(fn ->
         state =
           model
-          |> Axon.Loop.trainer(:binary_cross_entropy, Polaris.Optimizers.sgd(initial_lr))
+          |> Axon.Loop.trainer(
+            :binary_cross_entropy,
+            Polaris.Optimizers.sgd(learning_rate: initial_lr)
+          )
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :min, patience: 2)
           # TODO: This API needs to change
@@ -1037,7 +1040,10 @@ defmodule Axon.LoopTest do
       ExUnit.CaptureIO.capture_io(fn ->
         state =
           model
-          |> Axon.Loop.trainer(:binary_cross_entropy, Polaris.Optimizers.sgd(initial_lr))
+          |> Axon.Loop.trainer(
+            :binary_cross_entropy,
+            Polaris.Optimizers.sgd(learning_rate: initial_lr)
+          )
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :max, patience: 2)
           # TODO: This API needs to change
