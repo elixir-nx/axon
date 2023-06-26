@@ -365,7 +365,7 @@ model =
   |> Axon.relu()
   |> Axon.dense(1)
 
-optimizer = {_init_optimizer_fn, _update_fn} = Polaris.Optimizers.sgd(1.0e-3)
+optimizer = {_init_optimizer_fn, _update_fn} = Polaris.Optimizers.sgd(learning_rate: 1.0e-3)
 
 model
 |> Axon.Loop.trainer(:mean_squared_error, optimizer)

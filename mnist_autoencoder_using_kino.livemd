@@ -197,7 +197,7 @@ Looks right (and tricky). Let's see how the model does.
 ```elixir
 params =
   model
-  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(0.001))
+  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(learning_rate: 0.001))
   |> Axon.Loop.validate(model, test_data)
   |> Axon.Loop.run(train_data, %{}, epochs: 20, compiler: EXLA)
 
@@ -312,7 +312,7 @@ end
 
 params =
   model
-  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(0.001))
+  |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(learning_rate: 0.001))
   |> Axon.Loop.handle(:iteration_completed, render_example_handler, every: 450)
   |> Axon.Loop.validate(model, test_data)
   |> Axon.Loop.run(train_data, %{}, epochs: 20, compiler: EXLA)
