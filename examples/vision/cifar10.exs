@@ -14,7 +14,6 @@ defmodule Cifar do
     |> Nx.reshape({elem(shape, 0), 32, 32, 3})
     |> Nx.divide(255.0)
     |> Nx.to_batched(32)
-    |> Enum.to_list()
     |> Enum.split(1500)
   end
 
