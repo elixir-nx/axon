@@ -7,6 +7,8 @@ Mix.install([
 defmodule Power do
   require Axon
 
+  @batch_size 32
+
   defp build_model do
     fc =
       Axon.input("input", shape: {nil, 1})
@@ -34,8 +36,7 @@ defmodule Power do
       Stream.unfold(
         Nx.Random.key(:erlang.system_time()),
         fn key ->
-          # Batch size of 32
-          {x, next_key} = Nx.Random.uniform(key, -10, 10, shape: {32, 1}, type: {:f, 32})
+          {x, next_key} = Nx.Random.uniform(key, -10, 10, shape: {@batch_size, 1}, type: {:f, 32})
           {{x, {Nx.pow(x, 2), Nx.pow(x, 3)}}, next_key}
         end
       )

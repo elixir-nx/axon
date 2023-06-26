@@ -8,6 +8,8 @@ Mix.install([
 defmodule FashionMNIST do
   require Axon
 
+  @batch_size 32
+
   defmodule Autoencoder do
     defp encoder(x, latent_dim) do
       x
@@ -33,7 +35,7 @@ defmodule FashionMNIST do
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 1, 28, 28})
     |> Nx.divide(Nx.Constants.max(type))
-    |> Nx.to_batched(32)
+    |> Nx.to_batched(@batch_size)
   end
 
   defp train_model(model, train_images, epochs) do

@@ -13,12 +13,14 @@ defmodule MNISTGAN do
   alias Axon.Loop.State
   import Nx.Defn
 
+  @batch_size 32
+
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 1, 28, 28})
     |> Nx.divide(Nx.Constants.max(type))
-    |> Nx.to_batched(32)
+    |> Nx.to_batched(@batch_size)
   end
 
   defp build_generator(z_dim) do
@@ -80,9 +82,9 @@ defmodule MNISTGAN do
     g_params = state[:generator][:model_state]
 
     # Update D
-    fake_labels = Nx.iota({32, 2}, axis: 1)
+    fake_labels = Nx.iota({@batch_size, 2}, axis: 1)
     real_labels = Nx.reverse(fake_labels)
-    {noise, random_next_key} = Nx.Random.normal(state[:random_key], shape: {32, 100})
+    {noise, random_next_key} = Nx.Random.normal(state[:random_key], shape: {@batch_size, 100})
 
     {d_loss, d_grads} =
       value_and_grad(d_params, fn params ->

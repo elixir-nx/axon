@@ -15,11 +15,12 @@ defmodule HorsesOrHumans do
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
+  @batch_size 32
   @input_type {:u, 8}
 
   def data() do
     Path.wildcard(@directories)
-    |> Stream.chunk_every(32, 32, :discard)
+    |> Stream.chunk_every(@batch_size, @batch_size, :discard)
     |> Task.async_stream(fn batch ->
       {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
       {Nx.stack(inp), Nx.stack(labels)}

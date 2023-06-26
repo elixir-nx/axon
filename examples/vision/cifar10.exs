@@ -8,6 +8,7 @@ Mix.install([
 defmodule Cifar do
   require Axon
 
+  @batch_size 32
   @label_values Enum.to_list(0..9)
 
   defp transform_images({bin, type, shape}) do
@@ -15,7 +16,7 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 32, 32, 3})
     |> Nx.divide(Nx.Constants.max(type))
-    |> Nx.to_batched(32)
+    |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
   end
 
@@ -24,7 +25,7 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(@label_values))
-    |> Nx.to_batched(32)
+    |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
   end
 
