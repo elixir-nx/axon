@@ -1,6 +1,7 @@
 Mix.install([
   {:stb_image, "~> 0.5.2"},
   {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1.0"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"}
 ])
@@ -43,14 +44,13 @@ defmodule HorsesOrHumans do
         do: Nx.tensor([1, 0], type: {:u, 8}),
         else: Nx.tensor([0, 1], type: {:u, 8})
 
-    {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
+    {:ok, img} = StbImage.read_file(filename)
 
     {StbImage.to_nx(img), class}
   end
 
-  defp build_model(input_shape, transpose_shape) do
+  defp build_model(input_shape) do
     Axon.input("input", shape: input_shape)
-    |> Axon.transpose(transpose_shape)
     |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2})
     |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
@@ -77,7 +77,7 @@ defmodule HorsesOrHumans do
   end
 
   def run() do
-    model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
+    model = build_model({nil, 300, 300, 4}) |> IO.inspect()
     optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
     centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
