@@ -73,7 +73,7 @@ defmodule HorsesOrHumans do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
     |> Axon.Loop.metric(:accuracy)
-    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100)
+    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100, compiler: EXLA)
   end
 
   def run() do
