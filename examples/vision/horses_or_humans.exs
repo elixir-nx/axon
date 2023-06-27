@@ -1,7 +1,7 @@
 Mix.install([
   {:stb_image, "~> 0.5.2"},
   {:axon, "~> 0.5"},
-  {:polaris, "~> 0.1.0"},
+  {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"}
 ])
