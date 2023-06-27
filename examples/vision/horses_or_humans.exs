@@ -10,7 +10,8 @@ defmodule HorsesOrHumans do
   alias Axon.Loop.State
   import Nx.Defn
 
-  # Download and extract from https://laurencemoroney.com/datasets.html
+  # Download and extract from
+  # https://www.kaggle.com/datasets/sanikamal/horses-or-humans-dataset
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
