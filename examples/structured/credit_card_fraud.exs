@@ -1,8 +1,9 @@
 Mix.install([
   {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
-  {:explorer, "~> 0.5"}
+  {:explorer, "~> 0.2.0"}
 ])
 
 defmodule CreditCardFraud do
