@@ -181,7 +181,7 @@ defmodule MNISTGAN do
       device: :stdio,
       filter: [every: 50]
     )
-    |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
+    |> Axon.Loop.handle_event(:epoch_completed, &view_generated_images(generator, 3, &1))
     |> Axon.Loop.run(train_images, %{}, epochs: 10, compiler: EXLA)
   end
 end
