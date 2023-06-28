@@ -126,7 +126,7 @@ defmodule CreditCardFraud do
     model
     |> Axon.Loop.evaluator()
     |> metrics()
-    |> Axon.Loop.handle(:epoch_completed, &summarize/1)
+    |> Axon.Loop.handle_event(:epoch_completed, &summarize/1)
     |> Axon.Loop.run(test_data, model_state, compiler: EXLA)
   end
 
@@ -144,12 +144,12 @@ defmodule CreditCardFraud do
     fraud = Nx.sum(train_targets) |> Nx.to_number()
     legit = Nx.size(train_targets) - fraud
 
-    batched_train_inputs = Nx.to_batched_list(train_inputs, 2048)
-    batched_train_targets = Nx.to_batched_list(train_targets, 2048)
+    batched_train_inputs = Nx.to_batched(train_inputs, 2048)
+    batched_train_targets = Nx.to_batched(train_targets, 2048)
     batched_train = Stream.zip(batched_train_inputs, batched_train_targets)
 
-    batched_test_inputs = Nx.to_batched_list(test_inputs, 2048)
-    batched_test_targets = Nx.to_batched_list(test_targets, 2048)
+    batched_test_inputs = Nx.to_batched(test_inputs, 2048)
+    batched_test_targets = Nx.to_batched(test_targets, 2048)
     batched_test = Stream.zip(batched_test_inputs, batched_test_targets)
 
     IO.puts("# of legit transactions (train): #{legit}")
