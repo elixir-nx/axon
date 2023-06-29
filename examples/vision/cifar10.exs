@@ -13,7 +13,7 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 32, 32, 3})
     |> Nx.divide(255.0)
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     |> Enum.split(1500)
   end
 
@@ -22,7 +22,7 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     |> Enum.split(1500)
   end
 
