@@ -1,5 +1,6 @@
 Mix.install([
   {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
   {:scidata, "~> 0.1"}
@@ -59,6 +60,7 @@ defmodule MNISTGAN do
 
     %{
       iteration: Nx.tensor(0),
+      random_key: Nx.Random.key(9999),
       discriminator: %{
         model_state: d_params,
         optimizer_state: init_optim_d.(d_params),
@@ -80,7 +82,7 @@ defmodule MNISTGAN do
     # Update D
     fake_labels = Nx.iota({32, 2}, axis: 1)
     real_labels = Nx.reverse(fake_labels)
-    noise = Nx.random_normal({32, 100})
+    {noise, random_next_key} = Nx.Random.normal(state[:random_key], shape: {32, 100})
 
     {d_loss, d_grads} =
       value_and_grad(d_params, fn params ->
@@ -118,6 +120,7 @@ defmodule MNISTGAN do
 
     %{
       iteration: iter + 1,
+      random_key: random_next_key,
       discriminator: %{
         model_state: d_params,
         optimizer_state: d_optimizer_state,
@@ -155,7 +158,7 @@ defmodule MNISTGAN do
 
   defp view_generated_images(model, batch_size, state) do
     %State{step_state: pstate} = state
-    noise = Nx.random_normal({batch_size, 100})
+    {noise, random_next_key} = Nx.Random.normal(pstate[:random_key], shape: {batch_size, 100})
     preds = Axon.predict(model, pstate[:generator][:model_state], noise)
 
     preds
@@ -163,7 +166,7 @@ defmodule MNISTGAN do
     |> Nx.to_heatmap()
     |> IO.inspect()
 
-    {:continue, state}
+    {:continue, put_in(state.step_state.random_key, random_next_key)}
   end
 
   def run() do
@@ -180,7 +183,7 @@ defmodule MNISTGAN do
       device: :stdio,
       filter: [every: 50]
     )
-    |> Axon.Loop.handle(:epoch_completed, &view_generated_images(generator, 3, &1))
+    |> Axon.Loop.handle_event(:epoch_completed, &view_generated_images(generator, 3, &1))
     |> Axon.Loop.run(train_images, %{}, epochs: 10, compiler: EXLA)
   end
 end

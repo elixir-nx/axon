@@ -1,5 +1,6 @@
 Mix.install([
   {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
   {:scidata, "~> 0.1"}
