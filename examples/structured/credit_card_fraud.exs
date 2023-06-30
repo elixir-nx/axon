@@ -3,11 +3,12 @@ Mix.install([
   {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
-  {:explorer, "~> 0.2.0"}
+  {:explorer, path: "../explorer"} # 0.5.8-dev
 ])
 
 defmodule CreditCardFraud do
   alias Axon.Loop.State
+  require Explorer.DataFrame
 
   # Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
   @file_name "examples/structured/creditcard.csv"
@@ -46,32 +47,18 @@ defmodule CreditCardFraud do
   end
 
   defp split_features_targets(df) do
-    features = Explorer.DataFrame.select(df, &(&1 == "Class"), :drop)
-    targets = Explorer.DataFrame.select(df, &(&1 == "Class"), :keep)
+    features = Explorer.DataFrame.discard(df, ["Class"])
+    targets = Explorer.DataFrame.select(df, ["Class"])
     {features, targets}
   end
 
-  defp normalize(name),
-    do: fn df ->
-      Explorer.Series.divide(
-        df[name],
-        Explorer.Series.max(
-          Explorer.Series.transform(df[name], fn x ->
-            if x >= 0 do
-              x
-            else
-              -x
-            end
-          end)
-        )
-      )
-    end
-
   defp normalize_data(df) do
     df
-    |> Explorer.DataFrame.names()
-    |> Map.new(&{&1, normalize(&1)})
-    |> then(&Explorer.DataFrame.mutate(df, &1))
+    |> Explorer.DataFrame.mutate(
+      for col <- across() do
+        {col.name, col / max(abs(col))}
+      end
+    )
   end
 
   defp df_to_tensor(df) do
