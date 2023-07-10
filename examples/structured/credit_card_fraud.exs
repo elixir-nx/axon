@@ -3,7 +3,7 @@ Mix.install([
   {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
-  {:explorer, path: "../explorer"} # 0.5.8-dev
+  {:explorer, "~> 0.6"}
 ])
 
 defmodule CreditCardFraud do
