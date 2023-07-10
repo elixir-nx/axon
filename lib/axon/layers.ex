@@ -1910,7 +1910,7 @@ defmodule Axon.Layers do
   Resizes a batch of tensors to the given shape using one of a
   number of sampling methods.
 
-  Requires input option `:to` which should be a tuple specifying
+  Requires input option `:size` which should be a tuple specifying
   the resized spatial dimensions of the input tensor. Input tensor
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
