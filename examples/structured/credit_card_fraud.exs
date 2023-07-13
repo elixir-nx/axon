@@ -1,12 +1,14 @@
 Mix.install([
   {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
   {:exla, "~> 0.5"},
   {:nx, "~> 0.5"},
-  {:explorer, "~> 0.5"}
+  {:explorer, "~> 0.6"}
 ])
 
 defmodule CreditCardFraud do
   alias Axon.Loop.State
+  require Explorer.DataFrame
 
   # Download data with a Kaggle account: https://www.kaggle.com/mlg-ulb/creditcardfraud/
   @file_name "examples/structured/creditcard.csv"
@@ -45,32 +47,18 @@ defmodule CreditCardFraud do
   end
 
   defp split_features_targets(df) do
-    features = Explorer.DataFrame.select(df, &(&1 == "Class"), :drop)
-    targets = Explorer.DataFrame.select(df, &(&1 == "Class"), :keep)
+    features = Explorer.DataFrame.discard(df, ["Class"])
+    targets = Explorer.DataFrame.select(df, ["Class"])
     {features, targets}
   end
 
-  defp normalize(name),
-    do: fn df ->
-      Explorer.Series.divide(
-        df[name],
-        Explorer.Series.max(
-          Explorer.Series.transform(df[name], fn x ->
-            if x >= 0 do
-              x
-            else
-              -x
-            end
-          end)
-        )
-      )
-    end
-
   defp normalize_data(df) do
     df
-    |> Explorer.DataFrame.names()
-    |> Map.new(&{&1, normalize(&1)})
-    |> then(&Explorer.DataFrame.mutate(df, &1))
+    |> Explorer.DataFrame.mutate(
+      for col <- across() do
+        {col.name, col / max(abs(col))}
+      end
+    )
   end
 
   defp df_to_tensor(df) do
@@ -125,7 +113,7 @@ defmodule CreditCardFraud do
     model
     |> Axon.Loop.evaluator()
     |> metrics()
-    |> Axon.Loop.handle(:epoch_completed, &summarize/1)
+    |> Axon.Loop.handle_event(:epoch_completed, &summarize/1)
     |> Axon.Loop.run(test_data, model_state, compiler: EXLA)
   end
 
@@ -143,12 +131,12 @@ defmodule CreditCardFraud do
     fraud = Nx.sum(train_targets) |> Nx.to_number()
     legit = Nx.size(train_targets) - fraud
 
-    batched_train_inputs = Nx.to_batched_list(train_inputs, 2048)
-    batched_train_targets = Nx.to_batched_list(train_targets, 2048)
+    batched_train_inputs = Nx.to_batched(train_inputs, 2048)
+    batched_train_targets = Nx.to_batched(train_targets, 2048)
     batched_train = Stream.zip(batched_train_inputs, batched_train_targets)
 
-    batched_test_inputs = Nx.to_batched_list(test_inputs, 2048)
-    batched_test_targets = Nx.to_batched_list(test_targets, 2048)
+    batched_test_inputs = Nx.to_batched(test_inputs, 2048)
+    batched_test_targets = Nx.to_batched(test_targets, 2048)
     batched_test = Stream.zip(batched_test_inputs, batched_test_targets)
 
     IO.puts("# of legit transactions (train): #{legit}")
