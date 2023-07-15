@@ -25,7 +25,7 @@ defmodule Axon.LossScale do
   @doc """
   Implements identity loss-scale.
   """
-  def identity() do
+  def identity(_opts \\ []) do
     scale_unscale_fun = fn x, _state -> x end
     adjust_fun = fn x, state -> {x, state} end
     {fn -> %{} end, scale_unscale_fun, adjust_fun}
@@ -34,8 +34,9 @@ defmodule Axon.LossScale do
   @doc """
   Implements static loss-scale.
   """
-  def static(loss_scale \\ @default_loss_scale) do
-    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
+  def static(opts \\ []) do
+    opts = Keyword.validate!(opts, init_scale: @default_loss_scale)
+    loss_scale = Nx.backend_copy(opts[:init_scale], Nx.BinaryBackend)
     {fn -> init_static(loss_scale) end, &scale_static/2, &unscale_static/2}
   end
 
@@ -56,7 +57,16 @@ defmodule Axon.LossScale do
   @doc """
   Implements dynamic loss-scale.
   """
-  def dynamic(loss_scale \\ @default_loss_scale, opts \\ []) do
+  def dynamic(opts \\ []) do
+    opts =
+      Keyword.validate!(opts,
+        init_scale: @default_loss_scale,
+        period: 2_000,
+        factor: 2,
+        min_loss_scale: 1
+      )
+
+    {loss_scale, opts} = Keyword.pop(opts, :init_scale, @default_loss_scale)
     loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
 
     {
@@ -94,15 +104,15 @@ defmodule Axon.LossScale do
       end)
 
     new_loss_scale =
-      if grads_are_finite do
-        if counter == opts[:period] - 1 do
-          first_finite(loss_scale * opts[:factor], loss_scale)
-        else
+      Nx.select(
+        grads_are_finite,
+        Nx.select(
+          Nx.equal(counter, opts[:period] - 1),
+          first_finite(loss_scale * opts[:factor], loss_scale),
           loss_scale
-        end
-      else
+        ),
         Nx.max(opts[:min_loss_scale], loss_scale / opts[:factor])
-      end
+      )
 
     new_counter = Nx.remainder(counter + 1, opts[:period]) * grads_are_finite
 
