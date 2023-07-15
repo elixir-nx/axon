@@ -2165,6 +2165,7 @@ defmodule Axon.Layers do
   defn gru_cell(
          input,
          carry,
+         mask,
          input_kernel,
          hidden_kernel,
          bias,
@@ -2180,7 +2181,10 @@ defmodule Axon.Layers do
     z = gate_fn.(dense(input, wiz, bz) + dense(hidden, whz, 0))
     n = activation_fn.(dense(input, win, bin) + r * dense(hidden, whn, bhn))
 
+    mask = Nx.broadcast(mask, hidden)
+
     new_h = (1.0 - z) * n + z * hidden
+    new_h = Nx.select(Nx.as_type(mask, :u8), hidden, new_h)
 
     {new_h, {new_h}}
   end
@@ -2198,6 +2202,7 @@ defmodule Axon.Layers do
   defn lstm_cell(
          input,
          carry,
+         mask,
          input_kernel,
          hidden_kernel,
          bias,
@@ -2218,6 +2223,10 @@ defmodule Axon.Layers do
     new_c = f * cell + i * g
     new_h = o * activation_fn.(new_c)
 
+    mask = Nx.broadcast(mask, hidden)
+
+    new_h = Nx.select(Nx.as_type(mask, :u8), hidden, new_h)
+    new_c = Nx.select(Nx.as_type(mask, :u8), cell, new_c)
     {new_h, {new_c, new_h}}
   end
 
@@ -2237,7 +2246,7 @@ defmodule Axon.Layers do
 
     * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
-  defn conv_lstm_cell(input, carry, input_kernel, hidden_kernel, bias, opts \\ []) do
+  defn conv_lstm_cell(input, carry, _mask, input_kernel, hidden_kernel, bias, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
 
     {ih} = input_kernel
@@ -2308,15 +2317,17 @@ defmodule Axon.Layers do
   This function will make use of an `defn` while-loop such and thus
   may be more efficient for long sequences.
   """
-  defn dynamic_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
+  defn dynamic_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
     time_steps = Nx.axis_size(input_sequence, 1)
     feature_dims = list_duplicate(0, Nx.rank(input_sequence) - 2)
+    mask = get_mask(mask, input_sequence)
 
     initial_shape =
       unroll_initial_shape_transform(
         cell_fn,
         input_sequence,
         carry,
+        mask,
         input_kernel,
         recurrent_kernel,
         bias
@@ -2325,16 +2336,23 @@ defmodule Axon.Layers do
     init_sequence = Nx.broadcast(0.0, initial_shape)
     i = Nx.tensor(0)
 
-    {_, carry, output, _, _, _, _} =
-      while {i, carry, init_sequence, input_sequence, input_kernel, recurrent_kernel, bias},
+    {_, carry, output, _, _, _, _, _} =
+      while {i, carry, init_sequence, input_sequence, mask, input_kernel, recurrent_kernel, bias},
             Nx.less(i, time_steps) do
         sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
         sequence = Nx.squeeze(sequence, axes: [1])
+        mask_token = Nx.slice_along_axis(mask, i, 1, axis: 1)
+        mask_token = Nx.reshape(mask_token, {Nx.axis_size(sequence, 0), 1})
         indices = compute_indices(i, feature_dims)
-        {output, carry} = cell_fn.(sequence, carry, input_kernel, recurrent_kernel, bias)
+
+        {output, carry} =
+          cell_fn.(sequence, carry, mask_token, input_kernel, recurrent_kernel, bias)
+
         output = Nx.new_axis(output, 1)
         update_sequence = Nx.put_slice(init_sequence, indices, output)
-        {i + 1, carry, update_sequence, input_sequence, input_kernel, recurrent_kernel, bias}
+
+        {i + 1, carry, update_sequence, input_sequence, mask, input_kernel, recurrent_kernel,
+         bias}
       end
 
     {output, carry}
@@ -2344,10 +2362,20 @@ defmodule Axon.Layers do
     [0, i] ++ feature_dims
   end
 
-  deftransformp unroll_initial_shape_transform(cell_fn, inp, carry, inp_kernel, hid_kernel, bias) do
+  deftransformp unroll_initial_shape_transform(
+                  cell_fn,
+                  inp,
+                  carry,
+                  mask,
+                  inp_kernel,
+                  hid_kernel,
+                  bias
+                ) do
     seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
     seq = Nx.squeeze(seq, axes: [1])
-    {seq, _} = cell_fn.(seq, carry, inp_kernel, hid_kernel, bias)
+    mask_token = Nx.slice_along_axis(mask, 0, 1, axis: 1)
+    mask_token = Nx.reshape(mask_token, {Nx.axis_size(seq, 0), 1})
+    {seq, _} = cell_fn.(seq, carry, mask_token, inp_kernel, hid_kernel, bias)
     Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
   end
 
@@ -2363,30 +2391,47 @@ defmodule Axon.Layers do
   the entire operation appears as a part of the compilation graph.
   This makes it suitable for shorter sequences.
   """
-  defn static_unroll(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias) do
-    static_unroll_loop(cell_fn, input_sequence, carry, input_kernel, recurrent_kernel, bias)
+  defn static_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
+    static_unroll_loop(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias)
   end
 
   deftransformp static_unroll_loop(
                   cell_fn,
                   input_sequence,
                   carry,
+                  mask,
                   input_kernel,
                   recurrent_kernel,
                   bias
                 ) do
     time_steps = elem(Nx.shape(input_sequence), 1)
+    mask = get_mask(mask, input_sequence)
 
     {carry, outputs} =
       for t <- 0..(time_steps - 1), reduce: {carry, []} do
         {carry, outputs} ->
           input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
           input = Nx.squeeze(input, axes: [1])
-          {output, carry} = cell_fn.(input, carry, input_kernel, recurrent_kernel, bias)
+          mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
+          mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
+
+          {output, carry} =
+            cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
+
           {carry, [output | outputs]}
       end
 
     {Nx.stack(Enum.reverse(outputs), axis: 1), carry}
+  end
+
+  deftransformp get_mask(mask, sequence) do
+    case Nx.shape(mask) do
+      {} ->
+        Nx.broadcast(mask, {Nx.axis_size(sequence, 0), 1})
+
+      _ ->
+        mask
+    end
   end
 
   @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
@@ -2395,6 +2440,7 @@ defmodule Axon.Layers do
     deftransform unquote(rnn_op)(
                    input,
                    hidden_state,
+                   mask,
                    input_kernel,
                    hidden_kernel,
                    bias \\ [],
@@ -2424,6 +2470,7 @@ defmodule Axon.Layers do
             cell_fn,
             input,
             hidden_state,
+            mask,
             input_kernel,
             hidden_kernel,
             bias
@@ -2434,6 +2481,7 @@ defmodule Axon.Layers do
             cell_fn,
             input,
             hidden_state,
+            mask,
             input_kernel,
             hidden_kernel,
             bias
@@ -2445,17 +2493,17 @@ defmodule Axon.Layers do
   defp get_cell_fn(:lstm, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
-    &lstm_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
+    &lstm_cell(&1, &2, &3, &4, &5, &6, gate_fn, act_fn)
   end
 
   defp get_cell_fn(:gru, activation, gate, _) do
     gate_fn = &apply(Axon.Activations, gate, [&1])
     act_fn = &apply(Axon.Activations, activation, [&1])
-    &gru_cell(&1, &2, &3, &4, &5, gate_fn, act_fn)
+    &gru_cell(&1, &2, &3, &4, &5, &6, gate_fn, act_fn)
   end
 
   defp get_cell_fn(:conv_lstm, _, _, conv_opts) do
-    &conv_lstm_cell(&1, &2, &3, &4, &5, conv_opts)
+    &conv_lstm_cell(&1, &2, &3, &4, &5, &6, conv_opts)
   end
 
   @doc false

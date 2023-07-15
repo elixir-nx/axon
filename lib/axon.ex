@@ -2262,6 +2262,30 @@ defmodule Axon do
   end
 
   @doc """
+  Computes a sequence mask according to the given EOS token.
+
+  Masks can be propagated to recurrent layers or custom layers to
+  indicate that a given token should be ignored in processing. This
+  is useful when you have sequences of variable length.
+
+  Most commonly, `eos_token` is `0`.
+
+  ## Options
+
+    * `:name` - layer name.
+  """
+  @doc type: :recurrent
+  def mask(%Axon{} = input, eos_token, opts \\ []) when is_integer(eos_token) do
+    opts = Keyword.validate!(opts, [:name])
+
+    fun = fn x, opts ->
+      Nx.equal(Nx.as_type(x, :s64), opts[:eos_token])
+    end
+
+    layer(fun, [input], eos_token: eos_token, op_name: :mask, name: opts[:name])
+  end
+
+  @doc """
   Applies the given forward function bidirectionally and merges
   the results with the given merge function.
 
@@ -2371,16 +2395,17 @@ defmodule Axon do
         unroll: :dynamic,
         use_bias: true,
         kernel_initializer: :glorot_uniform,
-        bias_initializer: :zeros
+        bias_initializer: :zeros,
+        mask: Axon.constant(0)
       ])
 
     activation = opts[:activation]
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
-    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
-    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
+    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
+    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
+    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2415,9 +2440,9 @@ defmodule Axon do
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
 
-        {[x, hidden_state, input_kernel, hidden_kernel, bias], :lstm}
+        {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias], :lstm}
       else
-        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm/5}
+        {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel], &Axon.Layers.lstm/6}
       end
 
     output =
@@ -2563,6 +2588,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        mask: Axon.constant(0),
         activation: :tanh,
         gate: :sigmoid,
         unroll: :dynamic,
@@ -2575,9 +2601,9 @@ defmodule Axon do
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
-    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
-    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
+    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
+    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
+    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2611,9 +2637,9 @@ defmodule Axon do
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
 
-        [x, hidden_state, input_kernel, hidden_kernel, bias]
+        [x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias]
       else
-        [x, hidden_state, input_kernel, hidden_kernel]
+        [x, hidden_state, opts[:mask], input_kernel, hidden_kernel]
       end
 
     output =
@@ -2745,6 +2771,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        mask: Axon.constant(0),
         padding: :same,
         kernel_size: 1,
         strides: 1,
@@ -2760,17 +2787,17 @@ defmodule Axon do
     unroll = opts[:unroll]
     kernel_initializer = opts[:kernel_initializer]
 
-    hidden_kernel_shape = fn _, {inp, _} ->
+    hidden_kernel_shape = fn _, {inp, _}, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    input_kernel_shape = fn inp, _ ->
+    input_kernel_shape = fn inp, _, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    bias_shape = fn inp, _ ->
+    bias_shape = fn inp, _, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
     end
@@ -2795,9 +2822,9 @@ defmodule Axon do
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
         b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
-        {[x, hidden_state, wi, wh, b], :conv_lstm}
+        {[x, hidden_state, opts[:mask], wi, wh, b], :conv_lstm}
       else
-        {[x, hidden_state, wi, wh], :conv_lstm}
+        {[x, hidden_state, opts[:mask], wi, wh], :conv_lstm}
       end
 
     output =

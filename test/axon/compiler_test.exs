@@ -3245,9 +3245,10 @@ defmodule CompilerTest do
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.dynamic_unroll(
-          &Axon.Layers.lstm_cell/5,
+          &Axon.Layers.lstm_cell/6,
           input,
           init_carry,
+          Nx.tensor(0),
           k,
           h,
           b
@@ -3270,10 +3271,11 @@ defmodule CompilerTest do
 
       init_carry1 = {zeros({1, 2}), zeros({1, 2})}
 
-      cell_fn1 = fn i, c, k, h, b ->
+      cell_fn1 = fn i, c, mask, k, h, b ->
         Axon.Layers.lstm_cell(
           i,
           c,
+          mask,
           k,
           h,
           b,
@@ -3298,7 +3300,7 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input1),
-        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, Nx.tensor(0), k, h, b)
       )
 
       model2 =
@@ -3310,7 +3312,7 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros({1, 2}), zeros({1, 2})}
 
-      cell_fn2 = &Axon.Layers.lstm_cell/5
+      cell_fn2 = &Axon.Layers.lstm_cell/6
 
       assert {init_fn, predict_fn} = Axon.build(model2)
 
@@ -3328,7 +3330,7 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input2),
-        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, Nx.tensor(0), k, h, b)
       )
     end
 
@@ -3347,9 +3349,17 @@ defmodule CompilerTest do
         init_carry = {zeros({1, 2}), zeros({1, 2})}
 
         {_, carry} =
-          Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, init_carry, ei, eh, eb)
+          Axon.Layers.dynamic_unroll(
+            &Axon.Layers.lstm_cell/6,
+            inp,
+            init_carry,
+            Nx.tensor(0),
+            ei,
+            eh,
+            eb
+          )
 
-        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, inp, carry, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/6, inp, carry, Nx.tensor(0), di, dh, db)
       end
 
       assert %{
@@ -3418,8 +3428,31 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/6, input, c, Nx.tensor(0), k, h, b)
       )
+    end
+
+    test "mask actually works" do
+      sequence = Axon.input("review")
+      mask = Axon.mask(sequence, 0)
+      embedded = sequence |> Axon.embedding(2048, 64)
+      {rnn_sequence, _state} = Axon.lstm(embedded, 64, mask: mask)
+
+      {init_fn, predict_fn} = Axon.build(rnn_sequence)
+      params = init_fn.(Nx.template({64, 64}, :s64), %{})
+
+      input = Nx.tensor([[1, 2, 3, 4]])
+      padded = Nx.pad(input, 0, [{0, 0, 0}, {0, 60, 0}])
+      out = predict_fn.(params, padded)
+
+      last_token = out[[.., 3, ..]]
+
+      for i <- 4..63 do
+        # all eos tokens will be ignored so we just propagate the value
+        # to the next token and thus these should all be the same as the
+        # last non eos token
+        assert_equal(last_token, out[[.., i, ..]])
+      end
     end
 
     # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
@@ -3576,9 +3609,10 @@ defmodule CompilerTest do
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.dynamic_unroll(
-          &Axon.Layers.conv_lstm_cell/5,
+          &Axon.Layers.conv_lstm_cell/6,
           input,
           init_carry,
+          Nx.tensor(0),
           k,
           h,
           b
@@ -3632,9 +3666,10 @@ defmodule CompilerTest do
       assert_equal(
         predict_fn.(params, input),
         Axon.Layers.static_unroll(
-          &Axon.Layers.conv_lstm_cell/5,
+          &Axon.Layers.conv_lstm_cell/6,
           input,
           init_carry,
+          Nx.tensor(0),
           k,
           h,
           b
@@ -3669,10 +3704,11 @@ defmodule CompilerTest do
 
       init_carry1 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      cell_fn1 = fn i, c, k, h, b ->
+      cell_fn1 = fn i, c, mask, k, h, b ->
         Axon.Layers.conv_lstm_cell(
           i,
           c,
+          mask,
           k,
           h,
           b
@@ -3695,7 +3731,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, Nx.tensor(0), k, h, b)
       )
 
       model2 =
@@ -3714,7 +3750,7 @@ defmodule CompilerTest do
 
       init_carry2 = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
-      cell_fn2 = &Axon.Layers.conv_lstm_cell/5
+      cell_fn2 = &Axon.Layers.conv_lstm_cell/6
 
       assert {init_fn, predict_fn} = Axon.build(model2)
 
@@ -3732,7 +3768,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, Nx.tensor(0), k, h, b)
       )
     end
 
@@ -3773,15 +3809,24 @@ defmodule CompilerTest do
 
         {_, carry} =
           Axon.Layers.dynamic_unroll(
-            &Axon.Layers.conv_lstm_cell/5,
+            &Axon.Layers.conv_lstm_cell/6,
             inp,
             init_carry,
+            Nx.tensor(0),
             ei,
             eh,
             eb
           )
 
-        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, inp, carry, di, dh, db)
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.conv_lstm_cell/6,
+          inp,
+          carry,
+          Nx.tensor(0),
+          di,
+          dh,
+          db
+        )
       end
 
       assert %{
@@ -3849,7 +3894,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.conv_lstm_cell/6, input, c, Nx.tensor(0), k, h, b)
       )
     end
   end
@@ -3980,7 +4025,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, carry, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, carry, Nx.tensor(0), k, h, b)
       )
     end
 
@@ -3998,10 +4043,11 @@ defmodule CompilerTest do
       input1 = random({1, 8, 2})
       carry1 = {zeros({1, 2})}
 
-      cell_fn1 = fn i, c, k, h, b ->
+      cell_fn1 = fn i, c, mask, k, h, b ->
         Axon.Layers.gru_cell(
           i,
           c,
+          mask,
           k,
           h,
           b,
@@ -4026,7 +4072,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Layers.dynamic_unroll(cell_fn1, input1, carry1, k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, carry1, Nx.tensor(0), k, h, b)
       )
 
       model2 =
@@ -4053,7 +4099,7 @@ defmodule CompilerTest do
 
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Layers.static_unroll(&Axon.Layers.gru_cell/5, input2, carry2, k, h, b)
+        Axon.Layers.static_unroll(&Axon.Layers.gru_cell/6, input2, carry2, Nx.tensor(0), k, h, b)
       )
     end
 
@@ -4069,9 +4115,18 @@ defmodule CompilerTest do
         {ei, eh, eb} = enc
         {di, dh, db} = dec
 
-        {_, carry} = Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, ei, eh, eb)
+        {_, carry} =
+          Axon.Layers.dynamic_unroll(
+            &Axon.Layers.gru_cell/6,
+            inp,
+            carry,
+            Nx.tensor(0),
+            ei,
+            eh,
+            eb
+          )
 
-        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, inp, carry, di, dh, db)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, inp, carry, Nx.tensor(0), di, dh, db)
       end
 
       assert {init_fn, predict_fn} = Axon.build(model)
@@ -4137,8 +4192,31 @@ defmodule CompilerTest do
 
       assert_all_close(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/5, input, c, k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, c, Nx.tensor(0), k, h, b)
       )
+    end
+
+    test "mask actually works" do
+      sequence = Axon.input("review")
+      mask = Axon.mask(sequence, 0)
+      embedded = sequence |> Axon.embedding(2048, 64)
+      {rnn_sequence, _state} = Axon.gru(embedded, 64, mask: mask)
+
+      {init_fn, predict_fn} = Axon.build(rnn_sequence)
+      params = init_fn.(Nx.template({64, 64}, :s64), %{})
+
+      input = Nx.tensor([[1, 2, 3, 4]])
+      padded = Nx.pad(input, 0, [{0, 0, 0}, {0, 60, 0}])
+      out = predict_fn.(params, padded)
+
+      last_token = out[[.., 3, ..]]
+
+      for i <- 4..63 do
+        # all eos tokens will be ignored so we just propagate the value
+        # to the next token and thus these should all be the same as the
+        # last non eos token
+        assert_equal(last_token, out[[.., i, ..]])
+      end
     end
 
     # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90

@@ -981,6 +981,7 @@ defmodule Axon.LayersTest do
         Axon.Layers.lstm_cell(
           seq,
           {c, h},
+          Nx.tensor(0),
           {wii, wif, wig, wio},
           {whi, whf, whg, who},
           {bi, bf, bg, bo}
@@ -1031,6 +1032,7 @@ defmodule Axon.LayersTest do
         Axon.Layers.lstm(
           seq,
           {c, h},
+          Nx.tensor(0),
           {wii, wif, wig, wio},
           {whi, whf, whg, who},
           {bi, bf, bg, bo},
@@ -1060,13 +1062,29 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       {s_output, {s_carry}} =
-        Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+        Axon.Layers.static_unroll(
+          cell_fn,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
 
       {d_output, {d_carry}} =
-        Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+        Axon.Layers.dynamic_unroll(
+          cell_fn,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
 
       assert_equal(s_carry, d_carry)
       assert_equal(s_output, d_output)
@@ -1074,7 +1092,8 @@ defmodule Axon.LayersTest do
 
     defn grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
 
         Nx.mean(output)
       end)
@@ -1082,7 +1101,8 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
 
         Nx.mean(output)
       end)
@@ -1104,7 +1124,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1121,7 +1141,16 @@ defmodule Axon.LayersTest do
 
     defn grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {_, {carry}} =
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            x,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1129,7 +1158,16 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {_, {carry}} =
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            x,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1151,7 +1189,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1161,7 +1199,8 @@ defmodule Axon.LayersTest do
 
     defn grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, Nx.tensor(0), x, hidden_kernel, bias)
 
         Nx.mean(output)
       end)
@@ -1169,7 +1208,8 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, Nx.tensor(0), x, hidden_kernel, bias)
 
         Nx.mean(output)
       end)
@@ -1191,7 +1231,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1201,7 +1241,16 @@ defmodule Axon.LayersTest do
 
     defn grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {_, {carry}} =
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            x,
+            hidden_kernel,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1209,7 +1258,16 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {_, {carry}} =
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            x,
+            hidden_kernel,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1231,7 +1289,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1242,7 +1300,15 @@ defmodule Axon.LayersTest do
     defn grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {output, _} =
-          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(output)
       end)
@@ -1251,7 +1317,15 @@ defmodule Axon.LayersTest do
     defn grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {output, _} =
-          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(output)
       end)
@@ -1273,7 +1347,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1284,7 +1358,15 @@ defmodule Axon.LayersTest do
     defn grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {_, {carry}} =
-          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(carry)
       end)
@@ -1293,7 +1375,15 @@ defmodule Axon.LayersTest do
     defn grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {_, {carry}} =
-          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(carry)
       end)
@@ -1315,7 +1405,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
