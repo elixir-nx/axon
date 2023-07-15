@@ -442,21 +442,6 @@ defmodule Axon do
     layer(:input, [], name: name, shape: output_shape, op_name: :input, optional: optional)
   end
 
-  # TODO: remove on Axon v0.3
-
-  def input(input_shape, name) when is_binary(name) do
-    IO.warn(
-      "Passing shape as an argument to Axon.input/2 is deprecated, pass it as an option instead"
-    )
-
-    input(name, [{:shape, input_shape}])
-  end
-
-  @deprecated "Pass the shape as an option to Axon.input/2"
-  def input(input_shape, name, opts) when is_binary(name) do
-    input(name, [{:shape, input_shape} | opts])
-  end
-
   @doc """
   Wraps an Axon model in an optional node.
 
