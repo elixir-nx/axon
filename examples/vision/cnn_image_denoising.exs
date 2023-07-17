@@ -47,7 +47,7 @@ defmodule MnistDenoising do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 28, 28, 1})
-    |> Nx.divide(255.0)
+    |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched_list(@batch_size)
     # Test split
     |> Enum.split(1750)

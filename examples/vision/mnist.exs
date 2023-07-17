@@ -13,7 +13,7 @@ defmodule Mnist do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 784})
-    |> Nx.divide(255.0)
+    |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(32)
     # Test split
     |> Enum.split(1750)

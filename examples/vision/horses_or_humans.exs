@@ -15,6 +15,7 @@ defmodule HorsesOrHumans do
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
+  @input_type {:u, 8}
 
   def data() do
     Path.wildcard(@directories)
@@ -29,7 +30,7 @@ defmodule HorsesOrHumans do
 
   defnp augment(inp) do
     # Normalize
-    inp = inp / 255.0
+    inp = inp / Nx.Constants.max(@input_type)
 
     # For now just a random flip
     if Nx.random_uniform({}) > 0.5 do
@@ -42,8 +43,8 @@ defmodule HorsesOrHumans do
   defp parse_png(filename) do
     class =
       if String.contains?(filename, "horses"),
-        do: Nx.tensor([1, 0], type: {:u, 8}),
-        else: Nx.tensor([0, 1], type: {:u, 8})
+        do: Nx.tensor([1, 0], type: @input_type),
+        else: Nx.tensor([0, 1], type: @input_type)
 
     {:ok, img} = StbImage.read_file(filename)
 

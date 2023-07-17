@@ -12,7 +12,7 @@ defmodule Cifar do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 32, 32, 3})
-    |> Nx.divide(255.0)
+    |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(32)
     |> Enum.split(1500)
   end

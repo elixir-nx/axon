@@ -32,7 +32,7 @@ defmodule FashionMNIST do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-    |> Nx.divide(255.0)
+    |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(32)
   end
 
