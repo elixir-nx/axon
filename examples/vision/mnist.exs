@@ -10,12 +10,13 @@ defmodule Mnist do
   require Axon
 
   @batch_size 32
+  @image_side_pixels 28
   @label_values Enum.to_list(0..9)
 
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 784})
+    |> Nx.reshape({elem(shape, 0), @image_side_pixels**2})
     |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(@batch_size)
     # Test split
@@ -59,7 +60,7 @@ defmodule Mnist do
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, 784}) |> IO.inspect()
+    model = build_model({nil, @image_side_pixels**2}) |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 

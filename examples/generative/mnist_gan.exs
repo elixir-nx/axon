@@ -14,11 +14,13 @@ defmodule MNISTGAN do
   import Nx.Defn
 
   @batch_size 32
+  @image_channels 1
+  @image_side_pixels 28
 
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
+    |> Nx.reshape({elem(shape, 0), @image_channels, @image_side_pixels, @image_side_pixels})
     |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(@batch_size)
   end
@@ -34,9 +36,9 @@ defmodule MNISTGAN do
     |> Axon.dense(1024)
     |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
-    |> Axon.dense(784)
+    |> Axon.dense(@image_side_pixels**2)
     |> Axon.tanh()
-    |> Axon.reshape({:batch, 28, 28, 1})
+    |> Axon.reshape({:batch, @image_side_pixels, @image_side_pixels, @image_channels})
   end
 
   defp build_discriminator(input_shape) do
@@ -164,7 +166,7 @@ defmodule MNISTGAN do
     preds = Axon.predict(model, pstate[:generator][:model_state], noise)
 
     preds
-    |> Nx.reshape({batch_size, 28, 28})
+    |> Nx.reshape({batch_size, @image_side_pixels, @image_side_pixels})
     |> Nx.to_heatmap()
     |> IO.inspect()
 
@@ -176,7 +178,7 @@ defmodule MNISTGAN do
     train_images = transform_images(images)
 
     generator = build_generator(100)
-    discriminator = build_discriminator({nil, 28, 28, 1})
+    discriminator = build_discriminator({nil, @image_side_pixels, @image_side_pixels, @image_channels})
 
     discriminator
     |> train_loop(generator)

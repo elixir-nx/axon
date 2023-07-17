@@ -16,6 +16,8 @@ defmodule HorsesOrHumans do
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
   @batch_size 32
+  @image_channels 4
+  @image_side_pixels 300
   @input_type {:u, 8}
 
   def data() do
@@ -80,7 +82,7 @@ defmodule HorsesOrHumans do
   end
 
   def run() do
-    model = build_model({nil, 300, 300, 4}) |> IO.inspect()
+    model = build_model({nil, @image_side_pixels, @image_side_pixels, @image_channels}) |> IO.inspect()
     optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
     centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 

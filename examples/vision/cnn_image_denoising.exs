@@ -12,6 +12,8 @@ defmodule MnistDenoising do
   @noise_factor 0.4
   @batch_size 32
   @epochs 25
+  @image_channels 1
+  @image_side_pixels 28
 
   def run do
     {images, _} = Scidata.MNIST.download()
@@ -26,7 +28,7 @@ defmodule MnistDenoising do
     noisy_train_images |> Enum.take(1) |> hd() |> display_image()
 
     # Train with noisy images as input and train images as targets
-    model = build_model({nil, 1, 28, 28})
+    model = build_model({nil, @image_channels, @image_side_pixels, @image_side_pixels})
 
     model_state =
       model
@@ -46,7 +48,7 @@ defmodule MnistDenoising do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 28, 28, 1})
+    |> Nx.reshape({elem(shape, 0), @image_side_pixels, @image_side_pixels, @image_channels})
     |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched_list(@batch_size)
     # Test split
@@ -63,7 +65,7 @@ defmodule MnistDenoising do
   defp display_image(images) do
     images
     |> Nx.slice_along_axis(0, 1)
-    |> Nx.reshape({28, 28, 1})
+    |> Nx.reshape({@image_side_pixels, @image_side_pixels, @image_channels})
     |> Nx.to_heatmap()
     |> IO.inspect()
   end

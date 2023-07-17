@@ -9,12 +9,14 @@ defmodule Cifar do
   require Axon
 
   @batch_size 32
+  @image_channels 3
+  @image_side_pixels 32
   @label_values Enum.to_list(0..9)
 
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 32, 32, 3})
+    |> Nx.reshape({elem(shape, 0), @image_side_pixels, @image_side_pixels, @image_channels})
     |> Nx.divide(Nx.Constants.max(type))
     |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
@@ -63,7 +65,7 @@ defmodule Cifar do
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, 3, 32, 32}) |> IO.inspect()
+    model = build_model({nil, @image_channels, @image_side_pixels, @image_side_pixels}) |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
