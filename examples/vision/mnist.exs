@@ -9,6 +9,8 @@ Mix.install([
 defmodule Mnist do
   require Axon
 
+  @label_values Enum.to_list(0..9)
+
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
@@ -23,7 +25,7 @@ defmodule Mnist do
     bin
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
-    |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
+    |> Nx.equal(Nx.tensor(@label_values))
     |> Nx.to_batched(32)
     # Test split
     |> Enum.split(1750)
@@ -33,7 +35,7 @@ defmodule Mnist do
     Axon.input("input", shape: input_shape)
     |> Axon.dense(128, activation: :relu)
     |> Axon.dropout()
-    |> Axon.dense(10, activation: :softmax)
+    |> Axon.dense(length(@label_values), activation: :softmax)
   end
 
   defp train_model(model, train_images, train_labels, epochs) do
