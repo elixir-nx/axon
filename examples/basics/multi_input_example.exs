@@ -8,7 +8,10 @@ defmodule XOR do
   require Axon
 
   @batch_size 32
-
+  
+  defp key do
+    Nx.Random.key(42)
+  end
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input("x1", shape: input_shape1)
     inp2 = Axon.input("x2", shape: input_shape2)
