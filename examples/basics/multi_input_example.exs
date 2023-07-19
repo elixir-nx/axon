@@ -23,8 +23,8 @@ defmodule XOR do
   end
 
   defp batch do
-    {x1, new_key} = Nx.Random.randint(key(), 0, 1 + 1, shape: {@batch_size})
-    {x2, _new_key} = Nx.Random.randint(new_key, 0, 1 + 1, shape: {@batch_size})
+    x1 = Nx.tensor(for _ <- 1..@batch_size, do: [Enum.random(0..1)])
+    x2 = Nx.tensor(for _ <- 1..@batch_size, do: [Enum.random(0..1)])
     y = Nx.logical_xor(x1, x2)
     {%{"x1" => x1, "x2" => x2}, y}
   end
