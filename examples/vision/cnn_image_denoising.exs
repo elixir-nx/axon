@@ -14,6 +14,7 @@ defmodule MnistDenoising do
   @epochs 25
   @image_channels 1
   @image_side_pixels 28
+  @channel_value_max 255
 
   def run do
     {images, _} = Scidata.MNIST.download()
@@ -49,7 +50,7 @@ defmodule MnistDenoising do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), @image_side_pixels, @image_side_pixels, @image_channels})
-    |> Nx.divide(Nx.Constants.max(type))
+    |> Nx.divide(@channel_value_max)
     |> Nx.to_batched_list(@batch_size)
     # Test split
     |> Enum.split(1750)

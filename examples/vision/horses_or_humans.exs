@@ -18,7 +18,7 @@ defmodule HorsesOrHumans do
   @batch_size 32
   @image_channels 4
   @image_side_pixels 300
-  @input_type {:u, 8}
+  @channel_value_max 255
 
   def data() do
     Path.wildcard(@directories)
@@ -33,7 +33,7 @@ defmodule HorsesOrHumans do
 
   defnp augment(inp) do
     # Normalize
-    inp = inp / Nx.Constants.max(@input_type)
+    inp = inp / @channel_value_max
 
     # For now just a random flip
     if Nx.random_uniform({}) > 0.5 do
@@ -46,8 +46,8 @@ defmodule HorsesOrHumans do
   defp parse_png(filename) do
     class =
       if String.contains?(filename, "horses"),
-        do: Nx.tensor([1, 0], type: @input_type),
-        else: Nx.tensor([0, 1], type: @input_type)
+        do: Nx.tensor([1, 0], type: {:u, 8}),
+        else: Nx.tensor([0, 1], type: {:u, 8})
 
     {:ok, img} = StbImage.read_file(filename)
 

@@ -11,13 +11,14 @@ defmodule Cifar do
   @batch_size 32
   @image_channels 3
   @image_side_pixels 32
+  @channel_value_max 255
   @label_values Enum.to_list(0..9)
 
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), @image_side_pixels, @image_side_pixels, @image_channels})
-    |> Nx.divide(Nx.Constants.max(type))
+    |> Nx.divide(@channel_value_max)
     |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
   end
