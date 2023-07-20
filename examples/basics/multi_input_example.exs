@@ -7,10 +7,6 @@ Mix.install([
 defmodule XOR do
   require Axon
 
-  defp key do
-    Nx.Random.key(42)
-  end
-
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input("x1", shape: input_shape1)
     inp2 = Axon.input("x2", shape: input_shape2)
@@ -21,11 +17,12 @@ defmodule XOR do
     |> Axon.dense(1, activation: :sigmoid)
   end
 
-  defp batch do
-    {x1, new_key} = Nx.Random.randint(key(), 0, 1 + 1, shape: {32, 1})
-    {x2, _new_key} = Nx.Random.randint(new_key, 0, 1 + 1, shape: {32, 1})
+  defp batch(key) do
+    {x1, next_key} = Nx.Random.randint(key, 0, 1 + 1, shape: {32, 1})
+    {x2, next_key} = Nx.Random.randint(next_key, 0, 1 + 1, shape: {32, 1})
     y = Nx.logical_xor(x1, x2)
-    {%{"x1" => x1, "x2" => x2}, y}
+
+    {{%{"x1" => x1, "x2" => x2}, y}, next_key}
   end
 
   defp train_model(model, data, epochs) do
@@ -36,7 +33,7 @@ defmodule XOR do
 
   def run do
     model = build_model({nil, 1}, {nil, 1})
-    data = Stream.repeatedly(&batch/0)
+    data = Stream.unfold(Nx.Random.key(42), &batch/1)
 
     model_state = train_model(model, data, 10)
 
