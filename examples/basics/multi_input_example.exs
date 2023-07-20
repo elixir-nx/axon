@@ -22,8 +22,8 @@ defmodule XOR do
   end
 
   defp batch do
-    {x1, new_key} = Nx.Random.randint(key(), 0, 1 + 1, shape: {32})
-    {x2, _new_key} = Nx.Random.randint(new_key, 0, 1 + 1, shape: {32})
+    {x1, new_key} = Nx.Random.randint(key(), 0, 1 + 1, shape: {32, 1})
+    {x2, _new_key} = Nx.Random.randint(new_key, 0, 1 + 1, shape: {32, 1})
     y = Nx.logical_xor(x1, x2)
     {%{"x1" => x1, "x2" => x2}, y}
   end
