@@ -17,7 +17,7 @@ jobs:
         include:
           - otp: "26.0.2"
             elixir: "1.15.4"
-            lint: "lint"
+            lint: true
           - otp: "25.3.2.2"
             elixir: "1.14.5"
           - otp: "25.3.2.2"
@@ -45,7 +45,10 @@ jobs:
       - name: Install mix dependencies
         run: mix deps.get
       - name: Check formatting
-        if: ${{ matrix.lint == 'lint' }}
+        if: ${{ matrix.lint }}
         run: mix format --check-formatted
+      - name: Check unused deps
+        if: ${{ matrix.lint }}
+        run: mix deps.unlock --check-unused
       - name: Run tests
         run: ${{ matrix.test_command_prepend }} mix do compile --skip-optional-deps --warnings-as-errors, test
