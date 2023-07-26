@@ -13,13 +13,20 @@ env:
 jobs:
   main:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - otp: "25.3.2.2"
+            elixir: "1.14.5"
+          - otp: "26.0.2"
+            elixir: "1.15.4"
     steps:
       - uses: actions/checkout@v3
       - name: Install Erlang & Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "${{ env.OTP_VERSION }}"
-          elixir-version: "${{ env.ELIXIR_VERSION }}"
+          otp-version: "${{ matrix.otp }}"
+          elixir-version: "${{ matrix.elixir }}"
       - uses: actions/cache@v3
         with:
           path: |
