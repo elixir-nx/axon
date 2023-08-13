@@ -3177,17 +3177,23 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts \\ []) do
+  def attach_hook(x, fun, opts \\ [])
+
+  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts) do
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        attach_hook(axon_node, fun, opts)
+      end)
+
+    %{axon | nodes: updated_nodes}
+  end
+
+  def attach_hook(%Axon.Node{hooks: hooks} = axon_node, fun, opts) do
     opts = Keyword.validate!(opts, on: :forward, mode: :both)
     on_event = opts[:on]
     mode = opts[:mode]
 
-    updated_nodes =
-      Map.update!(nodes, id, fn axon_node ->
-        %{axon_node | hooks: [{on_event, mode, fun} | axon_node.hooks]}
-      end)
-
-    %{axon | nodes: updated_nodes}
+    %{axon_node | hooks: [{on_event, mode, fun} | hooks]}
   end
 
   ## Graph Manipulation and Utilities
@@ -3353,12 +3359,12 @@ defmodule Axon do
   you can use this function to visualize intermediate activations
   of all convolutional layers in a model:
 
-      instrumented_model = Axon.  (model, fn
-        %Axon{op: :conv} = graph ->
-          Axon.attach_hook(graph, &visualize_activations/1)
+      instrumented_model = Axon.map_nodes(model, fn
+        %Axon.Node{op: :conv} = axon_node ->
+          Axon.attach_hook(axon_node, &visualize_activations/1)
 
-        graph ->
-          graph
+        axon_node ->
+          axon_node
       end)
 
   Another use case is to replace entire classes of layers
