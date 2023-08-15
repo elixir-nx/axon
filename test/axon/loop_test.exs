@@ -778,12 +778,35 @@ defmodule Axon.LoopTest do
       [loop: loop]
     end
 
-    test "saves a ceckpoint on each epoch", %{loop: loop} do
+    test "saves a checkpoint on each epoch", %{loop: loop} do
       loop
       |> Loop.checkpoint()
       |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
 
       assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
+               File.ls!("checkpoint") |> Enum.sort()
+    end
+
+    test "saves a checkpoint on custom events", %{loop: loop} do
+      data =
+        List.duplicate({Nx.iota({1, 1}), Nx.iota({1, 1})}, 5)
+
+      assert %Axon.Loop.State{epoch: 3, iteration: 0, event_counts: %{iteration_completed: 15}} =
+               loop
+               |> Map.put(:output_transform, & &1)
+               |> Loop.checkpoint(event: :iteration_completed, filter: [every: 2])
+               |> Loop.run(data, %{}, epochs: 3)
+
+      assert [
+               "checkpoint_0_0.ckpt",
+               "checkpoint_0_2.ckpt",
+               "checkpoint_0_4.ckpt",
+               "checkpoint_1_1.ckpt",
+               "checkpoint_1_3.ckpt",
+               "checkpoint_2_0.ckpt",
+               "checkpoint_2_2.ckpt",
+               "checkpoint_2_4.ckpt"
+             ] ==
                File.ls!("checkpoint") |> Enum.sort()
     end
 
