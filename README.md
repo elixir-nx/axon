@@ -125,7 +125,7 @@ Then add Axon to your dependencies:
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.5"}
+    {:axon, "~> 0.6"}
   ]
 end
 ```
@@ -135,8 +135,8 @@ You'll also likely want to include an `Nx` compiler such as `EXLA` for any pract
 ```elixir
 def deps do
   [
-    {:axon, "~> 0.5"},
-    {:exla, "~> 0.5"},
+    {:axon, "~> 0.6"},
+    {:exla, "~> 0.6"},
   ]
 end
 ```
