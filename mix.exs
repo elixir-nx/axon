@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.5.1"
+  @version "0.6.0"
 
   def project do
     [
@@ -35,9 +35,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:exla, "~> 0.5.0", [only: :test] ++ exla_opts()},
-      {:torchx, "~> 0.5.0", [only: :test] ++ torchx_opts()},
-      {:nx, "~> 0.5.0", nx_opts()},
+      {:exla, "~> 0.6.0", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.6.0", [only: :test] ++ torchx_opts()},
+      {:nx, "~> 0.6.0", nx_opts()},
       {:ex_doc, "~> 0.23", only: :docs},
       {:table_rex, "~> 3.1.1", optional: true},
       {:kino, "~> 0.7", optional: true},
