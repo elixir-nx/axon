@@ -1255,12 +1255,22 @@ defmodule Axon.Loop do
       `checkpoint_\#{epoch}_\#{iteration}.ckpt`.
   """
   def checkpoint(%Loop{} = loop, opts \\ []) do
-    {event, opts} = Keyword.pop(opts, :event, :epoch_completed)
-    {filter, opts} = Keyword.pop(opts, :filter, :always)
-    {path, opts} = Keyword.pop(opts, :path, "checkpoint")
-    {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/1)
+    opts =
+      Keyword.validate!(opts, [
+        :criteria,
+        event: :epoch_completed,
+        filter: :always,
+        path: "checkpoint",
+        file_pattern: &default_checkpoint_file/1,
+        mode: :min
+      ])
+
     {criteria, opts} = Keyword.pop(opts, :criteria)
-    {mode, serialize_opts} = Keyword.pop(opts, :mode, :min)
+    {event, opts} = Keyword.pop!(opts, :event)
+    {filter, opts} = Keyword.pop!(opts, :filter)
+    {path, opts} = Keyword.pop!(opts, :path)
+    {file_pattern, opts} = Keyword.pop!(opts, :file_pattern)
+    {mode, serialize_opts} = Keyword.pop!(opts, :mode)
 
     checkpoint_fun = &checkpoint_impl(&1, path, file_pattern, serialize_opts)
 
