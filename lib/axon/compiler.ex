@@ -52,9 +52,9 @@ defmodule Axon.Compiler do
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
     config = %{mode: mode, debug?: debug?}
 
-    {time, {root_id, {cache, _op_counts}}} =
+    {time, {root_id, {cache, _op_counts, _block_cache}}} =
       :timer.tc(fn ->
-        to_model_funs(id, nodes, {%{}, %{}}, config)
+        to_model_funs(id, nodes, {%{}, %{}, %{}}, config)
       end)
 
     if debug? do
@@ -233,17 +233,17 @@ defmodule Axon.Compiler do
             " output, use `Axon.container`"
   end
 
-  defp to_model_funs(id, nodes, {cache, op_counts}, config) do
+  defp to_model_funs(id, nodes, {cache, op_counts, block_cache}, config) do
     case cache do
       %{^id => {int_id, _}} ->
-        {int_id, {cache, op_counts}}
+        {int_id, {cache, op_counts, block_cache}}
 
       %{} ->
-        {id, model_funs, cache, op_counts} =
-          recur_model_funs(nodes[id], nodes, {cache, op_counts}, config)
+        {id, model_funs, cache, op_counts, block_cache} =
+          recur_model_funs(nodes[id], nodes, {cache, op_counts, block_cache}, config)
 
         int_id = map_size(cache)
-        {int_id, {Map.put(cache, id, {int_id, model_funs}), op_counts}}
+        {int_id, {Map.put(cache, id, {int_id, model_funs}), op_counts, block_cache}}
     end
   end
 
@@ -285,11 +285,12 @@ defmodule Axon.Compiler do
   defp recur_model_funs(
          %Axon.Node{id: id, mode: node_mode, parent: [parent | _]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        )
        when node_mode != :both and node_mode != config.mode do
-    {parent_id, {cache, op_counts}} = to_model_funs(parent, nodes, {cache, op_counts}, config)
+    {parent_id, {cache, op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, op_counts, block_cache}, config)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       call_predict_cache(parent_id, params, inputs, state, cache, result_cache, fn_stacktrace)
@@ -300,13 +301,13 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
          _nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          _
        ) do
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
@@ -322,7 +323,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -334,7 +335,7 @@ defmodule Axon.Compiler do
            opts: [shape: _input_shape, optional: optional?]
          },
          _nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          %{mode: mode}
        ) do
     name = name_fn.(:input, op_counts)
@@ -360,16 +361,17 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :optional, parent: [parent]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        ) do
-    {parent_id, {cache, op_counts}} = to_model_funs(parent, nodes, {cache, op_counts}, config)
+    {parent_id, {cache, op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, op_counts, block_cache}, config)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {out, {state, result_cache}} =
@@ -390,7 +392,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -399,7 +401,7 @@ defmodule Axon.Compiler do
          cache_and_counts,
          config
        ) do
-    {parent_ids, {cache, op_counts}} =
+    {parent_ids, {cache, op_counts, block_cache}} =
       deep_map_reduce(parents, cache_and_counts, &to_model_funs(&1, nodes, &2, config))
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
@@ -456,13 +458,140 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
+  end
+
+  defp recur_model_funs(
+         %Axon.Node{
+           id: id,
+           op: :block,
+           parent: [parent],
+           opts: [block_fun: block_fun, block_id: block_id],
+           name: name_fn
+         },
+         nodes,
+         cache_and_counts,
+         config
+       ) do
+    {[parent_id], {cache, op_counts, block_cache}} =
+      Enum.map_reduce(
+        [parent],
+        cache_and_counts,
+        &to_model_funs(&1, nodes, &2, config)
+      )
+
+    input_nodes = get_input_subgraph_nodes(parent, nodes, %{})
+    input_subgraph = %Axon{output: parent, nodes: input_nodes}
+
+    {{block_init_fun, block_predict_fun}, init_block?, block_name, block_cache, op_counts} =
+      case block_cache do
+        %{^block_id => {funs, name}} = block_cache ->
+          {funs, false, name, block_cache, op_counts}
+
+        %{} ->
+          funs = build(block_fun.(input_subgraph), debug?: config.debug?)
+          name = name_fn.(:block, op_counts)
+          op_counts = Map.update(op_counts, :block, 1, fn x -> x + 1 end)
+          {funs, true, name, Map.put(block_cache, block_id, {funs, name}), op_counts}
+      end
+
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
+      # Recurse graph inputs and invoke cache to get parent results,
+      # state, and result_cache and then apply dtype policy and hooks
+      # to each input
+      {[layer_input], {state, result_cache, none?}} =
+        Enum.map_reduce(
+          [parent_id],
+          {state, result_cache, false},
+          fn parent_id, {state, result_cache, none?} ->
+            {layer_input, {state, result_cache}} =
+              call_predict_cache(
+                parent_id,
+                params,
+                inputs,
+                state,
+                cache,
+                result_cache,
+                fn_stacktrace
+              )
+
+            none? = none? or propagating_none?(layer_input)
+
+            {layer_input, {state, result_cache, none?}}
+          end
+        )
+
+      if none? do
+        {%Axon.None{}, {state, result_cache}}
+      else
+        block_params = params[block_name] || %{}
+        result = apply(block_predict_fun, [block_params, layer_input])
+
+        {out_result, out_state} =
+          case result do
+            # Make sure the none is non-propagating
+            %Axon.None{} -> %Axon.None{}
+            %{prediction: pred_expr, state: state_expr} -> {pred_expr, state_expr}
+            result -> {result, %{}}
+          end
+
+        state =
+          if map_size(out_state) == 0 do
+            state
+          else
+            Map.put(state, block_name, out_state)
+          end
+
+        {out_result, {state, result_cache}}
+      end
+    end
+
+    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
+      {[_parent_shape], {parent_params, result_cache, none?}} =
+        Enum.map_reduce([parent_id], {%{}, result_cache, false}, fn
+          parent_id, {params, result_cache, none?} ->
+            {parent_shape, {params, result_cache}} =
+              call_init_cache(
+                parent_id,
+                template,
+                params,
+                cache,
+                result_cache,
+                fn_stacktrace,
+                keys
+              )
+
+            none? = none? or propagating_none?(parent_shape)
+            {parent_shape, {params, result_cache, none?}}
+        end)
+
+      if none? do
+        {%Axon.None{}, {parent_params, result_cache}}
+      else
+        block_params = apply(block_init_fun, [template, %{}])
+
+        params =
+          if block_params == %{} do
+            %{}
+          else
+            %{block_name => block_params}
+          end
+
+        {pred_expr, {_, result_cache}} =
+          predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
+
+        {safe_shape(pred_expr), {params, result_cache}}
+      end
+    end
+
+    model_funs = %{predict: predict_fun, init: init_fun}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :namespace, name: name_fn, parent: [parent]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        ) do
     name = name_fn.(:namespace, op_counts)
@@ -475,8 +604,8 @@ defmodule Axon.Compiler do
     # All of the children of this namespace belong to it, so
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
-    {parent_id, {cache, namespace_op_counts}} =
-      to_model_funs(parent, nodes, {cache, namespace_op_counts}, config)
+    {parent_id, {cache, namespace_op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, namespace_op_counts, block_cache}, config)
 
     # Update the global op_count of input layers, since they
     # are a global operation regardless of where they are
@@ -532,7 +661,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -558,7 +687,7 @@ defmodule Axon.Compiler do
     # application within the function. We work only with
     # functions and IDs to avoid leaking entire graphs into
     # the closure
-    {parent_ids, {cache, op_counts}} =
+    {parent_ids, {cache, op_counts, block_cache}} =
       Enum.map_reduce(
         inputs,
         cache_and_counts,
@@ -610,7 +739,7 @@ defmodule Axon.Compiler do
       )
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp get_input(inputs, name, optional?) do
@@ -965,4 +1094,19 @@ defmodule Axon.Compiler do
   defp propagating_none?(_), do: false
 
   defp us_to_ms(time), do: Float.round(time / 1000, 1)
+
+  defp get_input_subgraph_nodes(parent_id, nodes, acc) do
+    case nodes do
+      %{^parent_id => %{parent: parents} = node} ->
+        acc =
+          Enum.reduce(parents, acc, fn id, acc ->
+            get_input_subgraph_nodes(id, nodes, acc)
+          end)
+
+        Map.put(acc, parent_id, node)
+
+      %{} ->
+        acc
+    end
+  end
 end
