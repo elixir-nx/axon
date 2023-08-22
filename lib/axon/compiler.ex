@@ -480,19 +480,16 @@ defmodule Axon.Compiler do
         &to_model_funs(&1, nodes, &2, config)
       )
 
-    input_nodes = get_input_subgraph_nodes(parent, nodes, %{})
-    input_subgraph = %Axon{output: parent, nodes: input_nodes}
-
-    {{block_init_fun, block_predict_fun}, init_block?, block_name, block_cache, op_counts} =
+    {{block_init_fun, block_predict_fun}, block_name, block_cache, op_counts} =
       case block_cache do
         %{^block_id => {funs, name}} = block_cache ->
-          {funs, false, name, block_cache, op_counts}
+          {funs, name, block_cache, op_counts}
 
         %{} ->
-          funs = build(block_fun.(input_subgraph), debug?: config.debug?)
+          funs = build(block_fun.(Axon.input("subgraph")), debug?: config.debug?)
           name = name_fn.(:block, op_counts)
           op_counts = Map.update(op_counts, :block, 1, fn x -> x + 1 end)
-          {funs, true, name, Map.put(block_cache, block_id, {funs, name}), op_counts}
+          {funs, name, Map.put(block_cache, block_id, {funs, name}), op_counts}
       end
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
@@ -547,7 +544,7 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {[_parent_shape], {parent_params, result_cache, none?}} =
+      {[parent_shape], {parent_params, result_cache, none?}} =
         Enum.map_reduce([parent_id], {%{}, result_cache, false}, fn
           parent_id, {params, result_cache, none?} ->
             {parent_shape, {params, result_cache}} =
@@ -568,13 +565,14 @@ defmodule Axon.Compiler do
       if none? do
         {%Axon.None{}, {parent_params, result_cache}}
       else
+        template = Nx.broadcast(0.0, parent_shape)
         block_params = apply(block_init_fun, [template, %{}])
 
         params =
           if block_params == %{} do
             %{}
           else
-            %{block_name => block_params}
+            Map.put(parent_params, block_name, block_params)
           end
 
         {pred_expr, {_, result_cache}} =
@@ -1094,19 +1092,4 @@ defmodule Axon.Compiler do
   defp propagating_none?(_), do: false
 
   defp us_to_ms(time), do: Float.round(time / 1000, 1)
-
-  defp get_input_subgraph_nodes(parent_id, nodes, acc) do
-    case nodes do
-      %{^parent_id => %{parent: parents} = node} ->
-        acc =
-          Enum.reduce(parents, acc, fn id, acc ->
-            get_input_subgraph_nodes(id, nodes, acc)
-          end)
-
-        Map.put(acc, parent_id, node)
-
-      %{} ->
-        acc
-    end
-  end
 end

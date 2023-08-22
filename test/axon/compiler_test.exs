@@ -5253,7 +5253,7 @@ defmodule CompilerTest do
 
       assert Nx.shape(k1) == {1, 32}
       assert Nx.shape(b1) == {32}
-      assert Nx.shape(k2) == {1, 32}
+      assert Nx.shape(k2) == {32, 32}
       assert Nx.shape(b2) == {32}
       assert Nx.type(k1) == {:f, 32}
       assert Nx.type(b1) == {:f, 32}
@@ -5301,6 +5301,122 @@ defmodule CompilerTest do
       assert map_size(params) == 1
     end
 
+    test "initializes correctly with multiple blocks in network" do
+      block1 = Axon.block(&Axon.dense(&1, 32))
+      block2 = Axon.block(&Axon.dense(&1, 32))
+
+      model =
+        Axon.input("features")
+        |> block1.()
+        |> block2.()
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %{
+               "block_0" =>
+                 %{
+                   "dense_0" => %{"kernel" => k1, "bias" => b1}
+                 } = block_0_params,
+               "block_1" =>
+                 %{
+                   "dense_0" => %{"kernel" => k2, "bias" => b2}
+                 } = block_1_params
+             } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert Nx.shape(k1) == {1, 32}
+      assert Nx.shape(b1) == {32}
+      assert Nx.shape(k2) == {32, 32}
+      assert Nx.shape(b2) == {32}
+      assert Nx.type(k1) == {:f, 32}
+      assert Nx.type(b1) == {:f, 32}
+      assert Nx.type(k2) == {:f, 32}
+      assert Nx.type(b2) == {:f, 32}
+
+      # no additional dense layers in block
+      assert map_size(block_0_params) == 1
+      assert map_size(block_1_params) == 1
+      # no additional blocks
+      assert map_size(params) == 2
+    end
+
+    test "initializes correctly with block inside of a block" do
+      block =
+        Axon.block(fn x ->
+          inner_block = Axon.block(&Axon.dense(&1, 1))
+
+          x |> inner_block.() |> inner_block.()
+        end)
+
+      model =
+        Axon.input("features")
+        |> block.()
+        |> block.()
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %{
+               "block_0" =>
+                 %{
+                   "block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}} = inner_block_params
+                 } = block_params
+             } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert Nx.shape(k) == {1, 1}
+      assert Nx.shape(b) == {1}
+      assert Nx.type(k) == {:f, 32}
+      assert Nx.type(b) == {:f, 32}
+
+      assert map_size(inner_block_params) == 1
+      assert map_size(block_params) == 1
+      assert map_size(params) == 1
+    end
+
+    test "initializes correctly when using block from outside scope" do
+      block1 = Axon.block(&Axon.dense(&1, 32))
+
+      block2 =
+        Axon.block(fn x ->
+          x |> Axon.dense(32) |> block1.()
+        end)
+
+      model =
+        Axon.input("features")
+        |> Axon.dense(32)
+        |> block1.()
+        |> block2.()
+        |> block1.()
+        |> block2.()
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %{
+               "block_0" => block_0_params,
+               "block_1" => block_1_params,
+               "dense_0" => dense_0_params
+             } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert %{"dense_0" => %{"kernel" => b0k, "bias" => b0b}} = block_0_params
+      assert %{"dense_0" => %{"kernel" => b1k, "bias" => b1b}} = block_1_params
+      assert %{"kernel" => k1, "bias" => b1} = dense_0_params
+
+      assert Nx.shape(b0k) == {32, 32}
+      assert Nx.shape(b1k) == {32, 32}
+      assert Nx.shape(b0b) == {32}
+      assert Nx.shape(b1b) == {32}
+      assert Nx.shape(k1) == {1, 32}
+      assert Nx.shape(b1) == {32}
+      assert Nx.type(b0k) == {:f, 32}
+      assert Nx.type(b0b) == {:f, 32}
+      assert Nx.type(b1k) == {:f, 32}
+      assert Nx.type(b1b) == {:f, 32}
+      assert Nx.type(k1) == {:f, 32}
+      assert Nx.type(b1) == {:f, 32}
+
+      assert map_size(params) == 3
+      assert map_size(block_0_params) == 1
+      assert map_size(block_1_params) == 1
+    end
+
     test "predicts correctly with single dense, used once" do
       block = Axon.block(&Axon.dense(&1, 32))
       model = block.(Axon.input("features"))
@@ -5317,6 +5433,7 @@ defmodule CompilerTest do
 
     test "predicts correctly with single dense, used twice" do
       block = Axon.block(&Axon.dense(&1, 1))
+
       model =
         Axon.input("features")
         |> block.()
@@ -5329,7 +5446,8 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert predict_fn.(params, input) == input |> Axon.Layers.dense(k, b) |> Axon.Layers.dense(k, b)
+      assert predict_fn.(params, input) ==
+               input |> Axon.Layers.dense(k, b) |> Axon.Layers.dense(k, b)
     end
 
     test "predicts correctly with multiple dense, used once" do
@@ -5344,11 +5462,10 @@ defmodule CompilerTest do
       {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
-               "block_0" =>
-                 %{
-                   "dense_0" => %{"kernel" => k1, "bias" => b1},
-                   "dense_1" => %{"kernel" => k2, "bias" => b2}
-                 }
+               "block_0" => %{
+                 "dense_0" => %{"kernel" => k1, "bias" => b1},
+                 "dense_1" => %{"kernel" => k2, "bias" => b2}
+               }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       expected_predict_fn = fn x, k1, b1, k2, b2 ->
@@ -5380,11 +5497,10 @@ defmodule CompilerTest do
       {init_fn, predict_fn} = Axon.build(model)
 
       assert %{
-               "block_0" =>
-                 %{
-                   "dense_0" => %{"kernel" => k1, "bias" => b1},
-                   "dense_1" => %{"kernel" => k2, "bias" => b2}
-                 }
+               "block_0" => %{
+                 "dense_0" => %{"kernel" => k1, "bias" => b1},
+                 "dense_1" => %{"kernel" => k2, "bias" => b2}
+               }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       expected_predict_fn = fn x, k1, b1, k2, b2 ->
@@ -5402,6 +5518,70 @@ defmodule CompilerTest do
       input = random({1, 1})
 
       assert predict_fn.(params, input) == expected_predict_fn.(input, k1, b1, k2, b2)
+    end
+
+    test "predicts correctly with multiple blocks in network" do
+      block1 = Axon.block(&Axon.dense(&1, 32))
+      block2 = Axon.block(&Axon.dense(&1, 32))
+
+      model =
+        Axon.input("features")
+        |> block1.()
+        |> block2.()
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      actual_predict_fn = fn x, k1, b1, k2, b2 ->
+        x
+        |> Axon.Layers.dense(k1, b1)
+        |> Axon.Layers.dense(k2, b2)
+      end
+
+      assert %{
+               "block_0" => %{
+                 "dense_0" => %{"kernel" => k1, "bias" => b1}
+               },
+               "block_1" => %{
+                 "dense_0" => %{"kernel" => k2, "bias" => b2}
+               }
+             } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      input = random({1, 1})
+
+      assert predict_fn.(params, input) == actual_predict_fn.(input, k1, b1, k2, b2)
+    end
+
+    test "predicts correctly with block inside of a block" do
+      block =
+        Axon.block(fn x ->
+          inner_block = Axon.block(&Axon.dense(&1, 1))
+
+          x |> inner_block.() |> inner_block.()
+        end)
+
+      model =
+        Axon.input("features")
+        |> block.()
+        |> block.()
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      actual_predict_fn = fn x, k, b ->
+        x
+        |> Axon.Layers.dense(k, b)
+        |> Axon.Layers.dense(k, b)
+        |> Axon.Layers.dense(k, b)
+        |> Axon.Layers.dense(k, b)
+      end
+
+      assert %{
+               "block_0" => %{
+                 "block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}
+               }
+             } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      input = random({1, 1})
+      assert predict_fn.(params, input) == actual_predict_fn.(input, k, b)
     end
   end
 
