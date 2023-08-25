@@ -1469,6 +1469,7 @@ defmodule Axon.Loop do
     case plot_metadata do
       %{"absolute_iteration" => iteration} ->
         {iteration, Map.put(plot_metadata, "absolute_iteration", iteration + 1)}
+
       %{} ->
         {0, %{"absolute_iteration" => 1}}
     end
