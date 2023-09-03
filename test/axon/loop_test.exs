@@ -203,7 +203,7 @@ defmodule Axon.LoopTest do
              end) =~ "Batch"
     end
 
-    test "eval_step/1 evalutes model on a single batch" do
+    test "eval_step/1 evaluates model on a single batch" do
       inp = Nx.tensor([0, 1, 0, 1, 0, 1]) |> Nx.new_axis(-1)
       tar = Nx.tensor([1, 0, 1, 0, 1, 0]) |> Nx.new_axis(-1)
 

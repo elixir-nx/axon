@@ -116,7 +116,7 @@ defmodule Axon.MixProject do
       groups_for_extras: [
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
         "Guides: Model Execution": Path.wildcard("guides/model_execution/*.livemd"),
-        "Guides: Training and Evalutaion":
+        "Guides: Training and Evaluation":
           Path.wildcard("guides/training_and_evaluation/*.livemd"),
         "Guides: Serialization": Path.wildcard("guides/serialization/*.livemd"),
         "Examples: Basics": Path.wildcard("notebooks/basics/*.livemd"),
@@ -156,7 +156,7 @@ defmodule Axon.MixProject do
           Axon.MixedPrecision,
           Axon.None,
           Axon.StatefulOutput,
-          Axon.Initalizers
+          Axon.Initializers
         ],
         Summary: [
           Axon.Display

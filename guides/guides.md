@@ -20,7 +20,7 @@ Axon is a library for creating and training neural networks in Elixir. The Axon 
 
 * [Your first training loop](training_and_evaluation/your_first_training_loop.livemd)
 * [Instrumenting loops with metrics](training_and_evaluation/instrumenting_loops_with_metrics.livemd)
-* [Your first evalutaion loop](training_and_evaluation/your_first_evaluation_loop.livemd)
+* [Your first evaluation loop](training_and_evaluation/your_first_evaluation_loop.livemd)
 * [Using loop event handlers](training_and_evaluation/using_loop_event_handlers.livemd)
 * [Custom models, loss functions, and optimizers](training_and_evaluation/custom_models_loss_optimizers.livemd)
 * [Writing custom metrics](training_and_evaluation/writing_custom_metrics.livemd)
