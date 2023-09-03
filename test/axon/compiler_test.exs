@@ -4901,7 +4901,7 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
     end
 
-    test "initializes correclty with single namespace no params" do
+    test "initializes correctly with single namespace no params" do
       model = Axon.input("input_0", shape: {nil, 1}) |> Axon.namespace("model")
 
       {init_fn, _} = Axon.build(model)

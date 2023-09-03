@@ -935,7 +935,7 @@ defmodule Axon.Loop do
       only: N # Trigger on `N` event
 
   **Warning: If you modify the step state in an event handler, it will trigger
-  potentially excessive recompilation and result in significant additinal overhead
+  potentially excessive recompilation and result in significant additional overhead
   during loop execution.**
   """
   def handle_event(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
