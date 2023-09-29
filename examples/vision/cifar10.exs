@@ -8,10 +8,11 @@ Mix.install([
 defmodule Cifar do
   require Axon
 
-  defp transform_images({bin, type, shape}) do
+  defp transform_images({bin, type, {count, channels, width, height}}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 32, 32, 3})
+    # Move channels to last position to match what conv layer expects
+    |> Nx.reshape({count, width, height, channels})
     |> Nx.divide(255.0)
     |> Nx.to_batched(32)
     |> Enum.split(1500)
@@ -55,12 +56,12 @@ defmodule Cifar do
   end
 
   def run do
-    {images, labels} = Scidata.CIFAR10.download()
+    {{_, _, {_, channels, width, height}} = images, labels} = Scidata.CIFAR10.download()
 
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, 3, 32, 32}) |> IO.inspect()
+    model = build_model({nil, channels, width, height}) |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
