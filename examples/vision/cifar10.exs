@@ -82,4 +82,5 @@ defmodule Cifar do
   end
 end
 
+Nx.default_backend(EXLA.Backend)
 Cifar.run()
