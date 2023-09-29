@@ -8,11 +8,12 @@ Mix.install([
 defmodule Cifar do
   require Axon
 
-  defp transform_images({bin, type, {count, channels, width, height}}) do
+  defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
+    |> Nx.reshape(shape, names: [:count, :channels, :width, :height])
     # Move channels to last position to match what conv layer expects
-    |> Nx.reshape({count, width, height, channels})
+    |> Nx.transpose(axes: [:count, :width, :height, :channels])
     |> Nx.divide(255.0)
     |> Nx.to_batched(32)
     |> Enum.split(1500)
@@ -61,7 +62,11 @@ defmodule Cifar do
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, channels, width, height}) |> IO.inspect()
+    model =
+      # Move channels to last position to match what conv layer expects
+      {nil, width, height, channels}
+      |> build_model()
+      |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
