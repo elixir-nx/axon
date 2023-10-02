@@ -22,15 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - otp: "26.0.2"
-            elixir: "1.15.4"
+          - otp: "26.1.1"
+            elixir: "1.15.6"
             lint: true
-          - otp: "25.3.2.2"
+          - otp: "25.3.2.6"
             elixir: "1.14.5"
-          - otp: "25.3.2.2"
+          - otp: "25.3.2.6"
             elixir: "1.14.5"
             test_command_prepend: "USE_EXLA=true"
-          - otp: "25.3.2.2"
+          - otp: "25.3.2.6"
             elixir: "1.14.5"
             test_command_prepend: "USE_TORCHX=true"
     steps:
