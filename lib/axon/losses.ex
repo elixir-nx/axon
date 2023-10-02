@@ -221,7 +221,7 @@ defmodule Axon.Losses do
 
   $$l_i = -\sum_i^C \hat{y_i} \cdot \log(y_i)$$
 
-  Categorical cross-entropy is typically used for multi-class classifcation problems.
+  Categorical cross-entropy is typically used for multi-class classification problems.
   By default, it expects `y_pred` to encode a probability distribution along the last
   axis. You can specify `from_logits: true` to indicate `y_pred` is a logits tensor.
 
@@ -962,7 +962,7 @@ defmodule Axon.Losses do
   @doc """
   Huber loss.
 
-  ## Argumet Shapes
+  ## Argument Shapes
 
     * `y_true` - $(d_0, d_1, ..., d_n)$
     * `y_pred` - $(d_0, d_1, ..., d_n)$

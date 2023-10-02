@@ -4070,7 +4070,7 @@ defmodule CompilerTest do
       h = {whr, whz, whn}
       b = {br, bz, bin, bhn}
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input1),
         Axon.Layers.dynamic_unroll(cell_fn1, input1, carry1, Nx.tensor(0), k, h, b)
       )
@@ -4097,7 +4097,7 @@ defmodule CompilerTest do
       h = {whr, whz, whn}
       b = {br, bz, bin, bhn}
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input2),
         Axon.Layers.static_unroll(&Axon.Layers.gru_cell/6, input2, carry2, Nx.tensor(0), k, h, b)
       )
@@ -4901,7 +4901,7 @@ defmodule CompilerTest do
       assert Nx.type(b) == {:f, 32}
     end
 
-    test "initializes correclty with single namespace no params" do
+    test "initializes correctly with single namespace no params" do
       model = Axon.input("input_0", shape: {nil, 1}) |> Axon.namespace("model")
 
       {init_fn, _} = Axon.build(model)

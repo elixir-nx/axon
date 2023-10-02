@@ -9,6 +9,13 @@ env:
   XLA_CACHE_DIR: ${{ github.workspace }}/cache/xla
   LIBTORCH_DIR: ${{ github.workspace }}/cache/torch
 jobs:
+  codespell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: codespell-project/actions-codespell@v2
+        with:
+          skip: deps
+          ignore_words_list: whn,ehr
   main:
     runs-on: ubuntu-latest
     strategy:

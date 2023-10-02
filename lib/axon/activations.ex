@@ -359,15 +359,15 @@ defmodule Axon.Activations do
       iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 1]
-        [0.45776283740997314]
+        [3.4577627182006836]
       >
 
       iex> Axon.Activations.log_sumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 1]
         [
-          [0.404296875],
-          [0.404296875]
+          [-0.59375],
+          [3.390625]
         ]
       >
 
@@ -390,7 +390,8 @@ defmodule Axon.Activations do
     # We are essentially treating the max value as a constant term, C. Thus there
     # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
     # for a note on performance.
-    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
+    max_val = Nx.reduce_max(x, axes: axes, keep_axes: true)
+    max_val = stop_grad(Nx.select(Nx.is_infinity(max_val), 0, max_val))
 
     stable_exp =
       x
@@ -401,6 +402,7 @@ defmodule Axon.Activations do
       stable_exp
       |> Nx.sum(axes: axes, keep_axes: true)
       |> Nx.log()
+      |> Nx.add(max_val)
 
     res
   end
