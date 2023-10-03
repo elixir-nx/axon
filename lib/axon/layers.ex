@@ -2525,9 +2525,13 @@ defmodule Axon.Layers do
 
   deftransformp stack_columns_transform(container, ignore) do
     container.__struct__().__info__(:struct)
-    |> Enum.map(fn %{field: field} -> field end)
-    |> Enum.reject(fn k -> k in ignore end)
-    |> Enum.reduce([], fn k, acc -> [Map.fetch!(container, k) | acc] end)
+    |> Enum.reduce([], fn %{field: k}, acc -> 
+      if k in ignore do
+        acc
+      else
+        [Map.fetch!(container, k) | acc] 
+      end
+    end)
     |> Enum.reverse()
     |> Nx.stack(axis: -1)
   end
