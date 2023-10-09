@@ -676,6 +676,69 @@ defmodule Axon do
   end
 
   @doc """
+  Returns a function which represents a self-contained re-usable block
+  of operations in a neural network. All parameters in the block are
+  shared between every usage of the block.
+
+  This returns an arity-1 function which accepts a list of inputs which
+  are forwarded to `fun`. This is most often used in situations where
+  you wish to re-use parameters in a block:
+
+      reused_dense = Axon.block(&Axon.dense(&1, 32))
+
+  Everytime `reused_dense` is invoked, it re-uses the same parameters:
+
+      input = Axon.input("features")
+      # unique parameters
+      x1 = Axon.dense(input, 32)
+      # unique parameters
+      x2 = reused_dense.(x1)
+      # parameters shared
+      x3 = reused_dense.(x2)
+
+  Subgraphs in blocks can be arbitrarily complex:
+
+      reused_block = Axon.block(fn x ->
+        x
+        |> Axon.dense(32)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+      end)
+
+  Blocks can also have multiple inputs, you can invoke a block with multiple
+  inputs by passing a list of arguments:
+
+      reused_block = Axon.block(fn x, y, z ->
+        x = Axon.dense(x, 32)
+        y = Axon.dense(y, 32)
+        z = Axon.dense(z, 32)
+
+        Axon.add([x, y, z])
+      end)
+
+      # invoke with a list
+      reused_block.([x, y, z])
+
+  Blocks prefix subgraph parameters with their name and a dot. As with other
+  Axon layers, if a name is not explicitly provided, one will be dynamically
+  generated.
+  """
+  @doc type: :special
+  def block(fun, opts \\ []) when is_function(fun) do
+    opts = Keyword.validate!(opts, [:name])
+    block_id = System.unique_integer([:positive, :monotonic])
+
+    fn inputs ->
+      layer(:block, List.wrap(inputs),
+        op_name: :block,
+        name: opts[:name],
+        block_fun: fun,
+        block_id: block_id
+      )
+    end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -3177,17 +3240,23 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts \\ []) do
+  def attach_hook(x, fun, opts \\ [])
+
+  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts) do
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        attach_hook(axon_node, fun, opts)
+      end)
+
+    %{axon | nodes: updated_nodes}
+  end
+
+  def attach_hook(%Axon.Node{hooks: hooks} = axon_node, fun, opts) do
     opts = Keyword.validate!(opts, on: :forward, mode: :both)
     on_event = opts[:on]
     mode = opts[:mode]
 
-    updated_nodes =
-      Map.update!(nodes, id, fn axon_node ->
-        %{axon_node | hooks: [{on_event, mode, fun} | axon_node.hooks]}
-      end)
-
-    %{axon | nodes: updated_nodes}
+    %{axon_node | hooks: [{on_event, mode, fun} | hooks]}
   end
 
   ## Graph Manipulation and Utilities
@@ -3353,12 +3422,12 @@ defmodule Axon do
   you can use this function to visualize intermediate activations
   of all convolutional layers in a model:
 
-      instrumented_model = Axon.  (model, fn
-        %Axon{op: :conv} = graph ->
-          Axon.attach_hook(graph, &visualize_activations/1)
+      instrumented_model = Axon.map_nodes(model, fn
+        %Axon.Node{op: :conv} = axon_node ->
+          Axon.attach_hook(axon_node, &visualize_activations/1)
 
-        graph ->
-          graph
+        axon_node ->
+          axon_node
       end)
 
   Another use case is to replace entire classes of layers
@@ -3541,6 +3610,13 @@ defmodule Axon do
   """
   @doc type: :model
   def build(model, opts \\ []) when is_list(opts) do
+    if opts[:backend] do
+      IO.warn(
+        "the :backend option has no effect on Axon.build/2. " <>
+          "Use Nx.default_backend/1 to set a backend instead"
+      )
+    end
+
     {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
     opts = [on_conflict: :reuse] ++ opts
     {Nx.Defn.jit(init_fn, opts), Nx.Defn.jit(predict_fn, opts)}

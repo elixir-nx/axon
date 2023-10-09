@@ -9,15 +9,15 @@ defmodule Cifar do
   require Axon
 
   @batch_size 32
-  @image_channels 3
-  @image_side_pixels 32
   @channel_value_max 255
   @label_values Enum.to_list(0..9)
 
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), @image_side_pixels, @image_side_pixels, @image_channels})
+    |> Nx.reshape(shape, names: [:count, :channels, :width, :height])
+    # Move channels to last position to match what conv layer expects
+    |> Nx.transpose(axes: [:count, :width, :height, :channels])
     |> Nx.divide(@channel_value_max)
     |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
@@ -61,12 +61,16 @@ defmodule Cifar do
   end
 
   def run do
-    {images, labels} = Scidata.CIFAR10.download()
+    {{_, _, {_, channels, width, height}} = images, labels} = Scidata.CIFAR10.download()
 
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, @image_channels, @image_side_pixels, @image_side_pixels}) |> IO.inspect()
+    model =
+      # Move channels to last position to match what conv layer expects
+      {nil, width, height, channels}
+      |> build_model()
+      |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
@@ -82,4 +86,5 @@ defmodule Cifar do
   end
 end
 
+Nx.default_backend(EXLA.Backend)
 Cifar.run()

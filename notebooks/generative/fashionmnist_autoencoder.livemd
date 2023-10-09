@@ -117,7 +117,7 @@ mean_square_error = fn y_pred, y ->
   |> Nx.mean()
 end
 
-mean_absolute_erorr = fn y_pred, y ->
+mean_absolute_error = fn y_pred, y ->
   y_pred
   |> Nx.subtract(y)
   |> Nx.abs()
@@ -139,7 +139,7 @@ For the same image both errors should be 0, because when we have two exact copie
 ```elixir
 {
   mean_square_error.(shoe_image, shoe_image),
-  mean_absolute_erorr.(shoe_image, shoe_image)
+  mean_absolute_error.(shoe_image, shoe_image)
 }
 ```
 
@@ -148,7 +148,7 @@ Now the noised image:
 ```elixir
 {
   mean_square_error.(shoe_image, noised_shoe_image),
-  mean_absolute_erorr.(shoe_image, noised_shoe_image)
+  mean_absolute_error.(shoe_image, noised_shoe_image)
 }
 ```
 
@@ -157,7 +157,7 @@ And a different image:
 ```elixir
 {
   mean_square_error.(shoe_image, other_image),
-  mean_absolute_erorr.(shoe_image, other_image)
+  mean_absolute_error.(shoe_image, other_image)
 }
 ```
 
