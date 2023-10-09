@@ -5,8 +5,6 @@ on:
     branches:
       - main
 env:
-  OTP_VERSION: "25.0"
-  ELIXIR_VERSION: "1.14.0"
   MIX_ENV: test
   XLA_CACHE_DIR: ${{ github.workspace }}/cache/xla
   LIBTORCH_DIR: ${{ github.workspace }}/cache/torch
@@ -20,71 +18,44 @@ jobs:
           ignore_words_list: whn,ehr
   main:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - otp: "26.1.1"
+            elixir: "1.15.6"
+            lint: true
+          - otp: "25.3.2.6"
+            elixir: "1.14.5"
+          - otp: "25.3.2.6"
+            elixir: "1.14.5"
+            test_command_prepend: "USE_EXLA=true"
+          - otp: "25.3.2.6"
+            elixir: "1.14.5"
+            test_command_prepend: "USE_TORCHX=true"
     steps:
       - uses: actions/checkout@v3
       - name: Install Erlang & Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "${{ env.OTP_VERSION }}"
-          elixir-version: "${{ env.ELIXIR_VERSION }}"
+          otp-version: "${{ matrix.otp }}"
+          elixir-version: "${{ matrix.elixir }}"
       - uses: actions/cache@v3
         with:
           path: |
             deps
             _build
             cache
-          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ matrix.test_command_prepend }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
             ${{ runner.os }}-mix-
       - name: Install mix dependencies
         run: mix deps.get
       - name: Check formatting
+        if: ${{ matrix.lint }}
         run: mix format --check-formatted
-      - name: Compile without optional deps
-        run: mix compile --skip-optional-deps --warnings-as-errors
+      - name: Check unused deps
+        if: ${{ matrix.lint }}
+        run: mix deps.unlock --check-unused
       - name: Run tests
-        run: mix test
-  exla_check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Erlang & Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "${{ env.OTP_VERSION }}"
-          elixir-version: "${{ env.ELIXIR_VERSION }}"
-      - uses: actions/cache@v3
-        with:
-          path: |
-            deps
-            _build
-            cache
-          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
-      - name: Install mix dependencies
-        run: mix deps.get
-      - name: Run tests against EXLA
-        run: USE_EXLA=true mix do compile --warnings-as-errors, test
-  torchx_check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install Erlang & Elixir
-        uses: erlef/setup-elixir@v1
-        with:
-          otp-version: "${{ env.OTP_VERSION }}"
-          elixir-version: "${{ env.ELIXIR_VERSION }}"
-      - uses: actions/cache@v3
-        with:
-          path: |
-            deps
-            _build
-            cache
-          key: ${{ runner.os }}-mix-${{ matrix.pair.elixir }}-${{ matrix.pair.otp }}-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-mix-
-      - name: Install mix dependencies
-        run: mix deps.get
-      - name: Run tests against Torchx
-        run: USE_TORCHX=true mix do compile --warnings-as-errors, test
+        run: ${{ matrix.test_command_prepend }} mix do compile --skip-optional-deps --warnings-as-errors, test

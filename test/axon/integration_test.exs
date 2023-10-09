@@ -452,7 +452,10 @@ defmodule Axon.IntegrationTest do
           |> Axon.batch_norm()
           |> Axon.dropout(rate: 0.1)
           |> Axon.dense(2, activation: :softmax)
-          |> Axon.MixedPrecision.apply_policy(unquote(Macro.escape(policy)), except: [:batch_norm])
+          |> Axon.MixedPrecision.apply_policy(
+            unquote(Macro.escape(policy)),
+            except: [:batch_norm]
+          )
 
         ExUnit.CaptureIO.capture_io(fn ->
           results =
