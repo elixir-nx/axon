@@ -676,6 +676,69 @@ defmodule Axon do
   end
 
   @doc """
+  Returns a function which represents a self-contained re-usable block
+  of operations in a neural network. All parameters in the block are
+  shared between every usage of the block.
+
+  This returns an arity-1 function which accepts a list of inputs which
+  are forwarded to `fun`. This is most often used in situations where
+  you wish to re-use parameters in a block:
+
+      reused_dense = Axon.block(&Axon.dense(&1, 32))
+
+  Everytime `reused_dense` is invoked, it re-uses the same parameters:
+
+      input = Axon.input("features")
+      # unique parameters
+      x1 = Axon.dense(input, 32)
+      # unique parameters
+      x2 = reused_dense.(x1)
+      # parameters shared
+      x3 = reused_dense.(x2)
+
+  Subgraphs in blocks can be arbitrarily complex:
+
+      reused_block = Axon.block(fn x ->
+        x
+        |> Axon.dense(32)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+      end)
+
+  Blocks can also have multiple inputs, you can invoke a block with multiple
+  inputs by passing a list of arguments:
+
+      reused_block = Axon.block(fn x, y, z ->
+        x = Axon.dense(x, 32)
+        y = Axon.dense(y, 32)
+        z = Axon.dense(z, 32)
+
+        Axon.add([x, y, z])
+      end)
+
+      # invoke with a list
+      reused_block.([x, y, z])
+
+  Blocks prefix subgraph parameters with their name and a dot. As with other
+  Axon layers, if a name is not explicitly provided, one will be dynamically
+  generated.
+  """
+  @doc type: :special
+  def block(fun, opts \\ []) when is_function(fun) do
+    opts = Keyword.validate!(opts, [:name])
+    block_id = System.unique_integer([:positive, :monotonic])
+
+    fn inputs ->
+      layer(:block, List.wrap(inputs),
+        op_name: :block,
+        name: opts[:name],
+        block_fun: fun,
+        block_id: block_id
+      )
+    end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
