@@ -933,10 +933,10 @@ defmodule Axon.Compiler do
           out
 
         %Axon.StatefulOutput{output: out} = stateful ->
-          %{stateful | output: Nx.Defn.Expr.metadata(out, %{axon_layer: op_name})}
+          %{stateful | output: Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})}
 
         out ->
-          Nx.Defn.Expr.metadata(out, %{axon_layer: op_name})
+          Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
       end
     rescue
       exception ->
