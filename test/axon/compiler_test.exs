@@ -5758,4 +5758,19 @@ defmodule CompilerTest do
       assert predict_fn1 == predict_fn2
     end
   end
+
+  describe "metadata" do
+    test "axon compiler attaches layer name as metadata to subgraphs" do
+      model = Axon.input("input", shape: {nil, 784}) |> Axon.dense(128)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(Nx.template({1, 784}, :f32), %{})
+      input = Nx.broadcast(0.0, {1, 784})
+
+      expr_fn = Nx.Defn.jit(predict_fn, compiler: Axon.Defn)
+      expr = expr_fn.(params, input)
+
+      assert %{data: %{op: :metadata, args: [_tensor, %{axon_layer: :dense}]}} = expr
+    end
+  end
 end

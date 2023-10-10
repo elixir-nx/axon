@@ -709,6 +709,7 @@ defmodule Axon.Compiler do
         &5,
         &6,
         op,
+        op_name,
         parent_ids,
         name,
         args,
@@ -788,6 +789,7 @@ defmodule Axon.Compiler do
          result_cache,
          fn_stacktrace,
          op,
+         op_name,
          parent_ids,
          name,
          args,
@@ -874,7 +876,7 @@ defmodule Axon.Compiler do
       # in Axon.Layers. The implication of this is that every function which
       # can be invoked as a layer must have a definition in Axon.Layers even
       # if there is a distinction (e.g. with activations)
-      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace)
+      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name)
 
       result =
         case result do
@@ -912,14 +914,30 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace) do
+  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name) do
     try do
-      case op do
-        op when is_function(op) ->
-          apply(op, args)
+      result =
+        case op do
+          op when is_function(op) ->
+            apply(op, args)
 
-        op when is_atom(op) ->
-          apply(Axon.Layers, op, args)
+          op when is_atom(op) ->
+            apply(Axon.Layers, op, args)
+        end
+
+      case result do
+        out when is_tuple(out) ->
+          out
+
+        %Axon.None{} = out ->
+          out
+
+        %Axon.StatefulOutput{output: out} = stateful ->
+          out = Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
+          %{stateful | output: out}
+
+        out ->
+          Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
       end
     rescue
       exception ->
