@@ -175,7 +175,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
       predict_fn.(params, inputs)
 
   You may either set the default JIT compiler or backend globally, or
