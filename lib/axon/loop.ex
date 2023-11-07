@@ -1745,7 +1745,6 @@ defmodule Axon.Loop do
       )
 
     state = %State{state | metrics: final_metrics, status: status}
-    {_, state} = fire_event(status, handler_fns, state, debug?)
     output_transform.(state)
   end
 
