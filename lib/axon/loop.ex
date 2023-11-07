@@ -1744,7 +1744,7 @@ defmodule Axon.Loop do
         &Map.put(&2, &1, zero_metrics)
       )
 
-    state = %State{state | metrics: final_metrics, status: status}
+    state = %State{state | metrics: final_metrics_map, status: status}
     output_transform.(state)
   end
 
