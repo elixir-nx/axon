@@ -26,7 +26,58 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
+        # TODO: Fix default output transform
+        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, train)
+        |> Axon.Loop.run(train, %{}, epochs: 10)
+
+      assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+               results
+
+      eval_results =
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.run(train, model_state)
+
+      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+      assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
+      assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+      assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+    end)
+  end
+
+  test "f64 input test" do
+    {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+    train =
+      train
+      |> Stream.map(fn {xs, ys} ->
+        {Nx.as_type(xs, :f64), one_hot(ys, num_classes: 2)}
+      end)
+      |> Enum.to_list()
+
+    [{x_test, _}] = Enum.take(train, 1)
+
+    model =
+      Axon.input("input")
+      |> Axon.dense(16)
+      |> Axon.dropout(rate: 0.1)
+      |> Axon.dense(2, activation: :softmax)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      results =
+        model
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -74,7 +125,10 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -121,7 +175,59 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       results =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3))
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3)
+        )
+        # TODO: Fix default output transform
+        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.validate(model, train)
+        |> Axon.Loop.run(train, %{}, epochs: 10)
+
+      assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+               results
+
+      eval_results =
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.run(train, model_state)
+
+      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+      assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
+      assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+      assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+    end)
+  end
+
+  test "gradient accumulation test" do
+    {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+    train =
+      train
+      |> Stream.map(fn {xs, ys} ->
+        {xs, one_hot(ys, num_classes: 2)}
+      end)
+      |> Enum.to_list()
+
+    [{x_test, _}] = Enum.take(train, 1)
+
+    model =
+      Axon.input("input")
+      |> Axon.dense(16)
+      |> Axon.dropout(rate: 0.1)
+      |> Axon.dense(2, activation: :softmax)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      results =
+        model
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
+          gradient_accumulation_steps: 3
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -164,7 +270,11 @@ defmodule Axon.IntegrationTest do
     ExUnit.CaptureIO.capture_io(fn ->
       %{metrics: metrics1, step_state: step_state1} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
+          seed: 1
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -173,7 +283,11 @@ defmodule Axon.IntegrationTest do
 
       %{metrics: metrics2, step_state: step_state2} =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(5.0e-3), seed: 1)
+        |> Axon.Loop.trainer(
+          :categorical_cross_entropy,
+          Polaris.Optimizers.adam(learning_rate: 5.0e-3),
+          seed: 1
+        )
         # TODO: Fix default output transform
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
@@ -183,5 +297,251 @@ defmodule Axon.IntegrationTest do
       assert_equal(metrics1, metrics2)
       assert_equal(step_state1, step_state2)
     end)
+  end
+
+  describe "optimizer integration" do
+    @optimizers_and_args [
+      {:adabelief, [[learning_rate: 5.0e-3]]},
+      {:adagrad, [[learning_rate: 5.0e-3]]},
+      {:adam, [[learning_rate: 5.0e-3]]},
+      {:adamw, [[learning_rate: 5.0e-3]]},
+      {:adamw, [[learning_rate: 5.0e-3, decay: 0.9]]},
+      {:lamb, [[learning_rate: 5.0e-3]]},
+      {:lamb, [[learning_rate: 5.0e-3, decay: 0.9]]},
+      {:lamb, [[learning_rate: 5.0e-3, min_norm: 0.1]]},
+      {:lamb, [[learning_rate: 5.0e-3, decay: 0.9, min_norm: 0.1]]},
+      {:noisy_sgd, [[learning_rate: 5.0e-3]]},
+      {:radam, [[learning_rate: 5.0e-3]]},
+      {:rmsprop, [[learning_rate: 5.0e-3]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, centered: true]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, momentum: 0.9]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, nesterov: true, momentum: 0.9]]},
+      {:rmsprop, [[learning_rate: 5.0e-3, centered: true, nesterov: true, momentum: 0.9]]},
+      {:sgd, [[learning_rate: 5.0e-3]]},
+      {:sgd, [[learning_rate: 5.0e-3, momentum: 0.9]]},
+      {:sgd, [[learning_rate: 5.0e-3, momentum: 0.9, nesterov: true]]}
+    ]
+
+    for {optimizer, [opts] = args} <- @optimizers_and_args do
+      lr = opts[:learning_rate]
+
+      test "#{optimizer}, learning_rate: #{lr}, opts: #{inspect(opts)} trains simple model with dropout" do
+        {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+        train =
+          train
+          |> Stream.map(fn {xs, ys} ->
+            {xs, one_hot(ys, num_classes: 2)}
+          end)
+          |> Enum.to_list()
+
+        [{x_test, _}] = Enum.take(train, 1)
+
+        model =
+          Axon.input("input")
+          |> Axon.dense(16)
+          |> Axon.dropout(rate: 0.1)
+          |> Axon.dense(2, activation: :softmax)
+
+        ExUnit.CaptureIO.capture_io(fn ->
+          results =
+            model
+            |> Axon.Loop.trainer(
+              :categorical_cross_entropy,
+              Polaris.Optimizers.unquote(optimizer)(unquote_splicing(args))
+            )
+            # TODO: Fix default output transform
+            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.validate(model, train)
+            |> Axon.Loop.run(train, %{}, epochs: 10)
+
+          assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                   results
+
+          eval_results =
+            model
+            |> Axon.Loop.evaluator()
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.run(train, model_state)
+
+          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+          assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
+          assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+          assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+        end)
+      end
+    end
+  end
+
+  describe "mixed precision training integration" do
+    @policies [
+      {"compute f16", Axon.MixedPrecision.create_policy(compute: {:f, 16})},
+      {"compute f16, params f16",
+       Axon.MixedPrecision.create_policy(compute: {:f, 16}, params: {:f, 16})},
+      {"compute f16, params f16, output f16",
+       Axon.MixedPrecision.create_policy(params: {:f, 16}, compute: {:f, 16}, output: {:f, 16})}
+    ]
+
+    @scales [:identity, :dynamic, :static]
+
+    for {name, policy} <- @policies, scale <- @scales do
+      test "trains simple model with policy #{name}, scale #{inspect(scale)}" do
+        {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+        train =
+          train
+          |> Stream.map(fn {xs, ys} ->
+            {xs, one_hot(ys, num_classes: 2)}
+          end)
+          |> Enum.to_list()
+
+        [{x_test, _}] = Enum.take(train, 1)
+
+        model =
+          Axon.input("input")
+          |> Axon.dense(16)
+          |> Axon.dropout(rate: 0.1)
+          |> Axon.dense(2, activation: :softmax)
+          |> Axon.MixedPrecision.apply_policy(unquote(Macro.escape(policy)))
+
+        ExUnit.CaptureIO.capture_io(fn ->
+          results =
+            model
+            |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: unquote(scale))
+            # TODO: Fix default output transform
+            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.validate(model, train)
+            |> Axon.Loop.run(train, %{}, epochs: 10)
+
+          assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                   results
+
+          eval_results =
+            model
+            |> Axon.Loop.evaluator()
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.run(train, model_state)
+
+          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+          assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
+          assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+          assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+          assert Nx.type(model_state["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+        end)
+      end
+
+      test "trains model with batch norm with policy #{name}, scale #{inspect(scale)}" do
+        {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+        train =
+          train
+          |> Stream.map(fn {xs, ys} ->
+            {xs, one_hot(ys, num_classes: 2)}
+          end)
+          |> Enum.to_list()
+
+        [{x_test, _}] = Enum.take(train, 1)
+
+        model =
+          Axon.input("input")
+          |> Axon.dense(16)
+          |> Axon.batch_norm()
+          |> Axon.dropout(rate: 0.1)
+          |> Axon.dense(2, activation: :softmax)
+          |> Axon.MixedPrecision.apply_policy(
+            unquote(Macro.escape(policy)),
+            except: [:batch_norm]
+          )
+
+        ExUnit.CaptureIO.capture_io(fn ->
+          results =
+            model
+            |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: unquote(scale))
+            # TODO: Fix default output transform
+            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.validate(model, train)
+            |> Axon.Loop.run(train, %{}, epochs: 10)
+
+          assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                   results
+
+          eval_results =
+            model
+            |> Axon.Loop.evaluator()
+            |> Axon.Loop.metric(:accuracy)
+            |> Axon.Loop.run(train, model_state)
+
+          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+          assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
+          assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+          assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+          assert Nx.type(model_state["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+        end)
+      end
+    end
+
+    test "mixed precision downcasts model when state is given to train" do
+      policy =
+        Axon.MixedPrecision.create_policy(
+          params: {:f, 16},
+          compute: {:f, 16},
+          output: {:f, 16}
+        )
+
+      {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
+
+      train =
+        train
+        |> Stream.map(fn {xs, ys} ->
+          {xs, one_hot(ys, num_classes: 2)}
+        end)
+        |> Enum.to_list()
+
+      [{x_test, _}] = Enum.take(train, 1)
+
+      model =
+        Axon.input("input")
+        |> Axon.dense(16)
+        |> Axon.dropout(rate: 0.1)
+        |> Axon.dense(2, activation: :softmax)
+
+      {init_fn, _} = Axon.build(model)
+      initial_state = init_fn.(Nx.template({1, 10}, :f32), %{})
+
+      mp_model = Axon.MixedPrecision.apply_policy(model, policy)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        results =
+          mp_model
+          |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: :dynamic)
+          # TODO: Fix default output transform
+          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.validate(model, train)
+          |> Axon.Loop.run(train, initial_state, epochs: 10)
+
+        assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
+                 results
+
+        eval_results =
+          model
+          |> Axon.Loop.evaluator()
+          |> Axon.Loop.metric(:accuracy)
+          |> Axon.Loop.run(train, model_state)
+
+        assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+
+        assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
+        assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
+        assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
+        assert Nx.type(model_state["dense_0"]["kernel"]) == policy.params
+      end)
+    end
   end
 end

@@ -1,89 +1,6 @@
 defmodule Axon.Updates do
-  @moduledoc ~S"""
-  Parameter update methods.
+  @moduledoc false
 
-  Update methods transform the input tensor in some way,
-  usually by scaling or shifting the input with respect
-  to some input state. Update methods are composed
-  to create more advanced optimization methods such as AdaGrad
-  or Adam. Each update returns a tuple:
-
-      {init_fn, update_fn}
-
-  Which represent a state initialization and state update
-  function respectively. While each method in the Updates
-  API is a regular Elixir function, the two methods they
-  return are implemented as `defn`, so they can be accelerated
-  using any Nx backend or compiler.
-
-  Update methods are just combinators that can be arbitrarily
-  composed to create complex optimizers. For example, the Adam
-  optimizer in Axon.Optimizers is implemented as:
-
-      def adam(learning_rate, opts \\ []) do
-        Updates.scale_by_adam(opts)
-        |> Updates.scale(-learning_rate)
-      end
-
-  Updates are maps of updates, often associated with parameters of
-  the same names. Using `Axon.Updates.apply_updates/3` will merge updates
-  and parameters by adding associated parameters and updates, and
-  ensuring any given model state is preserved.
-
-  ## Custom combinators
-
-  You can create your own combinators using the `stateless/2` and
-  `stateful/3` primitives. Every update method in this module is
-  implemented in terms of one of these two primitives.
-
-  `stateless/2` represents a stateless update:
-
-      def scale(combinator \\ Axon.Updates.identity(), step_size) do
-        stateless(combinator, &apply_scale(&1, &2, step_size))
-      end
-
-      defnp apply_scale(x, _params, step) do
-        transform(
-          {x, step},
-          fn {updates, step} ->
-            deep_new(updates, fn x -> Nx.multiply(x, step) end)
-          end
-        )
-      end
-
-  Notice how the function given to `stateless/2` is defined within `defn`.
-  This is what allows the anonymous functions returned by `Axon.Updates`
-  to be used inside `defn`.
-
-  `stateful/3` represents a stateful update and follows the same pattern:
-
-      def my_stateful_update(updates) do
-        Axon.Updates.stateful(updates, &init_my_update/1, &apply_my_update/2)
-      end
-
-      defnp init_my_update(params) do
-        state = zeros_like(params)
-        %{state: state}
-      end
-
-      defnp apply_my_update(updates, state) do
-        new_state = deep_new(state, fn v -> Nx.add(v, 0.01) end)
-        updates = transform({updates, new_state}, fn {updates, state} ->
-          deep_merge(updates, state, fn g, z -> Nx.multiply(g, z) end)
-        end)
-        {updates, %{state: new_state}}
-      end
-
-  State associated with individual parameters should have keys that match the
-  keys of the parameter. For example, if you have parameters `%{kernel: kernel}`
-  with associated states `mu` and `nu` representing the first and second moments,
-  your state should look something like:
-
-      %{
-        mu: %{kernel: kernel_mu}
-        nu: %{kernel: kernel_nu}
-      }
-  """
   import Nx.Defn
   import Axon.Shared
 
@@ -92,6 +9,7 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
+  @deprecated "Use Polaris.Updates.scale/2 instead"
   def scale(combinator \\ identity(), step_size) do
     stateless(combinator, &apply_scale(&1, &2, step_size))
   end
@@ -106,6 +24,7 @@ defmodule Axon.Updates do
 
   $$f(x_i) = \alpha x_i$$
   """
+  @deprecated "Use Polaris.Updates.scale_by_state/1 instead"
   def scale_by_state(combinator_or_step)
 
   def scale_by_state(step) when is_number(step) do
@@ -144,6 +63,7 @@ defmodule Axon.Updates do
     * [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980)
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_adam/1 instead"
   def scale_by_adam(combinator_or_opts \\ [])
 
   def scale_by_adam(opts) when is_list(opts) do
@@ -165,8 +85,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_adam(params) do
-    mus = zeros_like(params)
-    nus = zeros_like(params)
+    mus = zeros_like(params, type: :f32)
+    nus = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mus, nu: nus, count: count}
   end
@@ -196,6 +116,7 @@ defmodule Axon.Updates do
       * `:eps` - numerical stability term. Defaults to `1.0e-7`
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_rss/1 instead"
   def scale_by_rss(combinator_or_opts \\ [])
 
   def scale_by_rss(opts) when is_list(opts) do
@@ -219,7 +140,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_rss(params, value) do
-    sum_of_squares = fulls_like(params, value)
+    sum_of_squares = fulls_like(params, value, type: :f32)
     %{sum_of_squares: sum_of_squares}
   end
 
@@ -227,7 +148,7 @@ defmodule Axon.Updates do
     opts = keyword!(opts, eps: 1.0e-7)
     eps = opts[:eps]
 
-    sum_of_squares = deep_merge(x, sum_of_squares, fn g, z -> Nx.power(g, 2) + z end)
+    sum_of_squares = deep_merge(x, sum_of_squares, fn g, z -> Nx.pow(g, 2) + z end)
 
     inv_sqrt_squares = deep_new(sum_of_squares, fn z -> Nx.rsqrt(z + eps) end)
 
@@ -255,6 +176,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_rms/1 instead"
   def scale_by_rms(combinator_or_opts \\ [])
 
   def scale_by_rms(opts) when is_list(opts) do
@@ -278,7 +200,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_rms(params, scale) do
-    nu = fulls_like(params, scale)
+    nu = fulls_like(params, scale, type: :f32)
     %{nu: nu}
   end
 
@@ -312,6 +234,7 @@ defmodule Axon.Updates do
     * [AdaBelief Optimizer: Adapting Stepsizes by the Belief in Observed Gradients](https://arxiv.org/abs/2010.07468)
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_belief/1 instead"
   def scale_by_belief(combinator_or_opts \\ [])
 
   def scale_by_belief(opts) when is_list(opts) do
@@ -333,8 +256,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_belief(params) do
-    mus = zeros_like(params)
-    nus = zeros_like(params)
+    mus = zeros_like(params, type: :f32)
+    nus = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mus, nu: nus, count: count}
   end
@@ -371,6 +294,7 @@ defmodule Axon.Updates do
     * [Overview of mini-batch gradient descent](www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_stddev/1 instead"
   def scale_by_stddev(combinator_or_opts \\ [])
 
   def scale_by_stddev(opts) when is_list(opts) do
@@ -394,8 +318,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_stddev(params, value) do
-    mu = zeros_like(params)
-    nu = fulls_like(params, value)
+    mu = zeros_like(params, type: :f32)
+    nu = fulls_like(params, value, type: :f32)
     %{mu: mu, nu: nu}
   end
 
@@ -409,7 +333,7 @@ defmodule Axon.Updates do
 
     mu_nu =
       deep_merge(mu, nu, fn m, n ->
-        Nx.rsqrt(-Nx.power(m, 2) + n + eps)
+        Nx.rsqrt(-Nx.pow(m, 2) + n + eps)
       end)
 
     x = deep_merge(x, mu_nu, fn g, mn -> g * mn end)
@@ -425,6 +349,7 @@ defmodule Axon.Updates do
   counter. You might need to update the schedule to operate
   on per-batch schedule rather than per-epoch.
   """
+  @deprecated "Use Polaris.Updates.scale_by_schedule/2 instead"
   def scale_by_schedule(combinator \\ identity(), schedule_fn) when is_function(schedule_fn, 1) do
     stateful(
       combinator,
@@ -465,6 +390,7 @@ defmodule Axon.Updates do
     * [On the Variance of the Adaptive Learning Rate and Beyond](https://arxiv.org/abs/1908.03265)
 
   """
+  @deprecated "Use Polaris.Updates.scale_by_radam/1 instead"
   def scale_by_radam(combinator_or_opts \\ [])
 
   def scale_by_radam(opts) when is_list(opts) do
@@ -486,8 +412,8 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_radam(params) do
-    mu = zeros_like(params)
-    nu = zeros_like(params)
+    mu = zeros_like(params, type: :f32)
+    nu = zeros_like(params, type: :f32)
     count = Nx.tensor(0)
     %{mu: mu, nu: nu, count: count}
   end
@@ -506,7 +432,7 @@ defmodule Axon.Updates do
     nu = update_moment(x, nu, b2, 2)
     count_inc = count + 1
 
-    b2t = Nx.power(b2, count_inc)
+    b2t = Nx.pow(b2, count_inc)
     ro = ro_inf - 2 * count_inc * b2t / (1 - b2t)
 
     mu_hat = bias_correction(mu, b1, count + 1)
@@ -525,10 +451,8 @@ defmodule Axon.Updates do
   defnp radam_update(ro, ro_inf, mu, nu, eps_root, eps) do
     r = Nx.sqrt((ro - 4) * (ro - 2) * ro_inf / ((ro_inf - 4) * (ro_inf - 2) * ro))
 
-    transform({r, mu, nu, eps_root, eps}, fn {r, mu, nu, eps_root, eps} ->
-      deep_merge(mu, nu, fn m, v ->
-        r * m / (Nx.sqrt(v + eps_root) + eps)
-      end)
+    deep_merge(mu, nu, fn m, v ->
+      r * m / (Nx.sqrt(v + eps_root) + eps)
     end)
   end
 
@@ -543,6 +467,7 @@ defmodule Axon.Updates do
       to `false`
 
   """
+  @deprecated "Use Polaris.Updates.trace/1 instead"
   def trace(combinator_or_opts \\ [])
 
   def trace(opts) when is_list(opts) do
@@ -564,7 +489,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_trace(params) do
-    trace = zeros_like(params)
+    trace = zeros_like(params, type: :f32)
     %{trace: trace}
   end
 
@@ -592,6 +517,7 @@ defmodule Axon.Updates do
     * `:delta` - maximum absolute value of the input. Defaults
       to `2.0`
   """
+  @deprecated "Use Polaris.Updates.clip/1 instead"
   def clip(combinator_or_opts \\ [])
 
   def clip(opts) when is_list(opts) do
@@ -623,6 +549,7 @@ defmodule Axon.Updates do
     * `:max_norm` - maximum norm value of input. Defaults to
       `1.0`
   """
+  @deprecated "Use Polaris.Updates.clip_by_global_norm/1 instead"
   def clip_by_global_norm(combinator_or_opts \\ [])
 
   def clip_by_global_norm(opts) when is_list(opts) do
@@ -646,7 +573,7 @@ defmodule Axon.Updates do
     sum_gs =
       deep_reduce(x, Nx.tensor(0.0), fn leaf, acc ->
         leaf
-        |> Nx.power(2)
+        |> Nx.pow(2)
         |> Nx.sum()
         |> Nx.add(acc)
       end)
@@ -661,6 +588,7 @@ defmodule Axon.Updates do
   @doc """
   Centralizes input by shifting updates by their mean.
   """
+  @deprecated "Use Polaris.Updates.centralize/1 instead"
   def centralize(combinator_or_opts \\ [])
 
   def centralize(opts) when is_list(opts) do
@@ -678,16 +606,16 @@ defmodule Axon.Updates do
   end
 
   defnp apply_centralize(x, _params, _opts \\ []) do
-    transform(x, fn x ->
-      deep_new(x, fn z ->
-        if Elixir.Kernel.>(Nx.rank(z), 1) do
-          axes = tl(Nx.axes(z))
-          z - Nx.mean(z, axes: axes, keep_axes: true)
-        else
-          z
-        end
-      end)
-    end)
+    deep_new(x, &centralize_for_rank/1)
+  end
+
+  deftransformp centralize_for_rank(input) do
+    if Nx.rank(input) > 1 do
+      input
+      |> Nx.subtract(Nx.mean(input, axes: tl(Nx.axes(input)), keep_axes: true))
+    else
+      input
+    end
   end
 
   @doc """
@@ -699,6 +627,7 @@ defmodule Axon.Updates do
 
       * `:decay` - Rate of decay. Defaults to `0.0`.
   """
+  @deprecated "Use Polaris.Updates.add_decayed_weights/1 instead"
   def add_decayed_weights(combinator_or_opts \\ [])
 
   def add_decayed_weights(opts) when is_list(opts) do
@@ -737,6 +666,7 @@ defmodule Axon.Updates do
 
       * `:eps` - Numerical stability term. Defaults to `0.0`.
   """
+  @deprecated "Use Polaris.Updates.scale_by_trust_ratio/1 instead"
   def scale_by_trust_ratio(combinator_or_opts \\ [])
 
   def scale_by_trust_ratio(opts) when is_list(opts) do
@@ -781,12 +711,16 @@ defmodule Axon.Updates do
 
   ## Options
 
+      * `:seed` - Random seed to use. Defaults to the
+        current system time.
+
       * `:eta` - Controls amount of noise to add.
         Defaults to `0.01`.
 
       * `:gamma` - Controls amount of noise to add.
         Defaults to `0.55`.
   """
+  @deprecated "Use Polaris.Updates.add_noise/1 instead"
   def add_noise(combinator_or_opts \\ [])
 
   def add_noise(opts) when is_list(opts) do
@@ -800,22 +734,26 @@ defmodule Axon.Updates do
 
   def add_noise({init_fn, apply_fn} = combinator, opts)
       when is_function(init_fn, 1) and is_function(apply_fn, 3) and is_list(opts) do
-    stateful(combinator, &init_add_noise/1, &apply_add_noise(&1, &2, &3, opts))
+    {seed, opts} = Keyword.pop_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    stateful(combinator, &init_add_noise(&1, seed: seed), &apply_add_noise(&1, &2, &3, opts))
   end
 
-  defnp init_add_noise(_params) do
-    %{count: Nx.tensor(0)}
+  defnp init_add_noise(_params, opts \\ []) do
+    %{count: Nx.tensor(0), key: Nx.Random.key(opts[:seed])}
   end
 
-  defnp apply_add_noise(x, %{count: count}, _params, opts \\ []) do
+  defnp apply_add_noise(x, %{count: count, key: key}, _params, opts \\ []) do
     opts = keyword!(opts, eta: 0.01, gamma: 0.55)
-    var = opts[:eta] / Nx.power(count + 1, opts[:gamma])
+    var = opts[:eta] / Nx.pow(count + 1, opts[:gamma])
 
-    noise = deep_new(x, fn z -> Nx.random_normal(z) end)
+    {noise, key} =
+      deep_map_reduce(x, key, fn z, key ->
+        Nx.Random.normal(key, shape: Nx.shape(z), type: Nx.type(z))
+      end)
 
     updates = deep_merge(x, noise, fn g, n -> g + var * n end)
 
-    {updates, %{count: count + 1}}
+    {updates, %{count: count + 1, key: key}}
   end
 
   @doc """
@@ -837,6 +775,7 @@ defmodule Axon.Updates do
 
       * [Adaptive Methods for Nonconvex Optimization](https://proceedings.neurips.cc/paper/2018/file/90365351ccc7437a1309dc64e4db32a3-Paper.pdf)
   """
+  @deprecated "Use Polaris.Updates.scale_by_yogi/1 instead"
   def scale_by_yogi(combinator_or_opts \\ [])
 
   def scale_by_yogi(opts) when is_list(opts) do
@@ -860,7 +799,7 @@ defmodule Axon.Updates do
   end
 
   defnp init_scale_by_yogi(params, value) do
-    value = fulls_like(params, value)
+    value = fulls_like(params, value, type: :f32)
     mu = value
     nu = value
     count = Nx.tensor(0)
@@ -878,7 +817,7 @@ defmodule Axon.Updates do
 
     nu =
       deep_merge(x, nu, fn g, v ->
-        v - (1 - b2) * Nx.sign(v - Nx.power(g, 2)) * Nx.power(g, 2)
+        v - (1 - b2) * Nx.sign(v - Nx.pow(g, 2)) * Nx.pow(g, 2)
       end)
 
     mu_hat = bias_correction(mu, b1, count + 1)
@@ -895,6 +834,7 @@ defmodule Axon.Updates do
   Stateless updates do not depend on an update state and thus
   only require an implementation of an update function.
   """
+  @deprecated "Use Polaris.Updates.stateless/2 instead"
   def stateless({parent_init_fn, parent_apply_fn} \\ identity(), apply_fn) do
     apply_fn = fn updates, state, params ->
       {updates, state} = parent_apply_fn.(updates, state, params)
@@ -909,6 +849,7 @@ defmodule Axon.Updates do
 
   This is often as the initial update in many functions in this module.
   """
+  @deprecated "Use Polaris.Updates.identity/1 instead"
   def identity() do
     {fn _params -> {} end, fn updates, state, _params -> {updates, state} end}
   end
@@ -931,6 +872,7 @@ defmodule Axon.Updates do
       Axon.Updates.centralize()
       |> Axon.Updates.scale_by_rms()
   """
+  @deprecated "Use Polaris.Updates.compose/2 instead"
   def compose({init_fn1, apply_fn1}, {init_fn2, apply_fn2}) do
     init_fn = fn params ->
       state = init_fn1.(params)
@@ -956,6 +898,7 @@ defmodule Axon.Updates do
   implement some initialization function as well as an update
   function.
   """
+  @deprecated "Use Polaris.Updates.stateful/3 instead"
   def stateful({parent_init_fn, parent_apply_fn} \\ identity(), init_fn, apply_fn) do
     init_fn = fn params ->
       state = parent_init_fn.(params)
@@ -1007,11 +950,11 @@ defmodule Axon.Updates do
   ## Helpers
 
   defnp update_moment(x, moment, decay, order) do
-    deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.power(g, order) + decay * z end)
+    deep_merge(x, moment, fn g, z -> (1 - decay) * Nx.pow(g, order) + decay * z end)
   end
 
   defnp bias_correction(moment, decay, count) do
-    deep_new(moment, fn z -> z / (1 - Nx.power(decay, count)) end)
+    deep_new(moment, fn z -> z / (1 - Nx.pow(decay, count)) end)
   end
 
   defnp safe_norm(g, min_norm) do

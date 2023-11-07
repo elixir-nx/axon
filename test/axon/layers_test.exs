@@ -186,14 +186,27 @@ defmodule Axon.LayersTest do
 
   describe "conv" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
       first = Axon.Layers.conv(input, kernel, bias, channels: :first)
       last = Axon.Layers.conv(t_input, t_kernel, bias, channels: :last)
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
+    test "channels last same as channels first with strides" do
+      input = random({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = random({3, 1, 4, 4})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv(input, kernel, bias, channels: :first, strides: [1, 2])
+      last = Axon.Layers.conv(t_input, t_kernel, bias, channels: :last, strides: [1, 2])
 
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
@@ -225,14 +238,27 @@ defmodule Axon.LayersTest do
 
   describe "conv_transpose" do
     test "channels first same as channels last" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({3, 1, 4, 4})
+      kernel = random({3, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
       first = Axon.Layers.conv_transpose(input, kernel, bias, channels: :first)
       last = Axon.Layers.conv_transpose(t_input, t_kernel, bias, channels: :last)
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
+    test "channels first same as channels last with strides" do
+      input = random({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = random({3, 1, 4, 4})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first = Axon.Layers.conv_transpose(input, kernel, bias, channels: :first, strides: [1, 2])
+      last = Axon.Layers.conv_transpose(t_input, t_kernel, bias, channels: :last, strides: [1, 2])
 
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
@@ -422,9 +448,9 @@ defmodule Axon.LayersTest do
 
   describe "depthwise conv" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 28, 28})
+      input = random({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      kernel = Nx.random_uniform({6, 1, 4, 4})
+      kernel = random({6, 1, 4, 4})
       t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
       bias = Nx.tensor(0.0)
 
@@ -461,11 +487,11 @@ defmodule Axon.LayersTest do
 
   describe "separable_conv2d" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 28, 28})
+      input = random({1, 3, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
-      k1 = Nx.random_uniform({6, 1, 4, 1})
+      k1 = random({6, 1, 4, 1})
       t_k1 = Nx.transpose(k1, axes: [2, 3, 1, 0])
-      k2 = Nx.random_uniform({6, 1, 1, 4})
+      k2 = random({6, 1, 1, 4})
       t_k2 = Nx.transpose(k2, axes: [2, 3, 1, 0])
       b1 = Nx.tensor(0.0)
       b2 = Nx.tensor(0.0)
@@ -504,13 +530,13 @@ defmodule Axon.LayersTest do
 
   describe "separable_conv3d" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 3, 8, 8, 8})
+      input = random({1, 3, 8, 8, 8})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 4, 1])
-      k1 = Nx.random_uniform({6, 1, 4, 1, 1})
+      k1 = random({6, 1, 4, 1, 1})
       t_k1 = Nx.transpose(k1, axes: [2, 3, 4, 1, 0])
-      k2 = Nx.random_uniform({6, 1, 1, 4, 1})
+      k2 = random({6, 1, 1, 4, 1})
       t_k2 = Nx.transpose(k2, axes: [2, 3, 4, 1, 0])
-      k3 = Nx.random_uniform({6, 1, 1, 1, 4})
+      k3 = random({6, 1, 1, 1, 4})
       t_k3 = Nx.transpose(k3, axes: [2, 3, 4, 1, 0])
       b1 = b2 = b3 = Nx.tensor(0.0)
 
@@ -549,7 +575,7 @@ defmodule Axon.LayersTest do
 
   describe "max_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.max_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -559,7 +585,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -579,6 +605,27 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with custom padding" do
+      input = random({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
 
@@ -592,7 +639,7 @@ defmodule Axon.LayersTest do
 
   describe "avg_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.avg_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -602,7 +649,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -622,6 +669,27 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with custom padding" do
+      input = random({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
 
@@ -635,7 +703,7 @@ defmodule Axon.LayersTest do
 
   describe "lp pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.lp_pool(input, kernel_size: {2, 2}, channels: :first)
@@ -645,7 +713,7 @@ defmodule Axon.LayersTest do
     end
 
     test "channels last same as channels first with dilation" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first =
@@ -665,6 +733,27 @@ defmodule Axon.LayersTest do
       assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
     end
 
+    test "channels last same as channels first with custom padding" do
+      input = random({1, 1, 28, 28})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+
+      first =
+        Axon.Layers.max_pool(input,
+          kernel_size: {2, 2},
+          channels: :first,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      last =
+        Axon.Layers.max_pool(t_input,
+          kernel_size: {2, 2},
+          channels: :last,
+          padding: [{2, 2}, {1, 2}]
+        )
+
+      assert_equal(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
 
@@ -678,7 +767,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive avg pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_avg_pool(input, output_size: {25, 25}, channels: :first)
@@ -700,7 +789,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive max pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_max_pool(input, output_size: {25, 25}, channels: :first)
@@ -722,7 +811,7 @@ defmodule Axon.LayersTest do
 
   describe "adaptive lp pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.adaptive_lp_pool(input, output_size: {25, 25}, channels: :first)
@@ -768,7 +857,7 @@ defmodule Axon.LayersTest do
 
   describe "global_max_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_max_pool(input, channels: :first)
@@ -790,7 +879,7 @@ defmodule Axon.LayersTest do
 
   describe "global_avg_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_avg_pool(input, channels: :first)
@@ -812,7 +901,7 @@ defmodule Axon.LayersTest do
 
   describe "global_lp_pool" do
     test "channels last same as channels first" do
-      input = Nx.random_uniform({1, 1, 28, 28})
+      input = random({1, 1, 28, 28})
       t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
 
       first = Axon.Layers.global_lp_pool(input, channels: :first)
@@ -857,10 +946,109 @@ defmodule Axon.LayersTest do
     end
   end
 
+  describe "lstm_cell" do
+    test "cell function matches results expected from pytorch" do
+      seq =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_seq.npy")
+        |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_c.npy") |> Nx.load_numpy!()
+
+      h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_input_h.npy") |> Nx.load_numpy!()
+
+      wii = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_bo.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_cell_test/test_lstm_cell_output_h.npy") |> Nx.load_numpy!()
+
+      {_, {new_c, new_h}} =
+        Axon.Layers.lstm_cell(
+          seq,
+          {c, h},
+          Nx.tensor(0),
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo}
+        )
+
+      assert_all_close(new_c, expected_c)
+      assert_all_close(new_h, expected_h)
+    end
+  end
+
+  describe "lstm" do
+    test "matches results expected from pytorch with dynamic unroll" do
+      seq = File.read!("test/fixtures/lstm_test/test_lstm_input_seq.npy") |> Nx.load_numpy!()
+
+      c =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_c.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      h =
+        File.read!("test/fixtures/lstm_test/test_lstm_input_h.npy")
+        |> Nx.load_numpy!()
+        |> Nx.squeeze()
+
+      wii = File.read!("test/fixtures/lstm_test/test_lstm_wii.npy") |> Nx.load_numpy!()
+      wif = File.read!("test/fixtures/lstm_test/test_lstm_wif.npy") |> Nx.load_numpy!()
+      wig = File.read!("test/fixtures/lstm_test/test_lstm_wig.npy") |> Nx.load_numpy!()
+      wio = File.read!("test/fixtures/lstm_test/test_lstm_wio.npy") |> Nx.load_numpy!()
+      whi = File.read!("test/fixtures/lstm_test/test_lstm_whi.npy") |> Nx.load_numpy!()
+      whf = File.read!("test/fixtures/lstm_test/test_lstm_whf.npy") |> Nx.load_numpy!()
+      whg = File.read!("test/fixtures/lstm_test/test_lstm_whg.npy") |> Nx.load_numpy!()
+      who = File.read!("test/fixtures/lstm_test/test_lstm_who.npy") |> Nx.load_numpy!()
+      bi = File.read!("test/fixtures/lstm_test/test_lstm_bi.npy") |> Nx.load_numpy!()
+      bf = File.read!("test/fixtures/lstm_test/test_lstm_bf.npy") |> Nx.load_numpy!()
+      bg = File.read!("test/fixtures/lstm_test/test_lstm_bg.npy") |> Nx.load_numpy!()
+      bo = File.read!("test/fixtures/lstm_test/test_lstm_bo.npy") |> Nx.load_numpy!()
+
+      expected_seq =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_seq.npy") |> Nx.load_numpy!()
+
+      expected_c =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_c.npy") |> Nx.load_numpy!()
+
+      expected_h =
+        File.read!("test/fixtures/lstm_test/test_lstm_output_h.npy") |> Nx.load_numpy!()
+
+      {new_seq, {new_c, new_h}} =
+        Axon.Layers.lstm(
+          seq,
+          {c, h},
+          Nx.tensor(0),
+          {wii, wif, wig, wio},
+          {whi, whf, whg, who},
+          {bi, bf, bg, bo},
+          unroll: :dynamic
+        )
+
+      assert_all_close(new_seq, expected_seq, atol: 1.0e-3)
+      assert_all_close(new_c, expected_c, atol: 1.0e-3)
+      assert_all_close(new_h, expected_h, atol: 1.0e-3)
+    end
+  end
+
   describe "dynamic_unroll" do
     test "computes carry and output identical to static_unroll" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -874,13 +1062,29 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       {s_output, {s_carry}} =
-        Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+        Axon.Layers.static_unroll(
+          cell_fn,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
 
       {d_output, {d_carry}} =
-        Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, bias)
+        Axon.Layers.dynamic_unroll(
+          cell_fn,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
 
       assert_equal(s_carry, d_carry)
       assert_equal(s_output, d_output)
@@ -888,7 +1092,8 @@ defmodule Axon.LayersTest do
 
     defn grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
 
         Nx.mean(output)
       end)
@@ -896,7 +1101,8 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
 
         Nx.mean(output)
       end)
@@ -904,7 +1110,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for hidden kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -918,7 +1124,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_hidden_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -935,7 +1141,16 @@ defmodule Axon.LayersTest do
 
     defn grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {_, {carry}} =
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            x,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -943,7 +1158,16 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, x, bias)
+        {_, {carry}} =
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            x,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -951,7 +1175,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static_unroll for hidden kernel w.r.t carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -965,7 +1189,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_hidden_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -975,7 +1199,8 @@ defmodule Axon.LayersTest do
 
     defn grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {output, _} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, Nx.tensor(0), x, hidden_kernel, bias)
 
         Nx.mean(output)
       end)
@@ -983,7 +1208,8 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {output, _} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, Nx.tensor(0), x, hidden_kernel, bias)
 
         Nx.mean(output)
       end)
@@ -991,7 +1217,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1005,7 +1231,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_input_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1015,7 +1241,16 @@ defmodule Axon.LayersTest do
 
     defn grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.static_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {_, {carry}} =
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            x,
+            hidden_kernel,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1023,7 +1258,16 @@ defmodule Axon.LayersTest do
 
     defn grad_dynamic_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(input_kernel, fn x ->
-        {_, {carry}} = Axon.Layers.dynamic_unroll(cell_fn, input, carry, x, hidden_kernel, bias)
+        {_, {carry}} =
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            x,
+            hidden_kernel,
+            bias
+          )
 
         Nx.mean(carry)
       end)
@@ -1031,7 +1275,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for input kernel w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1045,7 +1289,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_input_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1056,7 +1300,15 @@ defmodule Axon.LayersTest do
     defn grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {output, _} =
-          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(output)
       end)
@@ -1065,7 +1317,15 @@ defmodule Axon.LayersTest do
     defn grad_dynamic_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {output, _} =
-          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(output)
       end)
@@ -1073,7 +1333,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. output" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1087,7 +1347,7 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_bias_output(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
@@ -1098,7 +1358,15 @@ defmodule Axon.LayersTest do
     defn grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {_, {carry}} =
-          Axon.Layers.static_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.static_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(carry)
       end)
@@ -1107,7 +1375,15 @@ defmodule Axon.LayersTest do
     defn grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(bias, fn x ->
         {_, {carry}} =
-          Axon.Layers.dynamic_unroll(cell_fn, input, carry, input_kernel, hidden_kernel, x)
+          Axon.Layers.dynamic_unroll(
+            cell_fn,
+            input,
+            carry,
+            Nx.tensor([[0, 0, 0, 1]]),
+            input_kernel,
+            hidden_kernel,
+            x
+          )
 
         Nx.mean(carry)
       end)
@@ -1115,7 +1391,7 @@ defmodule Axon.LayersTest do
 
     test "computes gradient identical to static unroll for bias w.r.t. carry" do
       input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 1, 8}, type: {:f, 32})}
+      carry = {Nx.iota({1, 8}, type: {:f, 32})}
 
       input_kernel =
         {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
@@ -1129,12 +1405,140 @@ defmodule Axon.LayersTest do
         {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
          Nx.iota({}, type: {:f, 32})}
 
-      cell_fn = &Axon.Layers.gru_cell/5
+      cell_fn = &Axon.Layers.gru_cell/6
 
       assert_equal(
         grad_static_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
         grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
       )
+    end
+  end
+
+  describe "group_norm" do
+    test "matches pytorch" do
+      a =
+        Nx.tensor([
+          [
+            0.8423,
+            1.9226,
+            -1.1295,
+            -1.3154,
+            1.2963,
+            -0.6821,
+            -0.0519,
+            0.6875,
+            -0.0313,
+            -0.3328,
+            -0.2821,
+            -2.3289,
+            -1.7641,
+            -1.3184,
+            -0.0890,
+            0.0625
+          ],
+          [
+            -1.0853,
+            0.8060,
+            -0.1397,
+            -0.2169,
+            0.9605,
+            0.3947,
+            0.4760,
+            0.8097,
+            0.0380,
+            -0.6314,
+            0.5761,
+            1.9309,
+            0.5038,
+            -0.1892,
+            1.8476,
+            0.0517
+          ]
+        ])
+
+      b =
+        Nx.tensor([
+          -0.3101,
+          -1.5896,
+          -1.4963,
+          0.1278,
+          -1.4580,
+          1.3832,
+          0.5709,
+          0.5531,
+          -0.0588,
+          1.0411,
+          1.3503,
+          -1.2166,
+          0.7133,
+          0.0694,
+          0.3150,
+          -0.1306
+        ])
+
+      c =
+        Nx.tensor([
+          1.6585,
+          2.3515,
+          -1.3456,
+          0.2376,
+          -0.1333,
+          0.5068,
+          0.2441,
+          1.0382,
+          0.6879,
+          -0.5402,
+          -1.8304,
+          -0.8906,
+          -0.5329,
+          -0.3390,
+          -0.1877,
+          0.1405
+        ])
+
+      expected =
+        Nx.tensor([
+          [
+            1.4768,
+            -0.1375,
+            0.4536,
+            0.0623,
+            -1.5881,
+            -0.5951,
+            0.1157,
+            1.2847,
+            0.6378,
+            -0.0194,
+            -1.0751,
+            1.3407,
+            -1.3700,
+            -0.3844,
+            0.0597,
+            0.0149
+          ],
+          [
+            2.2986,
+            0.9877,
+            -0.4434,
+            0.1453,
+            -1.7321,
+            0.8146,
+            0.4430,
+            1.5159,
+            0.7202,
+            -1.9153,
+            -1.7368,
+            -2.8723,
+            -0.5429,
+            -0.3954,
+            0.2952,
+            0.2103
+          ]
+        ])
+
+      actual = Axon.Layers.group_norm(a, b, c, num_groups: 2)
+
+      assert_all_close(expected, actual, atol: 1.0e-3)
     end
   end
 end

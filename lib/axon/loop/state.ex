@@ -42,10 +42,14 @@ defmodule Axon.Loop.State do
 
   `event_counts` is a metadata field which stores information about the number
   of times each event has been fired. This is useful when creating custom filters.
+
+  `status` refers to the loop state status after the loop has executed. You can
+  use this to determine if the loop ran to completion or if it was halted early.
   """
   @enforce_keys [:step_state]
   defstruct [
     :step_state,
+    :status,
     handler_metadata: %{},
     epoch: 0,
     max_epoch: 1,

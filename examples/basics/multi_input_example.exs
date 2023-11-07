@@ -1,7 +1,7 @@
 Mix.install([
-  {:axon, "~> 0.3.0"},
-  {:exla, "~> 0.4.1"},
-  {:nx, "~> 0.4.1"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"}
 ])
 
 defmodule XOR do
@@ -27,7 +27,7 @@ defmodule XOR do
   defp train_model(model, data, epochs) do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 1000)
+    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 1000, compiler: EXLA)
   end
 
   def run do

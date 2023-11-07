@@ -1,12 +1,10 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.6"}
+  {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
-
-# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Mnist do
   require Axon
@@ -16,7 +14,7 @@ defmodule Mnist do
     |> Nx.from_binary(type)
     |> Nx.reshape({elem(shape, 0), 784})
     |> Nx.divide(255.0)
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     # Test split
     |> Enum.split(1750)
   end
@@ -26,7 +24,7 @@ defmodule Mnist do
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     # Test split
     |> Enum.split(1750)
   end
@@ -40,16 +38,16 @@ defmodule Mnist do
 
   defp train_model(model, train_images, train_labels, epochs) do
     model
-    |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+    |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(learning_rate: 0.005))
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs)
+    |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs, compiler: EXLA)
   end
 
   defp test_model(model, model_state, test_images, test_labels) do
     model
     |> Axon.Loop.evaluator()
     |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(test_images, test_labels), model_state)
+    |> Axon.Loop.run(Stream.zip(test_images, test_labels), model_state, compiler: EXLA)
   end
 
   def run do

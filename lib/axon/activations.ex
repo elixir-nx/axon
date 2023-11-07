@@ -85,16 +85,14 @@ defmodule Axon.Activations do
   """
   defn celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
-
-    transform(
-      opts[:alpha],
-      fn x ->
-        if Elixir.Kernel.==(x, 0),
-          do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
-      end
-    )
+    validate_celu_alpha!(opts[:alpha])
 
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x / opts[:alpha]))
+  end
+
+  deftransformp validate_celu_alpha!(alpha) do
+    if alpha == 0,
+      do: raise(ArgumentError, ":alpha must be non-zero in CELU activation")
   end
 
   @doc ~S"""
@@ -361,22 +359,22 @@ defmodule Axon.Activations do
       iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 1]
-        [0.45776283740997314]
+        [3.4577627182006836]
       >
 
       iex> Axon.Activations.log_sumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 1]
         [
-          [0.404296875],
-          [0.404296875]
+          [-0.59375],
+          [3.390625]
         ]
       >
 
   """
   defn log_sumexp(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-    axes = transform(opts[:axis], &List.wrap/1)
+    axes = wrap(opts[:axis])
 
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
@@ -392,7 +390,8 @@ defmodule Axon.Activations do
     # We are essentially treating the max value as a constant term, C. Thus there
     # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
     # for a note on performance.
-    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
+    max_val = Nx.reduce_max(x, axes: axes, keep_axes: true)
+    max_val = stop_grad(Nx.select(Nx.is_infinity(max_val), 0, max_val))
 
     stable_exp =
       x
@@ -403,6 +402,7 @@ defmodule Axon.Activations do
       stable_exp
       |> Nx.sum(axes: axes, keep_axes: true)
       |> Nx.log()
+      |> Nx.add(max_val)
 
     res
   end
@@ -456,12 +456,6 @@ defmodule Axon.Activations do
   """
   defn log_softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-
-    transform({x, opts}, fn {x, opts} ->
-      if Elixir.Kernel.<=(Nx.rank(x), opts[:axis]) do
-        raise ArgumentError, "log_softmax axis must be within rank of tensor"
-      end
-    end)
 
     shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
 
@@ -525,7 +519,8 @@ defmodule Axon.Activations do
   defn relu(x) do
     custom_grad(
       Nx.max(x, 0),
-      fn _ans, g -> [{x, Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))}] end
+      [x],
+      fn g -> [Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))] end
     )
   end
 
@@ -593,7 +588,7 @@ defmodule Axon.Activations do
   defn sigmoid(x) do
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
-    transform(Nx.sigmoid(x), &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+    cache_logits(x, Nx.sigmoid(x))
   end
 
   @doc ~S"""
@@ -707,13 +702,7 @@ defmodule Axon.Activations do
   """
   defn softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
-    axes = transform(opts[:axis], &List.wrap/1)
-
-    transform({x, axes}, fn {x, axes} ->
-      Enum.each(axes, fn axis ->
-        Nx.Shape.normalize_axis(Nx.shape(x), axis, Nx.names(x))
-      end)
-    end)
+    axes = wrap(opts[:axis])
 
     # This is a scaling term designed to prevent over/under flow when x is very
     # large. Consider cases where the intermediate value e^x with large positive
@@ -744,7 +733,7 @@ defmodule Axon.Activations do
 
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
-    transform(res, &Nx.Defn.Expr.metadata(&1, %{logits: x}))
+    cache_logits(x, res)
   end
 
   @doc ~S"""
@@ -836,4 +825,12 @@ defmodule Axon.Activations do
 
   """
   defn tanh(x), do: Nx.tanh(x)
+
+  ## Helpers
+
+  deftransformp cache_logits(input, output) do
+    Nx.Defn.Expr.metadata(output, %{logits: input})
+  end
+
+  deftransformp wrap(axis), do: List.wrap(axis)
 end

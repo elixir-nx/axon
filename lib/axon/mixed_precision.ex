@@ -41,6 +41,7 @@ defmodule Axon.MixedPrecision do
   """
 
   alias Axon.MixedPrecision.Policy
+  import Axon.Shared
 
   @doc """
   Creates a mixed precision policy with the given options.
@@ -54,10 +55,10 @@ defmodule Axon.MixedPrecision do
   ## Examples
 
       iex> Axon.MixedPrecision.create_policy(params: {:f, 16}, output: {:f, 16})
-      %Policy{params: {:f, 16}, compute: {:f, 32}, output: {:f, 16}}
+      #Axon.MixedPrecision.Policy<p=f16 c=f32 o=f16>
 
       iex> Axon.MixedPrecision.create_policy(compute: {:bf, 16})
-      %Policy{params: {:f, 32}, compute: {:bf, 16}, output: {:f, 32}}
+      #Axon.MixedPrecision.Policy<p=f32 c=bf16 o=f32>
   """
   def create_policy(opts \\ []) do
     params = opts[:params] || {:f, 32}
@@ -120,5 +121,35 @@ defmodule Axon.MixedPrecision do
   @doc false
   def apply_policy(%Axon{} = axon, %Policy{} = policy) do
     apply_policy(%Axon{} = axon, %Policy{} = policy, & &1)
+  end
+
+  @doc """
+  Casts the given container according to the given policy
+  and type.
+
+  ## Examples
+
+      iex> policy = Axon.MixedPrecision.create_policy(params: {:f, 16})
+      iex> params = %{"dense" => %{"kernel" => Nx.tensor([1.0, 2.0, 3.0])}}
+      iex> params = Axon.MixedPrecision.cast(policy, params, :params)
+      iex> Nx.type(params["dense"]["kernel"])
+      {:f, 16}
+
+      iex> policy = Axon.MixedPrecision.create_policy(compute: {:bf, 16})
+      iex> value = Nx.tensor([1.0, 2.0, 3.0])
+      iex> value = Axon.MixedPrecision.cast(policy, value, :compute)
+      iex> Nx.type(value)
+      {:bf, 16}
+
+      iex> policy = Axon.MixedPrecision.create_policy(output: {:bf, 16})
+      iex> value = Nx.tensor([1.0, 2.0, 3.0])
+      iex> value = Axon.MixedPrecision.cast(policy, value, :output)
+      iex> Nx.type(value)
+      {:bf, 16}
+  """
+  def cast(%Policy{} = policy, tensor_or_container, variable_type)
+      when variable_type in [:compute, :params, :output] do
+    type = get_in(policy, [Access.key!(variable_type)])
+    deep_new(tensor_or_container, fn x -> Nx.as_type(x, type) end)
   end
 end

@@ -25,6 +25,7 @@ axon-*.tar
 # Downloaded fixtures
 examples/vision/horses/
 examples/vision/humans/
+examples/structured/creditcard.csv
 
 # Temporary files for e.g. tests
 /tmp/

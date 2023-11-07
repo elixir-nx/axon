@@ -5,7 +5,7 @@ defmodule Axon.Loop do
 
   Inspired heavily by [PyTorch Ignite](https://pytorch.org/ignite/index.html).
 
-  The main abstraction is the `%Loop{}` struct, which controls a nested
+  The main abstraction is the `%Axon.Loop{}` struct, which controls a nested
   reduction of the form:
 
       Enum.reduce(1..max_epochs, state, fn epoch, state ->
@@ -14,7 +14,7 @@ defmodule Axon.Loop do
 
   `data` is assumed to be an `Enumerable` or `Stream` of input data which is
   handled by a processing function, `batch_step`. The purpose of the loop
-  abstraction is to take away much of the boilerplate used in solving machine
+  abstraction is to take away much of the boilerplate code used in solving machine
   learning tasks. Tasks such as normalizing a dataset, hyperparameter optimization,
   or training machine learning models boil down to writing one function:
 
@@ -44,10 +44,10 @@ defmodule Axon.Loop do
   dataset for `N` epochs before finally returning the trained model state. By defining
   1 function, we've created a training loop that works for most machine learning models.
 
-  In actuality, the loop abstraction accumulates a struct, `Axon.Loop.State`, which looks
+  In actuality, the loop abstraction accumulates a struct, `%Axon.Loop.State{}`, which looks
   like (assuming `container` is a generic Elixir container of tensors, e.g. map, tuple, etc.):
 
-      %State{
+      %Axon.Loop.State{
         epoch: integer(),
         max_epoch: integer(),
         iteration: integer(),
@@ -89,6 +89,15 @@ defmodule Axon.Loop do
         new_state = # ...do something...
         new_state
       end
+
+  Note that any optimization and training anonymous functions that need to be used in the
+  `batch_step` function can be passed as extra arguments. For example:
+
+      step_with_training_arguments = fn data, state, optimizer_update_fn, state_update_fn ->
+        # ...do something...
+      end
+
+      step = &(step_with_training_arguments.(&1, &2, actual_optimizer_update_fn, actual_state_update_fn))
 
   ## Metrics
 
@@ -143,14 +152,12 @@ defmodule Axon.Loop do
         :iteration_completed, # On iteration complete
         :epoch_completed,     # On epoch complete
         :epoch_halted,        # On epoch halt, if early halted
-        :halted,              # On loop halt, if early halted
-        :completed            # On loop completion
       ]
 
-  You can attach event handlers to events using `Axon.Loop.handle/4`:
+  You can attach event handlers to events using `Axon.Loop.handle_event/4`:
 
       loop
-      |> Axon.Loop.handle(:iteration_completed, &log_metrics/1, every: 100)
+      |> Axon.Loop.handle_event(:iteration_completed, &log_metrics/1, every: 100)
       |> Axon.Loop.run(data)
 
   The above will trigger `log_metrics/1` every 100 times the `:iteration_completed` event
@@ -168,10 +175,10 @@ defmodule Axon.Loop do
   to the loop. If you have two handlers on the same event, they will trigger in order:
 
       loop
-      |> Axon.Loop.handle(:epoch_completed, &normalize_state/1) # Runs first
-      |> Axon.Loop.handle(:epoch_completed, &log_state/1) # Runs second
+      |> Axon.Loop.handle_event(:epoch_completed, &normalize_state/1) # Runs first
+      |> Axon.Loop.handle_event(:epoch_completed, &log_state/1) # Runs second
 
-  You may provide filters to filter when event handlers trigger. See `Axon.Loop.handle/4`
+  You may provide filters to filter when event handlers trigger. See `Axon.Loop.handle_event/4`
   for more details on valid filters.
 
   ## Factories
@@ -191,8 +198,7 @@ defmodule Axon.Loop do
 
   In order to execute a loop, you should use `Axon.Loop.run/3`:
 
-      loop
-      |> Axon.Loop.run(data, epochs: 10)
+      Axon.Loop.run(loop, data, epochs: 10)
 
   ## Resuming loops
 
@@ -203,7 +209,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.from_state(state)
       |> Axon.Loop.run(data)
   """
-  require Axon.Updates
+  require Polaris.Updates
   require Logger
 
   alias __MODULE__, as: Loop
@@ -221,9 +227,7 @@ defmodule Axon.Loop do
     :iteration_started,
     :iteration_completed,
     :epoch_completed,
-    :epoch_halted,
-    :halted,
-    :completed
+    :epoch_halted
   ]
 
   @default_handlers %{
@@ -250,7 +254,7 @@ defmodule Axon.Loop do
     :soft_margin
   ]
 
-  @valid_axon_optimizers [
+  @valid_polaris_optimizers [
     :adabelief,
     :adagrad,
     :adam,
@@ -302,12 +306,14 @@ defmodule Axon.Loop do
   for multi-output models, or an arity-2 function representing a custom loss
   function.
 
-  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
-  initializes the optimizer state from attached parameters and `update_fn` is an
-  arity-3 function which scales gradient updates with respect to input parameters,
-  optimizer state, and gradients. See `Axon.Updates` for more information on building
-  optimizers.
+  initializes the optimizer state from the model parameters and `update_fn` is an
+  arity-3 function that receives `(gradient, optimizer_state, model_parameters)` and
+  scales gradient updates with respect to input parameters, optimizer state, and gradients.
+  The `update_fn` returns `{scaled_updates, optimizer_state}`, which can then be applied to
+  the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
+  See `Polaris.Updates` for more information on building optimizers.
 
   ## Options
 
@@ -351,7 +357,7 @@ defmodule Axon.Loop do
           loss: Nx.tensor(0.0),
           gradient_step: Nx.tensor(0),
           model_state: model_state,
-          gradient_state: zeros_like(model_state),
+          gradient_state: zeros_like(model_state, type: :f32),
           optimizer_state: optimizer_state,
           loss_scale_state: loss_scale_state
         }
@@ -458,7 +464,6 @@ defmodule Axon.Loop do
     opts = keyword!(opts, [:steps])
     steps = opts[:steps]
 
-    # TODO: this explodes the graph
     {_, new_model_state, _, new_optimizer_state, new_gradient_state, new_gradient_step, _} =
       while {gradients, model_state, new_state, optimizer_state, gradient_state, gradient_step,
              flag = Nx.tensor(1)},
@@ -468,7 +473,7 @@ defmodule Axon.Loop do
             update_optimizer_fn.(gradients, optimizer_state, model_state)
 
           new_gradient_state = zeros_like(model_state)
-          new_model_state = Axon.Updates.apply_updates(model_state, updates, new_state)
+          new_model_state = Polaris.Updates.apply_updates(model_state, updates, new_state)
 
           {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0,
            Nx.tensor(0)}
@@ -616,11 +621,11 @@ defmodule Axon.Loop do
   for multi-output models, or an arity-2 function representing a custom loss
   function.
 
-  `optimizer` must be an atom matching the name of a valid optimizer in `Axon.Optimizers`,
+  `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
   initializes the optimizer state from attached parameters and `update_fn` is an
   arity-3 function which scales gradient updates with respect to input parameters,
-  optimizer state, and gradients. See `Axon.Updates` for more information on building
+  optimizer state, and gradients. See `Polaris.Updates` for more information on building
   optimizers.
 
   This function creates a step function which outputs a map consisting of the following
@@ -649,7 +654,7 @@ defmodule Axon.Loop do
   ### Customizing Optimizer
 
       model
-      |> Axon.Loop.trainer(:binary_cross_entropy, Axon.Optimizers.adam(0.05))
+      |> Axon.Loop.trainer(:binary_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.05))
       |> Axon.Loop.run(data)
 
   ### Custom loss
@@ -657,7 +662,7 @@ defmodule Axon.Loop do
       loss_fn = fn y_true, y_pred -> Nx.cos(y_true, y_pred) end
 
       model
-      |> Axon.Loop.trainer(loss_fn, Axon.Optimizers.rmsprop(0.01))
+      |> Axon.Loop.trainer(loss_fn, Polaris.Optimizers.rmsprop(learning_rate: 0.01))
       |> Axon.Loop.run(data)
 
   ### Multiple objectives with multi-output model
@@ -691,7 +696,7 @@ defmodule Axon.Loop do
 
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_cale, :seed])
+    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_scale, :seed])
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
@@ -754,7 +759,7 @@ defmodule Axon.Loop do
   end
 
   @doc """
-  Creates a supervised evaluator from a model and model state.
+  Creates a supervised evaluator from a model.
 
   An evaluator can be used for things such as testing and validation of models
   after or during training. It assumes `model` is an Axon struct, container of
@@ -775,8 +780,17 @@ defmodule Axon.Loop do
       |> Axon.Loop.evaluator()
       |> Axon.Loop.metric("Accuracy", :accuracy)
 
-  Applies an output transform which returns the map of metrics accumulated over
-  the given loop.
+  You must pass a compatible trained model state to `Axon.Loop.run/4` when using
+  supervised evaluation loops. For example, if you've binded the result of a training
+  run to `trained_model_state`, you can run the trained model through an evaluation
+  run like this:
+
+      model
+      |> Axon.Loop.evaluator()
+      |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
+
+  This function applies an output transform which returns the map of metrics accumulated
+  over the given loop.
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
@@ -878,8 +892,6 @@ defmodule Axon.Loop do
         :iteration_completed, # On iteration complete
         :epoch_completed,     # On epoch complete
         :epoch_halted,        # On epoch halt, if early halted
-        :halted,              # On loop halt, if early halted
-        :completed            # On loop completion
       ]
 
   Generally, event handlers are side-effecting operations which provide some
@@ -889,8 +901,8 @@ defmodule Axon.Loop do
   loop:
 
       loop
-      |> Axon.Loop.handle(:epoch_started, &normalize_step_state/1) # executes first
-      |> Axon.Loop.handle(:epoch_started, &log_step_state/1) # executes second
+      |> Axon.Loop.handle_event(:epoch_started, &normalize_step_state/1) # executes first
+      |> Axon.Loop.handle_event(:epoch_started, &log_step_state/1) # executes second
 
   Thus, if you have separate handlers which alter or depend on loop state,
   you need to ensure they are ordered correctly, or combined into a single
@@ -923,11 +935,10 @@ defmodule Axon.Loop do
       only: N # Trigger on `N` event
 
   **Warning: If you modify the step state in an event handler, it will trigger
-  potentially excessive recompilation and result in significant additinal overhead
+  potentially excessive recompilation and result in significant additional overhead
   during loop execution.**
   """
-  # TODO(seanmor5): Custom events
-  def handle(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
+  def handle_event(%Loop{handlers: handle_fns} = loop, event, handler, filter \\ :always) do
     filter = build_filter_fn(filter)
 
     handle_fns =
@@ -943,6 +954,12 @@ defmodule Axon.Loop do
       end
 
     %Loop{loop | handlers: handle_fns}
+  end
+
+  @doc false
+  @deprecated "handle/4 is deprecated, use handle_event/4 instead"
+  def handle(%Loop{} = loop, event, handler, filter \\ :always) do
+    handle_event(loop, event, handler, filter)
   end
 
   @doc """
@@ -983,7 +1000,7 @@ defmodule Axon.Loop do
       end
     end
 
-    handle(loop, event, log_fn, filter)
+    handle_event(loop, event, log_fn, filter)
   end
 
   @doc """
@@ -1043,7 +1060,6 @@ defmodule Axon.Loop do
 
       metrics =
         Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
-        |> log(fn _ -> "\n" end, event: :completed)
         |> run(validation_data, model_state)
         |> Access.get(0)
         |> Map.new(fn {k, v} ->
@@ -1054,7 +1070,7 @@ defmodule Axon.Loop do
       {:continue, %{state | metrics: metrics}}
     end
 
-    handle(loop, event, validation_loop, filter)
+    handle_event(loop, event, validation_loop, filter)
   end
 
   @doc """
@@ -1102,7 +1118,7 @@ defmodule Axon.Loop do
     mode = opts[:mode] || :min
     patience = opts[:patience] || 3
 
-    handle(loop, event, &monitor_impl(&1, metric, fun, name, mode, patience), filter)
+    handle_event(loop, event, &monitor_impl(&1, metric, fun, name, mode, patience), filter)
   end
 
   defp monitor_impl(
@@ -1239,12 +1255,22 @@ defmodule Axon.Loop do
       `checkpoint_\#{epoch}_\#{iteration}.ckpt`.
   """
   def checkpoint(%Loop{} = loop, opts \\ []) do
-    {event, opts} = Keyword.pop(opts, :event, :epoch_completed)
-    {filter, opts} = Keyword.pop(opts, :filter, :always)
-    {path, opts} = Keyword.pop(opts, :path, "checkpoint")
-    {file_pattern, opts} = Keyword.pop(opts, :file_pattern, &default_checkpoint_file/1)
+    opts =
+      Keyword.validate!(opts, [
+        :criteria,
+        event: :epoch_completed,
+        filter: :always,
+        path: "checkpoint",
+        file_pattern: &default_checkpoint_file/1,
+        mode: :min
+      ])
+
     {criteria, opts} = Keyword.pop(opts, :criteria)
-    {mode, serialize_opts} = Keyword.pop(opts, :mode, :min)
+    {event, opts} = Keyword.pop!(opts, :event)
+    {filter, opts} = Keyword.pop!(opts, :filter)
+    {path, opts} = Keyword.pop!(opts, :path)
+    {file_pattern, opts} = Keyword.pop!(opts, :file_pattern)
+    {mode, serialize_opts} = Keyword.pop!(opts, :mode)
 
     checkpoint_fun = &checkpoint_impl(&1, path, file_pattern, serialize_opts)
 
@@ -1255,7 +1281,7 @@ defmodule Axon.Loop do
         filter: filter
       )
     else
-      handle(loop, event, checkpoint_fun, filter)
+      handle_event(loop, event, checkpoint_fun, filter)
     end
   end
 
@@ -1419,40 +1445,45 @@ defmodule Axon.Loop do
 
     opts = Keyword.validate!(opts, event: :iteration_completed, filter: :always)
 
-    handle(
+    handle_event(
       loop,
       opts[:event],
       fn %{
            metrics: metrics,
-           handler_metadata: handler_meta
+           handler_metadata: handler_metadata
          } = state ->
         unless Map.has_key?(metrics, metric) do
           raise ArgumentError,
                 "invalid metric to plot, key #{inspect(metric)} not present in metrics"
         end
 
-        {iteration, handler_meta} = absolute_iteration(handler_meta)
+        plot_metadata_key = "plot_#{metric}"
+        plot_metadata = Map.get(handler_metadata, plot_metadata_key, %{})
+
+        {iteration, plot_metadata} = absolute_iteration(plot_metadata)
 
         Kino.VegaLite.push(plot, %{
           "step" => iteration,
           metric => Nx.to_number(metrics[metric])
         })
 
-        {:continue, %{state | handler_metadata: handler_meta}}
+        next_handler_metadata = Map.put(handler_metadata, plot_metadata_key, plot_metadata)
+
+        {:continue, %{state | handler_metadata: next_handler_metadata}}
       end,
       opts[:filter]
     )
   end
 
-  defp absolute_iteration(
-         %{"plot" => %{"absolute_iteration" => absolute_iteration}} = handler_meta
-       ),
-       do:
-         {absolute_iteration,
-          put_in(handler_meta, ["plot", "absolute_iteration"], absolute_iteration + 1)}
+  defp absolute_iteration(plot_metadata) do
+    case plot_metadata do
+      %{"absolute_iteration" => iteration} ->
+        {iteration, Map.put(plot_metadata, "absolute_iteration", iteration + 1)}
 
-  defp absolute_iteration(handler_meta),
-    do: {0, Map.put(handler_meta, "plot", %{"absolute_iteration" => 1})}
+      %{} ->
+        {0, %{"absolute_iteration" => 1}}
+    end
+  end
 
   defp assert_kino_vega_lite!(fn_name) do
     unless Code.ensure_loaded?(Kino.VegaLite) do
@@ -1713,7 +1744,8 @@ defmodule Axon.Loop do
         &Map.put(&2, &1, zero_metrics)
       )
 
-    {_, state} = fire_event(status, handler_fns, %{state | metrics: final_metrics_map}, debug?)
+    state = %State{state | metrics: final_metrics, status: status}
+    {_, state} = fire_event(status, handler_fns, state, debug?)
     output_transform.(state)
   end
 
@@ -1793,9 +1825,6 @@ defmodule Axon.Loop do
           if debug? do
             Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
           end
-
-          # Force a garbage collection so any device or copied data is deallocated.
-          :erlang.garbage_collect()
 
           batch_fn = {:compiled, batch_fn}
           state = %{state | step_state: new_step_state, metrics: new_metrics}
@@ -2005,12 +2034,12 @@ defmodule Axon.Loop do
 
   # Builds optimizer init and update functions either from an atom
   # or a tuple of init / update functions. The init and update functions
-  # match the signatures of those defined in Axon.Updates. If the
+  # match the signatures of those defined in Polaris.Updates. If the
   # optimizer is an atom, it must match the name of a function in
-  # Axon.Optimizers.
+  # Polaris.Optimizers.
   defp build_optimizer_fns(optimizer)
-       when is_atom(optimizer) and optimizer in @valid_axon_optimizers do
-    apply(Axon.Optimizers, optimizer, [])
+       when is_atom(optimizer) and optimizer in @valid_polaris_optimizers do
+    apply(Polaris.Optimizers, optimizer, [])
   end
 
   defp build_optimizer_fns({init_optimizer_fn, update_optimizer_fn})
@@ -2021,8 +2050,8 @@ defmodule Axon.Loop do
   defp build_optimizer_fns(invalid) do
     raise ArgumentError,
           "Invalid optimizer #{inspect(invalid)}, a valid optimizer" <>
-            " is an atom matching the name of an optimizer in Axon.Optimizers" <>
-            " or a tuple of {init_fn, update_fn}. See Axon.Updates for more" <>
+            " is an atom matching the name of an optimizer in Polaris.Optimizers" <>
+            " or a tuple of {init_fn, update_fn}. See Polaris.Updates for more" <>
             " information on building optimizers using the low-level API"
   end
 

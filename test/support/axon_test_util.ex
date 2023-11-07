@@ -134,7 +134,7 @@ defmodule AxonTestUtil do
       {params, opt_state} = state
       gradients = Nx.Defn.grad(params, loss)
       {updates, new_state} = update_fn.(gradients, opt_state, params)
-      {Axon.Updates.apply_updates(updates, params), new_state}
+      {Polaris.Updates.apply_updates(updates, params), new_state}
     end
 
     {params, _} =
@@ -161,6 +161,13 @@ defmodule AxonTestUtil do
         #{inspect(rhs)}
       """
     end
+  end
+
+  def random(shape, opts \\ []) do
+    Nx.Random.uniform_split(Nx.Random.key(:erlang.system_time()), 0.0, 1.0,
+      shape: shape,
+      type: opts[:type] || :f32
+    )
   end
 
   def get_test_data(

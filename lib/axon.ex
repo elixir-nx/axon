@@ -175,7 +175,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
       predict_fn.(params, inputs)
 
   You may either set the default JIT compiler or backend globally, or
@@ -185,7 +185,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model, compiler: EXLA, mode: :train)
 
-      init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
       predict_fn.(params, inputs)
 
   `predict_fn` by default runs in inference mode, which performs certain
@@ -209,11 +209,72 @@ defmodule Axon do
 
       model_state =
         model
-        |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adamw(0.005))
+        |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(learning_rate: 0.005))
         |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
 
-  See `Axon.Updates` and `Axon.Loop` for a more in-depth treatment of
+  See `Polaris.Updates` and `Axon.Loop` for a more in-depth treatment of
   model optimization and model training.
+
+  ## Using with `Nx.Serving`
+
+  When deploying an `Axon` model to production, you usually want to batch
+  multiple prediction requests and run the inference for all of them at
+  once. Conveniently, `Nx` already has an abstraction for this task in the
+  form of `Nx.Serving`. Here's how you could define a serving for an `Axon`
+  model:
+
+      def build_serving() do
+        # Configuration
+        batch_size = 4
+        defn_options = [compiler: EXLA]
+
+        Nx.Serving.new(
+          # This function runs on the serving startup
+          fn ->
+            # Build the Axon model and load params (usually from file)
+            model = build_model()
+            params = load_params()
+
+            # Build the prediction defn function
+            {_init_fun, predict_fun} = Axon.build(model)
+
+            inputs_template = %{"pixel_values" => Nx.template({batch_size, 224, 224, 3}, :f32)}
+            template_args = [Nx.to_template(params), inputs_template]
+
+            # Compile the prediction function upfront for the configured batch_size
+            predict_fun = Nx.Defn.compile(predict_fun, template_args, defn_options)
+
+            # The returned function is called for every accumulated batch
+            fn inputs ->
+              inputs = Nx.Batch.pad(inputs, batch_size - inputs.size)
+              predict_fun.(params, inputs)
+            end
+          end,
+          batch_size: batch_size
+        )
+      end
+
+  Then you would start the serving server as part of your application's
+  supervision tree:
+
+      children = [
+        ...,
+        {Nx.Serving, serving: build_serving(), name: MyApp.Serving, batch_timeout: 100}
+      ]
+
+  With that in place, you can now ask serving for predictions all across
+  your application (controllers, live views, async jobs, etc.). Having a
+  tensor input you would do:
+
+      inputs = %{"pixel_values" => ...}
+      batch = Nx.Batch.concatenate([inputs])
+      result = Nx.Serving.batched_run(MyApp.Serving, batch)
+
+  Usually you also want to do pre/post-processing of the model input/output.
+  You could make those preparations directly before/after `Nx.Serving.batched_run/2`,
+  however you can also make use of `Nx.Serving.client_preprocessing/2` and
+  `Nx.Serving.client_postprocessing/2` to encapsulate that logic as part of
+  the serving.
   """
   alias __MODULE__, as: Axon
   alias Axon.Parameter
@@ -379,21 +440,6 @@ defmodule Axon do
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
     layer(:input, [], name: name, shape: output_shape, op_name: :input, optional: optional)
-  end
-
-  # TODO: remove on Axon v0.3
-
-  def input(input_shape, name) when is_binary(name) do
-    IO.warn(
-      "Passing shape as an argument to Axon.input/2 is deprecated, pass it as an option instead"
-    )
-
-    input(name, [{:shape, input_shape}])
-  end
-
-  @deprecated "Pass the shape as an option to Axon.input/2"
-  def input(input_shape, name, opts) when is_binary(name) do
-    input(name, [{:shape, input_shape} | opts])
   end
 
   @doc """
@@ -627,6 +673,69 @@ defmodule Axon do
   @doc type: :special
   def namespace(%Axon{} = axon, name) when is_binary(name) do
     layer(:namespace, [axon], name: name)
+  end
+
+  @doc """
+  Returns a function which represents a self-contained re-usable block
+  of operations in a neural network. All parameters in the block are
+  shared between every usage of the block.
+
+  This returns an arity-1 function which accepts a list of inputs which
+  are forwarded to `fun`. This is most often used in situations where
+  you wish to re-use parameters in a block:
+
+      reused_dense = Axon.block(&Axon.dense(&1, 32))
+
+  Everytime `reused_dense` is invoked, it re-uses the same parameters:
+
+      input = Axon.input("features")
+      # unique parameters
+      x1 = Axon.dense(input, 32)
+      # unique parameters
+      x2 = reused_dense.(x1)
+      # parameters shared
+      x3 = reused_dense.(x2)
+
+  Subgraphs in blocks can be arbitrarily complex:
+
+      reused_block = Axon.block(fn x ->
+        x
+        |> Axon.dense(32)
+        |> Axon.dense(64)
+        |> Axon.dense(32)
+      end)
+
+  Blocks can also have multiple inputs, you can invoke a block with multiple
+  inputs by passing a list of arguments:
+
+      reused_block = Axon.block(fn x, y, z ->
+        x = Axon.dense(x, 32)
+        y = Axon.dense(y, 32)
+        z = Axon.dense(z, 32)
+
+        Axon.add([x, y, z])
+      end)
+
+      # invoke with a list
+      reused_block.([x, y, z])
+
+  Blocks prefix subgraph parameters with their name and a dot. As with other
+  Axon layers, if a name is not explicitly provided, one will be dynamically
+  generated.
+  """
+  @doc type: :special
+  def block(fun, opts \\ []) when is_function(fun) do
+    opts = Keyword.validate!(opts, [:name])
+    block_id = System.unique_integer([:positive, :monotonic])
+
+    fn inputs ->
+      layer(:block, List.wrap(inputs),
+        op_name: :block,
+        name: opts[:name],
+        block_fun: fun,
+        block_id: block_id
+      )
+    end
   end
 
   @doc """
@@ -1521,6 +1630,39 @@ defmodule Axon do
     layer(pool, [x], opts)
   end
 
+  @doc """
+  Adds a blur pooling layer to the network.
+
+  See `Axon.Layers.blur_pool/2` for more details.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:strides` - stride during convolution. Defaults to `1`.
+
+    * `:channels` - channels location. One of `:first` or `:last`.
+      Defaults to `:last`.
+  """
+  def blur_pool(%Axon{} = x, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        channels: :last
+      ])
+
+    channels = opts[:channels]
+    name = opts[:name]
+
+    opts = [
+      name: name,
+      channels: channels,
+      op_name: :blur_pool
+    ]
+
+    layer(:blur_pool, [x], opts)
+  end
+
   ## Adaptive Pooling
 
   @adaptive_pooling_layers [
@@ -1667,7 +1809,7 @@ defmodule Axon do
       * `:channel_index` - input feature index used for calculating
         mean and variance. Defaults to `-1`.
 
-      * `:epsilon` - numerical stability term.
+      * `:epsilon` - numerical stability term. Defaults to `1.0e-5`.
 
     """
     @doc type: :normalization
@@ -2183,6 +2325,30 @@ defmodule Axon do
   end
 
   @doc """
+  Computes a sequence mask according to the given EOS token.
+
+  Masks can be propagated to recurrent layers or custom layers to
+  indicate that a given token should be ignored in processing. This
+  is useful when you have sequences of variable length.
+
+  Most commonly, `eos_token` is `0`.
+
+  ## Options
+
+    * `:name` - layer name.
+  """
+  @doc type: :recurrent
+  def mask(%Axon{} = input, eos_token, opts \\ []) when is_integer(eos_token) do
+    opts = Keyword.validate!(opts, [:name])
+
+    fun = fn x, opts ->
+      Nx.equal(Nx.as_type(x, :s64), opts[:eos_token])
+    end
+
+    layer(fun, [input], eos_token: eos_token, op_name: :mask, name: opts[:name])
+  end
+
+  @doc """
   Applies the given forward function bidirectionally and merges
   the results with the given merge function.
 
@@ -2292,16 +2458,17 @@ defmodule Axon do
         unroll: :dynamic,
         use_bias: true,
         kernel_initializer: :glorot_uniform,
-        bias_initializer: :zeros
+        bias_initializer: :zeros,
+        mask: Axon.constant(0)
       ])
 
     activation = opts[:activation]
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
-    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
-    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
+    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
+    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
+    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2336,9 +2503,9 @@ defmodule Axon do
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
 
-        {[x, hidden_state, input_kernel, hidden_kernel, bias], :lstm}
+        {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias], :lstm}
       else
-        {[x, hidden_state, input_kernel, hidden_kernel], &Axon.Layers.lstm/5}
+        {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel], &Axon.Layers.lstm/6}
       end
 
     output =
@@ -2484,6 +2651,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        mask: Axon.constant(0),
         activation: :tanh,
         gate: :sigmoid,
         unroll: :dynamic,
@@ -2496,9 +2664,9 @@ defmodule Axon do
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    input_kernel_shape = fn inp, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
-    hidden_kernel_shape = fn inp, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
-    bias_shape = fn inp, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
+    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
+    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
+    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
 
     kernel_initializer = opts[:kernel_initializer]
 
@@ -2532,9 +2700,9 @@ defmodule Axon do
         bias =
           param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
 
-        [x, hidden_state, input_kernel, hidden_kernel, bias]
+        [x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias]
       else
-        [x, hidden_state, input_kernel, hidden_kernel]
+        [x, hidden_state, opts[:mask], input_kernel, hidden_kernel]
       end
 
     output =
@@ -2666,6 +2834,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        mask: Axon.constant(0),
         padding: :same,
         kernel_size: 1,
         strides: 1,
@@ -2681,17 +2850,17 @@ defmodule Axon do
     unroll = opts[:unroll]
     kernel_initializer = opts[:kernel_initializer]
 
-    hidden_kernel_shape = fn _, {inp, _} ->
+    hidden_kernel_shape = fn _, {inp, _}, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    input_kernel_shape = fn inp, _ ->
+    input_kernel_shape = fn inp, _, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    bias_shape = fn inp, _ ->
+    bias_shape = fn inp, _, _ ->
       shape = Tuple.delete_at(inp, 1)
       Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
     end
@@ -2716,9 +2885,9 @@ defmodule Axon do
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
         b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
-        {[x, hidden_state, wi, wh, b], :conv_lstm}
+        {[x, hidden_state, opts[:mask], wi, wh, b], :conv_lstm}
       else
-        {[x, hidden_state, wi, wh], :conv_lstm}
+        {[x, hidden_state, opts[:mask], wi, wh], :conv_lstm}
       end
 
     output =
@@ -2938,7 +3107,7 @@ defmodule Axon do
         |> Axon.dense(1000, activation: :softmax)
 
       model
-      |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.005))
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.005))
       |> Axon.Loop.run(data, epochs: 10)
 
   When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
@@ -3010,7 +3179,7 @@ defmodule Axon do
         |> Axon.unfreeze(up: 25)
 
       model
-      |> Axon.Loop.trainer(:categorical_cross_entropy, Axon.Optimizers.adam(0.0005))
+      |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.0005))
       |> Axon.Loop.run(data, epochs: 10)
 
   When compiled, frozen parameters are wrapped in `Nx.Defn.Kernel.stop_grad/1`,
@@ -3071,17 +3240,23 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts \\ []) do
+  def attach_hook(x, fun, opts \\ [])
+
+  def attach_hook(%Axon{output: id, nodes: nodes} = axon, fun, opts) do
+    updated_nodes =
+      Map.update!(nodes, id, fn axon_node ->
+        attach_hook(axon_node, fun, opts)
+      end)
+
+    %{axon | nodes: updated_nodes}
+  end
+
+  def attach_hook(%Axon.Node{hooks: hooks} = axon_node, fun, opts) do
     opts = Keyword.validate!(opts, on: :forward, mode: :both)
     on_event = opts[:on]
     mode = opts[:mode]
 
-    updated_nodes =
-      Map.update!(nodes, id, fn axon_node ->
-        %{axon_node | hooks: [{on_event, mode, fun}]}
-      end)
-
-    %{axon | nodes: updated_nodes}
+    %{axon_node | hooks: [{on_event, mode, fun} | hooks]}
   end
 
   ## Graph Manipulation and Utilities
@@ -3247,12 +3422,12 @@ defmodule Axon do
   you can use this function to visualize intermediate activations
   of all convolutional layers in a model:
 
-      instrumented_model = Axon.  (model, fn
-        %Axon{op: :conv} = graph ->
-          Axon.attach_hook(graph, &visualize_activations/1)
+      instrumented_model = Axon.map_nodes(model, fn
+        %Axon.Node{op: :conv} = axon_node ->
+          Axon.attach_hook(axon_node, &visualize_activations/1)
 
-        graph ->
-          graph
+        axon_node ->
+          axon_node
       end)
 
   Another use case is to replace entire classes of layers
@@ -3396,7 +3571,10 @@ defmodule Axon do
   @doc """
   Builds the given model to `{init_fn, predict_fn}`.
 
-  Once built, a model can be passed as argument to `Nx.Defn`.
+  The given functions can be either given as arguments to `Nx.Defn`
+  functions or be invoked directly, to perform just-in-time compilation
+  and execution. If you want to compile the model (instead of just-in-time)
+  based on a predefined initialization shape, see `compile/4`.
 
   ## `init_fn`
 
@@ -3416,19 +3594,29 @@ defmodule Axon do
 
   ## Options
 
-    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
-      to control differences in compilation at training or inference time.
-      Defaults to `:inference`
+    * `:compiler` - the underlying `Nx.Defn` compiler to perform
+      JIT compilation when the functions are invoked. If none is
+      passed, it uses the default compiler configured in `Nx.Defn`;
 
     * `:debug` - if `true`, will log graph traversal and generation
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
-  All other options are forwarded to the default JIT compiler
-  or backend.
+    * `:mode` - one of `:inference` or `:train`. Forwarded to layers
+      to control differences in compilation at training or inference time.
+      Defaults to `:inference`
+
+  All other options are forwarded to the underlying JIT compiler.
   """
   @doc type: :model
   def build(model, opts \\ []) when is_list(opts) do
+    if opts[:backend] do
+      IO.warn(
+        "the :backend option has no effect on Axon.build/2. " <>
+          "Use Nx.default_backend/1 to set a backend instead"
+      )
+    end
+
     {init_fn, predict_fn} = Axon.Compiler.build(model, opts)
     opts = [on_conflict: :reuse] ++ opts
     {Nx.Defn.jit(init_fn, opts), Nx.Defn.jit(predict_fn, opts)}
@@ -3445,8 +3633,11 @@ defmodule Axon do
 
   This function makes use of the built-in `Nx.Defn.compile/3`. Note
   that passing inputs which differ in shape or type from the templates
-  provided to this function will result in potentially expensive
-  recompilation.
+  provided to this function will result in a crash.
+
+  ## Options
+
+  It accepts the same options as `build/2`.
   """
   @doc type: :model
   def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
@@ -3554,8 +3745,10 @@ defmodule Axon do
   end
 
   @doc """
-  Compiles and runs the given Axon model with `params` on
-  `input` with the given compiler options.
+  Builds and runs the given Axon `model` with `params` and `input`.
+
+  This is equivalent to calling `build/2` and then invoking the
+  predict function.
 
   ## Options
 

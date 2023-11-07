@@ -1,16 +1,12 @@
-<!-- livebook:{"persist_outputs":true} -->
-
 # Accelerating Axon
 
 ```elixir
 Mix.install([
-  {:axon, github: "elixir-nx/axon"},
-  {:exla, "~> 0.3.0", github: "elixir-nx/nx", sparse: "exla"},
-  {:torchx, github: "elixir-nx/nx", sparse: "torchx"},
-  {:nx, "~> 0.3.0", github: "elixir-nx/nx", sparse: "nx", override: true},
-  {:benchee, github: "akoutmos/benchee", branch: :adding_table_support},
-  {:kino_benchee, github: "livebook-dev/kino_benchee"},
-  {:kino, "~> 0.7.0", override: true}
+  {:axon, ">= 0.5.0"},
+  {:exla, ">= 0.5.0"},
+  {:torchx, ">= 0.5.0"},
+  {:benchee, "~> 1.1"},
+  {:kino, ">= 0.9.0", override: true}
 ])
 ```
 
@@ -20,16 +16,9 @@ Mix.install([
 :ok
 ```
 
-## Using Nx Compilers in Axon
+## Using Nx Backends in Axon
 
-Axon is built entirely on top of Nx's numerical definitions `defn`. Functions declared with `defn` tell Nx to use *just-in-time compilation* to compile and execute the given numerical definition with an available Nx compiler. Numerical definitions enable acceleration on CPU/GPU/TPU via pluggable compilers. At the time of this writing, Nx has 2 officially supported compiler/backends on top of the default `BinaryBackend`:
-
-1. EXLA - Acceleration via Google's [XLA project](https://www.tensorflow.org/xla)
-2. TorchX - Bindings to [LibTorch](https://pytorch.org/cppdocs/)
-
-By default, Nx and Axon run all computations using the `BinaryBackend` which is a pure Elixir implementation of various numerical routines. The `BinaryBackend` is guaranteed to run wherever an Elixir installation runs; however, it is **very** slow. Due to the computational expense of neural networks, you should basically never use the `BinaryBackend` and instead opt for one of the available accelerated libraries.
-
-There are several ways to make use of Nx compilers from within Axon. First, create a simple model for benchmarking purposes:
+Nx provides two mechanisms for accelerating your neural networks: backends and compilers. Before we learn how to effectively use them, first let's create a simple model for benchmarking purposes:
 
 ```elixir
 model =
@@ -50,25 +39,32 @@ model =
 >
 ```
 
-By default, Axon will respect the default `defn` compilation options. You can set compilation options globally or per-process:
+Backends are where your tensors (your neural network inputs and parameters) are located. By default, Nx and Axon run all computations using the `Nx.BinaryBackend` which is a pure Elixir implementation of various numerical routines. The `Nx.BinaryBackend` is guaranteed to run wherever an Elixir installation runs; however, it is **very** slow. Due to the computational expense of neural networks, you should basically never use the `Nx.BinaryBackend` and instead opt for one of the available accelerated libraries. At the time of writing, Nx officially supports two of them:
+
+1. EXLA - Acceleration via Google's [XLA project](https://www.tensorflow.org/xla)
+2. TorchX - Bindings to [LibTorch](https://pytorch.org/cppdocs/)
+
+Axon will respect the global and process-level Nx backend configuration. Compilers are covered more in-depth in the second half of this example. You can set the default backend using the following APIs:
 
 ```elixir
-# Sets the global compilation options
-Nx.Defn.global_default_options(compiler: EXLA)
-# Sets the process-level compilation options
-Nx.Defn.default_options(compiler: EXLA)
+# Sets the global compilation options (for all Elixir processes)
+Nx.global_default_backend(Torchx.Backend)
+# OR
+Nx.global_default_backend(EXLA.Backend)
+
+# Sets the process-level compilation options (current process only)
+Nx.default_backend(Torchx.Backend)
+# OR
+Nx.default_backend(EXLA.Backend)
 ```
 
-<!-- livebook:{"output":true} -->
-
-```
-[compiler: EXLA]
-```
-
-When you call `Axon.build/2`, Axon automatically marks your initialization and forward functions as JIT compiled functions. When you invoke them, they will compile a specialized version of the function using your default compiler options:
+Now all tensors and operations on them will run on the configured backend:
 
 ```elixir
-inputs = Nx.random_uniform({2, 128})
+{inputs, _next_key} =
+  Nx.Random.key(9999)
+  |> Nx.Random.uniform(shape: {2, 128})
+
 {init_fn, predict_fn} = Axon.build(model)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
@@ -77,19 +73,9 @@ predict_fn.(params, inputs)
 <!-- livebook:{"output":true} -->
 
 ```
-
-10:34:02.503 [info]  XLA service 0x7fbd5468c170 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
-
-10:34:02.785 [info]    StreamExecutor device (0): Host, Default Version
-
-```
-
-<!-- livebook:{"output":true} -->
-
-```
 #Nx.Tensor<
+  EXLA.Backend<cuda:0, 0.3278685746.4275961901.179470>
   f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1168769032.259095>
   [
     [1.0],
     [1.0]
@@ -97,25 +83,27 @@ predict_fn.(params, inputs)
 >
 ```
 
-Notice that the inspected tensor indicates the computation has been dispatched to EXLA and the tensor's data points to an EXLA buffer.
+As you swap backends above, you will get tensors allocated on different backends as results. You should be careful using multiple backends in the same project as attempting to mix tensors between backends may result in strange performance bugs or errors, as Nx will require you to explicitly convert between backends.
 
-<!-- livebook:{"break_markdown":true} -->
+With most larger models, using a compiler will bring more performance benefits in addition to the backend.
 
-If you feel like setting the global or process-level compilation options is too intrusive, you can opt for more explicit behavior in a few ways. First, you can specify the JIT compiler when you build the model:
+## Using Nx Compilers in Axon
 
-```elixir
-# Set back to defaults
-Nx.Defn.global_default_options([])
-Nx.Defn.default_options([])
-```
+Axon is built entirely on top of Nx's numerical definitions `defn`. Functions declared with `defn` tell Nx to use *just-in-time compilation* to compile and execute the given numerical definition with an available Nx compiler. Numerical definitions enable acceleration on CPU/GPU/TPU via pluggable compilers. At the time of this writing, only EXLA supports a compiler in addition to its backend.
 
-<!-- livebook:{"output":true} -->
-
-```
-[compiler: EXLA]
-```
+When you call `Axon.build/2`, Axon can automatically mark your initialization and forward functions as JIT compiled functions. First let's make sure we are using the EXLA backend:
 
 ```elixir
+Nx.default_backend(EXLA.Backend)
+```
+
+And now let's build another model, this time passing the EXLA compiler as an option:
+
+```elixir
+{inputs, _next_key} =
+  Nx.Random.key(9999)
+  |> Nx.Random.uniform(shape: {2, 128})
+
 {init_fn, predict_fn} = Axon.build(model, compiler: EXLA)
 params = init_fn.(inputs, %{})
 predict_fn.(params, inputs)
@@ -124,9 +112,27 @@ predict_fn.(params, inputs)
 <!-- livebook:{"output":true} -->
 
 ```
+
+15:39:26.463 [info] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+
+15:39:26.473 [info] XLA service 0x7f3488329030 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+
+15:39:26.473 [info]   StreamExecutor device (0): NVIDIA GeForce RTX 3050 Ti Laptop GPU, Compute Capability 8.6
+
+15:39:26.473 [info] Using BFC allocator.
+
+15:39:26.473 [info] XLA backend allocating 3605004288 bytes on device 0 for BFCAllocator.
+
+15:39:28.272 [info] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
 #Nx.Tensor<
   f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1168769032.259101>
+  EXLA.Backend<cuda:0, 0.3278685746.4275699756.253533>
   [
     [1.0],
     [1.0]
@@ -147,7 +153,7 @@ exla_predict_fn = EXLA.jit(predict_fn)
 <!-- livebook:{"output":true} -->
 
 ```
-#Function<136.40088443/2 in Nx.Defn.wrap_arity/2>
+#Function<135.109794929/2 in Nx.Defn.Compiler.fun/2>
 ```
 
 ```elixir
@@ -272,87 +278,11 @@ elixir predict        91.09 KB - 8.32x memory usage +80.14 KB
 **All measurements for memory usage were the same**
 ```
 
-Notice how calls to EXLA variants are significantly faster than their Elixir counterparts. These speedups become more pronounced with more complex models and workflows.
+Notice how calls to EXLA variants are significantly faster. These speedups become more pronounced with more complex models and workflows.
 
 <!-- livebook:{"break_markdown":true} -->
 
 It's important to note that in order to use a given library as an Nx compiler, it must implement the Nx compilation behaviour. For example, you cannot invoke Torchx as an Nx compiler because it does not support JIT compilation at this time.
-
-## Using Nx Backends in Axon
-
-In addition to JIT-compilation, Axon also supports the usage of Nx backends. Nx backends are slightly different than Nx compilers in the sense that they do not fuse calls within numerical definitions. Backends are more eager, sacrificing a bit of performance for convenience. Torchx and EXLA both support running via backends.
-
-Again, Axon will respect the global and process-level Nx backend configuration options. You can set the default backend using:
-
-```elixir
-# Global default backend
-Nx.global_default_backend(Torchx.Backend)
-# Process default backend
-Nx.default_backend(Torchx.Backend)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{Nx.BinaryBackend, []}
-```
-
-Now when you invoke model functions, it will run them with the given backend:
-
-```elixir
-{init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(inputs, %{})
-predict_fn.(params, inputs)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Nx.Tensor<
-  f32[2][1]
-  Torchx.Backend(cpu)
-  [
-    [1.0],
-    [1.0]
-  ]
->
-```
-
-```elixir
-# Global default backend
-Nx.global_default_backend(EXLA.Backend)
-# Process default backend
-Nx.default_backend(EXLA.Backend)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-{Torchx.Backend, []}
-```
-
-```elixir
-{init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(inputs, %{})
-predict_fn.(params, inputs)
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-#Nx.Tensor<
-  f32[2][1]
-  EXLA.Backend<host:0, 0.184501844.1169293320.110725>
-  [
-    [1.0],
-    [1.0]
-  ]
->
-```
-
-Unlike with JIT-compilation, you must set the backend at the top-level in order to invoke it. You should be careful using multiple backends in the same project as attempting to mix tensors between backends may result in strange performance bugs or errors.
-
-With most larger models, using a JIT compiler will be more performant than using a backend.
 
 ## A Note on CPUs/GPUs/TPUs
 

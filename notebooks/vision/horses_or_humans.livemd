@@ -143,7 +143,7 @@ The next step is creating our model. In this notebook, we choose the classic Con
 
 <!-- livebook:{"break_markdown":true} -->
 
-| ![](https://miroslawmamczur.pl/wp-content/uploads/2021/03/06.gif)                       |
+|            ![](https://miroslawmamczur.pl/wp-content/uploads/2021/03/06.gif)            |
 | :-------------------------------------------------------------------------------------: |
 | Figure 1: A step-by-step visualization of a convolution layer for `kernel_size: {3, 3}` |
 
@@ -155,7 +155,7 @@ The next step is creating our model. In this notebook, we choose the classic Con
 
 | ![](https://production-media.paperswithcode.com/methods/MaxpoolSample2.png) |
 | :-------------------------------------------------------------------------: |
-| Figure 2: Max pooling operation for `kernel_size: {2, 2}`                   |
+|          Figure 2: Max pooling operation for `kernel_size: {2, 2}`          |
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -163,7 +163,7 @@ The next step is creating our model. In this notebook, we choose the classic Con
 
 <!-- livebook:{"break_markdown":true} -->
 
-| ![](https://miro.medium.com/max/1400/1*KkqxjvXTIV_b365B41ltfg.png)    |
+|  ![](https://miro.medium.com/max/1400/1*KkqxjvXTIV_b365B41ltfg.png)   |
 | :-------------------------------------------------------------------: |
 | Figure 3: The difference between standard dropout and spatial dropout |
 
@@ -199,7 +199,7 @@ It's time to train our model. We specify the loss, optimizer and choose accuracy
 ```elixir
 data = HorsesHumans.DataProcessing.data_stream(files, batch_size)
 
-optimizer = Axon.Optimizers.adam(1.0e-4)
+optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
 
 params =
   model
@@ -215,7 +215,7 @@ params =
 We can improve the training by applying gradient centralization. It is a technique with a similar purpose to batch normalization. For each loss gradient, we subtract a mean value to have a gradient with mean equal to zero. This process prevents gradients from exploding.
 
 ```elixir
-centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
+centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
 model
 |> Axon.Loop.trainer(:categorical_cross_entropy, centralized_optimizer, :identity, log: 1)
@@ -242,7 +242,7 @@ input =
 Axon.predict(model, params, input)
 ```
 
-*Note: the model output refers to the probability that the image presents a horse and a human respectively.*
+_Note: the model output refers to the probability that the image presents a horse and a human respectively._
 
 <!-- livebook:{"break_markdown":true} -->
 

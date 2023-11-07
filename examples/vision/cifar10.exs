@@ -1,12 +1,9 @@
 Mix.install([
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"},
-  {:scidata, "~> 0.1.3"}
+  {:axon, "~> 0.5"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"},
+  {:scidata, "~> 0.1"}
 ])
-
-# Configure default platform with accelerator precedence as tpu > cuda > rocm > host
-EXLA.set_as_nx_default([:tpu, :cuda, :rocm, :host])
 
 defmodule Cifar do
   require Axon
@@ -14,9 +11,11 @@ defmodule Cifar do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 3, 32, 32})
+    |> Nx.reshape(shape, names: [:count, :channels, :width, :height])
+    # Move channels to last position to match what conv layer expects
+    |> Nx.transpose(axes: [:count, :width, :height, :channels])
     |> Nx.divide(255.0)
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     |> Enum.split(1500)
   end
 
@@ -25,7 +24,7 @@ defmodule Cifar do
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
     |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched_list(32)
+    |> Nx.to_batched(32)
     |> Enum.split(1500)
   end
 
@@ -58,12 +57,16 @@ defmodule Cifar do
   end
 
   def run do
-    {images, labels} = Scidata.CIFAR10.download()
+    {{_, _, {_, channels, width, height}} = images, labels} = Scidata.CIFAR10.download()
 
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, 3, 32, 32}) |> IO.inspect()
+    model =
+      # Move channels to last position to match what conv layer expects
+      {nil, width, height, channels}
+      |> build_model()
+      |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
@@ -79,4 +82,5 @@ defmodule Cifar do
   end
 end
 
+Nx.default_backend(EXLA.Backend)
 Cifar.run()

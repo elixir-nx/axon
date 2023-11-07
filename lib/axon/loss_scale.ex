@@ -7,7 +7,7 @@ defmodule Axon.LossScale do
   precision during the model training process. Each loss-scale
   implementation here returns a 3-tuple of the functions:
 
-      {init_fn, scale_fn, unscale_fn, adjust_fn} = Axon.LossScale.static(Nx.power(2, 15))
+      {init_fn, scale_fn, unscale_fn, adjust_fn} = Axon.LossScale.static(Nx.pow(2, 15))
 
   You can use these to scale/unscale loss and gradients as well
   as adjust the loss scale state.
@@ -25,7 +25,7 @@ defmodule Axon.LossScale do
   @doc """
   Implements identity loss-scale.
   """
-  def identity() do
+  def identity(_opts \\ []) do
     scale_unscale_fun = fn x, _state -> x end
     adjust_fun = fn x, state -> {x, state} end
     {fn -> %{} end, scale_unscale_fun, adjust_fun}
@@ -34,8 +34,9 @@ defmodule Axon.LossScale do
   @doc """
   Implements static loss-scale.
   """
-  def static(loss_scale \\ @default_loss_scale) do
-    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
+  def static(opts \\ []) do
+    opts = Keyword.validate!(opts, init_scale: @default_loss_scale)
+    loss_scale = Nx.backend_copy(opts[:init_scale], Nx.BinaryBackend)
     {fn -> init_static(loss_scale) end, &scale_static/2, &unscale_static/2}
   end
 
@@ -44,26 +45,28 @@ defmodule Axon.LossScale do
   end
 
   defnp scale_static(value, %{loss_scale: loss_scale}) do
-    transform({value, loss_scale}, fn {value, loss_scale} ->
-      deep_new(value, fn x -> x * loss_scale end)
-    end)
+    deep_new(value, fn x -> x * loss_scale end)
   end
 
   defnp unscale_static(value, %{loss_scale: loss_scale} = state) do
     inv_loss_scale = 1 / loss_scale
-
-    unscaled =
-      transform({value, inv_loss_scale}, fn {value, inv_loss_scale} ->
-        deep_new(value, fn x -> x * inv_loss_scale end)
-      end)
-
+    unscaled = deep_new(value, fn x -> x * inv_loss_scale end)
     {unscaled, state}
   end
 
   @doc """
   Implements dynamic loss-scale.
   """
-  def dynamic(loss_scale \\ @default_loss_scale, opts \\ []) do
+  def dynamic(opts \\ []) do
+    opts =
+      Keyword.validate!(opts,
+        init_scale: @default_loss_scale,
+        period: 2_000,
+        factor: 2,
+        min_loss_scale: 1
+      )
+
+    {loss_scale, opts} = Keyword.pop(opts, :init_scale, @default_loss_scale)
     loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
 
     {
@@ -81,19 +84,12 @@ defmodule Axon.LossScale do
   end
 
   defnp scale_dynamic(value, %{loss_scale: loss_scale}) do
-    transform({value, loss_scale}, fn {value, loss_scale} ->
-      deep_new(value, fn x -> x * loss_scale end)
-    end)
+    deep_new(value, fn x -> x * loss_scale end)
   end
 
   defnp unscale_dynamic(value, %{loss_scale: loss_scale} = state, opts \\ []) do
     inv_loss_scale = 1 / loss_scale
-
-    unscaled =
-      transform({value, inv_loss_scale}, fn {value, inv_loss_scale} ->
-        deep_new(value, fn x -> x * inv_loss_scale end)
-      end)
-
+    unscaled = deep_new(value, fn x -> x * inv_loss_scale end)
     {unscaled, adjust_dynamic(value, state, opts)}
   end
 
@@ -101,24 +97,22 @@ defmodule Axon.LossScale do
     opts = keyword!(opts, period: 2_000, factor: 2, min_loss_scale: 1)
 
     grads_are_finite =
-      transform(grads, fn grads ->
-        deep_reduce(grads, Nx.tensor(1), fn x, acc ->
-          x
-          |> is_finite()
-          |> Nx.logical_and(acc)
-        end)
+      deep_reduce(grads, Nx.tensor(1), fn x, acc ->
+        x
+        |> is_finite()
+        |> Nx.logical_and(acc)
       end)
 
     new_loss_scale =
-      if grads_are_finite do
-        if counter == opts[:period] - 1 do
-          first_finite(loss_scale * opts[:factor], loss_scale)
-        else
+      Nx.select(
+        grads_are_finite,
+        Nx.select(
+          Nx.equal(counter, opts[:period] - 1),
+          first_finite(loss_scale * opts[:factor], loss_scale),
           loss_scale
-        end
-      else
+        ),
         Nx.max(opts[:min_loss_scale], loss_scale / opts[:factor])
-      end
+      )
 
     new_counter = Nx.remainder(counter + 1, opts[:period]) * grads_are_finite
 

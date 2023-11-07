@@ -6,13 +6,29 @@ defmodule Axon.CompileError do
     formatted_mfa = Exception.format_mfa(module, fun, arity)
     formatted_msg = Exception.format(:error, exception.exception, exception.compile_stacktrace)
 
+    layer_info =
+      if exception.layer_stacktrace != [] do
+        """
+
+        The layer was defined at:
+
+        #{Exception.format_stacktrace(exception.layer_stacktrace)}
+        """
+      else
+        """
+
+        (pass debug: true to build/compile see where the layer was defined)
+
+        """
+      end
+
     """
     exception found when compiling layer #{formatted_mfa} named #{exception.name}:
 
-        #{indent(formatted_msg)}
-    The layer was defined at:
+        #{indent(formatted_msg)}\
 
-    #{Exception.format_stacktrace(exception.layer_stacktrace)}
+    #{layer_info}\
+
     Compiling of the model was initiated at:
     """
   end
@@ -36,9 +52,9 @@ defmodule Axon.Compiler do
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
     config = %{mode: mode, debug?: debug?}
 
-    {time, {root_id, {cache, _op_counts}}} =
+    {time, {root_id, {cache, _op_counts, _block_cache}}} =
       :timer.tc(fn ->
-        to_model_funs(id, nodes, {%{}, %{}}, config)
+        to_model_funs(id, nodes, {%{}, %{}, %{}}, config)
       end)
 
     if debug? do
@@ -186,14 +202,27 @@ defmodule Axon.Compiler do
         %{^key => %{} = nested} when not is_struct(nested) ->
           %{params | key => merge_params!(nested, value)}
 
-        %{^key => _} ->
-          %{params | key => value}
+        %{^key => template} ->
+          %{params | key => merge_type(key, template, value)}
 
         _ ->
           Logger.warning("found unexpected key in the initial parameters map: #{inspect(key)}")
           params
       end
     end)
+  end
+
+  defp merge_type(key, template, value) do
+    if Nx.type(template) != Nx.type(value) do
+      Logger.warning(
+        "initial type for parameter #{key} does not match policy," <>
+          " consider using Axon.MixedPrecision.cast before passing" <>
+          " initial state to model initialization function to avoid" <>
+          " type casts"
+      )
+    end
+
+    Nx.as_type(value, Nx.type(template))
   end
 
   def compile(graph, _opts) do
@@ -204,17 +233,17 @@ defmodule Axon.Compiler do
             " output, use `Axon.container`"
   end
 
-  defp to_model_funs(id, nodes, {cache, op_counts}, config) do
+  defp to_model_funs(id, nodes, {cache, op_counts, block_cache}, config) do
     case cache do
       %{^id => {int_id, _}} ->
-        {int_id, {cache, op_counts}}
+        {int_id, {cache, op_counts, block_cache}}
 
       %{} ->
-        {id, model_funs, cache, op_counts} =
-          recur_model_funs(nodes[id], nodes, {cache, op_counts}, config)
+        {id, model_funs, cache, op_counts, block_cache} =
+          recur_model_funs(nodes[id], nodes, {cache, op_counts, block_cache}, config)
 
         int_id = map_size(cache)
-        {int_id, {Map.put(cache, id, {int_id, model_funs}), op_counts}}
+        {int_id, {Map.put(cache, id, {int_id, model_funs}), op_counts, block_cache}}
     end
   end
 
@@ -256,11 +285,12 @@ defmodule Axon.Compiler do
   defp recur_model_funs(
          %Axon.Node{id: id, mode: node_mode, parent: [parent | _]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        )
        when node_mode != :both and node_mode != config.mode do
-    {parent_id, {cache, op_counts}} = to_model_funs(parent, nodes, {cache, op_counts}, config)
+    {parent_id, {cache, op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, op_counts, block_cache}, config)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       call_predict_cache(parent_id, params, inputs, state, cache, result_cache, fn_stacktrace)
@@ -271,13 +301,13 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
          _nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          _
        ) do
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
@@ -293,7 +323,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -305,7 +335,7 @@ defmodule Axon.Compiler do
            opts: [shape: _input_shape, optional: optional?]
          },
          _nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          %{mode: mode}
        ) do
     name = name_fn.(:input, op_counts)
@@ -331,16 +361,17 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :optional, parent: [parent]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        ) do
-    {parent_id, {cache, op_counts}} = to_model_funs(parent, nodes, {cache, op_counts}, config)
+    {parent_id, {cache, op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, op_counts, block_cache}, config)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {out, {state, result_cache}} =
@@ -361,7 +392,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -370,7 +401,7 @@ defmodule Axon.Compiler do
          cache_and_counts,
          config
        ) do
-    {parent_ids, {cache, op_counts}} =
+    {parent_ids, {cache, op_counts, block_cache}} =
       deep_map_reduce(parents, cache_and_counts, &to_model_funs(&1, nodes, &2, config))
 
     op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
@@ -427,13 +458,138 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
+  end
+
+  defp recur_model_funs(
+         %Axon.Node{
+           id: id,
+           op: :block,
+           parent: [parent],
+           opts: [block_fun: block_fun, block_id: block_id],
+           name: name_fn
+         },
+         nodes,
+         cache_and_counts,
+         config
+       ) do
+    {[parent_id], {cache, op_counts, block_cache}} =
+      Enum.map_reduce(
+        [parent],
+        cache_and_counts,
+        &to_model_funs(&1, nodes, &2, config)
+      )
+
+    {{block_init_fun, block_predict_fun}, block_name, block_cache, op_counts} =
+      case block_cache do
+        %{^block_id => {funs, name}} = block_cache ->
+          {funs, name, block_cache, op_counts}
+
+        %{} ->
+          funs = build(block_fun.(Axon.input("subgraph")), debug?: config.debug?)
+          name = name_fn.(:block, op_counts)
+          op_counts = Map.update(op_counts, :block, 1, fn x -> x + 1 end)
+          {funs, name, Map.put(block_cache, block_id, {funs, name}), op_counts}
+      end
+
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
+      # Recurse graph inputs and invoke cache to get parent results,
+      # state, and result_cache and then apply dtype policy and hooks
+      # to each input
+      {[layer_input], {state, result_cache, none?}} =
+        Enum.map_reduce(
+          [parent_id],
+          {state, result_cache, false},
+          fn parent_id, {state, result_cache, none?} ->
+            {layer_input, {state, result_cache}} =
+              call_predict_cache(
+                parent_id,
+                params,
+                inputs,
+                state,
+                cache,
+                result_cache,
+                fn_stacktrace
+              )
+
+            none? = none? or propagating_none?(layer_input)
+
+            {layer_input, {state, result_cache, none?}}
+          end
+        )
+
+      if none? do
+        {%Axon.None{}, {state, result_cache}}
+      else
+        block_params = params[block_name] || %{}
+        result = apply(block_predict_fun, [block_params, layer_input])
+
+        {out_result, out_state} =
+          case result do
+            # Make sure the none is non-propagating
+            %Axon.None{} -> %Axon.None{}
+            %{prediction: pred_expr, state: state_expr} -> {pred_expr, state_expr}
+            result -> {result, %{}}
+          end
+
+        state =
+          if map_size(out_state) == 0 do
+            state
+          else
+            Map.put(state, block_name, out_state)
+          end
+
+        {out_result, {state, result_cache}}
+      end
+    end
+
+    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
+      {[parent_shape], {parent_params, result_cache, none?}} =
+        Enum.map_reduce([parent_id], {%{}, result_cache, false}, fn
+          parent_id, {params, result_cache, none?} ->
+            {parent_shape, {params, result_cache}} =
+              call_init_cache(
+                parent_id,
+                template,
+                params,
+                cache,
+                result_cache,
+                fn_stacktrace,
+                keys
+              )
+
+            none? = none? or propagating_none?(parent_shape)
+            {parent_shape, {params, result_cache, none?}}
+        end)
+
+      if none? do
+        {%Axon.None{}, {parent_params, result_cache}}
+      else
+        template = Nx.broadcast(0.0, parent_shape)
+        block_params = apply(block_init_fun, [template, %{}])
+
+        params =
+          if block_params == %{} do
+            %{}
+          else
+            Map.put(parent_params, block_name, block_params)
+          end
+
+        {pred_expr, {_, result_cache}} =
+          predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
+
+        {safe_shape(pred_expr), {params, result_cache}}
+      end
+    end
+
+    model_funs = %{predict: predict_fun, init: init_fun}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
          %Axon.Node{id: id, op: :namespace, name: name_fn, parent: [parent]},
          nodes,
-         {cache, op_counts},
+         {cache, op_counts, block_cache},
          config
        ) do
     name = name_fn.(:namespace, op_counts)
@@ -446,8 +602,8 @@ defmodule Axon.Compiler do
     # All of the children of this namespace belong to it, so
     # we forward this name to the namespace, but everything after
     # it belongs to whatever namespace we're currently in
-    {parent_id, {cache, namespace_op_counts}} =
-      to_model_funs(parent, nodes, {cache, namespace_op_counts}, config)
+    {parent_id, {cache, namespace_op_counts, block_cache}} =
+      to_model_funs(parent, nodes, {cache, namespace_op_counts, block_cache}, config)
 
     # Update the global op_count of input layers, since they
     # are a global operation regardless of where they are
@@ -503,7 +659,7 @@ defmodule Axon.Compiler do
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp recur_model_funs(
@@ -529,7 +685,7 @@ defmodule Axon.Compiler do
     # application within the function. We work only with
     # functions and IDs to avoid leaking entire graphs into
     # the closure
-    {parent_ids, {cache, op_counts}} =
+    {parent_ids, {cache, op_counts, block_cache}} =
       Enum.map_reduce(
         inputs,
         cache_and_counts,
@@ -553,6 +709,7 @@ defmodule Axon.Compiler do
         &5,
         &6,
         op,
+        op_name,
         parent_ids,
         name,
         args,
@@ -581,7 +738,7 @@ defmodule Axon.Compiler do
       )
 
     model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts}
+    {id, model_funs, cache, op_counts, block_cache}
   end
 
   defp get_input(inputs, name, optional?) do
@@ -632,6 +789,7 @@ defmodule Axon.Compiler do
          result_cache,
          fn_stacktrace,
          op,
+         op_name,
          parent_ids,
          name,
          args,
@@ -718,7 +876,7 @@ defmodule Axon.Compiler do
       # in Axon.Layers. The implication of this is that every function which
       # can be invoked as a layer must have a definition in Axon.Layers even
       # if there is a distinction (e.g. with activations)
-      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace)
+      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name)
 
       result =
         case result do
@@ -756,14 +914,30 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace) do
+  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name) do
     try do
-      case op do
-        op when is_function(op) ->
-          apply(op, args)
+      result =
+        case op do
+          op when is_function(op) ->
+            apply(op, args)
 
-        op when is_atom(op) ->
-          apply(Axon.Layers, op, args)
+          op when is_atom(op) ->
+            apply(Axon.Layers, op, args)
+        end
+
+      case result do
+        out when is_tuple(out) ->
+          out
+
+        %Axon.None{} = out ->
+          out
+
+        %Axon.StatefulOutput{output: out} = stateful ->
+          out = Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
+          %{stateful | output: out}
+
+        out ->
+          Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
       end
     rescue
       exception ->
@@ -889,9 +1063,9 @@ defmodule Axon.Compiler do
 
       if event? and mode? do
         if on_event == :backward do
-          Nx.Defn.Kernel.custom_grad(expr, fn _ans, g ->
+          Nx.Defn.Kernel.custom_grad(expr, [expr], fn g ->
             hooked_g = Nx.Defn.Kernel.hook(g, hook_fn)
-            [{expr, hooked_g}]
+            [hooked_g]
           end)
         else
           Nx.Defn.Kernel.hook(expr, hook_fn)

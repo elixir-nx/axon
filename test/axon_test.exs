@@ -888,7 +888,7 @@ defmodule AxonTest do
              #Axon<
                inputs: %{"input_0" => {nil, 32, 10}}
                outputs: "lstm_output_sequence"
-               nodes: 6
+               nodes: 7
              >\
              """
     end

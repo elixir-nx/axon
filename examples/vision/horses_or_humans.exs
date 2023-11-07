@@ -1,20 +1,17 @@
 Mix.install([
   {:stb_image, "~> 0.5.2"},
-  {:axon, "~> 0.1.0"},
-  {:exla, "~> 0.2.2"},
-  {:nx, "~> 0.2.1"}
+  {:axon, "~> 0.5"},
+  {:polaris, "~> 0.1"},
+  {:exla, "~> 0.5"},
+  {:nx, "~> 0.5"}
 ])
-
-EXLA.set_as_nx_default(
-  [:tpu, :cuda, :rocm, :host],
-  run_options: [keep_on_device: true]
-)
 
 defmodule HorsesOrHumans do
   alias Axon.Loop.State
   import Nx.Defn
 
-  # Download and extract from https://laurencemoroney.com/datasets.html
+  # Download and extract from
+  # https://www.kaggle.com/datasets/sanikamal/horses-or-humans-dataset
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
@@ -48,14 +45,13 @@ defmodule HorsesOrHumans do
         do: Nx.tensor([1, 0], type: {:u, 8}),
         else: Nx.tensor([0, 1], type: {:u, 8})
 
-    {:ok, binary, shape, :u8, :rgba} = StbImage.from_file(filename)
+    {:ok, img} = StbImage.read_file(filename)
 
     {StbImage.to_nx(img), class}
   end
 
-  defp build_model(input_shape, transpose_shape) do
+  defp build_model(input_shape) do
     Axon.input("input", shape: input_shape)
-    |> Axon.transpose(transpose_shape)
     |> Axon.conv(16, kernel_size: {3, 3}, activation: :relu)
     |> Axon.max_pool(kernel_size: {2, 2})
     |> Axon.conv(32, kernel_size: {3, 3}, activation: :relu)
@@ -78,13 +74,13 @@ defmodule HorsesOrHumans do
     model
     |> Axon.Loop.trainer(:binary_cross_entropy, optimizer, log: 1)
     |> Axon.Loop.metric(:accuracy)
-    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100)
+    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 100, compiler: EXLA)
   end
 
   def run() do
-    model = build_model({nil, 300, 300, 4}, [2, 0, 1]) |> IO.inspect()
-    optimizer = Axon.Optimizers.adam(1.0e-4)
-    centralized_optimizer = Axon.Updates.compose(Axon.Updates.centralize(), optimizer)
+    model = build_model({nil, 300, 300, 4}) |> IO.inspect()
+    optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
+    centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
     data = data()
 

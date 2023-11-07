@@ -134,20 +134,7 @@ defmodule Axon.Losses do
     # altogether if necessary. If either of them is set, then we need to set
     # both and perform this whole thing. If neither is set, we set this to
     # nil and then avoid the weighted avg later on.
-    weights =
-      transform({y_true, opts[:positive_weight], opts[:negative_weight]}, fn
-        {_, nil, nil} ->
-          nil
-
-        {y_true, pos, nil} ->
-          Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, nil, neg} ->
-          Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
-
-        {y_true, pos, neg} ->
-          Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
-      end)
+    weights = get_weights(y_true, opts[:positive_weight], opts[:negative_weight])
 
     # Merge types before computing loss to prevent under/overflow. This
     # can especially happen when targets are encoded as u8 tensors. We
@@ -207,6 +194,22 @@ defmodule Axon.Losses do
     reduction(possibly_weighted_avg_loss, opts[:reduction])
   end
 
+  deftransformp get_weights(y_true, pos, neg) do
+    case {y_true, pos, neg} do
+      {_, nil, nil} ->
+        nil
+
+      {y_true, pos, nil} ->
+        Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
+
+      {y_true, nil, neg} ->
+        Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
+
+      {y_true, pos, neg} ->
+        Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
+    end
+  end
+
   defnp sigmoid_cross_entropy_from_logits(y_true, y_pred) do
     log_p = Axon.Activations.log_sigmoid(y_pred)
     log_not_p = Axon.Activations.log_sigmoid(-y_pred)
@@ -218,7 +221,7 @@ defmodule Axon.Losses do
 
   $$l_i = -\sum_i^C \hat{y_i} \cdot \log(y_i)$$
 
-  Categorical cross-entropy is typically used for multi-class classifcation problems.
+  Categorical cross-entropy is typically used for multi-class classification problems.
   By default, it expects `y_pred` to encode a probability distribution along the last
   axis. You can specify `from_logits: true` to indicate `y_pred` is a logits tensor.
 
@@ -850,7 +853,7 @@ defmodule Axon.Losses do
     loss =
       y_true
       |> Nx.subtract(y_pred)
-      |> Nx.power(2)
+      |> Nx.pow(2)
       |> Nx.mean(axes: [-1])
 
     reduction(loss, opts[:reduction])
@@ -895,14 +898,7 @@ defmodule Axon.Losses do
     n12 = Nx.max(w1 * w2, eps)
     loss = w12 / n12
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.mean(loss)
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    reduction(loss, opts[:reduction])
   end
 
   @doc ~S"""
@@ -964,6 +960,56 @@ defmodule Axon.Losses do
   end
 
   @doc """
+  Huber loss.
+
+  ## Argument Shapes
+
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
+
+  ## Options
+
+    * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
+      Defaults to `:none`.
+
+    * `:delta` - the point where the Huber loss function changes from a quadratic to linear.
+      Defaults to `1.0`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[1], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.huber(y_true, y_pred)
+      #Nx.Tensor<
+        f32[3][1]
+        [
+          [0.019999997690320015],
+          [0.04499998688697815],
+          [0.004999990575015545]
+        ]
+      >
+
+      iex> y_true = Nx.tensor([[1], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.huber(y_true, y_pred, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.02333332598209381
+      >
+  """
+  defn huber(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, reduction: :none, delta: 1.0)
+
+    delta = opts[:delta]
+
+    abs_diff = Nx.abs(y_pred - y_true)
+
+    (abs_diff <= delta)
+    |> Nx.select(0.5 * abs_diff ** 2, delta * abs_diff - 0.5 * delta ** 2)
+    |> reduction(opts[:reduction])
+  end
+
+  @doc """
   Connectionist Temporal Classification loss.
 
   ## Argument Shapes
@@ -1019,14 +1065,11 @@ defmodule Axon.Losses do
         {Nx.put_slice(loss, [b], Nx.reshape(loss_b, {1})), b + 1, y_true, s_true, y_pred}
       end
 
-    transform(
-      {opts[:reduction], loss},
-      fn
-        {:mean, loss} -> Nx.divide(loss, l_true) |> Nx.mean()
-        {:sum, loss} -> Nx.sum(loss)
-        {:none, loss} -> loss
-      end
-    )
+    case opts[:reduction] do
+      :mean -> Nx.divide(loss, l_true) |> Nx.mean()
+      :sum -> Nx.sum(loss)
+      :none -> loss
+    end
   end
 
   defnp get_limits(y_true, s_max, t_max) do
@@ -1133,6 +1176,53 @@ defmodule Axon.Losses do
 
     t0_prob
   end
+
+  ## Modifiers
+
+  @doc """
+  Modifies the given loss function to smooth labels prior
+  to calculating loss.
+
+  See `apply_label_smoothing/2` for details.
+
+  ## Options
+
+    * `:smoothing` - smoothing factor. Defaults to 0.1
+  """
+  def label_smoothing(loss_fun, opts \\ []) when is_function(loss_fun, 2) do
+    opts = Keyword.validate!(opts, smoothing: 0.1)
+
+    fn y_true, y_pred ->
+      smoothed = apply_label_smoothing(y_true, y_pred, smoothing: opts[:smoothing])
+      loss_fun.(smoothed, y_pred)
+    end
+  end
+
+  @doc """
+  Applies label smoothing to the given labels.
+
+  Label smoothing is a regularization technique which shrink targets
+  towards a uniform distribution. Label smoothing can improve model
+  generalization.
+
+  ## Options
+
+    * `:smoothing` - smoothing factor. Defaults to 0.1
+
+  ## References
+
+    * [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)
+  """
+  defn apply_label_smoothing(y_true, y_pred, opts \\ []) do
+    assert_min_rank!("apply_label_smoothing", "y_true", y_true, 2)
+    assert_min_rank!("apply_label_smoothing", "y_pred", y_pred, 2)
+
+    opts = keyword!(opts, smoothing: 0.1)
+    n_classes = Nx.axis_size(y_pred, 1)
+    y_true * (1 - opts[:smoothing]) + opts[:smoothing] / n_classes
+  end
+
+  ## Helpers
 
   defnp reduction(loss, reduction \\ :none) do
     case reduction do

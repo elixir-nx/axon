@@ -3,31 +3,34 @@
 ```elixir
 Mix.install(
   [
-    {:nx, "~> 0.3"},
-    {:axon, "~> 0.2"},
-    {:exla, "~> 0.3"},
-    {:axon_onnx, "~> 0.2"},
-    {:stb_image, "~> 0.5"},
-    {:kino, "~> 0.7.0"}
-  ],
-  # change to "cuda111" for Nvidia GPU
-  system_env: %{"XLA_TARGET" => xla_target}
+    {:axon, ">= 0.5.0"},
+    {:exla, ">= 0.5.0"},
+    {:axon_onnx, ">= 0.4.0"},
+    {:stb_image, ">= 0.6.0"},
+    {:kino, ">= 0.9.0"},
+    {:req, ">= 0.3.8"}
+  ]
+  # for Nvidia GPU change to "cuda111" for CUDA 11.1+ or "cuda118" for CUDA 11.8
+  # CUDA 12.x not supported by XLA
+  # or you can put this value in ENV variables in Livebook settings
+  # XLA_TARGET=cuda111
+  # system_env: %{"XLA_TARGET" => xla_target}
 )
 ```
 
 ## Converting an ONNX model into Axon
 
-Axon is a new machine learning capability, specific to Elixir.  We would like to take
+Axon is a new machine learning capability, specific to Elixir. We would like to take
 advantage of a large amount of models that have been written in other languages and
-machine learning frameworks.  Let's take a look at how we could use a model developed
+machine learning frameworks. Let's take a look at how we could use a model developed
 in another language.
 
 Converting models developed by data scientists into a production capable implementation is a
-challenge for all languages and frameworks.  [ONNX](https://onnx.ai/) is an interchange
+challenge for all languages and frameworks. [ONNX](https://onnx.ai/) is an interchange
 format that allows models written in one language or framework to be converted into
 another language and framework.
 
-The source model must use constructs mapped into ONNX.  Also, the destination framework must
+The source model must use constructs mapped into ONNX. Also, the destination framework must
 support the model's ONNX constructs. From an Elixir focus, we are interested in ONNX models
 that [axon_onnx](https://github.com/elixir-nx/axon_onnx) can convert into Axon models.
 
@@ -38,7 +41,7 @@ that [axon_onnx](https://github.com/elixir-nx/axon_onnx) can convert into Axon m
 <!-- livebook:{"break_markdown":true} -->
 
 Elixir can get access to thousands of public models and your organization may have private models
-written in other languages and frameworks.  Axon will be hard pressed to quickly repeat the
+written in other languages and frameworks. Axon will be hard pressed to quickly repeat the
 countless person-hours spent on developing models in other languages like Tensorflow and PyTorch.
 However, if the model can be converted into ONNX and then into Axon, we can directly run the model
 in Elixir.
@@ -50,22 +53,22 @@ in Elixir.
 <!-- livebook:{"break_markdown":true} -->
 
 Axon runs on top of [Nx (Numerical Elixir)](https://hexdocs.pm/nx). Nx has backends for
-both Google's XLA (via EXLA) and PyTorch (via Torchx).  In this guide, we will use EXLA.
-We'll also convert from an ONNX  model into an Axon model using
+both Google's XLA (via EXLA) and PyTorch (via Torchx). In this guide, we will use EXLA.
+We'll also convert from an ONNX model into an Axon model using
 [`axon_onnx`](https://github.com/elixir-nx/axon_onnx).
 
 You can find all dependencies in the installation cell at the top of the notebook.
-In there, you will also find the `XLA_TARGET` environment variable whick you can set
-to "cuda111" or "rocm" if you have any of those GPUs available.  Let's also configure
+In there, you will also find the `XLA_TARGET` environment variable which you can set
+to "cuda111" or "rocm" if you have any of those GPUs available. Let's also configure
 Nx to store tensors in EXLA by default:
 
 ```elixir
-Nx.default_backend(EXLA.Backend)
+#  Nx.default_backend(EXLA.Backend)
 ```
 
-We'll also need local access to ONNX files.  For this notebook, the models/onnx folder
-contains the ONNX model file.  This notebook assumes the output file location will be
-in models axon.  Copy your ONNX model files into the models/onnx folder.
+We'll also need local access to ONNX files. For this notebook, the models/onnx folder
+contains the ONNX model file. This notebook assumes the output file location will be
+in models axon. Copy your ONNX model files into the models/onnx folder.
 
 This opinionated module presents a simple API for loading in an ONNX file and saving
 the converted Axon model in the provided directory. This API will allow us to
@@ -82,7 +85,7 @@ defmodule OnnxToAxon do
 
   ## Examples
 
-      iex> OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
+      OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
 
   """
   def onnx_axon(path_to_onnx_file, path_to_axon_dir) do
@@ -112,12 +115,12 @@ The ONNX models were trained in Fast.ai (PyTorch) using the following notebooks:
 * https://github.com/meanderingstream/fastai_course22/blob/main/saving-a-basic-fastai-model-in-onnx.ipynb
 * https://github.com/meanderingstream/fastai_course22/blob/main/saving-cat-dog-breed-fastai-model-in-onnx.ipynb
 
-To repeat this notebook, the onnx files for this notebook can be found on huggingface hub.  Download the onnx models from:
+To repeat this notebook, the onnx files for this notebook can be found on huggingface hub. Download the onnx models from:
 
 * https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX
 * https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX
 
-Download the files and place them in a directory of your choice.  By default, we will assume you downloaded them to the same directory as the notebook:
+Download the files and place them in a directory of your choice. By default, we will assume you downloaded them to the same directory as the notebook:
 
 ```elixir
 File.cd!(__DIR__)
@@ -126,46 +129,46 @@ File.cd!(__DIR__)
 Now let's convert an ONNX model into Axon
 
 ```elixir
-path_to_onnx_file = "models/onnx/cats_v_dogs.onnx"
-path_to_axon_dir = "models/axon"
+path_to_onnx_file = "cats_v_dogs.onnx"
+path_to_axon_dir = "."
 OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
 ```
 
 ```elixir
-path_to_onnx_file = "models/onnx/cat_dog_breeds.onnx"
-path_to_axon_dir = "models/axon"
+path_to_onnx_file = "cat_dog_breeds.onnx"
+path_to_axon_dir = "."
 OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
 ```
 
 ## Inference on ONNX derived models
 
-To run inference on the model, you'll need 10 images focused on cats or dogs.  You can download the images used in training the model at:
+To run inference on the model, you'll need 10 images focused on cats or dogs. You can download the images used in training the model at:
 
 "https://s3.amazonaws.com/fast-ai-imageclas/oxford-iiit-pet.tgz"
 
-Or you can find or use your own images.  In this notebook, we are going to use the local copies of the Oxford Pets dataset that was used in training the model.
+Or you can find or use your own images. In this notebook, we are going to use the local copies of the Oxford Pets dataset that was used in training the model.
 
 <!-- livebook:{"break_markdown":true} -->
 
 Let's load the Axon model.
 
 ```elixir
-cats_v_dogs = File.read!("models/axon/cats_v_dogs.axon")
+cats_v_dogs = File.read!("cats_v_dogs.axon")
 {cats_v_dogs_model, cats_v_dogs_params} = Axon.deserialize(cats_v_dogs)
 ```
 
-We need a tensor representation of an image.  Let's start by looking at samples of
+We need a tensor representation of an image. Let's start by looking at samples of
 our data.
 
 ```elixir
-File.read!("data/oxford-iiit-pet/images/havanese_71.jpg")
+File.read!("oxford-iiit-pet/images/havanese_71.jpg")
 |> Kino.Image.new(:jpeg)
 ```
 
 To manipulate the images, we will use the `StbImage` library:
 
 ```elixir
-{:ok, img} = StbImage.read_file("data/oxford-iiit-pet/images/havanese_71.jpg")
+{:ok, img} = StbImage.read_file("oxford-iiit-pet/images/havanese_71.jpg")
 %StbImage{data: binary, shape: shape, type: type} = StbImage.resize(img, 224, 224)
 ```
 
@@ -191,7 +194,7 @@ Next we resize the images:
 ```elixir
 resized_images =
   Enum.map(file_names, fn file_name ->
-    ("data/oxford-iiit-pet/images/" <> file_name)
+    ("oxford-iiit-pet/images/" <> file_name)
     |> IO.inspect(label: file_name)
     |> StbImage.read_file!()
     |> StbImage.resize(224, 224)
@@ -219,14 +222,14 @@ defmodule Predictions do
 
   ## Examples
 
-      iex> Predictions.sindle_label_prediction(path_to_onnx_file, path_to_axon_dir)
-      ["dog", "cat", "dog"]
+     # iex> Predictions.sindle_label_prediction(path_to_onnx_file, path_to_axon_dir)
+     # ["dog", "cat", "dog"]
 
   """
   def single_label_classification(predictions_batch, vocabulary) do
     IO.inspect(Nx.shape(predictions_batch), label: "predictions batch shape")
 
-    for prediction_tensor <- Nx.to_batched(predictions_batch) do
+    for prediction_tensor <- Nx.to_batched(predictions_batch, 1) do
       {_prediction_value, prediction_label} =
         prediction_tensor
         |> Nx.to_flat_list()
@@ -308,7 +311,7 @@ cat_dog_vocabulary = [
 ```
 
 ```elixir
-cat_dog_breeds = File.read!("models/axon/cat_dog_breeds.axon")
+cat_dog_breeds = File.read!("cat_dog_breeds.axon")
 {cat_dog_breeds_model, cat_dog_breeds_params} = Axon.deserialize(cat_dog_breeds)
 ```
 
