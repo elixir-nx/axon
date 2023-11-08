@@ -95,7 +95,7 @@ The original XOR we modeled only works with binary values $0$ and $1$, however o
 # The number of points per axis, determines the resolution
 n = 50
 
-# We generate coordinates of in the (n x n) grid
+# We generate coordinates of inputs in the (n x n) grid
 x1 = Nx.iota({n, n}, axis: 0) |> Nx.divide(n) |> Nx.reshape({:auto, 1})
 x2 = Nx.iota({n, n}, axis: 1) |> Nx.divide(n) |> Nx.reshape({:auto, 1})
 
