@@ -2524,7 +2524,7 @@ defmodule Axon.Layers do
   end
 
   deftransformp stack_columns_transform(container, ignore) do
-    container.__struct__().__info__(:struct)
+    container.__struct__.__info__(:struct)
     |> Enum.reduce([], fn %{field: k}, acc ->
       if k in ignore do
         acc
