@@ -24,7 +24,7 @@ We will be using the [Horses or Humans Dataset](https://laurencemoroney.com/data
 
 ```elixir
 %{body: files} =
-  Req.get!("https://storage.googleapis.com/laurencemoroney-blog.appspot.com/horse-or-human.zip")
+  Req.get!("https://storage.googleapis.com/learning-datasets/horse-or-human.zip")
 
 files = for {name, binary} <- files, do: {List.to_string(name), binary}
 ```
