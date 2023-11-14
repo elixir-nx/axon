@@ -8,7 +8,15 @@ Mix.install([
 defmodule FashionMNIST do
   require Axon
 
+  @batch_size 32
+  @image_channels 1
+  @image_side_pixels 28
+  @channel_value_max 255
+
   defmodule Autoencoder do
+    @image_channels 1
+    @image_side_pixels 28
+
     defp encoder(x, latent_dim) do
       x
       |> Axon.flatten()
@@ -17,8 +25,8 @@ defmodule FashionMNIST do
 
     defp decoder(x) do
       x
-      |> Axon.dense(784, activation: :sigmoid)
-      |> Axon.reshape({:batch, 1, 28, 28})
+      |> Axon.dense(@image_side_pixels**2, activation: :sigmoid)
+      |> Axon.reshape({:batch, @image_channels, @image_side_pixels, @image_side_pixels})
     end
 
     def build_model(input_shape, latent_dim) do
@@ -31,9 +39,9 @@ defmodule FashionMNIST do
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-    |> Nx.divide(255.0)
-    |> Nx.to_batched(32)
+    |> Nx.reshape({elem(shape, 0), @image_channels, @image_side_pixels, @image_side_pixels})
+    |> Nx.divide(@channel_value_max)
+    |> Nx.to_batched(@batch_size)
   end
 
   defp train_model(model, train_images, epochs) do
@@ -48,7 +56,7 @@ defmodule FashionMNIST do
 
     train_images = transform_images(images)
 
-    model = Autoencoder.build_model({nil, 1, 28, 28}, 64) |> IO.inspect()
+    model = Autoencoder.build_model({nil, @image_channels, @image_side_pixels, @image_side_pixels}, 64) |> IO.inspect()
 
     model_state = train_model(model, train_images, 5)
 
@@ -56,7 +64,7 @@ defmodule FashionMNIST do
       train_images
       |> Enum.fetch!(0)
       |> Nx.slice_along_axis(0, 1)
-      |> Nx.reshape({1, 1, 28, 28})
+      |> Nx.reshape({1, @image_channels, @image_side_pixels, @image_side_pixels})
 
     sample_image |> Nx.to_heatmap() |> IO.inspect()
 

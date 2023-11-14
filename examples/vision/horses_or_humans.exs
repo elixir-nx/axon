@@ -15,10 +15,14 @@ defmodule HorsesOrHumans do
   # or you can use Req to download and extract the zip file and iterate
   # over the resulting data
   @directories "examples/vision/{horses,humans}/*"
+  @batch_size 32
+  @image_channels 4
+  @image_side_pixels 300
+  @channel_value_max 255
 
   def data() do
     Path.wildcard(@directories)
-    |> Stream.chunk_every(32, 32, :discard)
+    |> Stream.chunk_every(@batch_size, @batch_size, :discard)
     |> Task.async_stream(fn batch ->
       {inp, labels} = batch |> Enum.map(&parse_png/1) |> Enum.unzip()
       {Nx.stack(inp), Nx.stack(labels)}
@@ -29,7 +33,7 @@ defmodule HorsesOrHumans do
 
   defnp augment(inp) do
     # Normalize
-    inp = inp / 255.0
+    inp = inp / @channel_value_max
 
     # For now just a random flip
     if Nx.random_uniform({}) > 0.5 do
@@ -78,7 +82,7 @@ defmodule HorsesOrHumans do
   end
 
   def run() do
-    model = build_model({nil, 300, 300, 4}) |> IO.inspect()
+    model = build_model({nil, @image_side_pixels, @image_side_pixels, @image_channels}) |> IO.inspect()
     optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
     centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 

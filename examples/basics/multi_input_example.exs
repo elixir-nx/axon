@@ -7,6 +7,8 @@ Mix.install([
 defmodule XOR do
   require Axon
 
+  @batch_size 32
+
   defp build_model(input_shape1, input_shape2) do
     inp1 = Axon.input("x1", shape: input_shape1)
     inp2 = Axon.input("x2", shape: input_shape2)
@@ -18,8 +20,8 @@ defmodule XOR do
   end
 
   defp batch do
-    x1 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
-    x2 = Nx.tensor(for _ <- 1..32, do: [Enum.random(0..1)])
+    x1 = Nx.tensor(for _ <- 1..@batch_size, do: [Enum.random(0..1)])
+    x2 = Nx.tensor(for _ <- 1..@batch_size, do: [Enum.random(0..1)])
     y = Nx.logical_xor(x1, x2)
     {%{"x1" => x1, "x2" => x2}, y}
   end

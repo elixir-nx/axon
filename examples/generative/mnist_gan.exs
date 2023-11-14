@@ -13,12 +13,17 @@ defmodule MNISTGAN do
   alias Axon.Loop.State
   import Nx.Defn
 
+  @batch_size 32
+  @image_channels 1
+  @image_side_pixels 28
+  @channel_value_max 255
+
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 1, 28, 28})
-    |> Nx.divide(255.0)
-    |> Nx.to_batched(32)
+    |> Nx.reshape({elem(shape, 0), @image_channels, @image_side_pixels, @image_side_pixels})
+    |> Nx.divide(@channel_value_max)
+    |> Nx.to_batched(@batch_size)
   end
 
   defp build_generator(z_dim) do
@@ -32,9 +37,9 @@ defmodule MNISTGAN do
     |> Axon.dense(1024)
     |> Axon.leaky_relu(alpha: 0.9)
     |> Axon.batch_norm()
-    |> Axon.dense(784)
+    |> Axon.dense(@image_side_pixels**2)
     |> Axon.tanh()
-    |> Axon.reshape({:batch, 28, 28, 1})
+    |> Axon.reshape({:batch, @image_side_pixels, @image_side_pixels, @image_channels})
   end
 
   defp build_discriminator(input_shape) do
@@ -80,9 +85,9 @@ defmodule MNISTGAN do
     g_params = state[:generator][:model_state]
 
     # Update D
-    fake_labels = Nx.iota({32, 2}, axis: 1)
+    fake_labels = Nx.iota({@batch_size, 2}, axis: 1)
     real_labels = Nx.reverse(fake_labels)
-    {noise, random_next_key} = Nx.Random.normal(state[:random_key], shape: {32, 100})
+    {noise, random_next_key} = Nx.Random.normal(state[:random_key], shape: {@batch_size, 100})
 
     {d_loss, d_grads} =
       value_and_grad(d_params, fn params ->
@@ -162,7 +167,7 @@ defmodule MNISTGAN do
     preds = Axon.predict(model, pstate[:generator][:model_state], noise)
 
     preds
-    |> Nx.reshape({batch_size, 28, 28})
+    |> Nx.reshape({batch_size, @image_side_pixels, @image_side_pixels})
     |> Nx.to_heatmap()
     |> IO.inspect()
 
@@ -174,7 +179,7 @@ defmodule MNISTGAN do
     train_images = transform_images(images)
 
     generator = build_generator(100)
-    discriminator = build_discriminator({nil, 28, 28, 1})
+    discriminator = build_discriminator({nil, @image_side_pixels, @image_side_pixels, @image_channels})
 
     discriminator
     |> train_loop(generator)

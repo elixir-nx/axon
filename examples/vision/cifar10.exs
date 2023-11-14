@@ -8,14 +8,18 @@ Mix.install([
 defmodule Cifar do
   require Axon
 
+  @batch_size 32
+  @channel_value_max 255
+  @label_values Enum.to_list(0..9)
+
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
     |> Nx.reshape(shape, names: [:count, :channels, :width, :height])
     # Move channels to last position to match what conv layer expects
     |> Nx.transpose(axes: [:count, :width, :height, :channels])
-    |> Nx.divide(255.0)
-    |> Nx.to_batched(32)
+    |> Nx.divide(@channel_value_max)
+    |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
   end
 
@@ -23,8 +27,8 @@ defmodule Cifar do
     bin
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
-    |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched(32)
+    |> Nx.equal(Nx.tensor(@label_values))
+    |> Nx.to_batched(@batch_size)
     |> Enum.split(1500)
   end
 
@@ -39,7 +43,7 @@ defmodule Cifar do
     |> Axon.flatten()
     |> Axon.dense(64, activation: :relu)
     |> Axon.dropout(rate: 0.5)
-    |> Axon.dense(10, activation: :softmax)
+    |> Axon.dense(length(@label_values), activation: :softmax)
   end
 
   defp train_model(model, train_images, train_labels, epochs) do

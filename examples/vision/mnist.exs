@@ -9,12 +9,17 @@ Mix.install([
 defmodule Mnist do
   require Axon
 
+  @batch_size 32
+  @image_side_pixels 28
+  @channel_value_max 255
+  @label_values Enum.to_list(0..9)
+
   defp transform_images({bin, type, shape}) do
     bin
     |> Nx.from_binary(type)
-    |> Nx.reshape({elem(shape, 0), 784})
-    |> Nx.divide(255.0)
-    |> Nx.to_batched(32)
+    |> Nx.reshape({elem(shape, 0), @image_side_pixels**2})
+    |> Nx.divide(@channel_value_max)
+    |> Nx.to_batched(@batch_size)
     # Test split
     |> Enum.split(1750)
   end
@@ -23,8 +28,8 @@ defmodule Mnist do
     bin
     |> Nx.from_binary(type)
     |> Nx.new_axis(-1)
-    |> Nx.equal(Nx.tensor(Enum.to_list(0..9)))
-    |> Nx.to_batched(32)
+    |> Nx.equal(Nx.tensor(@label_values))
+    |> Nx.to_batched(@batch_size)
     # Test split
     |> Enum.split(1750)
   end
@@ -33,7 +38,7 @@ defmodule Mnist do
     Axon.input("input", shape: input_shape)
     |> Axon.dense(128, activation: :relu)
     |> Axon.dropout()
-    |> Axon.dense(10, activation: :softmax)
+    |> Axon.dense(length(@label_values), activation: :softmax)
   end
 
   defp train_model(model, train_images, train_labels, epochs) do
@@ -56,7 +61,7 @@ defmodule Mnist do
     {train_images, test_images} = transform_images(images)
     {train_labels, test_labels} = transform_labels(labels)
 
-    model = build_model({nil, 784}) |> IO.inspect()
+    model = build_model({nil, @image_side_pixels**2}) |> IO.inspect()
 
     IO.write("\n\n Training Model \n\n")
 
