@@ -1795,7 +1795,7 @@ defmodule Axon.Layers do
   @doc type: :linear
   defn embedding(input, kernel, _opts \\ []) do
     assert_rank!("Axon.Layers.embedding", "kernel", kernel, 2)
-    Nx.take(kernel, Nx.as_type(input, {:s, 64}), axis: 0)
+    Nx.take(kernel, input, axis: 0)
   end
 
   ## Shape

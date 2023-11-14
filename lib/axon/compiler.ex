@@ -841,11 +841,8 @@ defmodule Axon.Compiler do
           param = params[name][v]
 
           cond do
-            param != nil and should_cast?(type, compute) ->
-              safe_as_type(maybe_freeze(param, frz), compute)
-
             param != nil ->
-              maybe_freeze(param, frz)
+              safe_as_type(maybe_freeze(param, frz), compute)
 
             true ->
               raise ArgumentError,
@@ -936,8 +933,11 @@ defmodule Axon.Compiler do
           out = Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
           %{stateful | output: out}
 
-        out ->
+        %Nx.Tensor{} = out
           Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
+
+        out ->
+          out
       end
     rescue
       exception ->
@@ -1082,15 +1082,21 @@ defmodule Axon.Compiler do
         none
 
       %Nx.Tensor{} = tensor ->
-        Nx.as_type(tensor, type)
+        if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
+          Nx.as_type(tensor, type)
+        else
+          tensor
+        end
 
       container ->
-        deep_new(container, &Nx.as_type(&1, type))
+        deep_new(container, fn tensor ->
+          if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
+            Nx.as_type(tensor, type)
+          else
+            tensor
+          end
+        end)
     end
-  end
-
-  defp should_cast?(type1, type2) do
-    not Nx.Type.integer?(type1) and not Nx.Type.integer?(type2)
   end
 
   defp safe_shape(container_or_tensor) do
@@ -1103,6 +1109,19 @@ defmodule Axon.Compiler do
 
       container ->
         deep_new(container, &Nx.shape/1)
+    end
+  end
+
+  defp safe_type(container_or_tensor) do
+    case container_or_tensor do
+      %Axon.None{} = none ->
+        none
+
+      %Nx.Tensor{} = tensor ->
+        Nx.type(tensor)
+
+      container ->
+        deep_new(container, &Nx.type/1)
     end
   end
 
