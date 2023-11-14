@@ -933,7 +933,7 @@ defmodule Axon.Compiler do
           out = Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
           %{stateful | output: out}
 
-        %Nx.Tensor{} = out
+          %Nx.Tensor{} = out
           Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
 
         out ->
