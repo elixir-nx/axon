@@ -2,12 +2,12 @@
 
 ```elixir
 Mix.install([
-  {:axon, "~> 0.3.0"},
-  {:nx, "~> 0.4.0", sparse: "nx", override: true},
-  {:exla, "~> 0.4.0", sparse: "exla", override: true},
-  {:stb_image, "~> 0.5.2"},
-  {:req, "~> 0.3.1"},
-  {:kino, "~> 0.7.0"}
+  {:axon, "~> 0.6.0"},
+  {:nx, "~> 0.6.0"},
+  {:exla, "~> 0.6.0"},
+  {:stb_image, "~> 0.6.0"},
+  {:req, "~> 0.4.5"},
+  {:kino, "~> 0.11.0"}
 ])
 
 Nx.global_default_backend(EXLA.Backend)
@@ -24,7 +24,7 @@ We will be using the [Horses or Humans Dataset](https://laurencemoroney.com/data
 
 ```elixir
 %{body: files} =
-  Req.get!("https://storage.googleapis.com/laurencemoroney-blog.appspot.com/horse-or-human.zip")
+  Req.get!("https://storage.googleapis.com/learning-datasets/horse-or-human.zip")
 
 files = for {name, binary} <- files, do: {List.to_string(name), binary}
 ```
@@ -121,7 +121,7 @@ defmodule HorsesHumans.DataProcessing do
     images = images / 255.0
 
     # Optional vertical/horizontal flip
-    u = Nx.random_uniform({})
+    { u, _new_key } = Nx.Random.key(1987) |> Nx.Random.uniform()
 
     cond do
       u < 0.25 -> images
@@ -203,7 +203,7 @@ optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-4)
 
 params =
   model
-  |> Axon.Loop.trainer(:categorical_cross_entropy, optimizer, :identity, log: 1)
+  |> Axon.Loop.trainer(:categorical_cross_entropy, optimizer, log: 1)
   |> Axon.Loop.metric(:accuracy)
   |> Axon.Loop.run(data, %{}, epochs: 10, iterations: batches_per_epoch)
 ```
@@ -218,7 +218,7 @@ We can improve the training by applying gradient centralization. It is a techniq
 centralized_optimizer = Polaris.Updates.compose(Polaris.Updates.centralize(), optimizer)
 
 model
-|> Axon.Loop.trainer(:categorical_cross_entropy, centralized_optimizer, :identity, log: 1)
+|> Axon.Loop.trainer(:categorical_cross_entropy, centralized_optimizer, log: 1)
 |> Axon.Loop.metric(:accuracy)
 |> Axon.Loop.run(data, %{}, epochs: 10, iterations: batches_per_epoch)
 ```
@@ -246,4 +246,4 @@ _Note: the model output refers to the probability that the image presents a hors
 
 <!-- livebook:{"break_markdown":true} -->
 
-The website from where we loaded the dataset also includes a validation set, in case you want to experiment further!
+You can find a validation set [here](https://storage.googleapis.com/learning-datasets/validation-horse-or-human.zip), in case you want to experiment further!
