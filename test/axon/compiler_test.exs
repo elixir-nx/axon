@@ -602,7 +602,7 @@ defmodule CompilerTest do
     test "initializes in default case" do
       model = Axon.input("input_0", shape: {nil, 1}) |> Axon.embedding(1, 1, name: "embedding")
 
-      input = random({1, 1})
+      input = random({1, 1}) |> Nx.as_type(:s64)
 
       assert {init_fn, _predict_fn} = Axon.build(model)
       assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(input, %{})
@@ -615,7 +615,7 @@ defmodule CompilerTest do
         Axon.input("input_0", shape: {nil, 1})
         |> Axon.embedding(1, 1, name: "embedding", kernel_initializer: :zeros)
 
-      input = random({1, 1})
+      input = random({1, 1}) |> Nx.as_type(:s64)
 
       assert {init_fn, _predict_fn} = Axon.build(model1)
       assert %{"embedding" => %{"kernel" => kernel}} = init_fn.(input, %{})
