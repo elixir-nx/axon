@@ -837,7 +837,7 @@ defmodule Axon.Compiler do
       # parameter map, so we just need to extract them and then apply
       # freezing and dtype policy
       parameter_inputs =
-        Enum.map(layer_params, fn %{type: type, name: v, frozen: frz} ->
+        Enum.map(layer_params, fn %{name: v, frozen: frz} ->
           param = params[name][v]
 
           cond do
@@ -1109,19 +1109,6 @@ defmodule Axon.Compiler do
 
       container ->
         deep_new(container, &Nx.shape/1)
-    end
-  end
-
-  defp safe_type(container_or_tensor) do
-    case container_or_tensor do
-      %Axon.None{} = none ->
-        none
-
-      %Nx.Tensor{} = tensor ->
-        Nx.type(tensor)
-
-      container ->
-        deep_new(container, &Nx.type/1)
     end
   end
 
