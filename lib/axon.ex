@@ -388,7 +388,9 @@ defmodule Axon do
   be automatically initialized and used in subsequent applications
   of Axon models.
 
-  Parameters *must* be specified in order of their usage.
+  You may specify the parameter shape as either a static shape or
+  as function of the inputs to the given layer. If you specify the
+  parameter shape as a function, it will be given the 
 
   ## Options
 
@@ -397,7 +399,18 @@ defmodule Axon do
   """
   @doc type: :special
   def param(name, shape, opts \\ [])
-      when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
+
+  def param(name, {:map, [_ | _] = inner_params}, opts) do
+    maybe_warn_on_param_opts(opts)
+
+    %Axon.Parameter{
+      name: name,
+      type: :map,
+      children: inner_params
+    }
+  end
+
+  def param(name, shape, opts) when is_tuple(shape) or is_function(shape) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32})
     initializer = validate_initializer!(opts[:initializer])
     type = opts[:type] || {:f, 32}
@@ -408,6 +421,14 @@ defmodule Axon do
       type: type,
       initializer: initializer
     }
+  end
+
+  defp maybe_warn_on_param_opts(opts) do
+    if :initializer in opts or :type in opts do
+      Logger.warning(
+        "Passing options to a composite parameter has no effect. Pass them to inner parameters instead"
+      )
+    end
   end
 
   @doc """
@@ -2465,23 +2486,25 @@ defmodule Axon do
     activation = opts[:activation]
     gate = opts[:gate]
     unroll = opts[:unroll]
+    kernel_initializer = opts[:kernel_initializer]
 
     input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
     hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
     bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
 
-    kernel_initializer = opts[:kernel_initializer]
+    wii = param("wii", input_kernel_shape, initializer: kernel_initializer)
+    wif = param("wif", input_kernel_shape, initializer: kernel_initializer)
+    wig = param("wig", input_kernel_shape, initializer: kernel_initializer)
+    wio = param("wio", input_kernel_shape, initializer: kernel_initializer)
+
+    whi = param("whi", hidden_kernel_shape, initializer: kernel_initializer)
+    whf = param("whf", hidden_kernel_shape, initializer: kernel_initializer)
+    whg = param("whg", hidden_kernel_shape, initializer: kernel_initializer)
+    who = param("who", hidden_kernel_shape, initializer: kernel_initializer)
 
     # Parameters
-    input_kernel =
-      param("input_kernel", {:tuple, List.duplicate(input_kernel_shape, 4)},
-        initializer: kernel_initializer
-      )
-
-    hidden_kernel =
-      param("hidden_kernel", {:tuple, List.duplicate(hidden_kernel_shape, 4)},
-        initializer: kernel_initializer
-      )
+    input_kernel = param("input_kernel", {:map, [wii, wif, wig, wio]})
+    hidden_kernel = param("hidden_kernel", {:map, [whi, whf, whg, who]})
 
     hidden_state_name =
       case opts[:name] do
@@ -2500,8 +2523,12 @@ defmodule Axon do
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
 
-        bias =
-          param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
+        bi = param("bi", bias_shape, initializer: bias_initializer)
+        bf = param("bf", bias_shape, initializer: bias_initializer)
+        bg = param("bg", bias_shape, initializer: bias_initializer)
+        bo = param("bo", bias_shape, initializer: bias_initializer)
+
+        bias = param("bias", {:map, [bi, bf, bg, bo]})
 
         {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias], :lstm}
       else

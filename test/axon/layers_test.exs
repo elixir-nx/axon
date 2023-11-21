@@ -982,9 +982,9 @@ defmodule Axon.LayersTest do
           seq,
           {c, h},
           Nx.tensor(0),
-          {wii, wif, wig, wio},
-          {whi, whf, whg, who},
-          {bi, bf, bg, bo}
+          %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+          %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+          %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
         )
 
       assert_all_close(new_c, expected_c)
@@ -1033,9 +1033,9 @@ defmodule Axon.LayersTest do
           seq,
           {c, h},
           Nx.tensor(0),
-          {wii, wif, wig, wio},
-          {whi, whf, whg, who},
-          {bi, bf, bg, bo},
+          %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+          %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+          %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo},
           unroll: :dynamic
         )
 

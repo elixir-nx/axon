@@ -3099,9 +3099,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = init_fn.(input, %{})
 
@@ -3185,9 +3185,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = init_fn.(input, %{})
 
@@ -3232,9 +3232,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = params = init_fn.(input, %{})
 
@@ -3288,9 +3288,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = params = init_fn.(input1, %{})
 
@@ -3318,9 +3318,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = params = init_fn.(input2, %{})
 
@@ -3398,8 +3398,8 @@ defmodule CompilerTest do
       assert %{
                "lstm" =>
                  %{
-                   "input_kernel" => {_, _, _, _},
-                   "hidden_kernel" => {_, _, _, _}
+                   "input_kernel" => %{"wii" => _, "wif" => _, "wig" => _, "wio" => _},
+                   "hidden_kernel" => %{"whi" => _, "whf" => _, "whg" => _, "who" => _}
                  } = lstm_params
              } = init_fn.(input, %{})
 
@@ -3423,7 +3423,7 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
+      b = %{"bi" => Nx.tensor(0), "bf" => Nx.tensor(0), "bg" => Nx.tensor(0), "bo" => Nx.tensor(0)}
       c = {zeros({1, 2}), zeros({1, 2})}
 
       assert_equal(
@@ -5773,6 +5773,46 @@ defmodule CompilerTest do
       expr = expr_fn.(params, input)
 
       assert %{data: %{op: :metadata, args: [_tensor, %{axon_layer: :dense}]}} = expr
+    end
+  end
+
+  describe "parameters" do
+    test "supports composite/map parameter types" do
+      inner_param = Axon.param("inner", fn _ -> {1, 1} end)
+      param = Axon.param("composite", {:map, [inner_param]})
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(fn x, %{"inner" => inner}, _opts -> Nx.add(x, inner) end, [input, param],
+          name: "custom"
+        )
+
+      x = random({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"custom" => %{"composite" => %{"inner" => inner}}} =
+               params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert predict_fn.(params, x) == Nx.add(x, inner)
+    end
+
+    test "inner params in composite parameters initialize to different values" do
+      a = Axon.param("a", fn _ -> {1, 1} end)
+      b = Axon.param("b", fn _ -> {1, 1} end)
+      param = Axon.param("composite", {:map, [a, b]})
+
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(fn x, %{"a" => a}, _opts -> Nx.add(x, a) end, [input, param], name: "custom")
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert %{"custom" => %{"composite" => %{"a" => a, "b" => b}}} =
+               init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert_not_equal(a, b)
     end
   end
 end

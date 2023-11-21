@@ -147,31 +147,12 @@ defmodule Axon.Compiler do
         {_, %Axon.Node{id: id, op: op, name: name_fn, parameters: params}}, {keys, op_counts} ->
           name = name_fn.(op, op_counts)
           op_counts = Map.update(op_counts, op, 1, &(&1 + 1))
-
-          keys =
-            Enum.reduce(params, keys, fn
-              %Axon.Parameter{name: param_name, initializer: fun}, keys ->
-                {:arity, arity} = Function.info(fun, :arity)
-
-                cond do
-                  arity == 2 ->
-                    keys
-
-                  arity == 3 ->
-                    <<data::unsigned-size(32), _rest::binary>> =
-                      :erlang.md5(name <> "." <> param_name)
-
-                    [{{id, param_name}, data} | keys]
-
-                  true ->
-                    raise ArgumentError, "bad initializer arity"
-                end
-            end)
-
+          keys = get_node_keys(id, name, params, keys)
           {keys, op_counts}
       end)
 
     {ids, data} = Enum.unzip(ids_and_data)
+    data = List.flatten(data)
 
     case ids do
       [] ->
@@ -186,13 +167,77 @@ defmodule Axon.Compiler do
           |> then(&Nx.Random.fold_in(key, &1))
 
         {keys, _} =
-          Enum.reduce(ids, {%{}, 0}, fn {layer_id, param_name}, {acc, i} ->
-            key = keys_tensor[i]
-            acc = Map.update(acc, layer_id, %{param_name => key}, &Map.put(&1, param_name, key))
-            {acc, i + 1}
+          Enum.reduce(ids, {%{}, 0}, fn
+            {layer_id, param_name}, {acc, i} when is_binary(param_name) ->
+              key = keys_tensor[i]
+              acc = Map.update(acc, layer_id, %{param_name => key}, &Map.put(&1, param_name, key))
+              {acc, i + 1}
+
+            {layer_id, {composite_param_name, children}}, {acc, i} ->
+              # TODO: Multiple levels of nesting
+              Enum.reduce(children, {acc, i}, fn child_name, {acc, i} ->
+                key = keys_tensor[i]
+
+                acc =
+                  Map.update(
+                    acc,
+                    layer_id,
+                    %{composite_param_name => %{child_name => key}},
+                    fn inner_map ->
+                      Map.update(
+                        inner_map,
+                        composite_param_name,
+                        %{child_name => key},
+                        &Map.put(&1, child_name, key)
+                      )
+                    end
+                  )
+
+                {acc, i + 1}
+              end)
           end)
 
         keys
+    end
+  end
+
+  defp get_node_keys(id, parent_name, params, keys) do
+    Enum.reduce(params, keys, fn param, keys ->
+      case get_param_data(parent_name, param) do
+        nil -> keys
+        {param_name, data} -> [{{id, param_name}, data} | keys]
+      end
+    end)
+  end
+
+  defp get_param_data(parent_name, param) do
+    case param do
+      %Axon.Parameter{name: param_name, type: :map, children: inner_params} ->
+        parent_name = parent_name <> "." <> param_name
+
+        {inner_names, inner_data} =
+          Enum.map(inner_params, &get_param_data(parent_name, &1))
+          |> Enum.reject(&(&1 == nil))
+          |> Enum.unzip()
+
+        {{param_name, inner_names}, inner_data}
+
+      %Axon.Parameter{name: param_name, initializer: fun} ->
+        {:arity, arity} = Function.info(fun, :arity)
+
+        cond do
+          arity == 2 ->
+            nil
+
+          arity == 3 ->
+            <<data::unsigned-size(32), _rest::binary>> =
+              :erlang.md5(parent_name <> "." <> param_name)
+
+            {param_name, [data]}
+
+          true ->
+            raise ArgumentError, "bad initializer arity"
+        end
     end
   end
 
@@ -1020,20 +1065,22 @@ defmodule Axon.Compiler do
   end
 
   defp init_param(layer_id, param, layer_params, parent_shapes, dtype, keys) do
-    %{name: name, shape: shape, initializer: initializer} = param
+    %{name: name} = param
 
     params =
-      case shape do
-        {:tuple, params} ->
-          params =
-            Enum.map(params, fn shape ->
+      case param do
+        %Axon.Parameter{name: parent_name, type: :map, children: children} ->
+          inner_params =
+            Map.new(children, fn %{shape: shape, name: name, initializer: initializer} ->
               shape = apply(shape, parent_shapes)
-              apply_initializer(layer_id, initializer, name, shape, dtype, keys)
+
+              {name,
+               apply_initializer(parent_name, initializer, name, shape, dtype, keys[layer_id])}
             end)
 
-          List.to_tuple(params)
+          inner_params
 
-        shape ->
+        %Axon.Parameter{name: name, shape: shape, initializer: initializer} ->
           shape = apply(shape, parent_shapes)
           apply_initializer(layer_id, initializer, name, shape, dtype, keys)
       end

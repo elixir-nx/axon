@@ -2203,17 +2203,13 @@ defmodule Axon.Layers do
          input,
          carry,
          mask,
-         input_kernel,
-         hidden_kernel,
-         bias,
+         %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+         %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+         %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo},
          gate_fn \\ &Axon.Activations.sigmoid/1,
          activation_fn \\ &Axon.Activations.tanh/1
        ) do
     {cell, hidden} = carry
-    {wii, wif, wig, wio} = input_kernel
-    {whi, whf, whg, who} = hidden_kernel
-
-    {bi, bf, bg, bo} = bias
 
     i = gate_fn.(dense(input, wii, bi) + dense(hidden, whi, 0))
     f = gate_fn.(dense(input, wif, bf) + dense(hidden, whf, 0))
@@ -2434,7 +2430,11 @@ defmodule Axon.Layers do
     end
   end
 
-  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
+  @recurrent_layers [
+    lstm: %{"bi" => 0, "bf" => 0, "bg" => 0, "bo" => 0},
+    gru: {0, 0, 0, 0},
+    conv_lstm: {0}
+  ]
 
   for {rnn_op, default} <- @recurrent_layers do
     deftransform unquote(rnn_op)(
@@ -2449,7 +2449,7 @@ defmodule Axon.Layers do
       {bias, opts} =
         cond do
           is_list(bias) -> {unquote(Macro.escape(default)), bias}
-          is_tuple(bias) -> {bias, opts}
+          is_map(bias) -> {bias, opts}
           true -> raise ArgumentError, "invalid bias #{inspect(bias)}"
         end
 
