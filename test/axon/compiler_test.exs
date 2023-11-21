@@ -3381,10 +3381,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
     end
 
-    # TODO(seanmor5): Update this with https://github.com/elixir-nx/axon/issues/90
-    # test "returns zero gradient for frozen parameters" do
-    # end
-
     test "initializes with use_bias false" do
       model =
         Axon.input("input", shape: {nil, 2, 1})
@@ -3460,13 +3456,6 @@ defmodule CompilerTest do
         assert_equal(last_token, out[[.., i, ..]])
       end
     end
-
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "initializes with parameter policy" do
-    # end
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "computes forward pass with output policy" do
-    # end
   end
 
   describe "conv_lstm" do
@@ -3838,10 +3827,6 @@ defmodule CompilerTest do
       assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
     end
 
-    # TODO
-    # test "returns zero gradient for frozen parameters" do
-    # end
-
     test "computes forward pass with use_bias false" do
       input_shape = {
         _batch = nil,
@@ -4177,7 +4162,13 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      b = %{"br" => Nx.tensor(0), "bz" => Nx.tensor(0), "bin" => Nx.tensor(0), "bhn" => Nx.tensor(0)}
+      b = %{
+        "br" => Nx.tensor(0),
+        "bz" => Nx.tensor(0),
+        "bin" => Nx.tensor(0),
+        "bhn" => Nx.tensor(0)
+      }
+
       c = {zeros({1, 2})}
 
       assert_all_close(
@@ -4703,7 +4694,12 @@ defmodule CompilerTest do
 
       assert %{
                "input_kernel" => %{"wii" => wii_0, "wif" => wif_0, "wig" => wig_0, "wio" => wio_0},
-               "hidden_kernel" => %{"whi" => whi_0, "whf" => whf_0, "whg" => whg_0, "who" => who_0},
+               "hidden_kernel" => %{
+                 "whi" => whi_0,
+                 "whf" => whf_0,
+                 "whg" => whg_0,
+                 "who" => who_0
+               },
                "bias" => %{"bi" => bi_0, "bf" => bf_0, "bg" => bg_0, "bo" => bo_0}
              } = lstm_0_params
 
@@ -4722,7 +4718,12 @@ defmodule CompilerTest do
 
       assert %{
                "input_kernel" => %{"wii" => wii_1, "wif" => wif_1, "wig" => wig_1, "wio" => wio_1},
-               "hidden_kernel" => %{"whi" => whi_1, "whf" => whf_1, "whg" => whg_1, "who" => who_1},
+               "hidden_kernel" => %{
+                 "whi" => whi_1,
+                 "whf" => whf_1,
+                 "whg" => whg_1,
+                 "who" => who_1
+               },
                "bias" => %{"bi" => bi_1, "bf" => bf_1, "bg" => bg_1, "bo" => bo_1}
              } = lstm_1_params
 

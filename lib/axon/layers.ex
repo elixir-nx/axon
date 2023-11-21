@@ -2323,24 +2323,25 @@ defmodule Axon.Layers do
       )
 
     init_sequence = Nx.broadcast(0.0, initial_shape)
-    i = Nx.tensor(0)
+    t = Nx.tensor(0)
 
-    {_, carry, output, _, _, _, _, _} =
-      while {i, carry, init_sequence, input_sequence, mask, input_kernel, recurrent_kernel, bias},
-            Nx.less(i, time_steps) do
-        sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
-        sequence = Nx.squeeze(sequence, axes: [1])
-        mask_token = Nx.slice_along_axis(mask, i, 1, axis: 1)
-        mask_token = Nx.reshape(mask_token, {Nx.axis_size(sequence, 0), 1})
-        indices = compute_indices(i, feature_dims)
+    {_, output, carry, _, _, _, _, _} =
+      while {t, init_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel, bias},
+            Nx.less(t, time_steps) do
+        input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
+        input = Nx.squeeze(input, axes: [1])
+        mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
+        mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
 
         {output, carry} =
-          cell_fn.(sequence, carry, mask_token, input_kernel, recurrent_kernel, bias)
+          cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
+
+        indices = compute_indices(t, feature_dims)
 
         output = Nx.new_axis(output, 1)
         update_sequence = Nx.put_slice(init_sequence, indices, output)
 
-        {i + 1, carry, update_sequence, input_sequence, mask, input_kernel, recurrent_kernel,
+        {t + 1, update_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel,
          bias}
       end
 
