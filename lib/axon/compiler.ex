@@ -167,34 +167,13 @@ defmodule Axon.Compiler do
           |> then(&Nx.Random.fold_in(key, &1))
 
         {keys, _} =
-          Enum.reduce(ids, {%{}, 0}, fn
-            {layer_id, param_name}, {acc, i} when is_binary(param_name) ->
-              key = keys_tensor[i]
-              acc = Map.update(acc, layer_id, %{param_name => key}, &Map.put(&1, param_name, key))
-              {acc, i + 1}
+          Enum.reduce(ids, {%{}, 0}, fn {layer_id, param}, {acc, i} ->
+            {{root_name, keys}, i} = recur_slice_keys(keys_tensor, param, i)
 
-            {layer_id, {composite_param_name, children}}, {acc, i} ->
-              # TODO: Multiple levels of nesting
-              Enum.reduce(children, {acc, i}, fn child_name, {acc, i} ->
-                key = keys_tensor[i]
+            layer_keys =
+              Map.update(acc, layer_id, %{root_name => keys}, &Map.put(&1, root_name, keys))
 
-                acc =
-                  Map.update(
-                    acc,
-                    layer_id,
-                    %{composite_param_name => %{child_name => key}},
-                    fn inner_map ->
-                      Map.update(
-                        inner_map,
-                        composite_param_name,
-                        %{child_name => key},
-                        &Map.put(&1, child_name, key)
-                      )
-                    end
-                  )
-
-                {acc, i + 1}
-              end)
+            {layer_keys, i}
           end)
 
         keys
@@ -220,7 +199,13 @@ defmodule Axon.Compiler do
           |> Enum.reject(&(&1 == nil))
           |> Enum.unzip()
 
-        {{param_name, inner_names}, inner_data}
+        case inner_data do
+          [] ->
+            nil
+
+          [_ | _] ->
+            {{param_name, inner_names}, inner_data}
+        end
 
       %Axon.Parameter{name: param_name, initializer: fun} ->
         {:arity, arity} = Function.info(fun, :arity)
@@ -238,6 +223,23 @@ defmodule Axon.Compiler do
           true ->
             raise ArgumentError, "bad initializer arity"
         end
+    end
+  end
+
+  defp recur_slice_keys(keys_tensor, param, i) do
+    case param do
+      {composite_param_name, children} ->
+        {subkeys, i} =
+          Enum.reduce(children, {%{}, i}, fn child_param, {acc, i} ->
+            {{root_name, keys}, i} = recur_slice_keys(keys_tensor, child_param, i)
+            {Map.put(acc, root_name, keys), i}
+          end)
+
+        {{composite_param_name, subkeys}, i}
+
+      param_name when is_binary(param_name) ->
+        key = keys_tensor[i]
+        {{param_name, key}, i + 1}
     end
   end
 
@@ -1070,18 +1072,23 @@ defmodule Axon.Compiler do
     params =
       case param do
         %Axon.Parameter{name: parent_name, type: :map, children: children} ->
-          inner_params =
-            Map.new(children, fn %{shape: shape, name: name, initializer: initializer} ->
-              shape = apply(shape, parent_shapes)
-
-              {name,
-               apply_initializer(parent_name, initializer, name, shape, dtype, keys[layer_id])}
-            end)
-
-          inner_params
+          Enum.reduce(children, %{}, fn child_param, acc ->
+            init_param(parent_name, child_param, acc, parent_shapes, dtype, keys[layer_id])
+          end)
 
         %Axon.Parameter{name: name, shape: shape, initializer: initializer} ->
-          shape = apply(shape, parent_shapes)
+          shape =
+            case shape do
+              shape when is_function(shape) ->
+                apply(shape, parent_shapes)
+
+              shape when is_tuple(shape) ->
+                shape
+
+              other ->
+                raise "unsupported parameter shape, parameter shape should be a static tuple, a function, or a composite, got #{inspect(other)}"
+            end
+
           apply_initializer(layer_id, initializer, name, shape, dtype, keys)
       end
 

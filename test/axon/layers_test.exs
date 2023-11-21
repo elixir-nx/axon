@@ -1047,20 +1047,30 @@ defmodule Axon.LayersTest do
 
   describe "dynamic_unroll" do
     test "computes carry and output identical to static_unroll" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1109,20 +1119,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static unroll for hidden kernel w.r.t. output" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1146,7 +1166,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             x,
             bias
@@ -1163,7 +1183,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             x,
             bias
@@ -1174,20 +1194,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static_unroll for hidden kernel w.r.t carry" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1216,20 +1246,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static unroll for input kernel w.r.t. output" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1246,7 +1286,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             x,
             hidden_kernel,
             bias
@@ -1263,7 +1303,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             x,
             hidden_kernel,
             bias
@@ -1274,20 +1314,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static unroll for input kernel w.r.t. carry" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1304,7 +1354,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             hidden_kernel,
             x
@@ -1321,7 +1371,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             hidden_kernel,
             x
@@ -1332,20 +1382,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static unroll for bias w.r.t. output" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 
@@ -1362,7 +1422,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             hidden_kernel,
             x
@@ -1379,7 +1439,7 @@ defmodule Axon.LayersTest do
             cell_fn,
             input,
             carry,
-            Nx.tensor([[0, 0, 0, 1]]),
+            Nx.tensor([[0, 0, 0, 1], [0, 0, 1, 1]]),
             input_kernel,
             hidden_kernel,
             x
@@ -1390,20 +1450,30 @@ defmodule Axon.LayersTest do
     end
 
     test "computes gradient identical to static unroll for bias w.r.t. carry" do
-      input = Nx.iota({1, 4, 2}, type: {:f, 32})
-      carry = {Nx.iota({1, 8}, type: {:f, 32})}
+      input = Nx.iota({2, 4, 2}, type: {:f, 32})
+      carry = {Nx.iota({2, 8}, type: {:f, 32})}
 
       input_kernel =
-        {Nx.iota({2, 8}, type: {:f, 32}), Nx.iota({2, 8}, type: {:f, 32}),
-         Nx.iota({2, 8}, type: {:f, 32})}
+        %{
+          "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+          "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+          "win" => Nx.iota({2, 8}, type: {:f, 32})
+        }
 
       hidden_kernel =
-        {Nx.iota({8, 8}, type: {:f, 32}), Nx.iota({8, 8}, type: {:f, 32}),
-         Nx.iota({8, 8}, type: {:f, 32})}
+        %{
+          "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+          "whn" => Nx.iota({8, 8}, type: {:f, 32})
+        }
 
       bias =
-        {Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}), Nx.iota({}, type: {:f, 32}),
-         Nx.iota({}, type: {:f, 32})}
+        %{
+          "br" => Nx.iota({}, type: {:f, 32}),
+          "bz" => Nx.iota({}, type: {:f, 32}),
+          "bin" => Nx.iota({}, type: {:f, 32}),
+          "bhn" => Nx.iota({}, type: {:f, 32})
+        }
 
       cell_fn = &Axon.Layers.gru_cell/6
 

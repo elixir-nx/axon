@@ -2166,16 +2166,13 @@ defmodule Axon.Layers do
          input,
          carry,
          mask,
-         input_kernel,
-         hidden_kernel,
-         bias,
+         %{"wir" => wir, "wiz" => wiz, "win" => win},
+         %{"whr" => whr, "whz" => whz, "whn" => whn},
+         %{"br" => br, "bz" => bz, "bin" => bin, "bhn" => bhn},
          gate_fn \\ &Axon.Activations.sigmoid/1,
          activation_fn \\ &Axon.Activations.tanh/1
        ) do
     {hidden} = carry
-    {wir, wiz, win} = input_kernel
-    {whr, whz, whn} = hidden_kernel
-    {br, bz, bin, bhn} = bias
 
     r = gate_fn.(dense(input, wir, br) + dense(hidden, whr, 0))
     z = gate_fn.(dense(input, wiz, bz) + dense(hidden, whz, 0))
@@ -2242,12 +2239,8 @@ defmodule Axon.Layers do
 
     * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
-  defn conv_lstm_cell(input, carry, _mask, input_kernel, hidden_kernel, bias, opts \\ []) do
+  defn conv_lstm_cell(input, carry, _mask, ih, hh, bi, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
-
-    {ih} = input_kernel
-    {hh} = hidden_kernel
-    {bi} = bias
 
     {cell, hidden} = rank_down(carry)
 
@@ -2432,8 +2425,8 @@ defmodule Axon.Layers do
 
   @recurrent_layers [
     lstm: %{"bi" => 0, "bf" => 0, "bg" => 0, "bo" => 0},
-    gru: {0, 0, 0, 0},
-    conv_lstm: {0}
+    gru: %{"br" => 0, "bz" => 0, "bin" => 0, "bhn" => 0},
+    conv_lstm: 0
   ]
 
   for {rnn_op, default} <- @recurrent_layers do

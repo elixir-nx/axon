@@ -3148,9 +3148,9 @@ defmodule CompilerTest do
 
       assert %{
                "lstm" => %{
-                 "input_kernel" => {wii, wif, wig, wio},
-                 "hidden_kernel" => {whi, whf, whg, who},
-                 "bias" => {bi, bf, bg, bo}
+                 "input_kernel" => %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+                 "hidden_kernel" => %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+                 "bias" => %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
                }
              } = init_fn.(input, %{})
 
@@ -3238,9 +3238,9 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio}
+      h = %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who}
+      b = %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
 
       assert_equal(
         predict_fn.(params, input),
@@ -3294,9 +3294,9 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input1, %{})
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio}
+      h = %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who}
+      b = %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
 
       assert_all_close(
         predict_fn.(params, input1),
@@ -3324,9 +3324,9 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input2, %{})
 
-      k = {wii, wif, wig, wio}
-      h = {whi, whf, whg, who}
-      b = {bi, bf, bg, bo}
+      k = %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio}
+      h = %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who}
+      b = %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
 
       assert_all_close(
         predict_fn.(params, input2),
@@ -3423,7 +3423,13 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      b = %{"bi" => Nx.tensor(0), "bf" => Nx.tensor(0), "bg" => Nx.tensor(0), "bo" => Nx.tensor(0)}
+      b = %{
+        "bi" => Nx.tensor(0),
+        "bf" => Nx.tensor(0),
+        "bg" => Nx.tensor(0),
+        "bo" => Nx.tensor(0)
+      }
+
       c = {zeros({1, 2}), zeros({1, 2})}
 
       assert_equal(
@@ -3486,9 +3492,9 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = init_fn.(input, %{})
 
@@ -3527,9 +3533,9 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = init_fn.(input, %{})
 
@@ -3549,9 +3555,9 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = init_fn.(input, %{})
 
@@ -3596,15 +3602,11 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = params = init_fn.(input, %{})
-
-      k = {wi}
-      h = {wh}
-      b = {b}
 
       assert_equal(
         predict_fn.(params, input),
@@ -3613,8 +3615,8 @@ defmodule CompilerTest do
           input,
           init_carry,
           Nx.tensor(0),
-          k,
-          h,
+          wi,
+          wh,
           b
         )
       )
@@ -3653,15 +3655,11 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = params = init_fn.(input, %{})
-
-      k = {wi}
-      h = {wh}
-      b = {b}
 
       assert_equal(
         predict_fn.(params, input),
@@ -3670,8 +3668,8 @@ defmodule CompilerTest do
           input,
           init_carry,
           Nx.tensor(0),
-          k,
-          h,
+          wi,
+          wh,
           b
         )
       )
@@ -3719,19 +3717,15 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = params = init_fn.(input1, %{})
 
-      k = {wi}
-      h = {wh}
-      b = {b}
-
       assert_equal(
         predict_fn.(params, input1),
-        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, Nx.tensor(0), k, h, b)
+        Axon.Layers.dynamic_unroll(cell_fn1, input1, init_carry1, Nx.tensor(0), wi, wh, b)
       )
 
       model2 =
@@ -3756,19 +3750,15 @@ defmodule CompilerTest do
 
       assert %{
                "convlstm" => %{
-                 "input_kernel" => {wi},
-                 "hidden_kernel" => {wh},
-                 "bias" => {b}
+                 "input_kernel" => wi,
+                 "hidden_kernel" => wh,
+                 "bias" => b
                }
              } = params = init_fn.(input2, %{})
 
-      k = {wi}
-      h = {wh}
-      b = {b}
-
       assert_equal(
         predict_fn.(params, input2),
-        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, Nx.tensor(0), k, h, b)
+        Axon.Layers.static_unroll(cell_fn2, input2, init_carry2, Nx.tensor(0), wi, wh, b)
       )
     end
 
@@ -3831,19 +3821,19 @@ defmodule CompilerTest do
 
       assert %{
                "encode" => %{
-                 "input_kernel" => {ei},
-                 "hidden_kernel" => {eh},
-                 "bias" => {eb}
+                 "input_kernel" => ei,
+                 "hidden_kernel" => eh,
+                 "bias" => eb
                },
                "decode" => %{
-                 "input_kernel" => {di},
-                 "hidden_kernel" => {dh},
-                 "bias" => {db}
+                 "input_kernel" => di,
+                 "hidden_kernel" => dh,
+                 "bias" => db
                }
              } = params = init_fn.(input, %{})
 
-      enc = {{ei}, {eh}, {eb}}
-      dec = {{di}, {dh}, {db}}
+      enc = {ei, eh, eb}
+      dec = {di, dh, db}
 
       assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
     end
@@ -3888,7 +3878,7 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      b = {Nx.broadcast(0, 4 * out_channel_n)}
+      b = Nx.broadcast(0, 4 * out_channel_n)
 
       c = {zeros(hidden_shape_real), zeros(hidden_shape_real)}
 
@@ -3910,9 +3900,9 @@ defmodule CompilerTest do
 
       assert %{
                "gru" => %{
-                 "input_kernel" => {wir, wiz, win},
-                 "hidden_kernel" => {whr, whz, whn},
-                 "bias" => {br, bz, bhn, bin}
+                 "input_kernel" => %{"wir" => wir, "wiz" => wiz, "win" => win},
+                 "hidden_kernel" => %{"whr" => whr, "whz" => whz, "whn" => whn},
+                 "bias" => %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
                }
              } = init_fn.(input, %{})
 
@@ -3950,9 +3940,9 @@ defmodule CompilerTest do
 
       assert %{
                "gru" => %{
-                 "input_kernel" => {wir, wiz, win},
-                 "hidden_kernel" => {whr, whz, whn},
-                 "bias" => {br, bz, bhn, bin}
+                 "input_kernel" => %{"wir" => wir, "wiz" => wiz, "win" => win},
+                 "hidden_kernel" => %{"whr" => whr, "whz" => whz, "whn" => whn},
+                 "bias" => %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
                }
              } = init_fn.(input, %{})
 
@@ -3980,9 +3970,9 @@ defmodule CompilerTest do
 
       assert %{
                "gru" => %{
-                 "input_kernel" => {wir, wiz, win},
-                 "hidden_kernel" => {whr, whz, whn},
-                 "bias" => {br, bz, bhn, bin}
+                 "input_kernel" => %{"wir" => wir, "wiz" => wiz, "win" => win},
+                 "hidden_kernel" => %{"whr" => whr, "whz" => whz, "whn" => whn},
+                 "bias" => %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
                }
              } = init_fn.(input, %{})
 
@@ -4060,15 +4050,15 @@ defmodule CompilerTest do
 
       assert %{
                "gru" => %{
-                 "input_kernel" => {wir, wiz, win},
-                 "hidden_kernel" => {whr, whz, whn},
-                 "bias" => {br, bz, bhn, bin}
+                 "input_kernel" => %{"wir" => wir, "wiz" => wiz, "win" => win},
+                 "hidden_kernel" => %{"whr" => whr, "whz" => whz, "whn" => whn},
+                 "bias" => %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
                }
              } = params = init_fn.(input1, %{})
 
-      k = {wir, wiz, win}
-      h = {whr, whz, whn}
-      b = {br, bz, bin, bhn}
+      k = %{"wir" => wir, "wiz" => wiz, "win" => win}
+      h = %{"whr" => whr, "whz" => whz, "whn" => whn}
+      b = %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
 
       assert_all_close(
         predict_fn.(params, input1),
@@ -4087,15 +4077,15 @@ defmodule CompilerTest do
 
       assert %{
                "gru" => %{
-                 "input_kernel" => {wir, wiz, win},
-                 "hidden_kernel" => {whr, whz, whn},
-                 "bias" => {br, bz, bhn, bin}
+                 "input_kernel" => %{"wir" => wir, "wiz" => wiz, "win" => win},
+                 "hidden_kernel" => %{"whr" => whr, "whz" => whz, "whn" => whn},
+                 "bias" => %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
                }
              } = params = init_fn.(input2, %{})
 
-      k = {wir, wiz, win}
-      h = {whr, whz, whn}
-      b = {br, bz, bin, bhn}
+      k = %{"wir" => wir, "wiz" => wiz, "win" => win}
+      h = %{"whr" => whr, "whz" => whz, "whn" => whn}
+      b = %{"br" => br, "bz" => bz, "bhn" => bhn, "bin" => bin}
 
       assert_all_close(
         predict_fn.(params, input2),
@@ -4133,19 +4123,19 @@ defmodule CompilerTest do
 
       assert %{
                "encode" => %{
-                 "input_kernel" => {eir, eiz, ein},
-                 "hidden_kernel" => {ehr, ehz, ehn},
-                 "bias" => {ebr, ebz, ebhn, ebin}
+                 "input_kernel" => eik,
+                 "hidden_kernel" => ehk,
+                 "bias" => eb
                },
                "decode" => %{
-                 "input_kernel" => {dir, diz, din},
-                 "hidden_kernel" => {dhr, dhz, dhn},
-                 "bias" => {dbr, dbz, dbhn, dbin}
+                 "input_kernel" => dik,
+                 "hidden_kernel" => dhk,
+                 "bias" => db
                }
              } = params = init_fn.(input, %{})
 
-      enc = {{eir, eiz, ein}, {ehr, ehz, ehn}, {ebr, ebz, ebin, ebhn}}
-      dec = {{dir, diz, din}, {dhr, dhz, dhn}, {dbr, dbz, dbin, dbhn}}
+      enc = {eik, ehk, eb}
+      dec = {dik, dhk, db}
 
       assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
     end
@@ -4163,8 +4153,8 @@ defmodule CompilerTest do
       assert %{
                "gru" =>
                  %{
-                   "input_kernel" => {_, _, _},
-                   "hidden_kernel" => {_, _, _}
+                   "input_kernel" => %{"wir" => _, "wiz" => _, "win" => _},
+                   "hidden_kernel" => %{"whr" => _, "whz" => _, "whn" => _}
                  } = gru_params
              } = init_fn.(input, %{})
 
@@ -4187,7 +4177,7 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, %{})
 
-      b = {Nx.tensor(0), Nx.tensor(0), Nx.tensor(0), Nx.tensor(0)}
+      b = %{"br" => Nx.tensor(0), "bz" => Nx.tensor(0), "bin" => Nx.tensor(0), "bhn" => Nx.tensor(0)}
       c = {zeros({1, 2})}
 
       assert_all_close(
@@ -4218,16 +4208,6 @@ defmodule CompilerTest do
         assert_equal(last_token, out[[.., i, ..]])
       end
     end
-
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test ""
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "returns zero gradient for frozen parameters" do
-    # end
-    # end
-    # TODO(seanmor5): https://github.com/elixir-nx/axon/issues/90
-    # test "computes forward pass with output policy" do
-    # end
   end
 
   @binary_layers [:add, :subtract, :multiply]
@@ -4722,9 +4702,9 @@ defmodule CompilerTest do
       assert %{"lstm_0" => lstm_0_params, "lstm_1" => lstm_1_params} = init_fn.(inp, %{})
 
       assert %{
-               "input_kernel" => {wii_0, wif_0, wig_0, wio_0},
-               "hidden_kernel" => {whi_0, whf_0, whg_0, who_0},
-               "bias" => {bi_0, bf_0, bg_0, bo_0}
+               "input_kernel" => %{"wii" => wii_0, "wif" => wif_0, "wig" => wig_0, "wio" => wio_0},
+               "hidden_kernel" => %{"whi" => whi_0, "whf" => whf_0, "whg" => whg_0, "who" => who_0},
+               "bias" => %{"bi" => bi_0, "bf" => bf_0, "bg" => bg_0, "bo" => bo_0}
              } = lstm_0_params
 
       assert Nx.shape(wii_0) == {2, 8}
@@ -4741,9 +4721,9 @@ defmodule CompilerTest do
       assert Nx.shape(bo_0) == {8}
 
       assert %{
-               "input_kernel" => {wii_1, wif_1, wig_1, wio_1},
-               "hidden_kernel" => {whi_1, whf_1, whg_1, who_1},
-               "bias" => {bi_1, bf_1, bg_1, bo_1}
+               "input_kernel" => %{"wii" => wii_1, "wif" => wif_1, "wig" => wig_1, "wio" => wio_1},
+               "hidden_kernel" => %{"whi" => whi_1, "whf" => whf_1, "whg" => whg_1, "who" => who_1},
+               "bias" => %{"bi" => bi_1, "bf" => bf_1, "bg" => bg_1, "bo" => bo_1}
              } = lstm_1_params
 
       assert Nx.shape(wii_1) == {2, 8}
@@ -5777,6 +5757,23 @@ defmodule CompilerTest do
   end
 
   describe "parameters" do
+    test "supports passing a tuple instead of a function as the shape" do
+      a = Axon.param("a", {1, 1})
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(fn x, a, _opts -> Nx.add(x, a) end, [input, a], name: "custom")
+
+      x = random({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"custom" => %{"a" => a}} =
+               params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert predict_fn.(params, x) == Nx.add(x, a)
+    end
+
     test "supports composite/map parameter types" do
       inner_param = Axon.param("inner", fn _ -> {1, 1} end)
       param = Axon.param("composite", {:map, [inner_param]})
@@ -5813,6 +5810,30 @@ defmodule CompilerTest do
                init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert_not_equal(a, b)
+    end
+
+    test "supports a composite of composites" do
+      a = Axon.param("a", fn _ -> {1, 1} end)
+      inner_composite = Axon.param("inner_composite", {:map, [a]})
+      composite = Axon.param("composite", {:map, [inner_composite]})
+
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(
+          fn x, %{"inner_composite" => %{"a" => a}}, _opts -> Nx.add(x, a) end,
+          [input, composite],
+          name: "custom"
+        )
+
+      x = random({1, 1})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %{"custom" => %{"composite" => %{"inner_composite" => %{"a" => a}}}} =
+               params = init_fn.(Nx.template({1, 1}, :f32), %{})
+
+      assert predict_fn.(params, x) == Nx.add(x, a)
     end
   end
 end

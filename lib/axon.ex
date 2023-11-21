@@ -2697,15 +2697,16 @@ defmodule Axon do
 
     kernel_initializer = opts[:kernel_initializer]
 
-    input_kernel =
-      param("input_kernel", {:tuple, List.duplicate(input_kernel_shape, 3)},
-        initializer: kernel_initializer
-      )
+    wir = param("wir", input_kernel_shape, initializer: kernel_initializer)
+    wiz = param("wiz", input_kernel_shape, initializer: kernel_initializer)
+    win = param("win", input_kernel_shape, initializer: kernel_initializer)
 
-    hidden_kernel =
-      param("hidden_kernel", {:tuple, List.duplicate(hidden_kernel_shape, 3)},
-        initializer: kernel_initializer
-      )
+    whr = param("whr", hidden_kernel_shape, initializer: kernel_initializer)
+    whz = param("whz", hidden_kernel_shape, initializer: kernel_initializer)
+    whn = param("whn", hidden_kernel_shape, initializer: kernel_initializer)
+
+    input_kernel = param("input_kernel", {:map, [wir, wiz, win]})
+    hidden_kernel = param("hidden_kernel", {:map, [whr, whz, whn]})
 
     hidden_state_name =
       case opts[:name] do
@@ -2724,8 +2725,12 @@ defmodule Axon do
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
 
-        bias =
-          param("bias", {:tuple, List.duplicate(bias_shape, 4)}, initializer: bias_initializer)
+        br = param("br", bias_shape, initializer: bias_initializer)
+        bz = param("bz", bias_shape, initializer: bias_initializer)
+        bin = param("bin", bias_shape, initializer: bias_initializer)
+        bhn = param("bhn", bias_shape, initializer: bias_initializer)
+
+        bias = param("bias", {:map, [br, bz, bin, bhn]})
 
         [x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias]
       else
@@ -2892,8 +2897,8 @@ defmodule Axon do
       Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
     end
 
-    wi = param("input_kernel", {:tuple, [input_kernel_shape]}, initializer: kernel_initializer)
-    wh = param("hidden_kernel", {:tuple, [hidden_kernel_shape]}, initializer: kernel_initializer)
+    wi = param("input_kernel", input_kernel_shape, initializer: kernel_initializer)
+    wh = param("hidden_kernel", hidden_kernel_shape, initializer: kernel_initializer)
 
     hidden_state_name =
       case opts[:name] do
@@ -2911,7 +2916,7 @@ defmodule Axon do
     {inputs, op} =
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
-        b = param("bias", {:tuple, [bias_shape]}, initializer: bias_initializer)
+        b = param("bias", bias_shape, initializer: bias_initializer)
         {[x, hidden_state, opts[:mask], wi, wh, b], :conv_lstm}
       else
         {[x, hidden_state, opts[:mask], wi, wh], :conv_lstm}
