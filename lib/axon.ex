@@ -3633,15 +3633,15 @@ defmodule Axon do
           lora_a = Axon.param("lora_a", shape, initializer: :normal)
           lora_b = Axon.param("lora_b", shape, initializer: :zeros)
           lora_dropout_key = Axon.param("lora_dropout_key", shape, initializer: :zeros, type: :u32)
-          Axon.wrap_node(axon_node, &lora_impl/5, [lora_a, lora_b, lora_dropout_key], injected_key: "lora_params")
+          Axon.wrap_node(axon_node, [lora_a, lora_b, lora_dropout_key], &lora_impl/5, injected_key: "lora_params")
 
         axon_node ->
           axon_node
       end)
 
-  Where `lora_impl/5` is the injected function that takes the form of:
+  Where `lora_impl/4` is the injected function that takes the form of:
 
-      deftransform lora_impl([input], [kernel], forward,
+      deftransform lora_impl([input, kernel], forward,
         %{
           "lora_a" => a,
           "lora_b" => b,
@@ -3691,25 +3691,47 @@ defmodule Axon do
   "lora_params", thus all the injected LoRA parameters will be subnested in the original
   layers parameter map under "lora_params". This is useful if you ever need to extract
   them out later.
+
+  ## Options
+
+    * `:injected_key` - the key to use for the subnesting of injected parameters.
+      Defaults to "injected".
+
+    * `:layer_opts` - additional options to forward to the original layer. Will
+      be merged with original layer options. Conflicting keys will use the original
+      layer options.
   """
   def wrap_node(
-        %Axon.Node{forward: old_forward, parameters: old_parameters, args: old_args} = axon_node,
-        fun,
+        %Axon.Node{forward: old_forward, parameters: old_parameters, args: old_args, opts: old_opts} = axon_node,
         injected_params,
+        fun,
         opts \\ []
       )
-      when is_function(fun, 5) do
+      when is_function(fun) do
     opts = Keyword.validate!(opts, [:layer_opts, injected_key: "injected"])
     key = opts[:injected_key]
+    layer_opts = opts[:layer_opts] || []
+
+    new_opts = Keyword.merge(old_opts, layer_opts, fn _, v1, _ -> v1 end)
 
     injected = param(key, {:map, injected_params})
-    wrapped_fn = &apply(fun, [&1, &2, old_forward, &3, &4])
+
+    {:arity, arity} = Function.info(old_forward, :arity)
+    
+    wrapped_fn =
+      fn args ->
+        {inputs, [opts]} = Enum.split(args, arity - 1)
+        {inputs, [injected]} = Enum.split(inputs, arity - 2)
+
+        apply(fun, [inputs, injected, old_forward, opts])
+      end
 
     %{
       axon_node
       | forward: wrapped_fn,
         parameters: old_parameters ++ [injected],
-        args: old_args ++ [:parameter]
+        args: old_args ++ [:parameter],
+        opts: new_opts
     }
   end
 
