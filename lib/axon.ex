@@ -3009,31 +3009,40 @@ defmodule Axon do
           "#{parent_name}_#{state_name}_hidden_state"
       end
 
-    fun = fn inputs, key, _opts ->
-      shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
-
-      case initializer do
-        fun when is_function(fun) ->
-          fun.(shape)
-
-        fun when is_atom(fun) ->
-          fun = apply(Axon.Initializers, fun, [])
-          {:arity, arity} = Function.info(fun, :arity)
-
-          cond do
-            arity == 2 ->
-              fun.(shape, {:f, 32})
-
-            arity == 3 ->
-              fun.(shape, {:f, 32}, key)
-
-            true ->
-              raise ArgumentError, "bad arity for initializer"
-          end
+    initializer =
+      if is_function(initializer) do
+        initializer
+      else
+        apply(Axon.Initializers, initializer, [])
       end
-    end
 
-    layer(fun, [x, key_state], name: name, op_name: :recurrent_state)
+    {:arity, arity} = Function.info(initializer, :arity)
+
+    {fun, inputs} =
+      cond do
+        arity == 2 ->
+          fun =
+            fn inputs, _opts ->
+              shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
+              initializer.(shape, {:f, 32})
+            end
+
+          {fun, [x]}
+
+        arity == 3 ->
+          fun =
+            fn inputs, key, _opts ->
+              shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
+              initializer.(shape, {:f, 32}, key)
+            end
+
+          {fun, [x, key_state]}
+
+        true ->
+          raise ArgumentError, "bad arity for initializer"
+      end
+
+    layer(fun, inputs, name: name, op_name: :recurrent_state)
   end
 
   @doc """
@@ -3754,7 +3763,7 @@ defmodule Axon do
   """
   @doc type: :debug
   def trace_backward(model, inputs, params, loss, opts \\ []) do
-    {_, forward_fn} = build(model, opts)
+    {_, forward_fn} = build(model, opts ++ [mode: :train])
 
     backward_fn = fn params, inputs, targets ->
       Nx.Defn.grad(params, fn params ->
@@ -3763,7 +3772,7 @@ defmodule Axon do
       end)
     end
 
-    outputs = Nx.Defn.jit(forward_fn, compiler: Axon.Defn).(params, inputs)
+    %{prediction: outputs} = Nx.Defn.jit(forward_fn, compiler: Axon.Defn).(params, inputs)
     inputs = [params, inputs, outputs]
 
     apply(Nx.Defn.jit(backward_fn, compiler: Axon.Defn), inputs)

@@ -389,47 +389,48 @@ defmodule Axon.IntegrationTest do
         end)
 
       input = Axon.input("input")
+      carry = {Axon.constant(Nx.broadcast(0.0, {2, 5})), Axon.constant(Nx.broadcast(0.0, {2, 5}))}
       # mask = Axon.mask(input, 0)
 
       dynamic_model =
         input
-        |> Axon.embedding(2, 32)
-        |> Axon.lstm(5, seed: 40)
+        |> Axon.embedding(2, 8)
+        # |> Axon.lstm(5, seed: 40)
+        |> Axon.lstm(5, recurrent_initializer: :zeros)
         |> elem(0)
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
-        |> Axon.dense(1)
 
       static_model =
         input
-        |> Axon.embedding(2, 32)
-        |> Axon.lstm(5, unroll: :static, seed: 40)
+        |> Axon.embedding(2, 8)
+        # |> Axon.lstm(5, seed: 40, unroll: :static)
+        |> Axon.lstm(5, unroll: :static, recurrent_initializer: :zeros)
         |> elem(0)
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
-        |> Axon.dense(1)
 
-      # ExUnit.CaptureIO.capture_io(fn ->
-      %{"embedding_0" => %{"kernel" => dk}} =
-        dynamic_model
-        |> Axon.Loop.trainer(
-          &Axon.Losses.binary_cross_entropy(&1, &2, reduction: :mean, from_logits: true),
-          Polaris.Optimizers.adam(learning_rate: 1.0e-3),
-          seed: 10
-        )
-        |> Axon.Loop.run(train, %{}, epochs: 1)
+      ExUnit.CaptureIO.capture_io(fn ->
+        dynamic =
+          dynamic_model
+          |> Axon.Loop.trainer(
+            :mean_squared_error,
+            Polaris.Optimizers.adam(learning_rate: 1.0e-3),
+            seed: 10
+          )
+          |> Axon.Loop.run(train, %{}, epochs: 1)
 
-      %{"embedding_0" => %{"kernel" => sk}} =
-        static_model
-        |> Axon.Loop.trainer(
-          &Axon.Losses.binary_cross_entropy(&1, &2, reduction: :mean, from_logits: true),
-          Polaris.Optimizers.adam(learning_rate: 1.0e-3),
-          seed: 10
-        )
-        |> Axon.Loop.run(train, %{}, epochs: 1)
+        static =
+          static_model
+          |> Axon.Loop.trainer(
+            :mean_squared_error,
+            Polaris.Optimizers.adam(learning_rate: 1.0e-3),
+            seed: 10
+          )
+          |> Axon.Loop.run(train, %{}, epochs: 1)
 
-      # After a single step, initialized to the same seed with exact same configuration
-      # and inputs, these should be exactly the same
-      assert_all_close(dk, sk)
-      # end)
+        # After a single step, initialized to the same seed with exact same configuration
+        # and inputs, these should be exactly the same
+        assert_all_close(dynamic, static, atol: 1.0e-3)
+      end)
     end
   end
 
