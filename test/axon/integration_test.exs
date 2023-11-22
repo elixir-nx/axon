@@ -389,13 +389,10 @@ defmodule Axon.IntegrationTest do
         end)
 
       input = Axon.input("input")
-      carry = {Axon.constant(Nx.broadcast(0.0, {2, 5})), Axon.constant(Nx.broadcast(0.0, {2, 5}))}
-      # mask = Axon.mask(input, 0)
 
       dynamic_model =
         input
         |> Axon.embedding(2, 8)
-        # |> Axon.lstm(5, seed: 40)
         |> Axon.lstm(5, recurrent_initializer: :zeros)
         |> elem(0)
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
@@ -403,7 +400,6 @@ defmodule Axon.IntegrationTest do
       static_model =
         input
         |> Axon.embedding(2, 8)
-        # |> Axon.lstm(5, seed: 40, unroll: :static)
         |> Axon.lstm(5, unroll: :static, recurrent_initializer: :zeros)
         |> elem(0)
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
