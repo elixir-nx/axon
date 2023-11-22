@@ -406,7 +406,7 @@ defmodule Axon.Loop do
           )
 
         {gradients, new_loss_scale_state} =
-          unscale_grads.(Nx.Defn.Kernel.print_value(gradients), loss_scale_state)
+          unscale_grads.(gradients, loss_scale_state)
 
         preds = model_out.prediction
         new_state = model_out.state
