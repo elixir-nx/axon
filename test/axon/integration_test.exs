@@ -375,6 +375,61 @@ defmodule Axon.IntegrationTest do
     end
   end
 
+  describe "rnns" do
+    test "static and dynamic unroll match" do
+      key = Nx.Random.key(42)
+      {data, _} = Nx.Random.randint(key, 1, 2, shape: {2, 16})
+
+      train =
+        data
+        |> Nx.to_batched(2)
+        |> Stream.map(fn x ->
+          # if over half are greater than 64
+          {x, Nx.new_axis(Nx.greater(Nx.sum(Nx.greater(x, 64), axes: [-1]), 8), -1)}
+        end)
+
+      input = Axon.input("input")
+
+      dynamic_model =
+        input
+        |> Axon.embedding(2, 8)
+        |> Axon.lstm(5, recurrent_initializer: :zeros)
+        |> elem(0)
+        |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
+
+      static_model =
+        input
+        |> Axon.embedding(2, 8)
+        |> Axon.lstm(5, unroll: :static, recurrent_initializer: :zeros)
+        |> elem(0)
+        |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        dynamic =
+          dynamic_model
+          |> Axon.Loop.trainer(
+            :mean_squared_error,
+            Polaris.Optimizers.adam(learning_rate: 1.0e-3),
+            seed: 10
+          )
+          |> Axon.Loop.run(train, %{}, epochs: 1)
+
+        static =
+          static_model
+          |> Axon.Loop.trainer(
+            :mean_squared_error,
+            Polaris.Optimizers.adam(learning_rate: 1.0e-3),
+            seed: 10
+          )
+          |> Axon.Loop.run(train, %{}, epochs: 1)
+
+        # After a single step, initialized to the same seed with exact same configuration
+        # and inputs, these should be exactly the same
+        assert_all_close(dynamic, static, atol: 1.0e-3)
+      end)
+    end
+  end
+
   describe "mixed precision training integration" do
     @policies [
       {"compute f16", Axon.MixedPrecision.create_policy(compute: {:f, 16})},

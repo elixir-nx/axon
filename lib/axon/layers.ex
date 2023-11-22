@@ -2166,16 +2166,13 @@ defmodule Axon.Layers do
          input,
          carry,
          mask,
-         input_kernel,
-         hidden_kernel,
-         bias,
+         %{"wir" => wir, "wiz" => wiz, "win" => win},
+         %{"whr" => whr, "whz" => whz, "whn" => whn},
+         %{"br" => br, "bz" => bz, "bin" => bin, "bhn" => bhn},
          gate_fn \\ &Axon.Activations.sigmoid/1,
          activation_fn \\ &Axon.Activations.tanh/1
        ) do
     {hidden} = carry
-    {wir, wiz, win} = input_kernel
-    {whr, whz, whn} = hidden_kernel
-    {br, bz, bin, bhn} = bias
 
     r = gate_fn.(dense(input, wir, br) + dense(hidden, whr, 0))
     z = gate_fn.(dense(input, wiz, bz) + dense(hidden, whz, 0))
@@ -2203,17 +2200,13 @@ defmodule Axon.Layers do
          input,
          carry,
          mask,
-         input_kernel,
-         hidden_kernel,
-         bias,
+         %{"wii" => wii, "wif" => wif, "wig" => wig, "wio" => wio},
+         %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who},
+         %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo},
          gate_fn \\ &Axon.Activations.sigmoid/1,
          activation_fn \\ &Axon.Activations.tanh/1
        ) do
     {cell, hidden} = carry
-    {wii, wif, wig, wio} = input_kernel
-    {whi, whf, whg, who} = hidden_kernel
-
-    {bi, bf, bg, bo} = bias
 
     i = gate_fn.(dense(input, wii, bi) + dense(hidden, whi, 0))
     f = gate_fn.(dense(input, wif, bf) + dense(hidden, whf, 0))
@@ -2246,12 +2239,8 @@ defmodule Axon.Layers do
 
     * [Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting](https://arxiv.org/abs/1506.04214)
   """
-  defn conv_lstm_cell(input, carry, _mask, input_kernel, hidden_kernel, bias, opts \\ []) do
+  defn conv_lstm_cell(input, carry, _mask, ih, hh, bi, opts \\ []) do
     opts = keyword!(opts, strides: 1, padding: :same)
-
-    {ih} = input_kernel
-    {hh} = hidden_kernel
-    {bi} = bias
 
     {cell, hidden} = rank_down(carry)
 
@@ -2334,24 +2323,25 @@ defmodule Axon.Layers do
       )
 
     init_sequence = Nx.broadcast(0.0, initial_shape)
-    i = Nx.tensor(0)
+    t = Nx.tensor(0)
 
-    {_, carry, output, _, _, _, _, _} =
-      while {i, carry, init_sequence, input_sequence, mask, input_kernel, recurrent_kernel, bias},
-            Nx.less(i, time_steps) do
-        sequence = Nx.slice_along_axis(input_sequence, i, 1, axis: 1)
-        sequence = Nx.squeeze(sequence, axes: [1])
-        mask_token = Nx.slice_along_axis(mask, i, 1, axis: 1)
-        mask_token = Nx.reshape(mask_token, {Nx.axis_size(sequence, 0), 1})
-        indices = compute_indices(i, feature_dims)
+    {_, output, carry, _, _, _, _, _} =
+      while {t, init_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel, bias},
+            Nx.less(t, time_steps) do
+        input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
+        input = Nx.squeeze(input, axes: [1])
+        mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
+        mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
 
         {output, carry} =
-          cell_fn.(sequence, carry, mask_token, input_kernel, recurrent_kernel, bias)
+          cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
+
+        indices = compute_indices(t, feature_dims)
 
         output = Nx.new_axis(output, 1)
         update_sequence = Nx.put_slice(init_sequence, indices, output)
 
-        {i + 1, carry, update_sequence, input_sequence, mask, input_kernel, recurrent_kernel,
+        {t + 1, update_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel,
          bias}
       end
 
@@ -2434,7 +2424,11 @@ defmodule Axon.Layers do
     end
   end
 
-  @recurrent_layers [lstm: {0, 0, 0, 0}, gru: {0, 0, 0, 0}, conv_lstm: {0}]
+  @recurrent_layers [
+    lstm: %{"bi" => 0, "bf" => 0, "bg" => 0, "bo" => 0},
+    gru: %{"br" => 0, "bz" => 0, "bin" => 0, "bhn" => 0},
+    conv_lstm: 0
+  ]
 
   for {rnn_op, default} <- @recurrent_layers do
     deftransform unquote(rnn_op)(
@@ -2449,7 +2443,7 @@ defmodule Axon.Layers do
       {bias, opts} =
         cond do
           is_list(bias) -> {unquote(Macro.escape(default)), bias}
-          is_tuple(bias) -> {bias, opts}
+          is_map(bias) -> {bias, opts}
           true -> raise ArgumentError, "invalid bias #{inspect(bias)}"
         end
 
