@@ -162,7 +162,13 @@ defmodule Axon.Compiler do
           params
         end)
 
+      {params, %{parameters: block_parameters, state: block_state}} = normalize_blocks(params)
       params = merge_params!(params, init_params)
+
+      model_state_meta =
+        model_state_meta
+        |> Map.update!(:parameters, &Map.merge(&1, block_parameters))
+        |> Map.update!(:state, &Map.merge(&1, block_state))
 
       if debug? do
         Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
@@ -308,6 +314,30 @@ defmodule Axon.Compiler do
     end
 
     Nx.as_type(value, Nx.type(template))
+  end
+
+  defp normalize_blocks(params) do
+    # Blocks are kinda hacky and produce a model state,
+    # so we normalize them so we get proper model metadata
+    # and then have just one root-level model state struct
+    {data, parameters, state} =
+      Enum.reduce(params, {%{}, %{}, %{}}, fn
+        {key, %Axon.ModelState{} = model_state}, {acc, parameters, state} ->
+          updated_parmeters =
+            if model_state.parameters == %{},
+              do: parameters,
+              else: Map.put(parameters, key, model_state.parameters)
+
+          updated_state =
+            if model_state.state == %{}, do: state, else: Map.put(state, key, model_state.state)
+
+          {Map.put(acc, key, model_state.data), updated_parmeters, updated_state}
+
+        {key, data}, {acc, parameters, state} ->
+          {Map.put(acc, key, data), parameters, state}
+      end)
+
+    {data, %{parameters: parameters, state: state}}
   end
 
   def compile(graph, _opts) do

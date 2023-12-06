@@ -217,8 +217,6 @@ defmodule Axon.Loop do
 
   import Axon.Shared
 
-  import Nx.Defn
-
   @file_version 1
 
   @default_events [
@@ -1556,6 +1554,10 @@ defmodule Axon.Loop do
       is set, the loop will raise on any cache miss during the training loop. Defaults
       to true.
 
+    * `:force_garbage_collect?` - whether or not to force garbage collection after each
+      iteration. This may help avoid OOMs when training large models, but it will slow
+      training down.
+
     * `:debug` - run loop in debug mode to trace loop progress. Defaults to
       false.
 
@@ -1569,6 +1571,7 @@ defmodule Axon.Loop do
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
     {garbage_collect, opts} = Keyword.pop(opts, :garbage_collect, false)
     {strict?, jit_opts} = Keyword.pop(opts, :strict?, true)
+    {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
 
     if jit_opts != [] do
@@ -1656,14 +1659,7 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
-                      batch_fn,
-                      handler_fns,
-                      state,
-                      data,
-                      debug?,
-                      garbage_collect
-                    ])
+                    :timer.tc(&run_epoch/6, [batch_fn, handler_fns, state, data, debug?, force_garbage_collection?])
 
                   if debug? do
                     Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
@@ -1750,7 +1746,11 @@ defmodule Axon.Loop do
     end
   end
 
+<<<<<<< HEAD
   defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, garbage_collect) do
+=======
+  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
+>>>>>>> 8386dc5 (MOre tests)
     Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
       case fire_event(:iteration_started, handler_fns, state, debug?) do
         {:halt_epoch, state} ->
@@ -1807,7 +1807,11 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, batch_fn, state}}
 
             {:continue, state} ->
+<<<<<<< HEAD
               if garbage_collect do
+=======
+              if force_garbage_collection? do
+>>>>>>> 8386dc5 (MOre tests)
                 :erlang.garbage_collect()
               end
 

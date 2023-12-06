@@ -281,9 +281,6 @@ defmodule Axon do
 
   require Logger
 
-  # Axon serialization version
-  @file_version 1
-
   @type t :: %__MODULE__{}
 
   defstruct [
@@ -3173,6 +3170,7 @@ defmodule Axon do
   the update process.
   """
   @doc type: :model
+  @deprecated "Use Axon.ModelState.freeze/2 instead"
   def freeze(model, fun_or_predicate \\ :all) do
     freeze(model, fun_or_predicate, true)
   end
@@ -3245,6 +3243,7 @@ defmodule Axon do
   the update process.
   """
   @doc type: :model
+  @deprecated "Use Axon.ModelState.freeze/2 instead"
   def unfreeze(model, fun_or_predicate \\ :all) do
     freeze(model, fun_or_predicate, false)
   end
@@ -3868,158 +3867,6 @@ defmodule Axon do
       )
     end
   end
-
-  # Serialization
-
-  @doc """
-  Serializes a model and its parameters for persisting
-  models to disk or elsewhere.
-
-  Model and parameters are serialized as a tuple, where the
-  model is converted to a recursive map to ensure compatibility
-  with future Axon versions and the parameters are serialized
-  using `Nx.serialize/2`. There is some additional metadata included
-  such as current serialization version for compatibility.
-
-  Serialization `opts` are forwarded to `Nx.serialize/2` and
-  `:erlang.term_to_binary/2` for controlling compression options.
-
-  ## Examples
-
-      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> {init_fn, _} = Axon.build(model)
-      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-      iex> serialized = Axon.serialize(model, params)
-      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> {_, predict_fn} = Axon.build(saved_model)
-      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-      #Nx.Tensor<
-        f32[1][1]
-        [
-          [0.0]
-        ]
-      >
-
-  """
-  @doc type: :model
-  def serialize(%Axon{output: id, nodes: nodes}, params, opts \\ []) do
-    Logger.warning(
-      "Attempting to serialize an Axon model. Serialization is discouraged" <>
-        " and will be deprecated, then removed in future releases. You should" <>
-        " keep your model definitions as code and serialize your parameters using" <>
-        " `Nx.serialize/2`."
-    )
-
-    nodes =
-      Map.new(nodes, fn {k, %{op: op, op_name: op_name} = v} ->
-        validate_serialized_op!(op_name, op)
-        node_meta = Map.from_struct(v)
-        {k, Map.put(node_meta, :node, :node)}
-      end)
-
-    model_meta = %{output: id, nodes: nodes, axon: :axon}
-    params = Nx.serialize(params, opts)
-    :erlang.term_to_binary({@file_version, model_meta, params}, opts)
-  end
-
-  # TODO: Raise on next release
-  defp validate_serialized_op!(op_name, op) when is_function(op) do
-    fun_info = Function.info(op)
-
-    case fun_info[:type] do
-      :local ->
-        Logger.warning(
-          "Attempting to serialize anonymous function in #{inspect(op_name)} layer," <>
-            " this will result in errors during deserialization between" <>
-            " different processes, and will be unsupported in a future" <>
-            " release. You should instead use a fully-qualified MFA function" <>
-            " such as &Axon.Layers.dense/3"
-        )
-
-      {:type, :external} ->
-        :ok
-    end
-  end
-
-  defp validate_serialized_op!(_name, op) when is_atom(op), do: :ok
-
-  @doc """
-  Deserializes serialized model and parameters into a `{model, params}`
-  tuple.
-
-  It is the opposite of `Axon.serialize/3`.
-
-  ## Examples
-
-      iex> model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, kernel_initializer: :zeros, activation: :relu)
-      iex> {init_fn, _} = Axon.build(model)
-      iex> params = init_fn.(Nx.template({1, 2}, :f32), %{})
-      iex> serialized = Axon.serialize(model, params)
-      iex> {saved_model, saved_params} = Axon.deserialize(serialized)
-      iex> {_, predict_fn} = Axon.build(saved_model)
-      iex> predict_fn.(saved_params, Nx.tensor([[1.0, 1.0]]))
-      #Nx.Tensor<
-        f32[1][1]
-        [
-          [0.0]
-        ]
-      >
-
-  """
-  @doc type: :model
-  def deserialize(serialized, opts \\ []) do
-    Logger.warning(
-      "Attempting to deserialize a serialized Axon model. Deserialization" <>
-        " is discouraged and will be deprecated, then removed in future" <>
-        " releases. You should keep your model definitions as code and" <>
-        " serialize your parameters using `Nx.serialize/2`."
-    )
-
-    {1, model_meta, serialized_params} = :erlang.binary_to_term(serialized, opts)
-    %{nodes: nodes, output: id} = model_meta
-
-    nodes =
-      Map.new(nodes, fn {k, %{op_name: op_name, op: op} = v} ->
-        validate_deserialized_op!(op_name, op)
-
-        node_struct =
-          v
-          |> Map.delete(:node)
-          |> then(&struct(Axon.Node, &1))
-
-        {k, node_struct}
-      end)
-
-    model = %Axon{output: id, nodes: nodes}
-    params = Nx.deserialize(serialized_params, opts)
-    {model, params}
-  end
-
-  # TODO: Raise on next release
-  defp validate_deserialized_op!(op_name, op) when is_function(op) do
-    fun_info = Function.info(op)
-
-    case fun_info[:type] do
-      :local ->
-        Logger.warning(
-          "Attempting to deserialize anonymous function in #{inspect(op_name)} layer," <>
-            " this will result in errors during deserialization between" <>
-            " different processes, and will be unsupported in a future" <>
-            " release"
-        )
-
-      :external ->
-        unless function_exported?(fun_info[:module], fun_info[:name], fun_info[:arity]) do
-          Logger.warning(
-            "Attempting to deserialize model which depends on function" <>
-              " #{inspect(op)} in layer #{inspect(op_name)} which does not exist in" <>
-              " the current environment, check your dependencies"
-          )
-        end
-    end
-  end
-
-  defp validate_deserialized_op!(op, _op_name) when is_atom(op), do: :ok
 
   ## Helpers
 

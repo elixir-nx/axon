@@ -3,6 +3,7 @@ defmodule CompilerTest do
   import ExUnit.CaptureLog
 
   alias Axon.MixedPrecision, as: AMP
+  alias Axon.ModelState
 
   describe "input" do
     test "single input, single output" do
@@ -10,7 +11,7 @@ defmodule CompilerTest do
       input = random({1, 1}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{} = init_fn.(input, %{})
+      assert %ModelState{data: %{}} = init_fn.(input, %{})
       assert_equal(predict_fn.(%{}, input), input)
     end
 
@@ -24,7 +25,7 @@ defmodule CompilerTest do
       input = %{"input_0" => input1, "input_1" => input2}
 
       assert {init_fn, predict_fn} = Axon.build(model1)
-      assert %{} = init_fn.(input, %{})
+      assert %ModelState{data: %{}} = init_fn.(input, %{})
 
       assert_equal(
         {input1, input2},
@@ -38,7 +39,7 @@ defmodule CompilerTest do
       input = random({1, 1})
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{} = init_fn.(input, %{})
+      assert %ModelState{data: %{}} = init_fn.(input, %{})
       assert_equal(%{foo: input}, predict_fn.(%{}, %{"input_0" => input}))
     end
 
@@ -53,7 +54,7 @@ defmodule CompilerTest do
       input = %{"input_0" => inp1, "input_1" => inp2}
 
       assert {init_fn, predict_fn} = Axon.build(model1)
-      assert %{} = init_fn.(input, %{})
+      assert %ModelState{data: %{}} = init_fn.(input, %{})
 
       assert_equal(
         {inp1, {inp1, {inp2, {}}, inp2, %{foo: inp1}}},
@@ -73,7 +74,7 @@ defmodule CompilerTest do
       input = %{"x" => x_val, "y" => y_val, "z" => z_val}
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{} = init_fn.(input, %{})
+      assert %ModelState{data: %{}} = init_fn.(input, %{})
 
       assert_equal(
         {z_val, x_val, y_val},
@@ -191,7 +192,7 @@ defmodule CompilerTest do
 
       inputs = %{"input_0" => Nx.tensor([[20]])}
 
-      params = init_fn.(inputs, %{})
+      %ModelState{data: params} = init_fn.(inputs, %{})
       assert Map.keys(params) == ["bias_0"]
 
       assert_equal(predict_fn.(params, inputs), Nx.tensor([0]))
@@ -226,7 +227,7 @@ defmodule CompilerTest do
 
       assert {init_fn, _} = Axon.build(model)
 
-      assert %{} == init_fn.(%{}, %{})
+      assert %ModelState{data: %{}} == init_fn.(%{}, %{})
     end
 
     test "computes forward pass with default options" do
@@ -265,7 +266,7 @@ defmodule CompilerTest do
         input = random({1, 32})
 
         assert {init_fn, _predict_fn} = Axon.build(model)
-        assert %{} = init_fn.(input, %{})
+        assert %ModelState{data: %{}} = init_fn.(input, %{})
       end
     end
 
@@ -314,7 +315,10 @@ defmodule CompilerTest do
       input = random({1, 1})
 
       assert {init_fn, _predict_fn} = Axon.build(model)
-      assert %{"bias" => %{"bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{data: %{"bias" => %{"bias" => bias}}, parameters: %{"bias" => ["bias"]}} =
+               init_fn.(input, %{})
+
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
     end
@@ -327,7 +331,12 @@ defmodule CompilerTest do
       input = random({1, 1})
 
       assert {init_fn, _predict_fn} = Axon.build(model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
+
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -342,7 +351,12 @@ defmodule CompilerTest do
         |> Axon.dense(1, name: "dense", kernel_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.build(model1)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
+
       assert_equal(kernel, zeros({1, 1}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
@@ -352,7 +366,12 @@ defmodule CompilerTest do
         |> Axon.dense(1, name: "dense", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.build(model2)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
+
       assert Nx.shape(kernel) == {1, 1}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({1}))
@@ -366,7 +385,12 @@ defmodule CompilerTest do
       input = Nx.iota({1, 1}, type: {:f, 32})
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } = params = init_fn.(input, %{})
+
       assert_equal(predict_fn.(params, input), Axon.Layers.dense(input, kernel, bias))
     end
 
@@ -384,7 +408,10 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert %{"dense" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel_grad, "bias" => bias_grad}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } =
                apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1}))
@@ -399,7 +426,12 @@ defmodule CompilerTest do
       input = random({1, 2})
 
       assert {init_fn, _} = Axon.build(mp_model)
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"dense" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
+
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
@@ -422,7 +454,12 @@ defmodule CompilerTest do
       input = random({1, 2})
 
       assert {init_fn, _} = Axon.build(model)
-      assert %{"dense" => %{"kernel" => _} = dense_params} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => _} = dense_params},
+               parameters: %{"dense" => ["kernel"]}
+             } = init_fn.(input, %{})
+
       assert Map.has_key?(dense_params, "bias") == false
     end
 
@@ -433,7 +470,11 @@ defmodule CompilerTest do
       input = random({1, 2})
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{"dense" => %{"kernel" => k}} = params = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"dense" => %{"kernel" => k}},
+               parameters: %{"dense" => ["kernel"]}
+             } = params = init_fn.(input, %{})
 
       assert_all_close(predict_fn.(params, input), Axon.Layers.dense(input, k, Nx.tensor(0.0)))
     end
@@ -448,7 +489,12 @@ defmodule CompilerTest do
       inputs = %{"input_0" => random({1, 1}), "input_1" => random({1, 2})}
 
       assert {init_fn, _predict_fn} = Axon.build(model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } = init_fn.(inputs, %{})
+
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert Nx.shape(bias) == {1}
@@ -463,7 +509,12 @@ defmodule CompilerTest do
       inputs = %{"input_0" => random({1, 1}), "input_1" => random({1, 2})}
 
       assert {init_fn, _predict_fn} = Axon.build(model1)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } = init_fn.(inputs, %{})
+
       assert_equal(kernel, zeros({1, 2}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
@@ -471,7 +522,12 @@ defmodule CompilerTest do
       model2 = Axon.bilinear(input1, input2, 1, name: "bilinear", bias_initializer: :zeros)
 
       assert {init_fn, _predict_fn} = Axon.build(model2)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(inputs, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } = init_fn.(inputs, %{})
+
       assert Nx.shape(kernel) == {1, 1, 2}
       assert Nx.type(kernel) == {:f, 32}
       assert_equal(bias, zeros({1}))
@@ -489,7 +545,10 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } =
                params = init_fn.(inputs, %{})
 
       assert_equal(
@@ -508,7 +567,10 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} =
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } =
                params = init_fn.(input1, %{})
 
       assert_equal(
@@ -530,7 +592,10 @@ defmodule CompilerTest do
         Nx.Defn.grad(params, &Nx.mean(predict_fn.(&1, input)))
       end
 
-      assert %{"bilinear" => %{"kernel" => kernel_grad, "bias" => bias_grad}} =
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel_grad, "bias" => bias_grad}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } =
                apply(Nx.Defn.jit(backward), [init_fn.(input, %{}), input])
 
       assert_equal(kernel_grad, Nx.broadcast(0.0, {1, 1, 2}))
@@ -547,7 +612,12 @@ defmodule CompilerTest do
       input = %{"input_0" => random({1, 1}), "input_1" => random({1, 2})}
 
       assert {init_fn, _} = Axon.build(mp_model)
-      assert %{"bilinear" => %{"kernel" => kernel, "bias" => bias}} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => kernel, "bias" => bias}},
+               parameters: %{"bilinear" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
+
       assert Nx.type(kernel) == {:bf, 16}
       assert Nx.type(bias) == {:bf, 16}
     end
@@ -574,7 +644,12 @@ defmodule CompilerTest do
       input = %{"input_0" => random({1, 1}), "input_1" => random({1, 2})}
 
       assert {init_fn, _} = Axon.build(model)
-      assert %{"bilinear" => %{"kernel" => _} = bilinear_params} = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => _} = bilinear_params},
+               parameters: %{"bilinear" => ["kernel"]}
+             } = init_fn.(input, %{})
+
       assert Map.has_key?(bilinear_params, "bias") == false
     end
 
@@ -589,7 +664,11 @@ defmodule CompilerTest do
       input = %{"input_0" => inp1, "input_1" => inp2}
 
       assert {init_fn, predict_fn} = Axon.build(model)
-      assert %{"bilinear" => %{"kernel" => k}} = params = init_fn.(input, %{})
+
+      assert %ModelState{
+               data: %{"bilinear" => %{"kernel" => k}},
+               parameters: %{"bilinear" => ["kernel"]}
+             } = params = init_fn.(input, %{})
 
       assert_all_close(
         predict_fn.(params, input),
@@ -4802,7 +4881,10 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert %{"layer_0" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
+      assert %ModelState{
+               data: %{"layer_0" => %{"kernel" => kernel}},
+               parameters: %{"layer_0" => ["kernel"]}
+             } = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model, params, input), Nx.multiply(input, kernel))
     end
@@ -4828,7 +4910,10 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model1)
 
-      assert %{"add" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
+      assert %ModelState{
+               data: %{"add" => %{"kernel" => kernel}},
+               parameters: %{"add" => ["kernel"]}
+             } = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model1, params, input), Nx.add(input, kernel))
 
@@ -4840,7 +4925,10 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model2)
 
-      assert %{"multiply" => %{"kernel" => kernel}} = params = init_fn.(input, %{})
+      assert %ModelState{
+               data: %{"multiply" => %{"kernel" => kernel}},
+               parameters: %{"multiply" => ["kernel"]}
+             } = params = init_fn.(input, %{})
 
       assert_equal(Axon.predict(model2, params, input), Nx.multiply(input, kernel))
     end
@@ -5014,21 +5102,6 @@ defmodule CompilerTest do
       assert_equal(x_params_1, x_params_2)
     end
 
-    # TODO: I actually don't know what the correct behavior is here?
-    # test "initializes correctly re-using part of inner namespace" do
-    #   inner = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2)
-    #   x = Axon.namespace(inner, "x")
-
-    #   model = Axon.add(inner, x)
-
-    #   assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = Axon.init(model)
-
-    #   assert Nx.shape(k) == {1, 2}
-    #   assert Nx.type(k) == {:f, 32}
-    #   assert Nx.shape(b) == {2}
-    #   assert Nx.type(b) == {:f, 32}
-    # end
-
     test "predicts correctly with single namespace" do
       model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("model")
       input = random({1, 1})
@@ -5157,20 +5230,6 @@ defmodule CompilerTest do
       expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
       assert_equal(Axon.predict(model, params, input), expected)
     end
-
-    # TODO: I actually don't know what the correct behavior is here?
-    # test "predicts correctly re-using part of inner namespace" do
-    #   inner = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2)
-    #   x = Axon.namespace(inner, "x")
-
-    #   model = Axon.add(inner, x)
-
-    #   input = random({1, 1})
-    #   assert %{"x" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} = params = Axon.init(model)
-
-    #   expected = Nx.add(Axon.Layers.dense(input, k, b), Axon.Layers.dense(input, k, b))
-    #   assert_equal(Axon.predict(model, params, input), expected)
-    # end
   end
 
   describe "block" do
@@ -5180,7 +5239,10 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model)
 
-      assert %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+      assert %ModelState{
+               data: %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}},
+               parameters: %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}
+             } =
                init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k) == {1, 32}
@@ -5199,7 +5261,10 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model)
 
-      assert %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}} = block_params} =
+      assert %ModelState{
+               data: %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}} = block_params},
+               parameters: %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}
+             } =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k) == {1, 1}
@@ -5224,12 +5289,17 @@ defmodule CompilerTest do
       model = block.(Axon.input("features"))
       {init_fn, _} = Axon.build(model)
 
-      assert %{
-               "block_0" =>
-                 %{
-                   "dense_0" => %{"kernel" => k1, "bias" => b1},
-                   "dense_1" => %{"kernel" => k2, "bias" => b2}
-                 } = block_params
+      assert %ModelState{
+               data: %{
+                 "block_0" =>
+                   %{
+                     "dense_0" => %{"kernel" => k1, "bias" => b1},
+                     "dense_1" => %{"kernel" => k2, "bias" => b2}
+                   } = block_params
+               },
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
+               }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k1) == {1, 32}
@@ -5259,12 +5329,17 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model)
 
-      assert %{
-               "block_0" =>
-                 %{
-                   "dense_0" => %{"kernel" => k1, "bias" => b1},
-                   "dense_1" => %{"kernel" => k2, "bias" => b2}
-                 } = block_params
+      assert %ModelState{
+               data: %{
+                 "block_0" =>
+                   %{
+                     "dense_0" => %{"kernel" => k1, "bias" => b1},
+                     "dense_1" => %{"kernel" => k2, "bias" => b2}
+                   } = block_params
+               },
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
+               }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k1) == {1, 32}
@@ -5293,15 +5368,21 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model)
 
-      assert %{
-               "block_0" =>
-                 %{
-                   "dense_0" => %{"kernel" => k1, "bias" => b1}
-                 } = block_0_params,
-               "block_1" =>
-                 %{
-                   "dense_0" => %{"kernel" => k2, "bias" => b2}
-                 } = block_1_params
+      assert %ModelState{
+               data: %{
+                 "block_0" =>
+                   %{
+                     "dense_0" => %{"kernel" => k1, "bias" => b1}
+                   } = block_0_params,
+                 "block_1" =>
+                   %{
+                     "dense_0" => %{"kernel" => k2, "bias" => b2}
+                   } = block_1_params
+               },
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"]},
+                 "block_1" => %{"dense_0" => ["bias", "kernel"]}
+               }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k1) == {1, 32}
@@ -5335,11 +5416,15 @@ defmodule CompilerTest do
 
       {init_fn, _} = Axon.build(model)
 
-      assert %{
-               "block_0" =>
-                 %{
-                   "block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}} = inner_block_params
-                 } = block_params
+      assert %ModelState{
+               data: %{
+                 "block_0" =>
+                   %{
+                     "block_0" =>
+                       %{"dense_0" => %{"kernel" => k, "bias" => b}} = inner_block_params
+                   } = block_params
+               },
+               parameters: %{"block_0" => %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}}
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       assert Nx.shape(k) == {1, 1}
@@ -5358,7 +5443,10 @@ defmodule CompilerTest do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+      assert %ModelState{
+               data: %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}},
+               parameters: %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}
+             } =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       input = random({1, 1})
@@ -5376,7 +5464,10 @@ defmodule CompilerTest do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+      assert %ModelState{
+               data: %{"block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}},
+               parameters: %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}
+             } =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       input = random({1, 1})
@@ -5398,10 +5489,15 @@ defmodule CompilerTest do
       model = block.(Axon.input("features"))
       {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{
-               "block_0" => %{
-                 "dense_0" => %{"kernel" => k1, "bias" => b1},
-                 "dense_1" => %{"kernel" => k2, "bias" => b2}
+      assert %ModelState{
+               data: %{
+                 "block_0" => %{
+                   "dense_0" => %{"kernel" => k1, "bias" => b1},
+                   "dense_1" => %{"kernel" => k2, "bias" => b2}
+                 }
+               },
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
                }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
@@ -5433,10 +5529,15 @@ defmodule CompilerTest do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      assert %{
-               "block_0" => %{
-                 "dense_0" => %{"kernel" => k1, "bias" => b1},
-                 "dense_1" => %{"kernel" => k2, "bias" => b2}
+      assert %ModelState{
+               data: %{
+                 "block_0" => %{
+                   "dense_0" => %{"kernel" => k1, "bias" => b1},
+                   "dense_1" => %{"kernel" => k2, "bias" => b2}
+                 }
+               },
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
                }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
@@ -5474,12 +5575,18 @@ defmodule CompilerTest do
         |> Axon.Layers.dense(k2, b2)
       end
 
-      assert %{
-               "block_0" => %{
-                 "dense_0" => %{"kernel" => k1, "bias" => b1}
+      assert %ModelState{
+               data: %{
+                 "block_0" => %{
+                   "dense_0" => %{"kernel" => k1, "bias" => b1}
+                 },
+                 "block_1" => %{
+                   "dense_0" => %{"kernel" => k2, "bias" => b2}
+                 }
                },
-               "block_1" => %{
-                 "dense_0" => %{"kernel" => k2, "bias" => b2}
+               parameters: %{
+                 "block_0" => %{"dense_0" => ["bias", "kernel"]},
+                 "block_1" => %{"dense_0" => ["bias", "kernel"]}
                }
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
@@ -5511,10 +5618,13 @@ defmodule CompilerTest do
         |> Axon.Layers.dense(k, b)
       end
 
-      assert %{
-               "block_0" => %{
-                 "block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}
-               }
+      assert %ModelState{
+               data: %{
+                 "block_0" => %{
+                   "block_0" => %{"dense_0" => %{"kernel" => k, "bias" => b}}
+                 }
+               },
+               parameters: %{"block_0" => %{"block_0" => %{"dense_0" => ["bias", "kernel"]}}}
              } = params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
       input = random({1, 1})
@@ -5539,7 +5649,11 @@ defmodule CompilerTest do
 
       inp = Nx.tensor([[1.0]])
 
-      assert %{"dense_0" => %{"kernel" => k, "bias" => b}} = init_fn.(inp, %{})
+      assert %ModelState{
+               data: %{"dense_0" => %{"kernel" => k, "bias" => b}},
+               parameters: %{"dense_0" => ["bias", "kernel"]}
+             } = init_fn.(inp, %{})
+
       assert Nx.shape(k) == {1, 2}
       assert Nx.shape(b) == {2}
     end
@@ -5554,7 +5668,11 @@ defmodule CompilerTest do
 
       inp = Nx.iota({1, 10})
 
-      assert %{"dense_0" => dense_0, "dense_1" => dense_1} = init_fn.(inp, %{})
+      assert %ModelState{
+               data: %{"dense_0" => dense_0, "dense_1" => dense_1},
+               parameters: %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
+             } = init_fn.(inp, %{})
+
       assert %{"kernel" => k0, "bias" => _} = dense_0
       assert %{"kernel" => k1, "bias" => _} = dense_1
 
@@ -5661,7 +5779,10 @@ defmodule CompilerTest do
 
       input = %{"input_0" => Nx.tensor([[1.0]]), "input_1" => Nx.tensor([[2.0]])}
 
-      assert %{"dense_0" => _, "dense_1" => _} = init_fn.(input, %{})
+      assert %ModelState{
+               data: %{"dense_0" => _, "dense_1" => _},
+               parameters: %{"dense_0" => ["bias", "kernel"], "dense_1" => ["bias", "kernel"]}
+             } = init_fn.(input, %{})
     end
   end
 
