@@ -1697,7 +1697,7 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/5, [batch_fn, handler_fns, state, data, debug?, force_garbage_collection?])
+                    :timer.tc(&run_epoch/6, [batch_fn, handler_fns, state, data, debug?, force_garbage_collection?])
 
                   if debug? do
                     Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
