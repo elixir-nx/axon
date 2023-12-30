@@ -220,22 +220,6 @@ defmodule Axon.LoopTest do
       assert %{y_true: _, y_pred: _} = apply(Nx.Defn.jit(step_fn), [{inp, tar}, pstate])
     end
 
-    test "train_step/3 can initialize from partial model state" do
-      x = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1) |> Axon.namespace("x")
-      model = Axon.dense(x, 2)
-
-      {init_fn, _} = Axon.build(x)
-
-      %{"x" => x_params_1} = init_params = init_fn.(Nx.tensor([[1]]), %{})
-
-      {init_fn, _step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
-
-      %{model_state: %{"x" => x_params_2}} =
-        init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, init_params)
-
-      assert_equal(x_params_1, x_params_2)
-    end
-
     test "train_step/3 updates stateful layers after single step" do
       val = Nx.broadcast(1, {1, 8})
 

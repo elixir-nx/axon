@@ -1569,8 +1569,7 @@ defmodule Axon.Loop do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {garbage_collect, opts} = Keyword.pop(opts, :garbage_collect, false)
-    {strict?, jit_opts} = Keyword.pop(opts, :strict?, true)
+    {strict?, opts} = Keyword.pop(opts, :strict?, true)
     {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
 
@@ -1659,7 +1658,14 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [batch_fn, handler_fns, state, data, debug?, force_garbage_collection?])
+                    :timer.tc(&run_epoch/6, [
+                      batch_fn,
+                      handler_fns,
+                      state,
+                      data,
+                      debug?,
+                      force_garbage_collection?
+                    ])
 
                   if debug? do
                     Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
@@ -1746,11 +1752,7 @@ defmodule Axon.Loop do
     end
   end
 
-<<<<<<< HEAD
-  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, garbage_collect) do
-=======
   defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
->>>>>>> 8386dc5 (MOre tests)
     Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
       case fire_event(:iteration_started, handler_fns, state, debug?) do
         {:halt_epoch, state} ->
@@ -1807,11 +1809,7 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, batch_fn, state}}
 
             {:continue, state} ->
-<<<<<<< HEAD
-              if garbage_collect do
-=======
               if force_garbage_collection? do
->>>>>>> 8386dc5 (MOre tests)
                 :erlang.garbage_collect()
               end
 

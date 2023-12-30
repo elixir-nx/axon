@@ -414,7 +414,7 @@ defmodule Axon do
     }
   end
 
-  def param(name, shape, opts)  when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
+  def param(name, shape, opts) when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
     initializer = validate_initializer!(opts[:initializer])
     type = opts[:type] || {:f, 32}
@@ -664,43 +664,6 @@ defmodule Axon do
       {left, right} ->
         {deep_merge(left, right, fun), right_leaves}
     end
-  end
-
-  @doc """
-  Wraps an Axon model into a namespace.
-
-  A namespace is a part of an Axon model which is meant to
-  be a self-contained collection of Axon layers. Namespaces
-  are guaranteed to always generate with the same internal
-  layer names and can be re-used universally across models.
-
-  Namespaces are most useful for containing large collections
-  of layers and offering a straightforward means for accessing
-  the parameters of individual model components. A common application
-  of namespaces is to use them in with a pre-trained model for
-  fine-tuning:
-
-      {base, resnet_params} = resnet()
-      base = base |> Axon.namespace("resnet")
-
-      model = base |> Axon.dense(1)
-      {init_fn, predict_fn} = Axon.build(model)
-
-      init_fn.(Nx.template({1, 3, 224, 224}, {:f, 32}), %{"resnset" => resnet_params})
-
-  Notice you can use `init_fn` in conjunction with namespaces
-  to specify which portion of a model you'd like to initialize
-  from a fixed starting point.
-
-  Namespaces have fixed names, which means it's easy to run into namespace
-  collisions. Re-using namespaces, re-using inner parts of a namespace,
-  and attempting to share layers between namespaces are still sharp
-  edges in namespace usage.
-  """
-  @doc type: :special
-  @deprecated "Use Axon.block/2 instead"
-  def namespace(%Axon{} = axon, name) when is_binary(name) do
-    layer(:namespace, [axon], name: name)
   end
 
   @doc """

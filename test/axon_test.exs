@@ -733,7 +733,9 @@ defmodule AxonTest do
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
         |> Axon.build()
 
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(inp, %{})
+      assert %Axon.ModelState{data: %{"dense" => %{"kernel" => kernel, "bias" => bias}}} =
+               params = init_fn.(inp, %{})
+
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
 
@@ -888,64 +890,6 @@ defmodule AxonTest do
              #Axon<
                inputs: %{"input_0" => {nil, 32, 10}}
                outputs: "lstm_output_sequence"
-               nodes: 7
-             >\
-             """
-    end
-
-    test "works with single namespace" do
-      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}}
-               outputs: "x"
-               nodes: 3
-             >\
-             """
-    end
-
-    test "works with nested namespace" do
-      model =
-        Axon.input("input_0", shape: {nil, 1})
-        |> Axon.dense(2)
-        |> Axon.namespace("x")
-        |> Axon.namespace("y")
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}}
-               outputs: "y"
-               nodes: 4
-             >\
-             """
-    end
-
-    test "works with multiple namespaces" do
-      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
-
-      model = Axon.add(x, y)
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
-               outputs: "add_0"
-               nodes: 8
-             >\
-             """
-    end
-
-    test "works with single namespace and no namespace" do
-      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2)
-
-      model = Axon.add(x, y)
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
-               outputs: "add_0"
                nodes: 7
              >\
              """
