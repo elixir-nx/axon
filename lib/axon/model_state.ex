@@ -183,7 +183,7 @@ defmodule Axon.ModelState do
     Map.update(acc, key, inner, &nested_put(&1, rest, value))
   end
 
-  def tree_get(data, access) when is_list(access) do
+  defp tree_get(data, access) when is_list(access) do
     Enum.reduce(access, %{}, &Map.put(&2, &1, Map.fetch!(data, &1)))
   end
 
