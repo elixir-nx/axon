@@ -139,14 +139,24 @@ defmodule Axon.Compiler do
     init_cache = Map.new(cache, fn {_, {int_id, funs}} -> {int_id, funs} end)
 
     init_fun = fn template, init_state ->
-      # TODO: Check if init_state and output state match
-      {init_params, meta} =
+      init_model_state =
         case init_state do
-          %Axon.ModelState{data: init_params} = model_state ->
-            {init_params, Map.take(model_state, [:parameters, :frozen_parameters, :state])}
+          %Axon.ModelState{} = model_state ->
+            model_state
 
           %{} = init_params ->
-            {init_params, %{}}
+            Logger.warning(
+              "passing parameter map to initialization is deprecated, use %Axon.ModelState{} instead"
+            )
+
+            parameters = %{}
+
+            %Axon.ModelState{
+              data: init_params,
+              parameters: parameters,
+              state: %{},
+              frozen_parameters: %{}
+            }
         end
 
       {:current_stacktrace, [_process_info, _fn | stacktrace]} =
@@ -162,24 +172,12 @@ defmodule Axon.Compiler do
           params
         end)
 
-      {params, %{parameters: block_parameters, state: block_state}} = normalize_blocks(params)
-      params = merge_params!(params, init_params)
-
-      model_state_meta =
-        model_state_meta
-        |> Map.update!(:parameters, &Map.merge(&1, block_parameters))
-        |> Map.update!(:state, &Map.merge(&1, block_state))
+      model_state_meta
+      |> normalize_blocks(params)
 
       if debug? do
         Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
       end
-
-      model_state_meta
-      |> Map.put(:data, params)
-      |> Map.update!(:parameters, &(meta[:parameters] || &1))
-      |> Map.update!(:state, &(meta[:state] || &1))
-      |> Map.update!(:frozen_parameters, &(meta[:frozen_parameters] || &1))
-      |> then(&struct(Axon.ModelState, &1))
     end
 
     {init_fun, predict_fun}

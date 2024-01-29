@@ -49,7 +49,7 @@ defmodule Axon.ModelState do
   policies:
 
       fn
-        ["dense_" <> n, "kernel"] -> n < 3
+        ["dense_" <> n, "kernel"] -> String.to_integer(n) < 3
         _ -> false
       end
 
