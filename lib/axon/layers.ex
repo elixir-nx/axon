@@ -2049,7 +2049,9 @@ defmodule Axon.Layers do
         kernel_scale = Nx.max(1, inv_scale)
 
         sample_f =
-          Nx.add(Nx.iota({1, output_size}), 0.5) |> Nx.multiply(Nx.subtract(inv_scale, 0.5))
+          Nx.add(Nx.iota({1, output_size}), 0.5)
+          |> Nx.multiply(inv_scale)
+          |> Nx.subtract(0.5)
 
         x = Nx.abs(Nx.subtract(sample_f, Nx.iota({input_size, 1}))) |> Nx.divide(kernel_scale)
         weights = kernel_fun.(x)
