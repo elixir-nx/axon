@@ -1009,6 +1009,46 @@ defmodule Axon.LayersTest do
         atol: 1.0e-4
       )
     end
+
+    test "without anti-aliasing" do
+      # Upscaling
+
+      image = Nx.iota({1, 4, 4, 3}, type: :f32)
+
+      assert_all_close(
+        Axon.Layers.resize(image, size: {3, 3}, method: :bicubic, antialias: false),
+        Nx.tensor([
+          [
+            [
+              [[1.5427, 2.5427, 3.5427], [5.7341, 6.7341, 7.7341], [9.9256, 10.9256, 11.9256]],
+              [[18.3085, 19.3085, 20.3085], [22.5, 23.5, 24.5], [26.6915, 27.6915, 28.6915]],
+              [
+                [35.0744, 36.0744, 37.0744],
+                [39.2659, 40.2659, 41.2659],
+                [43.4573, 44.4573, 45.4573]
+              ]
+            ]
+          ]
+        ]),
+        atol: 1.0e-4
+      )
+
+      # Downscaling (no effect)
+
+      image = Nx.iota({1, 2, 2, 3}, type: :f32)
+
+      assert_all_close(
+        Axon.Layers.resize(image, size: {3, 3}, method: :bicubic, antialias: false),
+        Nx.tensor([
+          [
+            [[-0.5921, 0.4079, 1.4079], [1.1053, 2.1053, 3.1053], [2.8026, 3.8026, 4.8026]],
+            [[2.8026, 3.8026, 4.8026], [4.5, 5.5, 6.5], [6.1974, 7.1974, 8.1974]],
+            [[6.1974, 7.1974, 8.1974], [7.8947, 8.8947, 9.8947], [9.5921, 10.5921, 11.5921]]
+          ]
+        ]),
+        atol: 1.0e-4
+      )
+    end
   end
 
   describe "lstm_cell" do
