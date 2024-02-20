@@ -1881,14 +1881,14 @@ defmodule Axon.Loop do
   # attached to the loop.
   # TODO(seanmor5): Custom events
   defp fire_event(event, handler_fns, state, debug?) do
+    state = update_counts(state, event)
+
     handler_fns[event]
     |> Enum.reverse()
     |> Enum.reduce_while({:continue, state}, fn {handler, filter}, {_, state} ->
       if debug? do
         Logger.debug("Axon.Loop fired event #{inspect(event)}")
       end
-
-      state = update_counts(state, event)
 
       if filter.(state, event) do
         case handler.(state) do
