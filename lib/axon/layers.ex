@@ -1915,8 +1915,21 @@ defmodule Axon.Layers do
   must be at least rank 3, with fixed `batch` and `channel` dimensions.
   Resizing will upsample or downsample using the given resize method.
 
-  Supported resize methods are `:nearest, :linear, :bilinear, :trilinear,
-  :cubic, :bicubic, :tricubic`.
+  ## Options
+
+    * `:size` - a tuple specifying the resized spatial dimensions.
+      Required.
+
+    * `:method` - the resizing method to use, either of `:nearest`,
+      `:bilinear`, `:bicubic`, `:lanczos3`, `:lanczos5`. Defaults to
+      `:nearest`.
+
+    * `:antialias` - whether an anti-aliasing filter should be used
+      when downsampling. This has no effect with upsampling. Defaults
+      to `true`.
+
+    * `:channels` - channels location, either `:first` or `:last`.
+      Defaults to `:last`.
 
   ## Examples
 
@@ -1951,6 +1964,7 @@ defmodule Axon.Layers do
         :size,
         method: :nearest,
         channels: :last,
+        antialias: true,
         mode: :inference
       ])
 
@@ -1962,22 +1976,36 @@ defmodule Axon.Layers do
         {axis, put_elem(out_shape, axis, out_size)}
       end)
 
+    antialias = opts[:antialias]
+
     resized_input =
       case opts[:method] do
         :nearest ->
           resize_nearest(input, out_shape, spatial_axes)
 
         :bilinear ->
-          resize_with_kernel(input, out_shape, spatial_axes, &fill_linear_kernel/1)
+          resize_with_kernel(input, out_shape, spatial_axes, antialias, &fill_linear_kernel/1)
 
         :bicubic ->
-          resize_with_kernel(input, out_shape, spatial_axes, &fill_cubic_kernel/1)
+          resize_with_kernel(input, out_shape, spatial_axes, antialias, &fill_cubic_kernel/1)
 
         :lanczos3 ->
-          resize_with_kernel(input, out_shape, spatial_axes, &fill_lanczos_kernel(3, &1))
+          resize_with_kernel(
+            input,
+            out_shape,
+            spatial_axes,
+            antialias,
+            &fill_lanczos_kernel(3, &1)
+          )
 
         :lanczos5 ->
-          resize_with_kernel(input, out_shape, spatial_axes, &fill_lanczos_kernel(5, &1))
+          resize_with_kernel(
+            input,
+            out_shape,
+            spatial_axes,
+            antialias,
+            &fill_lanczos_kernel(5, &1)
+          )
 
         method ->
           raise ArgumentError,
@@ -2038,12 +2066,13 @@ defmodule Axon.Layers do
 
   @f32_eps :math.pow(2, -23)
 
-  deftransformp resize_with_kernel(input, out_shape, spatial_axes, kernel_fun) do
+  deftransformp resize_with_kernel(input, out_shape, spatial_axes, antialias, kernel_fun) do
     for axis <- spatial_axes, reduce: input do
       input ->
         resize_axis_with_kernel(input,
           axis: axis,
           output_size: elem(out_shape, axis),
+          antialias: antialias,
           kernel_fun: kernel_fun
         )
     end
@@ -2052,12 +2081,19 @@ defmodule Axon.Layers do
   defnp resize_axis_with_kernel(input, opts) do
     axis = opts[:axis]
     output_size = opts[:output_size]
+    antialias = opts[:antialias]
     kernel_fun = opts[:kernel_fun]
 
     input_size = Nx.axis_size(input, axis)
 
     inv_scale = input_size / output_size
-    kernel_scale = max(1, inv_scale)
+
+    kernel_scale =
+      if antialias do
+        max(1, inv_scale)
+      else
+        1
+      end
 
     sample_f = (Nx.iota({1, output_size}) + 0.5) * inv_scale - 0.5
     x = Nx.abs(sample_f - Nx.iota({input_size, 1})) / kernel_scale

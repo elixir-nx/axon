@@ -390,7 +390,7 @@ defmodule Axon do
 
   You may specify the parameter shape as either a static shape or
   as function of the inputs to the given layer. If you specify the
-  parameter shape as a function, it will be given the 
+  parameter shape as a function, it will be given the
 
   ## Options
 
@@ -2122,18 +2122,22 @@ defmodule Axon do
 
     * `:method` - resize method. Defaults to `:nearest`.
 
+    * `:antialias` - whether an anti-aliasing filter should be used
+      when downsampling. Defaults to `true`.
+
     * `:channels` - channel configuration. One of `:first` or
       `:last`. Defaults to `:last`.
 
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, method: :nearest, channels: :last])
+    opts = Keyword.validate!(opts, [:name, method: :nearest, antialias: true, channels: :last])
     channels = opts[:channels]
 
     layer(:resize, [x],
       name: opts[:name],
       method: opts[:method],
+      antialias: opts[:antialias],
       channels: channels,
       size: resize_shape,
       op_name: :resize
