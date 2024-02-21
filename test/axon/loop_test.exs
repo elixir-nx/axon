@@ -483,6 +483,17 @@ defmodule Axon.LoopTest do
       end)
     end
 
+    def send_event_counts_handler(loop, event) do
+      Axon.Loop.handle_event(loop, event, fn state ->
+        send(self(), {event, state.event_counts})
+        {:continue, state}
+      end)
+    end
+
+    def continue_handler(loop, event) do
+      Axon.Loop.handle_event(loop, event, &{:continue, &1})
+    end
+
     test "fires correctly on :started" do
       ExUnit.CaptureIO.capture_io(fn ->
         run_dummy_loop!(:started, 5, 10)
@@ -593,6 +604,70 @@ defmodule Axon.LoopTest do
       assert_received :iteration_started
       assert_received :iteration_completed
       assert_received :epoch_completed
+
+      refute_received _
+    end
+
+    test "events are counted correctly" do
+      model = Axon.input("foo")
+
+      data =
+        Stream.repeatedly(fn ->
+          xs = Nx.tensor([[Enum.random(0..10)]])
+          ys = Nx.greater(xs, 5)
+          {xs, ys}
+        end)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        # loop with multiple :iteration_started handlers to test that
+        # the event counts are only incremented once per event
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> send_event_counts_handler(:started)
+        |> send_event_counts_handler(:epoch_started)
+        |> continue_handler(:iteration_started)
+        |> continue_handler(:iteration_started)
+        |> send_event_counts_handler(:epoch_completed)
+        |> Axon.Loop.run(data, %{}, epochs: 2, iterations: 10)
+      end)
+
+      assert_received {:started,
+                       %{
+                         started: 1
+                       }}
+
+      assert_received {:epoch_started,
+                       %{
+                         started: 1,
+                         epoch_started: 1
+                       }}
+
+      assert_received {:epoch_completed,
+                       %{
+                         started: 1,
+                         epoch_started: 1,
+                         epoch_completed: 1,
+                         iteration_started: 10,
+                         iteration_completed: 10
+                       }}
+
+      assert_received {:epoch_started,
+                       %{
+                         started: 1,
+                         epoch_started: 2,
+                         epoch_completed: 1,
+                         iteration_started: 10,
+                         iteration_completed: 10
+                       }}
+
+      assert_received {:epoch_completed,
+                       %{
+                         started: 1,
+                         epoch_started: 2,
+                         epoch_completed: 2,
+                         iteration_started: 20,
+                         iteration_completed: 20
+                       }}
 
       refute_received _
     end
