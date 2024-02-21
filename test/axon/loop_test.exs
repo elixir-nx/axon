@@ -671,13 +671,8 @@ defmodule Axon.LoopTest do
 
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :sgd, log: -1)
-      |> continue_handler(event)
       |> send_handler(event, filter)
       |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
-    end
-
-    def continue_handler(loop, event) do
-      Axon.Loop.handle_event(loop, event, &{:continue, &1})
     end
 
     def send_handler(loop, event, filter) do
