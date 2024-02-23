@@ -5772,7 +5772,7 @@ defmodule CompilerTest do
       assert %{"custom" => %{"a" => a}} =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
-      assert predict_fn.(params, x) == Nx.add(x, a)
+      assert_equal(predict_fn.(params, x), Nx.add(x, a))
     end
 
     test "supports composite/map parameter types" do
@@ -5792,7 +5792,7 @@ defmodule CompilerTest do
       assert %{"custom" => %{"composite" => %{"inner" => inner}}} =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
-      assert predict_fn.(params, x) == Nx.add(x, inner)
+      assert_equal(predict_fn.(params, x), Nx.add(x, inner))
     end
 
     test "inner params in composite parameters initialize to different values" do
@@ -5834,7 +5834,7 @@ defmodule CompilerTest do
       assert %{"custom" => %{"composite" => %{"inner_composite" => %{"a" => a}}}} =
                params = init_fn.(Nx.template({1, 1}, :f32), %{})
 
-      assert predict_fn.(params, x) == Nx.add(x, a)
+      assert_equal(predict_fn.(params, x), Nx.add(x, a))
     end
   end
 end
