@@ -22,4 +22,7 @@ defmodule Axon.Defn do
 
   @impl true
   def __partitions_options__(_), do: raise("not implemented")
+
+  @impl true
+  def __to_backend__(_), do: raise("not implemented")
 end
