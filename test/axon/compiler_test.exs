@@ -5837,4 +5837,28 @@ defmodule CompilerTest do
       assert predict_fn.(params, x) == Nx.add(x, a)
     end
   end
+
+  describe "injection" do
+    test "works" do
+      model =
+        Axon.input("input")
+        |> Axon.dense(32, use_bias: false)
+        |> Axon.map_nodes(fn
+          %{op: :dense} = axon_node ->
+            Axon.wrap_node(axon_node, [Axon.param("a", {1, 1})], fn [input, kernel], forward, %{"a" => a}, opts ->
+              Nx.multiply(input, a) |> forward.(kernel, opts)
+            end)
+
+          axon_node ->
+            axon_node
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      input = random({2, 10})
+
+      assert %{"dense_0" => %{"kernel" => k, "injected" => %{"a" => a}}} = params = init_fn.(input, %{})
+      assert_equal(predict_fn.(params, input), Axon.Layers.dense(Nx.multiply(input, a), k))
+    end
+  end
 end

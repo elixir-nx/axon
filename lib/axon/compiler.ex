@@ -721,7 +721,8 @@ defmodule Axon.Compiler do
            policy: policy,
            hooks: hooks,
            op_name: op_name,
-           stacktrace: stacktrace
+           stacktrace: stacktrace,
+           forward: forward
          },
          nodes,
          cache_and_counts,
@@ -757,6 +758,7 @@ defmodule Axon.Compiler do
         &6,
         op,
         op_name,
+        forward,
         parent_ids,
         name,
         args,
@@ -837,6 +839,7 @@ defmodule Axon.Compiler do
          fn_stacktrace,
          op,
          op_name,
+         forward,
          parent_ids,
          name,
          args,
@@ -920,7 +923,7 @@ defmodule Axon.Compiler do
       # in Axon.Layers. The implication of this is that every function which
       # can be invoked as a layer must have a definition in Axon.Layers even
       # if there is a distinction (e.g. with activations)
-      result = apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name)
+      result = apply_layer(name, op, forward, args, layer_stacktrace, fn_stacktrace, op_name)
 
       result =
         case result do
@@ -958,16 +961,9 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name) do
+  defp apply_layer(name, op, forward, args, layer_stacktrace, fn_stacktrace, op_name) do
     try do
-      result =
-        case op do
-          op when is_function(op) ->
-            apply(op, args)
-
-          op when is_atom(op) ->
-            apply(Axon.Layers, op, args)
-        end
+      result = apply(forward, args)
 
       case result do
         out when is_tuple(out) ->

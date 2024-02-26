@@ -1,6 +1,7 @@
 defmodule Axon.Node do
   @moduledoc false
 
+  # TODO: Remove op_name? 
   defstruct [
     :id,
     :name,
@@ -13,6 +14,7 @@ defmodule Axon.Node do
     :hooks,
     :opts,
     :op_name,
-    :stacktrace
+    :stacktrace,
+    :forward
   ]
 end

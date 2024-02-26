@@ -334,12 +334,19 @@ defmodule Axon do
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
     name = name(op_name, name)
 
+    forward =
+      if is_atom(op) do
+        Function.capture(Axon.Layers, op, length(inputs) + length(params) + 1)
+      else
+        op
+      end
+
     id = System.unique_integer([:positive, :monotonic])
-    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, opts)
+    axon_node = make_node(id, op, forward, name, op_name, mode, inputs, params, args, opts)
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
   end
 
-  defp make_node(id, op, name, op_name, mode, inputs, params, args, layer_opts) do
+  defp make_node(id, op, forward, name, op_name, mode, inputs, params, args, layer_opts) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
@@ -355,7 +362,8 @@ defmodule Axon do
       hooks: [],
       opts: layer_opts,
       op_name: op_name,
-      stacktrace: stacktrace
+      stacktrace: stacktrace,
+      forward: forward
     }
   end
 
@@ -3611,6 +3619,124 @@ defmodule Axon do
   def pop_node(%Axon{nodes: nodes, output: id} = axon) do
     {%{parent: [parent_id]} = popped, nodes} = Map.pop!(nodes, id)
     {popped, %{axon | nodes: nodes, output: parent_id}}
+  end
+
+  @doc """
+  Wraps the forward function of the given node with the given
+  function and injected inputs.
+
+  Injected inputs is a map of `input_name` to Axon model or parameter.
+
+  This can be used to "intercept" and alter the forward pass of a
+  layer. For example, we can use this function to implement Low-Rank
+  Adaptation (LoRA) by wrapping the forward pass of QKV layers in a 
+  transformer:
+
+      Axon.map_nodes(model, fn
+        %Axon.Node{op: op} = axon_node when op in [:query, :key, :value] ->
+          lora_a = Axon.param("lora_a", shape, initializer: :normal)
+          lora_b = Axon.param("lora_b", shape, initializer: :zeros)
+          lora_dropout_key = Axon.param("lora_dropout_key", shape, initializer: :zeros, type: :u32)
+          Axon.wrap_node(axon_node, [lora_a, lora_b, lora_dropout_key], &lora_impl/5, injected_key: "lora_params")
+
+        axon_node ->
+          axon_node
+      end)
+
+  Where `lora_impl/4` is the injected function that takes the form of:
+
+      deftransform lora_impl([input, kernel], forward,
+        %{
+          "lora_a" => a,
+          "lora_b" => b,
+          "lora_dropout_key" => key
+        }, opts \\ []) do
+        dropout = opts[:dropout]
+        scaling = opts[:scaling]
+        mode = opts[:mode]
+        
+        x = input
+        wx = forward.(input, w, mode: mode)
+        
+        {x, next_key} =
+          case mode do
+            :inference -> {x, :ignored}
+            :train -> Axon.Layers.dropout(x, key, rate: dropout)
+          end
+
+        after_a = Axon.Layers.dense(x, lora_A |> Nx.transpose())
+        after_b = Nx.dot(after_a, lora_B |> Nx.transpose())
+        bax = Nx.multiply(after_b, scaling)
+        out = Nx.add(wx, bax)
+
+        case mode do
+          :inference ->
+            out
+
+          :train ->
+            %Axon.StatefulOutput{
+              prediction: out
+              state: %{"lora_dropout_key" => next_key}
+            }
+        end
+      end
+
+  For wrapped nodes, you will receive the layer's original inputs (parameter and
+  layer) as a list, the original forward function, a map of injected parameters,
+  and finally a list of options. You can reference all injected parameters by name.
+  The list of options will be a merged list of keyword options from the original layer
+  and any options passed to `:layer_opts` in the wrapping.
+
+  It's important to note that the wrapped function must be implemented as a `deftransform`
+  in order to accept the original forward function and inputs as arguments.
+
+  Injected parameters will be subnested in the map under the parameter key "injected"
+  unless otherwise specified. In the example above, we specify the injected key as
+  "lora_params", thus all the injected LoRA parameters will be subnested in the original
+  layers parameter map under "lora_params". This is useful if you ever need to extract
+  them out later.
+
+  ## Options
+
+    * `:injected_key` - the key to use for the subnesting of injected parameters.
+      Defaults to "injected".
+
+    * `:layer_opts` - additional options to forward to the original layer. Will
+      be merged with original layer options. Conflicting keys will use the original
+      layer options.
+  """
+  def wrap_node(
+        %Axon.Node{forward: old_forward, parameters: old_parameters, args: old_args, opts: old_opts} = axon_node,
+        injected_params,
+        fun,
+        opts \\ []
+      )
+      when is_function(fun) do
+    opts = Keyword.validate!(opts, [:layer_opts, injected_key: "injected"])
+    key = opts[:injected_key]
+    layer_opts = opts[:layer_opts] || []
+
+    new_opts = Keyword.merge(old_opts, layer_opts, fn _, v1, _ -> v1 end)
+
+    injected = param(key, {:map, injected_params})
+
+    {:arity, arity} = Function.info(old_forward, :arity)
+    
+    wrapped_fn =
+      fn args ->
+        {inputs, [opts]} = Enum.split(args, arity - 1)
+        {inputs, [injected]} = Enum.split(inputs, arity - 2)
+
+        apply(fun, [inputs, injected, old_forward, opts])
+      end
+
+    %{
+      axon_node
+      | forward: wrapped_fn,
+        parameters: old_parameters ++ [injected],
+        args: old_args ++ [:parameter],
+        opts: new_opts
+    }
   end
 
   @doc """
