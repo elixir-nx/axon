@@ -396,8 +396,8 @@ defmodule Axon.Compiler do
 
       res =
         value
-        |> apply_hooks(:forward, mode, hooks)
-        |> apply_hooks(:backward, mode, hooks)
+        |> apply_hooks(name, :forward, mode, hooks)
+        |> apply_hooks(name, :backward, mode, hooks)
 
       {res, {state, result_cache}}
     end
@@ -871,7 +871,7 @@ defmodule Axon.Compiler do
           layer_input =
             layer_input
             |> safe_as_type(compute)
-            |> apply_hooks(:pre_forward, mode, hooks)
+            |> apply_hooks(name, :pre_forward, mode, hooks)
 
           {layer_input, {state, result_cache, none?}}
         end
@@ -937,8 +937,8 @@ defmodule Axon.Compiler do
           %StatefulOutput{output: out, state: out_state} ->
             new_out =
               out
-              |> apply_hooks(:forward, mode, hooks)
-              |> apply_hooks(:backward, mode, hooks)
+              |> apply_hooks(name, :forward, mode, hooks)
+              |> apply_hooks(name, :backward, mode, hooks)
               |> safe_as_type(output)
 
             new_state = Map.put(state, name, out_state)
@@ -947,8 +947,8 @@ defmodule Axon.Compiler do
           out ->
             new_out =
               out
-              |> apply_hooks(:forward, mode, hooks)
-              |> apply_hooks(:backward, mode, hooks)
+              |> apply_hooks(name, :forward, mode, hooks)
+              |> apply_hooks(name, :backward, mode, hooks)
               |> safe_as_type(output)
 
             {new_out, state}
@@ -1050,7 +1050,7 @@ defmodule Axon.Compiler do
           init_param(layer_id, param, layer_params, parent_shapes, dtype, keys)
         end)
 
-      layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
+      layer_params = apply_hooks(layer_params, name, :initialize, nil, hooks)
 
       params =
         if layer_params == %{} do
@@ -1108,7 +1108,7 @@ defmodule Axon.Compiler do
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
   defp maybe_freeze(param, false), do: param
 
-  defp apply_hooks(res, event, mode, hooks) do
+  defp apply_hooks(res, layer_name, event, mode, hooks) do
     hooks
     |> Enum.reverse()
     |> Enum.reduce(res, fn {on_event, on_mode, hook_fn}, expr ->
@@ -1122,7 +1122,7 @@ defmodule Axon.Compiler do
             [hooked_g]
           end)
         else
-          Nx.Defn.Kernel.hook(expr, hook_fn)
+          Nx.Defn.Kernel.hook(expr, String.to_atom(layer_name), hook_fn)
         end
       else
         expr
