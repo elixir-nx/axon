@@ -1135,15 +1135,8 @@ defmodule Axon.Compiler do
       %Axon.None{} = none ->
         none
 
-      %Nx.Tensor{} = tensor ->
-        if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
-          Nx.as_type(tensor, type)
-        else
-          tensor
-        end
-
-      container ->
-        deep_new(container, fn tensor ->
+      container_or_tensor ->
+        deep_new(container_or_tensor, fn tensor ->
           if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
             Nx.as_type(tensor, type)
           else
