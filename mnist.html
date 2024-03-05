@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Classifying handwritten digits — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Classifying handwritten digits — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,69 +39,89 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/notebooks/vision/mnist.livemd#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/notebooks/vision/mnist.livemd#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -115,67 +136,67 @@ Axon
     </a>
   </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="8806341598-1">(</span><span class="p" data-group-id="8806341598-2">[</span><span class="w">
-  </span><span class="p" data-group-id="8806341598-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="8806341598-3">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="8806341598-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="8806341598-4">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="8806341598-5">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p" data-group-id="8806341598-5">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="8806341598-6">{</span><span class="ss">:req</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.1&quot;</span><span class="p" data-group-id="8806341598-6">}</span><span class="w">
-</span><span class="p" data-group-id="8806341598-2">]</span><span class="p" data-group-id="8806341598-1">)</span></code></pre><h2 id="introduction" class="section-heading">
-  <a href="#introduction" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">introduction</p>
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="4674210285-1">(</span><span class="p" data-group-id="4674210285-2">[</span><span class="w">
+  </span><span class="p" data-group-id="4674210285-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="4674210285-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4674210285-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="4674210285-4">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4674210285-5">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p" data-group-id="4674210285-5">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4674210285-6">{</span><span class="ss">:req</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.1&quot;</span><span class="p" data-group-id="4674210285-6">}</span><span class="w">
+</span><span class="p" data-group-id="4674210285-2">]</span><span class="p" data-group-id="4674210285-1">)</span></code></pre><h2 id="introduction" class="section-heading">
+  <a href="#introduction" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Introduction
+  <span class="text">Introduction</span>
 </h2>
 <p>This livebook will walk you through training a basic neural network using Axon, accelerated by the EXLA compiler. We'll be working on the <a href="https://en.wikipedia.org/wiki/MNIST_database">MNIST</a> dataset which is a dataset of handwritten digits with corresponding labels. The goal is to train a model that correctly classifies these handwritten digits with a single label [0-9].</p><h2 id="retrieving-and-exploring-the-dataset" class="section-heading">
-  <a href="#retrieving-and-exploring-the-dataset" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">retrieving-and-exploring-the-dataset</p>
+  <a href="#retrieving-and-exploring-the-dataset" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Retrieving and exploring the dataset
+  <span class="text">Retrieving and exploring the dataset</span>
 </h2>
 <p>The MNIST dataset is available for free online. Using <code class="inline">Req</code> we'll download both training images and training labels. Both <code class="inline">train_images</code> and <code class="inline">train_labels</code> are compressed binary data. Fortunately, <code class="inline">Req</code> takes care of the decompression for us.</p><p>You can read more about the format of the ubyte files <a href="http://yann.lecun.com/exdb/mnist/">here</a>. Each file starts with a magic number and some metadata. We can use binary pattern matching to extract the information we want. In this case we extract the raw binary images and labels.</p><pre><code class="makeup elixir" translate="no"><span class="n">base_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://storage.googleapis.com/cvdf-datasets/mnist/&quot;</span><span class="w">
-</span><span class="p" data-group-id="1105536337-1">%{</span><span class="ss">body</span><span class="p">:</span><span class="w"> </span><span class="n">train_images</span><span class="p" data-group-id="1105536337-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Req</span><span class="o">.</span><span class="n">get!</span><span class="p" data-group-id="1105536337-2">(</span><span class="n">base_url</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s">&quot;train-images-idx3-ubyte.gz&quot;</span><span class="p" data-group-id="1105536337-2">)</span><span class="w">
-</span><span class="p" data-group-id="1105536337-3">%{</span><span class="ss">body</span><span class="p">:</span><span class="w"> </span><span class="n">train_labels</span><span class="p" data-group-id="1105536337-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Req</span><span class="o">.</span><span class="n">get!</span><span class="p" data-group-id="1105536337-4">(</span><span class="n">base_url</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s">&quot;train-labels-idx1-ubyte.gz&quot;</span><span class="p" data-group-id="1105536337-4">)</span><span class="w">
+</span><span class="p" data-group-id="8334642179-1">%{</span><span class="ss">body</span><span class="p">:</span><span class="w"> </span><span class="n">train_images</span><span class="p" data-group-id="8334642179-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Req</span><span class="o">.</span><span class="n">get!</span><span class="p" data-group-id="8334642179-2">(</span><span class="n">base_url</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s">&quot;train-images-idx3-ubyte.gz&quot;</span><span class="p" data-group-id="8334642179-2">)</span><span class="w">
+</span><span class="p" data-group-id="8334642179-3">%{</span><span class="ss">body</span><span class="p">:</span><span class="w"> </span><span class="n">train_labels</span><span class="p" data-group-id="8334642179-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Req</span><span class="o">.</span><span class="n">get!</span><span class="p" data-group-id="8334642179-4">(</span><span class="n">base_url</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="s">&quot;train-labels-idx1-ubyte.gz&quot;</span><span class="p" data-group-id="8334642179-4">)</span><span class="w">
 
-</span><span class="p" data-group-id="1105536337-5">&lt;&lt;</span><span class="bp">_</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_images</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_rows</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_cols</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">images</span><span class="o">::</span><span class="n">binary</span><span class="p" data-group-id="1105536337-5">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_images</span><span class="w">
-</span><span class="p" data-group-id="1105536337-6">&lt;&lt;</span><span class="bp">_</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_labels</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">labels</span><span class="o">::</span><span class="n">binary</span><span class="p" data-group-id="1105536337-6">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_labels</span></code></pre><p>We can easily read that binary data into a tensor using <a href="https://hexdocs.pm/nx/0.6.0/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a>. <a href="https://hexdocs.pm/nx/0.6.0/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a> expects a raw binary and a data type. In this case, both images and labels are stored as unsigned 8-bit integers. We can start by parsing our images:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="p" data-group-id="8334642179-5">&lt;&lt;</span><span class="bp">_</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_images</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_rows</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_cols</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">images</span><span class="o">::</span><span class="n">binary</span><span class="p" data-group-id="8334642179-5">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_images</span><span class="w">
+</span><span class="p" data-group-id="8334642179-6">&lt;&lt;</span><span class="bp">_</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">n_labels</span><span class="o">::</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="n">labels</span><span class="o">::</span><span class="n">binary</span><span class="p" data-group-id="8334642179-6">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">train_labels</span></code></pre><p>We can easily read that binary data into a tensor using <a href="https://hexdocs.pm/nx/0.6.4/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a>. <a href="https://hexdocs.pm/nx/0.6.4/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a> expects a raw binary and a data type. In this case, both images and labels are stored as unsigned 8-bit integers. We can start by parsing our images:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">images</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">from_binary</span><span class="p" data-group-id="1364391905-1">(</span><span class="p" data-group-id="1364391905-2">{</span><span class="ss">:u</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="1364391905-2">}</span><span class="p" data-group-id="1364391905-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reshape</span><span class="p" data-group-id="1364391905-3">(</span><span class="p" data-group-id="1364391905-4">{</span><span class="n">n_images</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">n_rows</span><span class="p">,</span><span class="w"> </span><span class="n">n_cols</span><span class="p" data-group-id="1364391905-4">}</span><span class="p">,</span><span class="w"> </span><span class="ss">names</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1364391905-5">[</span><span class="ss">:images</span><span class="p">,</span><span class="w"> </span><span class="ss">:channels</span><span class="p">,</span><span class="w"> </span><span class="ss">:height</span><span class="p">,</span><span class="w"> </span><span class="ss">:width</span><span class="p" data-group-id="1364391905-5">]</span><span class="p" data-group-id="1364391905-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="1364391905-6">(</span><span class="mi">255</span><span class="p" data-group-id="1364391905-6">)</span></code></pre><p><a href="https://hexdocs.pm/nx/0.6.0/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a> returns a flat tensor. Using <a href="https://hexdocs.pm/nx/0.6.0/Nx.html#reshape/3"><code class="inline">Nx.reshape/3</code></a> we can manipulate this flat tensor into meaningful dimensions. Notice we also <em>normalized</em> the tensor by dividing the input data by 255. This squeezes the data between 0 and 1 which often leads to better behavior when training models. Now, let's see what these images look like:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="p" data-group-id="5413188037-1">[</span><span class="p" data-group-id="5413188037-2">[</span><span class="ss">images</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">4</span><span class="p" data-group-id="5413188037-2">]</span><span class="p" data-group-id="5413188037-1">]</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_heatmap</span><span class="p" data-group-id="5413188037-3">(</span><span class="p" data-group-id="5413188037-3">)</span></code></pre><p>In the reshape operation above, we give each dimension of the tensor a name. This makes it much easier to do things like slicing, and helps make your code easier to understand. Here we slice the <code class="inline">images</code> dimension of the images tensor to obtain the first 5 training images. Then, we convert them to a heatmap for easy visualization.</p><p>It's common to train neural networks in batches (actually correctly called minibatches, but you'll see batch and minibatch used interchangeably). We can &quot;batch&quot; our images into batches of 32 like this:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="0192602728-1">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="0192602728-1">)</span></code></pre><p>Now, we'll need to get our labels into batches as well, but first we need to <em>one-hot encode</em> the labels. One-hot encoding converts input data from labels such as <code class="inline">3</code>, <code class="inline">5</code>, <code class="inline">7</code>, etc. into vectors of 0's and a single 1 at the correct labels index. As an example, a label of: <code class="inline">3</code> gets converted to: <code class="inline">[0, 0, 0, 1, 0, 0, 0, 0, 0, 0]</code>.</p><pre><code class="makeup elixir" translate="no"><span class="n">targets</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">from_binary</span><span class="p" data-group-id="1918420186-1">(</span><span class="p" data-group-id="1918420186-2">{</span><span class="ss">:u</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="1918420186-2">}</span><span class="p" data-group-id="1918420186-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reshape</span><span class="p" data-group-id="1918420186-3">(</span><span class="p" data-group-id="1918420186-4">{</span><span class="n">n_images</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">n_rows</span><span class="p">,</span><span class="w"> </span><span class="n">n_cols</span><span class="p" data-group-id="1918420186-4">}</span><span class="p">,</span><span class="w"> </span><span class="ss">names</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1918420186-5">[</span><span class="ss">:images</span><span class="p">,</span><span class="w"> </span><span class="ss">:channels</span><span class="p">,</span><span class="w"> </span><span class="ss">:height</span><span class="p">,</span><span class="w"> </span><span class="ss">:width</span><span class="p" data-group-id="1918420186-5">]</span><span class="p" data-group-id="1918420186-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="1918420186-6">(</span><span class="mi">255</span><span class="p" data-group-id="1918420186-6">)</span></code></pre><p><a href="https://hexdocs.pm/nx/0.6.4/Nx.html#from_binary/2"><code class="inline">Nx.from_binary/2</code></a> returns a flat tensor. Using <a href="https://hexdocs.pm/nx/0.6.4/Nx.html#reshape/3"><code class="inline">Nx.reshape/3</code></a> we can manipulate this flat tensor into meaningful dimensions. Notice we also <em>normalized</em> the tensor by dividing the input data by 255. This squeezes the data between 0 and 1 which often leads to better behavior when training models. Now, let's see what these images look like:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="p" data-group-id="5439696212-1">[</span><span class="p" data-group-id="5439696212-2">[</span><span class="ss">images</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="o">..</span><span class="mi">4</span><span class="p" data-group-id="5439696212-2">]</span><span class="p" data-group-id="5439696212-1">]</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_heatmap</span><span class="p" data-group-id="5439696212-3">(</span><span class="p" data-group-id="5439696212-3">)</span></code></pre><p>In the reshape operation above, we give each dimension of the tensor a name. This makes it much easier to do things like slicing, and helps make your code easier to understand. Here we slice the <code class="inline">images</code> dimension of the images tensor to obtain the first 5 training images. Then, we convert them to a heatmap for easy visualization.</p><p>It's common to train neural networks in batches (actually correctly called minibatches, but you'll see batch and minibatch used interchangeably). We can &quot;batch&quot; our images into batches of 32 like this:</p><pre><code class="makeup elixir" translate="no"><span class="n">images</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="1936832022-1">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="1936832022-1">)</span></code></pre><p>Now, we'll need to get our labels into batches as well, but first we need to <em>one-hot encode</em> the labels. One-hot encoding converts input data from labels such as <code class="inline">3</code>, <code class="inline">5</code>, <code class="inline">7</code>, etc. into vectors of 0's and a single 1 at the correct labels index. As an example, a label of: <code class="inline">3</code> gets converted to: <code class="inline">[0, 0, 0, 1, 0, 0, 0, 0, 0, 0]</code>.</p><pre><code class="makeup elixir" translate="no"><span class="n">targets</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">labels</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">from_binary</span><span class="p" data-group-id="8889891482-1">(</span><span class="p" data-group-id="8889891482-2">{</span><span class="ss">:u</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="8889891482-2">}</span><span class="p" data-group-id="8889891482-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">new_axis</span><span class="p" data-group-id="8889891482-3">(</span><span class="o">-</span><span class="mi">1</span><span class="p" data-group-id="8889891482-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">equal</span><span class="p" data-group-id="8889891482-4">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="8889891482-5">(</span><span class="nc">Enum</span><span class="o">.</span><span class="n">to_list</span><span class="p" data-group-id="8889891482-6">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">9</span><span class="p" data-group-id="8889891482-6">)</span><span class="p" data-group-id="8889891482-5">)</span><span class="p" data-group-id="8889891482-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8889891482-7">(</span><span class="mi">32</span><span class="p" data-group-id="8889891482-7">)</span></code></pre><h2 id="defining-the-model" class="section-heading">
-  <a href="#defining-the-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">defining-the-model</p>
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">from_binary</span><span class="p" data-group-id="8933522101-1">(</span><span class="p" data-group-id="8933522101-2">{</span><span class="ss">:u</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="8933522101-2">}</span><span class="p" data-group-id="8933522101-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">new_axis</span><span class="p" data-group-id="8933522101-3">(</span><span class="o">-</span><span class="mi">1</span><span class="p" data-group-id="8933522101-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">equal</span><span class="p" data-group-id="8933522101-4">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="8933522101-5">(</span><span class="nc">Enum</span><span class="o">.</span><span class="n">to_list</span><span class="p" data-group-id="8933522101-6">(</span><span class="mi">0</span><span class="o">..</span><span class="mi">9</span><span class="p" data-group-id="8933522101-6">)</span><span class="p" data-group-id="8933522101-5">)</span><span class="p" data-group-id="8933522101-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8933522101-7">(</span><span class="mi">32</span><span class="p" data-group-id="8933522101-7">)</span></code></pre><h2 id="defining-the-model" class="section-heading">
+  <a href="#defining-the-model" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Defining the model
+  <span class="text">Defining the model</span>
 </h2>
 <p>Let's start by defining a simple model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7446580336-1">(</span><span class="s">&quot;input&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7446580336-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p" data-group-id="7446580336-2">}</span><span class="p" data-group-id="7446580336-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="7446580336-3">(</span><span class="p" data-group-id="7446580336-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7446580336-4">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="7446580336-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7446580336-5">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="7446580336-5">)</span></code></pre><p>All <a href="Axon.html"><code class="inline">Axon</code></a> models start with an input layer to tell subsequent layers what shapes to expect. We then use <a href="Axon.html#flatten/2"><code class="inline">Axon.flatten/2</code></a> which flattens the previous layer by squeezing all dimensions but the first dimension into a single dimension. Our model consists of 2 fully connected layers with 128 and 10 units respectively. The first layer uses <code class="inline">:relu</code> activation which returns <code class="inline">max(0, input)</code> element-wise. The final layer uses <code class="inline">:softmax</code> activation to return a probability distribution over the 10 labels [0 - 9].</p><h2 id="training" class="section-heading">
-  <a href="#training" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">training</p>
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6900971653-1">(</span><span class="s">&quot;input&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6900971653-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p" data-group-id="6900971653-2">}</span><span class="p" data-group-id="6900971653-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="6900971653-3">(</span><span class="p" data-group-id="6900971653-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6900971653-4">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="6900971653-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6900971653-5">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="6900971653-5">)</span></code></pre><p>All <a href="Axon.html"><code class="inline">Axon</code></a> models start with an input layer to tell subsequent layers what shapes to expect. We then use <a href="Axon.html#flatten/2"><code class="inline">Axon.flatten/2</code></a> which flattens the previous layer by squeezing all dimensions but the first dimension into a single dimension. Our model consists of 2 fully connected layers with 128 and 10 units respectively. The first layer uses <code class="inline">:relu</code> activation which returns <code class="inline">max(0, input)</code> element-wise. The final layer uses <code class="inline">:softmax</code> activation to return a probability distribution over the 10 labels [0 - 9].</p><h2 id="training" class="section-heading">
+  <a href="#training" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Training
+  <span class="text">Training</span>
 </h2>
 <p>In Axon we express the task of training using a declarative loop API. First, we need to specify a loss function and optimizer, there are many built-in variants to choose from. In this example, we'll use <em>categorical cross-entropy</em> and the <em>Adam</em> optimizer. We will also keep track of the <em>accuracy</em> metric. Finally, we run training loop passing our batched images and labels. We'll train for 10 epochs using the <code class="inline">EXLA</code> compiler.</p><pre><code class="makeup elixir" translate="no"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">model</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="7305013426-1">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="ss">:adam</span><span class="p" data-group-id="7305013426-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="7305013426-2">(</span><span class="ss">:accuracy</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Accuracy&quot;</span><span class="p" data-group-id="7305013426-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="7305013426-3">(</span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="7305013426-4">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="7305013426-4">)</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="7305013426-5">%{</span><span class="p" data-group-id="7305013426-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="7305013426-3">)</span></code></pre><h2 id="prediction" class="section-heading">
-  <a href="#prediction" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">prediction</p>
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="8342082055-1">(</span><span class="ss">:categorical_cross_entropy</span><span class="p">,</span><span class="w"> </span><span class="ss">:adam</span><span class="p" data-group-id="8342082055-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="8342082055-2">(</span><span class="ss">:accuracy</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Accuracy&quot;</span><span class="p" data-group-id="8342082055-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="8342082055-3">(</span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="8342082055-4">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="8342082055-4">)</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="8342082055-5">%{</span><span class="p" data-group-id="8342082055-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="8342082055-3">)</span></code></pre><h2 id="prediction" class="section-heading">
+  <a href="#prediction" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Prediction
+  <span class="text">Prediction</span>
 </h2>
 <p>Now that we have the parameters from the training step, we can use them for predictions.
-For this the <code class="inline">Axon.predict</code> can be used.</p><pre><code class="makeup elixir" translate="no"><span class="n">first_batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">at</span><span class="p" data-group-id="5837566771-1">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="5837566771-1">)</span><span class="w">
+For this the <code class="inline">Axon.predict</code> can be used.</p><pre><code class="makeup elixir" translate="no"><span class="n">first_batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">at</span><span class="p" data-group-id="4724889568-1">(</span><span class="n">images</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="4724889568-1">)</span><span class="w">
 
-</span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="5837566771-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">first_batch</span><span class="p" data-group-id="5837566771-2">)</span></code></pre><p>For each image, the model outputs probability distribution. This informs us how certain the model is about its prediction. Let's see the most probable digit for each image:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Nx</span><span class="o">.</span><span class="n">argmax</span><span class="p" data-group-id="7589261980-1">(</span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="ss">axis</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="7589261980-1">)</span></code></pre><p>If you look at the original images and you will see the predictions match the data!</p>
+</span><span class="n">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="4724889568-2">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">first_batch</span><span class="p" data-group-id="4724889568-2">)</span></code></pre><p>For each image, the model outputs probability distribution. This informs us how certain the model is about its prediction. Let's see the most probable digit for each image:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Nx</span><span class="o">.</span><span class="n">argmax</span><span class="p" data-group-id="4002992942-1">(</span><span class="n">output</span><span class="p">,</span><span class="w"> </span><span class="ss">axis</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4002992942-1">)</span></code></pre><p>If you look at the original images and you will see the predictions match the data!</p>
 <div class="bottom-actions">
   <div class="bottom-actions-item">
 
@@ -206,11 +227,11 @@ Classifying horses and humans
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/notebooks/vision/mnist.livemd">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/notebooks/vision/mnist.livemd">current file</a>)
 
             </span>
 
@@ -228,7 +249,7 @@ Classifying horses and humans
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -236,7 +257,7 @@ Classifying horses and humans
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

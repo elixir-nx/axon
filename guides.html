@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Axon Guides — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Axon Guides — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,69 +39,89 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/guides/guides.md#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/guides/guides.md#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -110,28 +131,28 @@ Axon
 </h1>
 
 <p>Axon is a library for creating and training neural networks in Elixir. The Axon guides are a collection of Livebooks designed to introduce Axon's APIs and design decisions from the bottom-up. After working through the guides, you will feel comfortable and confident working with Axon and using Axon for your next deep learning problem.</p><h2 id="model-creation" class="section-heading">
-  <a href="#model-creation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">model-creation</p>
+  <a href="#model-creation" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Model Creation
+  <span class="text">Model Creation</span>
 </h2>
 <ul><li><a href="your_first_axon_model.html">Your first Axon model</a></li><li><a href="sequential_models.html">Sequential models</a></li><li><a href="complex_models.html">Complex models</a></li><li><a href="multi_input_multi_output_models.html">Multi-input / multi-output models</a></li><li><a href="custom_layers.html">Custom layers</a></li><li><a href="model_hooks.html">Model hooks</a></li></ul><h2 id="model-execution" class="section-heading">
-  <a href="#model-execution" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">model-execution</p>
+  <a href="#model-execution" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Model Execution
+  <span class="text">Model Execution</span>
 </h2>
 <ul><li><a href="accelerating_axon.html">Accelerating Axon</a></li><li><a href="training_and_inference_mode.html">Training and inference mode</a></li></ul><h2 id="training-and-evaluation" class="section-heading">
-  <a href="#training-and-evaluation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">training-and-evaluation</p>
+  <a href="#training-and-evaluation" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Training and Evaluation
+  <span class="text">Training and Evaluation</span>
 </h2>
 <ul><li><a href="your_first_training_loop.html">Your first training loop</a></li><li><a href="instrumenting_loops_with_metrics.html">Instrumenting loops with metrics</a></li><li><a href="your_first_evaluation_loop.html">Your first evaluation loop</a></li><li><a href="using_loop_event_handlers.html">Using loop event handlers</a></li><li><a href="custom_models_loss_optimizers.html">Custom models, loss functions, and optimizers</a></li><li><a href="writing_custom_metrics.html">Writing custom metrics</a></li><li><a href="writing_custom_event_handlers.html">Writing custom event handlers</a></li></ul><h2 id="serialization" class="section-heading">
-  <a href="#serialization" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">serialization</p>
+  <a href="#serialization" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Serialization
+  <span class="text">Serialization</span>
 </h2>
 <ul><li><a href="onnx_to_axon.html">Converting ONNX models to Axon</a> </li></ul>
 <div class="bottom-actions">
@@ -164,11 +185,11 @@ Your first Axon model
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/guides/guides.md">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/guides/guides.md">current file</a>)
 
             </span>
 
@@ -186,7 +207,7 @@ Your first Axon model
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -194,7 +215,7 @@ Your first Axon model
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

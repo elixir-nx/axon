@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Complex models — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Complex models — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,69 +39,89 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/guides/model_creation/complex_models.livemd#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/guides/model_creation/complex_models.livemd#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -115,26 +136,26 @@ Axon
     </a>
   </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="2664125770-1">(</span><span class="p" data-group-id="2664125770-2">[</span><span class="w">
-  </span><span class="p" data-group-id="2664125770-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="2664125770-3">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="2664125770-4">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="2664125770-4">}</span><span class="w">
-</span><span class="p" data-group-id="2664125770-2">]</span><span class="p" data-group-id="2664125770-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="creating-more-complex-models" class="section-heading">
-  <a href="#creating-more-complex-models" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">creating-more-complex-models</p>
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="6701336574-1">(</span><span class="p" data-group-id="6701336574-2">[</span><span class="w">
+  </span><span class="p" data-group-id="6701336574-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="6701336574-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6701336574-4">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="6701336574-4">}</span><span class="w">
+</span><span class="p" data-group-id="6701336574-2">]</span><span class="p" data-group-id="6701336574-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="creating-more-complex-models" class="section-heading">
+  <a href="#creating-more-complex-models" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Creating more complex models
+  <span class="text">Creating more complex models</span>
 </h2>
-<p>Not all models you'd want to create fit cleanly in the <em>sequential</em> paradigm. Some models require a more flexible API. Fortunately, because Axon models are just Elixir data structures, you can manipulate them and decompose architectures as you would any other Elixir program:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7127911215-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="7127911215-1">)</span><span class="w">
+<p>Not all models you'd want to create fit cleanly in the <em>sequential</em> paradigm. Some models require a more flexible API. Fortunately, because Axon models are just Elixir data structures, you can manipulate them and decompose architectures as you would any other Elixir program:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="5628188297-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="5628188297-1">)</span><span class="w">
 
-</span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7127911215-2">(</span><span class="mi">32</span><span class="p" data-group-id="7127911215-2">)</span><span class="w">
-</span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7127911215-3">(</span><span class="mi">64</span><span class="p" data-group-id="7127911215-3">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="7127911215-4">(</span><span class="p" data-group-id="7127911215-4">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7127911215-5">(</span><span class="mi">32</span><span class="p" data-group-id="7127911215-5">)</span><span class="w">
+</span><span class="n">x1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5628188297-2">(</span><span class="mi">32</span><span class="p" data-group-id="5628188297-2">)</span><span class="w">
+</span><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5628188297-3">(</span><span class="mi">64</span><span class="p" data-group-id="5628188297-3">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="5628188297-4">(</span><span class="p" data-group-id="5628188297-4">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="5628188297-5">(</span><span class="mi">32</span><span class="p" data-group-id="5628188297-5">)</span><span class="w">
 
-</span><span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="7127911215-6">(</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="7127911215-6">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="4282693351-1">#</span><span class="nc" data-group-id="4282693351-1">Axon</span><span class="p" data-group-id="4282693351-1">&lt;</span><span class="w">
-  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4282693351-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="4282693351-2">}</span><span class="w">
+</span><span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="5628188297-6">(</span><span class="n">x1</span><span class="p">,</span><span class="w"> </span><span class="n">x2</span><span class="p" data-group-id="5628188297-6">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="7926367184-1">#</span><span class="nc" data-group-id="7926367184-1">Axon</span><span class="p" data-group-id="7926367184-1">&lt;</span><span class="w">
+  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7926367184-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="7926367184-2">}</span><span class="w">
   </span><span class="ss">outputs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add_0&quot;</span><span class="w">
   </span><span class="ss">nodes</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="w">
-</span><span class="p" data-group-id="4282693351-1">&gt;</span></code></pre><p>In the snippet above, your model branches <code class="inline">input</code> into <code class="inline">x1</code> and <code class="inline">x2</code>. Each branch performs a different set of transformations; however, at the end the branches are merged with an <a href="Axon.html#add/3"><code class="inline">Axon.add/3</code></a>. You might sometimes see layers like <a href="Axon.html#add/3"><code class="inline">Axon.add/3</code></a> called <em>combinators</em>. Really they're just layers that operate on multiple Axon models at once - typically to merge some branches together.</p><p><code class="inline">out</code> represents your final Axon model.</p><p>If you visualize this model, you can see the full effect of the branching in this model:</p><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="5534664186-1">(</span><span class="p" data-group-id="5534664186-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="5534664186-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="5534664186-1">)</span><span class="w">
-</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="5534664186-3">(</span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="5534664186-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
+</span><span class="p" data-group-id="7926367184-1">&gt;</span></code></pre><p>In the snippet above, your model branches <code class="inline">input</code> into <code class="inline">x1</code> and <code class="inline">x2</code>. Each branch performs a different set of transformations; however, at the end the branches are merged with an <a href="Axon.html#add/3"><code class="inline">Axon.add/3</code></a>. You might sometimes see layers like <a href="Axon.html#add/3"><code class="inline">Axon.add/3</code></a> called <em>combinators</em>. Really they're just layers that operate on multiple Axon models at once - typically to merge some branches together.</p><p><code class="inline">out</code> represents your final Axon model.</p><p>If you visualize this model, you can see the full effect of the branching in this model:</p><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="7372523510-1">(</span><span class="p" data-group-id="7372523510-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="7372523510-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="7372523510-1">)</span><span class="w">
+</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="7372523510-3">(</span><span class="n">out</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="7372523510-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
 3[/&quot;data (:input) {2, 8}&quot;/];
 4[&quot;dense_0 (:dense) {2, 32}&quot;];
 5[&quot;dense_1 (:dense) {2, 64}&quot;];
@@ -148,43 +169,43 @@ Axon
 6 --&gt; 7;
 5 --&gt; 6;
 3 --&gt; 5;
-3 --&gt; 4;</code></pre><p>And you can use <a href="Axon.html#build/2"><code class="inline">Axon.build/2</code></a> on <code class="inline">out</code> as you would any other Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="4145533853-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="4145533853-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="4145533853-2">(</span><span class="n">out</span><span class="p" data-group-id="4145533853-2">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="9885536458-1">{</span><span class="p" data-group-id="9885536458-2">#</span><span class="nc" data-group-id="9885536458-2">Function</span><span class="p" data-group-id="9885536458-2">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="9885536458-2">&gt;</span><span class="p">,</span><span class="w">
- </span><span class="p" data-group-id="9885536458-3">#</span><span class="nc" data-group-id="9885536458-3">Function</span><span class="p" data-group-id="9885536458-3">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="9885536458-3">&gt;</span><span class="p" data-group-id="9885536458-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="9813007450-1">(</span><span class="n">template</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9813007450-2">%{</span><span class="p" data-group-id="9813007450-2">}</span><span class="p" data-group-id="9813007450-1">)</span><span class="w">
-</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="9813007450-3">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="9813007450-4">(</span><span class="p" data-group-id="9813007450-5">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="9813007450-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="9813007450-4">)</span><span class="p" data-group-id="9813007450-3">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="5528761418-1">#</span><span class="nc" data-group-id="5528761418-1">Nx.Tensor</span><span class="p" data-group-id="5528761418-1">&lt;</span><span class="w">
-  </span><span class="n">f32</span><span class="p" data-group-id="5528761418-2">[</span><span class="mi">2</span><span class="p" data-group-id="5528761418-2">]</span><span class="p" data-group-id="5528761418-3">[</span><span class="mi">32</span><span class="p" data-group-id="5528761418-3">]</span><span class="w">
-  </span><span class="p" data-group-id="5528761418-4">[</span><span class="w">
-    </span><span class="p" data-group-id="5528761418-5">[</span><span class="o">-</span><span class="mf">4.283246040344238</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8983498811721802</span><span class="p">,</span><span class="w"> </span><span class="mf">3.697357654571533</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">4.720174789428711</span><span class="p">,</span><span class="w"> </span><span class="mf">4.1636152267456055</span><span class="p">,</span><span class="w"> </span><span class="mf">1.001131534576416</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.7027540802955627</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">3.7821826934814453</span><span class="p">,</span><span class="w"> </span><span class="mf">0.027841567993164062</span><span class="p">,</span><span class="w"> </span><span class="mf">9.267499923706055</span><span class="p">,</span><span class="w"> </span><span class="mf">3.33616304397583</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.5465859174728394</span><span class="p">,</span><span class="w"> </span><span class="mf">8.983413696289062</span><span class="p">,</span><span class="w"> </span><span class="mf">3.7445120811462402</span><span class="p">,</span><span class="w"> </span><span class="mf">2.2405576705932617</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">3.61336350440979</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.7320983409881592</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5740477442741394</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.22006472945213318</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1806044578552246</span><span class="p">,</span><span class="w"> </span><span class="mf">1.1092393398284912</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.29313594102859497</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.41948509216308594</span><span class="p">,</span><span class="w"> </span><span class="mf">3.526411533355713</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.9127179384231567</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8373844623565674</span><span class="p">,</span><span class="w"> </span><span class="mf">1.1746022701263428</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.6885149478912354</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.4326229095458984</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.3498257398605347</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">5.803186416625977</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5204020738601685</span><span class="p" data-group-id="5528761418-5">]</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="5528761418-6">[</span><span class="o">-</span><span class="mf">15.615742683410645</span><span class="p">,</span><span class="w"> </span><span class="mf">6.555544853210449</span><span class="p">,</span><span class="w"> </span><span class="mf">7.033155918121338</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">12.33556842803955</span><span class="p">,</span><span class="w"> </span><span class="mf">14.105436325073242</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">4.230871200561523</span><span class="p">,</span><span class="w"> </span><span class="mf">5.985136032104492</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">8.445676803588867</span><span class="p">,</span><span class="w"> </span><span class="mf">5.383096694946289</span><span class="p">,</span><span class="w"> </span><span class="mf">23.413570404052734</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8907639980316162</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.400709629058838</span><span class="p">,</span><span class="w"> </span><span class="mf">19.19326400756836</span><span class="p">,</span><span class="w"> </span><span class="mf">13.784171104431152</span><span class="p">,</span><span class="w"> </span><span class="mf">9.641424179077148</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">8.407038688659668</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">5.688483238220215</span><span class="p">,</span><span class="w"> </span><span class="mf">4.383636474609375</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="5528761418-6">]</span><span class="w">
-  </span><span class="p" data-group-id="5528761418-4">]</span><span class="w">
-</span><span class="p" data-group-id="5528761418-1">&gt;</span></code></pre><p>As your architectures grow in complexity, you might find yourself reaching for better abstractions to organize your model creation code. For example, PyTorch models are often organized into <code class="inline">nn.Module</code>. The equivalent of an <code class="inline">nn.Module</code> in Axon is a regular Elixir function. If you're translating models from PyTorch to Axon, it's natural to create one Elixir function per <code class="inline">nn.Module</code>.</p><p>You should write your models as you would write any other Elixir code - you don't need to worry about any framework specific constructs:</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyModel</span><span class="w"> </span><span class="k" data-group-id="0059177367-1">do</span><span class="w">
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">model</span><span class="p" data-group-id="0059177367-2">(</span><span class="p" data-group-id="0059177367-2">)</span><span class="w"> </span><span class="k" data-group-id="0059177367-3">do</span><span class="w">
-    </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="0059177367-4">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="0059177367-4">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">conv_block</span><span class="p" data-group-id="0059177367-5">(</span><span class="p" data-group-id="0059177367-5">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="0059177367-6">(</span><span class="p" data-group-id="0059177367-6">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense_block</span><span class="p" data-group-id="0059177367-7">(</span><span class="p" data-group-id="0059177367-7">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense_block</span><span class="p" data-group-id="0059177367-8">(</span><span class="p" data-group-id="0059177367-8">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0059177367-9">(</span><span class="mi">1</span><span class="p" data-group-id="0059177367-9">)</span><span class="w">
-  </span><span class="k" data-group-id="0059177367-3">end</span><span class="w">
+3 --&gt; 4;</code></pre><p>And you can use <a href="Axon.html#build/2"><code class="inline">Axon.build/2</code></a> on <code class="inline">out</code> as you would any other Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="7212914374-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="7212914374-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="7212914374-2">(</span><span class="n">out</span><span class="p" data-group-id="7212914374-2">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="1678223104-1">{</span><span class="p" data-group-id="1678223104-2">#</span><span class="nc" data-group-id="1678223104-2">Function</span><span class="p" data-group-id="1678223104-2">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="1678223104-2">&gt;</span><span class="p">,</span><span class="w">
+ </span><span class="p" data-group-id="1678223104-3">#</span><span class="nc" data-group-id="1678223104-3">Function</span><span class="p" data-group-id="1678223104-3">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="1678223104-3">&gt;</span><span class="p" data-group-id="1678223104-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="9588747361-1">(</span><span class="n">template</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="9588747361-2">%{</span><span class="p" data-group-id="9588747361-2">}</span><span class="p" data-group-id="9588747361-1">)</span><span class="w">
+</span><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="9588747361-3">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="9588747361-4">(</span><span class="p" data-group-id="9588747361-5">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p" data-group-id="9588747361-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="9588747361-4">)</span><span class="p" data-group-id="9588747361-3">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="2954435528-1">#</span><span class="nc" data-group-id="2954435528-1">Nx.Tensor</span><span class="p" data-group-id="2954435528-1">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="2954435528-2">[</span><span class="mi">2</span><span class="p" data-group-id="2954435528-2">]</span><span class="p" data-group-id="2954435528-3">[</span><span class="mi">32</span><span class="p" data-group-id="2954435528-3">]</span><span class="w">
+  </span><span class="p" data-group-id="2954435528-4">[</span><span class="w">
+    </span><span class="p" data-group-id="2954435528-5">[</span><span class="o">-</span><span class="mf">4.283246040344238</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8983498811721802</span><span class="p">,</span><span class="w"> </span><span class="mf">3.697357654571533</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">4.720174789428711</span><span class="p">,</span><span class="w"> </span><span class="mf">4.1636152267456055</span><span class="p">,</span><span class="w"> </span><span class="mf">1.001131534576416</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.7027540802955627</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">3.7821826934814453</span><span class="p">,</span><span class="w"> </span><span class="mf">0.027841567993164062</span><span class="p">,</span><span class="w"> </span><span class="mf">9.267499923706055</span><span class="p">,</span><span class="w"> </span><span class="mf">3.33616304397583</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.5465859174728394</span><span class="p">,</span><span class="w"> </span><span class="mf">8.983413696289062</span><span class="p">,</span><span class="w"> </span><span class="mf">3.7445120811462402</span><span class="p">,</span><span class="w"> </span><span class="mf">2.2405576705932617</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">3.61336350440979</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.7320983409881592</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5740477442741394</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.22006472945213318</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1806044578552246</span><span class="p">,</span><span class="w"> </span><span class="mf">1.1092393398284912</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.29313594102859497</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.41948509216308594</span><span class="p">,</span><span class="w"> </span><span class="mf">3.526411533355713</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.9127179384231567</span><span class="p">,</span><span class="w"> </span><span class="mf">1.8373844623565674</span><span class="p">,</span><span class="w"> </span><span class="mf">1.1746022701263428</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.6885149478912354</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.4326229095458984</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.3498257398605347</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">5.803186416625977</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5204020738601685</span><span class="p" data-group-id="2954435528-5">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="2954435528-6">[</span><span class="o">-</span><span class="mf">15.615742683410645</span><span class="p">,</span><span class="w"> </span><span class="mf">6.555544853210449</span><span class="p">,</span><span class="w"> </span><span class="mf">7.033155918121338</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">12.33556842803955</span><span class="p">,</span><span class="w"> </span><span class="mf">14.105436325073242</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">4.230871200561523</span><span class="p">,</span><span class="w"> </span><span class="mf">5.985136032104492</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">8.445676803588867</span><span class="p">,</span><span class="w"> </span><span class="mf">5.383096694946289</span><span class="p">,</span><span class="w"> </span><span class="mf">23.413570404052734</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8907639980316162</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">1.400709629058838</span><span class="p">,</span><span class="w"> </span><span class="mf">19.19326400756836</span><span class="p">,</span><span class="w"> </span><span class="mf">13.784171104431152</span><span class="p">,</span><span class="w"> </span><span class="mf">9.641424179077148</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">8.407038688659668</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">5.688483238220215</span><span class="p">,</span><span class="w"> </span><span class="mf">4.383636474609375</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="2954435528-6">]</span><span class="w">
+  </span><span class="p" data-group-id="2954435528-4">]</span><span class="w">
+</span><span class="p" data-group-id="2954435528-1">&gt;</span></code></pre><p>As your architectures grow in complexity, you might find yourself reaching for better abstractions to organize your model creation code. For example, PyTorch models are often organized into <code class="inline">nn.Module</code>. The equivalent of an <code class="inline">nn.Module</code> in Axon is a regular Elixir function. If you're translating models from PyTorch to Axon, it's natural to create one Elixir function per <code class="inline">nn.Module</code>.</p><p>You should write your models as you would write any other Elixir code - you don't need to worry about any framework specific constructs:</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyModel</span><span class="w"> </span><span class="k" data-group-id="2469663853-1">do</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">model</span><span class="p" data-group-id="2469663853-2">(</span><span class="p" data-group-id="2469663853-2">)</span><span class="w"> </span><span class="k" data-group-id="2469663853-3">do</span><span class="w">
+    </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2469663853-4">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="2469663853-4">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">conv_block</span><span class="p" data-group-id="2469663853-5">(</span><span class="p" data-group-id="2469663853-5">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">flatten</span><span class="p" data-group-id="2469663853-6">(</span><span class="p" data-group-id="2469663853-6">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense_block</span><span class="p" data-group-id="2469663853-7">(</span><span class="p" data-group-id="2469663853-7">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="n">dense_block</span><span class="p" data-group-id="2469663853-8">(</span><span class="p" data-group-id="2469663853-8">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2469663853-9">(</span><span class="mi">1</span><span class="p" data-group-id="2469663853-9">)</span><span class="w">
+  </span><span class="k" data-group-id="2469663853-3">end</span><span class="w">
 
-  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">conv_block</span><span class="p" data-group-id="0059177367-10">(</span><span class="n">input</span><span class="p" data-group-id="0059177367-10">)</span><span class="w"> </span><span class="k" data-group-id="0059177367-11">do</span><span class="w">
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">conv_block</span><span class="p" data-group-id="2469663853-10">(</span><span class="n">input</span><span class="p" data-group-id="2469663853-10">)</span><span class="w"> </span><span class="k" data-group-id="2469663853-11">do</span><span class="w">
     </span><span class="n">residual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w">
 
-    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">conv</span><span class="p" data-group-id="0059177367-12">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="ss">padding</span><span class="p">:</span><span class="w"> </span><span class="ss">:same</span><span class="p" data-group-id="0059177367-12">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">mish</span><span class="p" data-group-id="0059177367-13">(</span><span class="p" data-group-id="0059177367-13">)</span><span class="w">
+    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">conv</span><span class="p" data-group-id="2469663853-12">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="ss">padding</span><span class="p">:</span><span class="w"> </span><span class="ss">:same</span><span class="p" data-group-id="2469663853-12">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">mish</span><span class="p" data-group-id="2469663853-13">(</span><span class="p" data-group-id="2469663853-13">)</span><span class="w">
 
     </span><span class="n">x</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="0059177367-14">(</span><span class="n">residual</span><span class="p" data-group-id="0059177367-14">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">max_pool</span><span class="p" data-group-id="0059177367-15">(</span><span class="ss">kernel_size</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0059177367-16">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="0059177367-16">}</span><span class="p" data-group-id="0059177367-15">)</span><span class="w">
-  </span><span class="k" data-group-id="0059177367-11">end</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="2469663853-14">(</span><span class="n">residual</span><span class="p" data-group-id="2469663853-14">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">max_pool</span><span class="p" data-group-id="2469663853-15">(</span><span class="ss">kernel_size</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2469663853-16">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="2469663853-16">}</span><span class="p" data-group-id="2469663853-15">)</span><span class="w">
+  </span><span class="k" data-group-id="2469663853-11">end</span><span class="w">
 
-  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">dense_block</span><span class="p" data-group-id="0059177367-17">(</span><span class="n">input</span><span class="p" data-group-id="0059177367-17">)</span><span class="w"> </span><span class="k" data-group-id="0059177367-18">do</span><span class="w">
-    </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0059177367-19">(</span><span class="mi">32</span><span class="p" data-group-id="0059177367-19">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="0059177367-20">(</span><span class="p" data-group-id="0059177367-20">)</span><span class="w">
-  </span><span class="k" data-group-id="0059177367-18">end</span><span class="w">
-</span><span class="k" data-group-id="0059177367-1">end</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="2463364016-1">{</span><span class="ss">:module</span><span class="p">,</span><span class="w"> </span><span class="nc">MyModel</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2463364016-2">&lt;&lt;</span><span class="mi">70</span><span class="p">,</span><span class="w"> </span><span class="mi">79</span><span class="p">,</span><span class="w"> </span><span class="mi">82</span><span class="p">,</span><span class="w"> </span><span class="mi">49</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="2463364016-2">&gt;&gt;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2463364016-3">{</span><span class="ss">:dense_block</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="2463364016-3">}</span><span class="p" data-group-id="2463364016-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">MyModel</span><span class="o">.</span><span class="n">model</span><span class="p" data-group-id="1019562606-1">(</span><span class="p" data-group-id="1019562606-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="2593328130-1">#</span><span class="nc" data-group-id="2593328130-1">Axon</span><span class="p" data-group-id="2593328130-1">&lt;</span><span class="w">
-  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2593328130-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="2593328130-2">}</span><span class="w">
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">dense_block</span><span class="p" data-group-id="2469663853-17">(</span><span class="n">input</span><span class="p" data-group-id="2469663853-17">)</span><span class="w"> </span><span class="k" data-group-id="2469663853-18">do</span><span class="w">
+    </span><span class="n">input</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2469663853-19">(</span><span class="mi">32</span><span class="p" data-group-id="2469663853-19">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="2469663853-20">(</span><span class="p" data-group-id="2469663853-20">)</span><span class="w">
+  </span><span class="k" data-group-id="2469663853-18">end</span><span class="w">
+</span><span class="k" data-group-id="2469663853-1">end</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="8352747036-1">{</span><span class="ss">:module</span><span class="p">,</span><span class="w"> </span><span class="nc">MyModel</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="8352747036-2">&lt;&lt;</span><span class="mi">70</span><span class="p">,</span><span class="w"> </span><span class="mi">79</span><span class="p">,</span><span class="w"> </span><span class="mi">82</span><span class="p">,</span><span class="w"> </span><span class="mi">49</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="8352747036-2">&gt;&gt;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="8352747036-3">{</span><span class="ss">:dense_block</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="8352747036-3">}</span><span class="p" data-group-id="8352747036-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">MyModel</span><span class="o">.</span><span class="n">model</span><span class="p" data-group-id="1871647213-1">(</span><span class="p" data-group-id="1871647213-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="9018878361-1">#</span><span class="nc" data-group-id="9018878361-1">Axon</span><span class="p" data-group-id="9018878361-1">&lt;</span><span class="w">
+  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9018878361-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="9018878361-2">}</span><span class="w">
   </span><span class="ss">outputs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;dense_2&quot;</span><span class="w">
   </span><span class="ss">nodes</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="w">
-</span><span class="p" data-group-id="2593328130-1">&gt;</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="6789644204-1">(</span><span class="p" data-group-id="6789644204-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="6789644204-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="6789644204-1">)</span><span class="w">
-</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="6789644204-3">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="6789644204-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
+</span><span class="p" data-group-id="9018878361-1">&gt;</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="2776881233-1">(</span><span class="p" data-group-id="2776881233-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="2776881233-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="2776881233-1">)</span><span class="w">
+</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="2776881233-3">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="2776881233-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
 10[/&quot;data (:input) {1, 28, 28, 3}&quot;/];
 11[&quot;conv_0 (:conv) {1, 28, 28, 3}&quot;];
 12[&quot;mish_0 (:mish) {1, 28, 28, 3}&quot;];
@@ -239,11 +260,11 @@ Multi-input / multi-output models
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/guides/model_creation/complex_models.livemd">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/guides/model_creation/complex_models.livemd">current file</a>)
 
             </span>
 
@@ -261,7 +282,7 @@ Multi-input / multi-output models
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -269,7 +290,7 @@ Multi-input / multi-output models
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

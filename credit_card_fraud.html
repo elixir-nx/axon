@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Classifying fraudulent transactions — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Classifying fraudulent transactions — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,69 +39,89 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/notebooks/structured/credit_card_fraud.livemd#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/notebooks/structured/credit_card_fraud.livemd#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -115,166 +136,166 @@ Axon
     </a>
   </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="3792964455-1">(</span><span class="p" data-group-id="3792964455-2">[</span><span class="w">
-  </span><span class="p" data-group-id="3792964455-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="3792964455-3">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="3792964455-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="3792964455-4">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="3792964455-5">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p" data-group-id="3792964455-5">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="3792964455-6">{</span><span class="ss">:explorer</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.1&quot;</span><span class="p" data-group-id="3792964455-6">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="3792964455-7">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.7.0&quot;</span><span class="p" data-group-id="3792964455-7">}</span><span class="w">
-</span><span class="p" data-group-id="3792964455-2">]</span><span class="p" data-group-id="3792964455-1">)</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="4749908758-1">(</span><span class="p" data-group-id="4749908758-2">[</span><span class="w">
+  </span><span class="p" data-group-id="4749908758-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.0&quot;</span><span class="p" data-group-id="4749908758-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4749908758-4">{</span><span class="ss">:nx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">override</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="4749908758-4">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4749908758-5">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.4.0&quot;</span><span class="p" data-group-id="4749908758-5">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4749908758-6">{</span><span class="ss">:explorer</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.3.1&quot;</span><span class="p" data-group-id="4749908758-6">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="4749908758-7">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.7.0&quot;</span><span class="p" data-group-id="4749908758-7">}</span><span class="w">
+</span><span class="p" data-group-id="4749908758-2">]</span><span class="p" data-group-id="4749908758-1">)</span><span class="w">
 
-</span><span class="nc">Nx.Defn</span><span class="o">.</span><span class="n">default_options</span><span class="p" data-group-id="3792964455-8">(</span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="3792964455-8">)</span><span class="w">
-</span><span class="nc">Nx</span><span class="o">.</span><span class="n">global_default_backend</span><span class="p" data-group-id="3792964455-9">(</span><span class="nc">EXLA.Backend</span><span class="p" data-group-id="3792964455-9">)</span><span class="w">
+</span><span class="nc">Nx.Defn</span><span class="o">.</span><span class="n">default_options</span><span class="p" data-group-id="4749908758-8">(</span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="4749908758-8">)</span><span class="w">
+</span><span class="nc">Nx</span><span class="o">.</span><span class="n">global_default_backend</span><span class="p" data-group-id="4749908758-9">(</span><span class="nc">EXLA.Backend</span><span class="p" data-group-id="4749908758-9">)</span><span class="w">
 
-</span><span class="kn">alias</span><span class="w"> </span><span class="nc">Explorer</span><span class="o">.</span><span class="p" data-group-id="3792964455-10">{</span><span class="nc">DataFrame</span><span class="p">,</span><span class="w"> </span><span class="nc">Series</span><span class="p" data-group-id="3792964455-10">}</span></code></pre><h2 id="introduction" class="section-heading">
-  <a href="#introduction" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">introduction</p>
+</span><span class="kn">alias</span><span class="w"> </span><span class="nc">Explorer</span><span class="o">.</span><span class="p" data-group-id="4749908758-10">{</span><span class="nc">DataFrame</span><span class="p">,</span><span class="w"> </span><span class="nc">Series</span><span class="p" data-group-id="4749908758-10">}</span></code></pre><h2 id="introduction" class="section-heading">
+  <a href="#introduction" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Introduction
+  <span class="text">Introduction</span>
 </h2>
 <p>This time we will examine the Credit Card Fraud Dataset. Due to confidentiality, the original data were preprocessed by principal component analysis (PCA), and then 31 principal components were selected for the final data set. The dataset is highly imbalanced. The positive class (frauds) account for 0.172% of all transactions. Eventually, we will create a classifier which has not only great accuracy but, what is even more important, a high <em>recall</em> and <em>precision</em> - two metrics that are much more indicative of performance with imbalanced classification problems.</p><h2 id="data-processing" class="section-heading">
-  <a href="#data-processing" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">data-processing</p>
+  <a href="#data-processing" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Data processing
+  <span class="text">Data processing</span>
 </h2>
-<p>The first step is to prepare the data for training and evaluation. Please download the dataset in the CSV format from <a href="https://www.kaggle.com/mlg-ulb/creditcardfraud">https://www.kaggle.com/mlg-ulb/creditcardfraud</a> (this requires a Kaggla account). Once done, put the file path in the input below.</p><pre><code class="makeup elixir" translate="no"><span class="n">data_path_input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Kino.Input</span><span class="o">.</span><span class="n">text</span><span class="p" data-group-id="8084210109-1">(</span><span class="s">&quot;Data path (CSV)&quot;</span><span class="p" data-group-id="8084210109-1">)</span></code></pre><p>Now, let's read the data into an <code class="inline">Explorer.Dataframe</code>:</p><pre><code class="makeup elixir" translate="no"><span class="n">data_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Kino.Input</span><span class="o">.</span><span class="n">read</span><span class="p" data-group-id="5827088971-1">(</span><span class="n">data_path_input</span><span class="p" data-group-id="5827088971-1">)</span><span class="w">
+<p>The first step is to prepare the data for training and evaluation. Please download the dataset in the CSV format from <a href="https://www.kaggle.com/mlg-ulb/creditcardfraud">https://www.kaggle.com/mlg-ulb/creditcardfraud</a> (this requires a Kaggla account). Once done, put the file path in the input below.</p><pre><code class="makeup elixir" translate="no"><span class="n">data_path_input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Kino.Input</span><span class="o">.</span><span class="n">text</span><span class="p" data-group-id="7596253558-1">(</span><span class="s">&quot;Data path (CSV)&quot;</span><span class="p" data-group-id="7596253558-1">)</span></code></pre><p>Now, let's read the data into an <code class="inline">Explorer.Dataframe</code>:</p><pre><code class="makeup elixir" translate="no"><span class="n">data_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Kino.Input</span><span class="o">.</span><span class="n">read</span><span class="p" data-group-id="8158390962-1">(</span><span class="n">data_path_input</span><span class="p" data-group-id="8158390962-1">)</span><span class="w">
 
-</span><span class="n">df</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">from_csv!</span><span class="p" data-group-id="5827088971-2">(</span><span class="n">data_path</span><span class="p">,</span><span class="w"> </span><span class="ss">dtypes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5827088971-3">[</span><span class="p" data-group-id="5827088971-4">{</span><span class="s">&quot;Time&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:float</span><span class="p" data-group-id="5827088971-4">}</span><span class="p" data-group-id="5827088971-3">]</span><span class="p" data-group-id="5827088971-2">)</span></code></pre><p>For further processing, we will need a couple helper functions. We will group them in a module for convenience.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="w"> </span><span class="k" data-group-id="9578752143-1">do</span><span class="w">
+</span><span class="n">df</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">from_csv!</span><span class="p" data-group-id="8158390962-2">(</span><span class="n">data_path</span><span class="p">,</span><span class="w"> </span><span class="ss">dtypes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8158390962-3">[</span><span class="p" data-group-id="8158390962-4">{</span><span class="s">&quot;Time&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:float</span><span class="p" data-group-id="8158390962-4">}</span><span class="p" data-group-id="8158390962-3">]</span><span class="p" data-group-id="8158390962-2">)</span></code></pre><p>For further processing, we will need a couple helper functions. We will group them in a module for convenience.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="w"> </span><span class="k" data-group-id="5720531885-1">do</span><span class="w">
   </span><span class="kn">import</span><span class="w"> </span><span class="nc">Nx.Defn</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">split_train_test</span><span class="p" data-group-id="9578752143-2">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="n">portion</span><span class="p" data-group-id="9578752143-2">)</span><span class="w"> </span><span class="k" data-group-id="9578752143-3">do</span><span class="w">
-    </span><span class="n">num_examples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="9578752143-4">(</span><span class="n">df</span><span class="p" data-group-id="9578752143-4">)</span><span class="w">
-    </span><span class="n">num_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ceil</span><span class="p" data-group-id="9578752143-5">(</span><span class="n">portion</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">num_examples</span><span class="p" data-group-id="9578752143-5">)</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">split_train_test</span><span class="p" data-group-id="5720531885-2">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="n">portion</span><span class="p" data-group-id="5720531885-2">)</span><span class="w"> </span><span class="k" data-group-id="5720531885-3">do</span><span class="w">
+    </span><span class="n">num_examples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="5720531885-4">(</span><span class="n">df</span><span class="p" data-group-id="5720531885-4">)</span><span class="w">
+    </span><span class="n">num_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ceil</span><span class="p" data-group-id="5720531885-5">(</span><span class="n">portion</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">num_examples</span><span class="p" data-group-id="5720531885-5">)</span><span class="w">
     </span><span class="n">num_test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">num_examples</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">num_train</span><span class="w">
 
-    </span><span class="n">train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">slice</span><span class="p" data-group-id="9578752143-6">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">num_train</span><span class="p" data-group-id="9578752143-6">)</span><span class="w">
-    </span><span class="n">test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">slice</span><span class="p" data-group-id="9578752143-7">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="n">num_train</span><span class="p">,</span><span class="w"> </span><span class="n">num_test</span><span class="p" data-group-id="9578752143-7">)</span><span class="w">
-    </span><span class="p" data-group-id="9578752143-8">{</span><span class="n">train</span><span class="p">,</span><span class="w"> </span><span class="n">test</span><span class="p" data-group-id="9578752143-8">}</span><span class="w">
-  </span><span class="k" data-group-id="9578752143-3">end</span><span class="w">
+    </span><span class="n">train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">slice</span><span class="p" data-group-id="5720531885-6">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">num_train</span><span class="p" data-group-id="5720531885-6">)</span><span class="w">
+    </span><span class="n">test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">slice</span><span class="p" data-group-id="5720531885-7">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="n">num_train</span><span class="p">,</span><span class="w"> </span><span class="n">num_test</span><span class="p" data-group-id="5720531885-7">)</span><span class="w">
+    </span><span class="p" data-group-id="5720531885-8">{</span><span class="n">train</span><span class="p">,</span><span class="w"> </span><span class="n">test</span><span class="p" data-group-id="5720531885-8">}</span><span class="w">
+  </span><span class="k" data-group-id="5720531885-3">end</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">split_features_targets</span><span class="p" data-group-id="9578752143-9">(</span><span class="n">df</span><span class="p" data-group-id="9578752143-9">)</span><span class="w"> </span><span class="k" data-group-id="9578752143-10">do</span><span class="w">
-    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">select</span><span class="p" data-group-id="9578752143-11">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="p" data-group-id="9578752143-12">(</span><span class="ni">&amp;1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;Class&quot;</span><span class="p" data-group-id="9578752143-12">)</span><span class="p">,</span><span class="w"> </span><span class="ss">:drop</span><span class="p" data-group-id="9578752143-11">)</span><span class="w">
-    </span><span class="n">targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">select</span><span class="p" data-group-id="9578752143-13">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="p" data-group-id="9578752143-14">(</span><span class="ni">&amp;1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;Class&quot;</span><span class="p" data-group-id="9578752143-14">)</span><span class="p">,</span><span class="w"> </span><span class="ss">:keep</span><span class="p" data-group-id="9578752143-13">)</span><span class="w">
-    </span><span class="p" data-group-id="9578752143-15">{</span><span class="n">features</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="9578752143-15">}</span><span class="w">
-  </span><span class="k" data-group-id="9578752143-10">end</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">split_features_targets</span><span class="p" data-group-id="5720531885-9">(</span><span class="n">df</span><span class="p" data-group-id="5720531885-9">)</span><span class="w"> </span><span class="k" data-group-id="5720531885-10">do</span><span class="w">
+    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">select</span><span class="p" data-group-id="5720531885-11">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="p" data-group-id="5720531885-12">(</span><span class="ni">&amp;1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;Class&quot;</span><span class="p" data-group-id="5720531885-12">)</span><span class="p">,</span><span class="w"> </span><span class="ss">:drop</span><span class="p" data-group-id="5720531885-11">)</span><span class="w">
+    </span><span class="n">targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">select</span><span class="p" data-group-id="5720531885-13">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="p" data-group-id="5720531885-14">(</span><span class="ni">&amp;1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;Class&quot;</span><span class="p" data-group-id="5720531885-14">)</span><span class="p">,</span><span class="w"> </span><span class="ss">:keep</span><span class="p" data-group-id="5720531885-13">)</span><span class="w">
+    </span><span class="p" data-group-id="5720531885-15">{</span><span class="n">features</span><span class="p">,</span><span class="w"> </span><span class="n">targets</span><span class="p" data-group-id="5720531885-15">}</span><span class="w">
+  </span><span class="k" data-group-id="5720531885-10">end</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">df_to_tensor</span><span class="p" data-group-id="9578752143-16">(</span><span class="n">df</span><span class="p" data-group-id="9578752143-16">)</span><span class="w"> </span><span class="k" data-group-id="9578752143-17">do</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">df_to_tensor</span><span class="p" data-group-id="5720531885-16">(</span><span class="n">df</span><span class="p" data-group-id="5720531885-16">)</span><span class="w"> </span><span class="k" data-group-id="5720531885-17">do</span><span class="w">
     </span><span class="n">df</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">names</span><span class="p" data-group-id="9578752143-18">(</span><span class="p" data-group-id="9578752143-18">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="9578752143-19">(</span><span class="o">&amp;</span><span class="nc">Series</span><span class="o">.</span><span class="n">to_tensor</span><span class="p" data-group-id="9578752143-20">(</span><span class="n">df</span><span class="p" data-group-id="9578752143-21">[</span><span class="ni">&amp;1</span><span class="p" data-group-id="9578752143-21">]</span><span class="p" data-group-id="9578752143-20">)</span><span class="p" data-group-id="9578752143-19">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">stack</span><span class="p" data-group-id="9578752143-22">(</span><span class="ss">axis</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="9578752143-22">)</span><span class="w">
-  </span><span class="k" data-group-id="9578752143-17">end</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">names</span><span class="p" data-group-id="5720531885-18">(</span><span class="p" data-group-id="5720531885-18">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="5720531885-19">(</span><span class="o">&amp;</span><span class="nc">Series</span><span class="o">.</span><span class="n">to_tensor</span><span class="p" data-group-id="5720531885-20">(</span><span class="n">df</span><span class="p" data-group-id="5720531885-21">[</span><span class="ni">&amp;1</span><span class="p" data-group-id="5720531885-21">]</span><span class="p" data-group-id="5720531885-20">)</span><span class="p" data-group-id="5720531885-19">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">stack</span><span class="p" data-group-id="5720531885-22">(</span><span class="ss">axis</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="5720531885-22">)</span><span class="w">
+  </span><span class="k" data-group-id="5720531885-17">end</span><span class="w">
 
-  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">normalize_features</span><span class="p" data-group-id="9578752143-23">(</span><span class="n">tensor</span><span class="p" data-group-id="9578752143-23">)</span><span class="w"> </span><span class="k" data-group-id="9578752143-24">do</span><span class="w">
+  </span><span class="kd">defn</span><span class="w"> </span><span class="nf">normalize_features</span><span class="p" data-group-id="5720531885-23">(</span><span class="n">tensor</span><span class="p" data-group-id="5720531885-23">)</span><span class="w"> </span><span class="k" data-group-id="5720531885-24">do</span><span class="w">
     </span><span class="n">max</span><span class="w"> </span><span class="o">=</span><span class="w">
       </span><span class="n">tensor</span><span class="w">
-      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">abs</span><span class="p" data-group-id="9578752143-25">(</span><span class="p" data-group-id="9578752143-25">)</span><span class="w">
-      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reduce_max</span><span class="p" data-group-id="9578752143-26">(</span><span class="ss">axes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9578752143-27">[</span><span class="mi">0</span><span class="p" data-group-id="9578752143-27">]</span><span class="p">,</span><span class="w"> </span><span class="ss">keep_axes</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="9578752143-26">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">abs</span><span class="p" data-group-id="5720531885-25">(</span><span class="p" data-group-id="5720531885-25">)</span><span class="w">
+      </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">reduce_max</span><span class="p" data-group-id="5720531885-26">(</span><span class="ss">axes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5720531885-27">[</span><span class="mi">0</span><span class="p" data-group-id="5720531885-27">]</span><span class="p">,</span><span class="w"> </span><span class="ss">keep_axes</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="5720531885-26">)</span><span class="w">
 
     </span><span class="n">tensor</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">max</span><span class="w">
-  </span><span class="k" data-group-id="9578752143-24">end</span><span class="w">
-</span><span class="k" data-group-id="9578752143-1">end</span></code></pre><p>With that, we can start converting the data into the desired format. First, we split the data into training and test data (in proportion 80% into a training set and 20% into a test set).</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="1673268210-1">{</span><span class="n">train_df</span><span class="p">,</span><span class="w"> </span><span class="n">test_df</span><span class="p" data-group-id="1673268210-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_train_test</span><span class="p" data-group-id="1673268210-2">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p" data-group-id="1673268210-2">)</span><span class="w">
-</span><span class="p" data-group-id="1673268210-3">{</span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="1673268210-4">(</span><span class="n">train_df</span><span class="p" data-group-id="1673268210-4">)</span><span class="p">,</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="1673268210-5">(</span><span class="n">test_df</span><span class="p" data-group-id="1673268210-5">)</span><span class="p" data-group-id="1673268210-3">}</span></code></pre><p>Next, we separate features from labels and convert both to tensors. In case of features we additionally normalize each of them, dividing by the maximum absolute value of that feature.</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="9817373512-1">{</span><span class="n">train_features</span><span class="p">,</span><span class="w"> </span><span class="n">train_targets</span><span class="p" data-group-id="9817373512-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_features_targets</span><span class="p" data-group-id="9817373512-2">(</span><span class="n">train_df</span><span class="p" data-group-id="9817373512-2">)</span><span class="w">
-</span><span class="p" data-group-id="9817373512-3">{</span><span class="n">test_features</span><span class="p">,</span><span class="w"> </span><span class="n">test_targets</span><span class="p" data-group-id="9817373512-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_features_targets</span><span class="p" data-group-id="9817373512-4">(</span><span class="n">test_df</span><span class="p" data-group-id="9817373512-4">)</span><span class="w">
+  </span><span class="k" data-group-id="5720531885-24">end</span><span class="w">
+</span><span class="k" data-group-id="5720531885-1">end</span></code></pre><p>With that, we can start converting the data into the desired format. First, we split the data into training and test data (in proportion 80% into a training set and 20% into a test set).</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="4687343156-1">{</span><span class="n">train_df</span><span class="p">,</span><span class="w"> </span><span class="n">test_df</span><span class="p" data-group-id="4687343156-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_train_test</span><span class="p" data-group-id="4687343156-2">(</span><span class="n">df</span><span class="p">,</span><span class="w"> </span><span class="mf">0.8</span><span class="p" data-group-id="4687343156-2">)</span><span class="w">
+</span><span class="p" data-group-id="4687343156-3">{</span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="4687343156-4">(</span><span class="n">train_df</span><span class="p" data-group-id="4687343156-4">)</span><span class="p">,</span><span class="w"> </span><span class="nc">DataFrame</span><span class="o">.</span><span class="n">n_rows</span><span class="p" data-group-id="4687343156-5">(</span><span class="n">test_df</span><span class="p" data-group-id="4687343156-5">)</span><span class="p" data-group-id="4687343156-3">}</span></code></pre><p>Next, we separate features from labels and convert both to tensors. In case of features we additionally normalize each of them, dividing by the maximum absolute value of that feature.</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="5246254377-1">{</span><span class="n">train_features</span><span class="p">,</span><span class="w"> </span><span class="n">train_targets</span><span class="p" data-group-id="5246254377-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_features_targets</span><span class="p" data-group-id="5246254377-2">(</span><span class="n">train_df</span><span class="p" data-group-id="5246254377-2">)</span><span class="w">
+</span><span class="p" data-group-id="5246254377-3">{</span><span class="n">test_features</span><span class="p">,</span><span class="w"> </span><span class="n">test_targets</span><span class="p" data-group-id="5246254377-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">split_features_targets</span><span class="p" data-group-id="5246254377-4">(</span><span class="n">test_df</span><span class="p" data-group-id="5246254377-4">)</span><span class="w">
 
 </span><span class="n">train_inputs</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">train_features</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="9817373512-5">(</span><span class="p" data-group-id="9817373512-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">normalize_features</span><span class="p" data-group-id="9817373512-6">(</span><span class="p" data-group-id="9817373512-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="5246254377-5">(</span><span class="p" data-group-id="5246254377-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">normalize_features</span><span class="p" data-group-id="5246254377-6">(</span><span class="p" data-group-id="5246254377-6">)</span><span class="w">
 
 </span><span class="n">test_inputs</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">test_features</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="9817373512-7">(</span><span class="p" data-group-id="9817373512-7">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">normalize_features</span><span class="p" data-group-id="9817373512-8">(</span><span class="p" data-group-id="9817373512-8">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="5246254377-7">(</span><span class="p" data-group-id="5246254377-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">normalize_features</span><span class="p" data-group-id="5246254377-8">(</span><span class="p" data-group-id="5246254377-8">)</span><span class="w">
 
-</span><span class="n">train_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="9817373512-9">(</span><span class="n">train_targets</span><span class="p" data-group-id="9817373512-9">)</span><span class="w">
-</span><span class="n">test_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="9817373512-10">(</span><span class="n">test_targets</span><span class="p" data-group-id="9817373512-10">)</span><span class="w">
+</span><span class="n">train_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="5246254377-9">(</span><span class="n">train_targets</span><span class="p" data-group-id="5246254377-9">)</span><span class="w">
+</span><span class="n">test_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">CredidCard.Data</span><span class="o">.</span><span class="n">df_to_tensor</span><span class="p" data-group-id="5246254377-10">(</span><span class="n">test_targets</span><span class="p" data-group-id="5246254377-10">)</span><span class="w">
 
 </span><span class="ss">:ok</span></code></pre><h2 id="building-the-model" class="section-heading">
-  <a href="#building-the-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">building-the-model</p>
+  <a href="#building-the-model" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Building the model
+  <span class="text">Building the model</span>
 </h2>
 <p>Our model for predicting whether a transaction was fraudulent or not is a dense neural network. It consists of two dense layers with 256 neurons, ReLU activation functions, one dropout layer, and a dense layer with one neuron (since the problem is a binary prediction) followed by a sigmoid activation function.</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="9914494345-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="9914494345-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9914494345-2">(</span><span class="mi">256</span><span class="p" data-group-id="9914494345-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="9914494345-3">(</span><span class="p" data-group-id="9914494345-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9914494345-4">(</span><span class="mi">256</span><span class="p" data-group-id="9914494345-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="9914494345-5">(</span><span class="p" data-group-id="9914494345-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9914494345-6">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.3</span><span class="p" data-group-id="9914494345-6">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9914494345-7">(</span><span class="mi">1</span><span class="p" data-group-id="9914494345-7">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="9914494345-8">(</span><span class="p" data-group-id="9914494345-8">)</span></code></pre><h2 id="training-our-model" class="section-heading">
-  <a href="#training-our-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">training-our-model</p>
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="0958819217-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="0958819217-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0958819217-2">(</span><span class="mi">256</span><span class="p" data-group-id="0958819217-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="0958819217-3">(</span><span class="p" data-group-id="0958819217-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0958819217-4">(</span><span class="mi">256</span><span class="p" data-group-id="0958819217-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="0958819217-5">(</span><span class="p" data-group-id="0958819217-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="0958819217-6">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.3</span><span class="p" data-group-id="0958819217-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0958819217-7">(</span><span class="mi">1</span><span class="p" data-group-id="0958819217-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">sigmoid</span><span class="p" data-group-id="0958819217-8">(</span><span class="p" data-group-id="0958819217-8">)</span></code></pre><h2 id="training-our-model" class="section-heading">
+  <a href="#training-our-model" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Training our model
+  <span class="text">Training our model</span>
 </h2>
-<p>Now we have both data and model architecture prepared, it's time to train!</p><p>Note the disproportion in the data samples:</p><pre><code class="makeup elixir" translate="no"><span class="n">fraud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">sum</span><span class="p" data-group-id="9511950889-1">(</span><span class="n">train_targets</span><span class="p" data-group-id="9511950889-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="9511950889-2">(</span><span class="p" data-group-id="9511950889-2">)</span><span class="w">
-</span><span class="n">legit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">size</span><span class="p" data-group-id="9511950889-3">(</span><span class="n">train_targets</span><span class="p" data-group-id="9511950889-3">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">fraud</span><span class="w">
+<p>Now we have both data and model architecture prepared, it's time to train!</p><p>Note the disproportion in the data samples:</p><pre><code class="makeup elixir" translate="no"><span class="n">fraud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">sum</span><span class="p" data-group-id="8997326662-1">(</span><span class="n">train_targets</span><span class="p" data-group-id="8997326662-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="8997326662-2">(</span><span class="p" data-group-id="8997326662-2">)</span><span class="w">
+</span><span class="n">legit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">size</span><span class="p" data-group-id="8997326662-3">(</span><span class="n">train_targets</span><span class="p" data-group-id="8997326662-3">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">fraud</span><span class="w">
 
-</span><span class="n">batched_train_inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="9511950889-4">(</span><span class="n">train_inputs</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="9511950889-4">)</span><span class="w">
-</span><span class="n">batched_train_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="9511950889-5">(</span><span class="n">train_targets</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="9511950889-5">)</span><span class="w">
-</span><span class="n">batched_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="9511950889-6">(</span><span class="n">batched_train_inputs</span><span class="p">,</span><span class="w"> </span><span class="n">batched_train_targets</span><span class="p" data-group-id="9511950889-6">)</span><span class="w">
+</span><span class="n">batched_train_inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8997326662-4">(</span><span class="n">train_inputs</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="8997326662-4">)</span><span class="w">
+</span><span class="n">batched_train_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8997326662-5">(</span><span class="n">train_targets</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="8997326662-5">)</span><span class="w">
+</span><span class="n">batched_train</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="8997326662-6">(</span><span class="n">batched_train_inputs</span><span class="p">,</span><span class="w"> </span><span class="n">batched_train_targets</span><span class="p" data-group-id="8997326662-6">)</span><span class="w">
 
-</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="9511950889-7">(</span><span class="s">&quot;# of legit transactions (train): </span><span class="si" data-group-id="9511950889-8">#{</span><span class="n">legit</span><span class="si" data-group-id="9511950889-8">}</span><span class="s">&quot;</span><span class="p" data-group-id="9511950889-7">)</span><span class="w">
-</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="9511950889-9">(</span><span class="s">&quot;# of fraudulent transactions (train): </span><span class="si" data-group-id="9511950889-10">#{</span><span class="n">fraud</span><span class="si" data-group-id="9511950889-10">}</span><span class="s">&quot;</span><span class="p" data-group-id="9511950889-9">)</span><span class="w">
-</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="9511950889-11">(</span><span class="s">&quot;% fraudlent transactions (train): </span><span class="si" data-group-id="9511950889-12">#{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="9511950889-13">(</span><span class="n">fraud</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p" data-group-id="9511950889-14">(</span><span class="n">legit</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">fraud</span><span class="p" data-group-id="9511950889-14">)</span><span class="p" data-group-id="9511950889-13">)</span><span class="si" data-group-id="9511950889-12">}</span><span class="s">%&quot;</span><span class="p" data-group-id="9511950889-11">)</span></code></pre><p>As always, we define our train loop. We are using <em>binary cross-entropy</em> as our loss function and Adam as the optimizer with a learning rate of 0.01. Then we immediately start the training passing our train portion of the dataset.</p><pre><code class="makeup elixir" translate="no"><span class="n">loss</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="o">&amp;</span><span class="nc">Axon.Losses</span><span class="o">.</span><span class="n">binary_cross_entropy</span><span class="p" data-group-id="2760984090-1">(</span><span class="w">
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8997326662-7">(</span><span class="s">&quot;# of legit transactions (train): </span><span class="si" data-group-id="8997326662-8">#{</span><span class="n">legit</span><span class="si" data-group-id="8997326662-8">}</span><span class="s">&quot;</span><span class="p" data-group-id="8997326662-7">)</span><span class="w">
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8997326662-9">(</span><span class="s">&quot;# of fraudulent transactions (train): </span><span class="si" data-group-id="8997326662-10">#{</span><span class="n">fraud</span><span class="si" data-group-id="8997326662-10">}</span><span class="s">&quot;</span><span class="p" data-group-id="8997326662-9">)</span><span class="w">
+</span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8997326662-11">(</span><span class="s">&quot;% fraudlent transactions (train): </span><span class="si" data-group-id="8997326662-12">#{</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="8997326662-13">(</span><span class="n">fraud</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p" data-group-id="8997326662-14">(</span><span class="n">legit</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">fraud</span><span class="p" data-group-id="8997326662-14">)</span><span class="p" data-group-id="8997326662-13">)</span><span class="si" data-group-id="8997326662-12">}</span><span class="s">%&quot;</span><span class="p" data-group-id="8997326662-11">)</span></code></pre><p>As always, we define our train loop. We are using <em>binary cross-entropy</em> as our loss function and Adam as the optimizer with a learning rate of 0.01. Then we immediately start the training passing our train portion of the dataset.</p><pre><code class="makeup elixir" translate="no"><span class="n">loss</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="o">&amp;</span><span class="nc">Axon.Losses</span><span class="o">.</span><span class="n">binary_cross_entropy</span><span class="p" data-group-id="3841376206-1">(</span><span class="w">
     </span><span class="ni">&amp;1</span><span class="p">,</span><span class="w">
     </span><span class="ni">&amp;2</span><span class="p">,</span><span class="w">
     </span><span class="ss">negative_weight</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">legit</span><span class="p">,</span><span class="w">
     </span><span class="ss">positive_weight</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">fraud</span><span class="p">,</span><span class="w">
     </span><span class="ss">reduction</span><span class="p">:</span><span class="w"> </span><span class="ss">:mean</span><span class="w">
-  </span><span class="p" data-group-id="2760984090-1">)</span><span class="w">
+  </span><span class="p" data-group-id="3841376206-1">)</span><span class="w">
 
-</span><span class="n">optimizer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Polaris.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="2760984090-2">(</span><span class="ss">learning_rate</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0e-2</span><span class="p" data-group-id="2760984090-2">)</span><span class="w">
+</span><span class="n">optimizer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Polaris.Optimizers</span><span class="o">.</span><span class="n">adam</span><span class="p" data-group-id="3841376206-2">(</span><span class="ss">learning_rate</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0e-2</span><span class="p" data-group-id="3841376206-2">)</span><span class="w">
 
 </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">model</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="2760984090-3">(</span><span class="n">loss</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer</span><span class="p" data-group-id="2760984090-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="2760984090-4">(</span><span class="n">batched_train</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2760984090-5">%{</span><span class="p" data-group-id="2760984090-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="2760984090-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="3841376206-3">(</span><span class="n">loss</span><span class="p">,</span><span class="w"> </span><span class="n">optimizer</span><span class="p" data-group-id="3841376206-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="3841376206-4">(</span><span class="n">batched_train</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="3841376206-5">%{</span><span class="p" data-group-id="3841376206-5">}</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="3841376206-4">)</span><span class="w">
 
 </span><span class="ss">:ok</span></code></pre><h2 id="model-evaluation" class="section-heading">
-  <a href="#model-evaluation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">model-evaluation</p>
+  <a href="#model-evaluation" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Model evaluation
+  <span class="text">Model evaluation</span>
 </h2>
-<p>After the training, there is only one thing left: testing. Here, we will focus on the number of true positive, true negative, false positive, and false negative values, but also on the likelihood of denying legit and fraudulent transactions.</p><pre><code class="makeup elixir" translate="no"><span class="n">batched_test_inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8579620014-1">(</span><span class="n">test_inputs</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="8579620014-1">)</span><span class="w">
-</span><span class="n">batched_test_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="8579620014-2">(</span><span class="n">test_targets</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="8579620014-2">)</span><span class="w">
-</span><span class="n">batched_test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="8579620014-3">(</span><span class="n">batched_test_inputs</span><span class="p">,</span><span class="w"> </span><span class="n">batched_test_targets</span><span class="p" data-group-id="8579620014-3">)</span><span class="w">
+<p>After the training, there is only one thing left: testing. Here, we will focus on the number of true positive, true negative, false positive, and false negative values, but also on the likelihood of denying legit and fraudulent transactions.</p><pre><code class="makeup elixir" translate="no"><span class="n">batched_test_inputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="2339248908-1">(</span><span class="n">test_inputs</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="2339248908-1">)</span><span class="w">
+</span><span class="n">batched_test_targets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="2339248908-2">(</span><span class="n">test_targets</span><span class="p">,</span><span class="w"> </span><span class="mi">2048</span><span class="p" data-group-id="2339248908-2">)</span><span class="w">
+</span><span class="n">batched_test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Stream</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="2339248908-3">(</span><span class="n">batched_test_inputs</span><span class="p">,</span><span class="w"> </span><span class="n">batched_test_targets</span><span class="p" data-group-id="2339248908-3">)</span><span class="w">
 
-</span><span class="n">summarize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="8579620014-4">fn</span><span class="w"> </span><span class="p" data-group-id="8579620014-5">%</span><span class="nc" data-group-id="8579620014-5">Axon.Loop.State</span><span class="p" data-group-id="8579620014-5">{</span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">metrics</span><span class="p" data-group-id="8579620014-5">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-  </span><span class="n">legit_transactions_declined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="8579620014-6">(</span><span class="n">metrics</span><span class="p" data-group-id="8579620014-7">[</span><span class="s">&quot;fp&quot;</span><span class="p" data-group-id="8579620014-7">]</span><span class="p" data-group-id="8579620014-6">)</span><span class="w">
-  </span><span class="n">legit_transactions_accepted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="8579620014-8">(</span><span class="n">metrics</span><span class="p" data-group-id="8579620014-9">[</span><span class="s">&quot;tn&quot;</span><span class="p" data-group-id="8579620014-9">]</span><span class="p" data-group-id="8579620014-8">)</span><span class="w">
-  </span><span class="n">fraud_transactions_accepted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="8579620014-10">(</span><span class="n">metrics</span><span class="p" data-group-id="8579620014-11">[</span><span class="s">&quot;fn&quot;</span><span class="p" data-group-id="8579620014-11">]</span><span class="p" data-group-id="8579620014-10">)</span><span class="w">
-  </span><span class="n">fraud_transactions_declined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="8579620014-12">(</span><span class="n">metrics</span><span class="p" data-group-id="8579620014-13">[</span><span class="s">&quot;tp&quot;</span><span class="p" data-group-id="8579620014-13">]</span><span class="p" data-group-id="8579620014-12">)</span><span class="w">
+</span><span class="n">summarize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k" data-group-id="2339248908-4">fn</span><span class="w"> </span><span class="p" data-group-id="2339248908-5">%</span><span class="nc" data-group-id="2339248908-5">Axon.Loop.State</span><span class="p" data-group-id="2339248908-5">{</span><span class="ss">metrics</span><span class="p">:</span><span class="w"> </span><span class="n">metrics</span><span class="p" data-group-id="2339248908-5">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+  </span><span class="n">legit_transactions_declined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="2339248908-6">(</span><span class="n">metrics</span><span class="p" data-group-id="2339248908-7">[</span><span class="s">&quot;fp&quot;</span><span class="p" data-group-id="2339248908-7">]</span><span class="p" data-group-id="2339248908-6">)</span><span class="w">
+  </span><span class="n">legit_transactions_accepted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="2339248908-8">(</span><span class="n">metrics</span><span class="p" data-group-id="2339248908-9">[</span><span class="s">&quot;tn&quot;</span><span class="p" data-group-id="2339248908-9">]</span><span class="p" data-group-id="2339248908-8">)</span><span class="w">
+  </span><span class="n">fraud_transactions_accepted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="2339248908-10">(</span><span class="n">metrics</span><span class="p" data-group-id="2339248908-11">[</span><span class="s">&quot;fn&quot;</span><span class="p" data-group-id="2339248908-11">]</span><span class="p" data-group-id="2339248908-10">)</span><span class="w">
+  </span><span class="n">fraud_transactions_declined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_number</span><span class="p" data-group-id="2339248908-12">(</span><span class="n">metrics</span><span class="p" data-group-id="2339248908-13">[</span><span class="s">&quot;tp&quot;</span><span class="p" data-group-id="2339248908-13">]</span><span class="p" data-group-id="2339248908-12">)</span><span class="w">
   </span><span class="n">total_fraud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fraud_transactions_declined</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">fraud_transactions_accepted</span><span class="w">
   </span><span class="n">total_legit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">legit_transactions_declined</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">legit_transactions_accepted</span><span class="w">
 
-  </span><span class="n">fraud_denial_percent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="8579620014-14">(</span><span class="n">fraud_transactions_declined</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total_fraud</span><span class="p" data-group-id="8579620014-14">)</span><span class="w">
-  </span><span class="n">legit_denial_percent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="8579620014-15">(</span><span class="n">legit_transactions_declined</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total_legit</span><span class="p" data-group-id="8579620014-15">)</span><span class="w">
+  </span><span class="n">fraud_denial_percent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="2339248908-14">(</span><span class="n">fraud_transactions_declined</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total_fraud</span><span class="p" data-group-id="2339248908-14">)</span><span class="w">
+  </span><span class="n">legit_denial_percent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p" data-group-id="2339248908-15">(</span><span class="n">legit_transactions_declined</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total_legit</span><span class="p" data-group-id="2339248908-15">)</span><span class="w">
 
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">write</span><span class="p" data-group-id="8579620014-16">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p" data-group-id="8579620014-16">)</span><span class="w">
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8579620014-17">(</span><span class="s">&quot;Legit Transactions Declined: </span><span class="si" data-group-id="8579620014-18">#{</span><span class="n">legit_transactions_declined</span><span class="si" data-group-id="8579620014-18">}</span><span class="s">&quot;</span><span class="p" data-group-id="8579620014-17">)</span><span class="w">
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8579620014-19">(</span><span class="s">&quot;Fraudulent Transactions Caught: </span><span class="si" data-group-id="8579620014-20">#{</span><span class="n">fraud_transactions_declined</span><span class="si" data-group-id="8579620014-20">}</span><span class="s">&quot;</span><span class="p" data-group-id="8579620014-19">)</span><span class="w">
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8579620014-21">(</span><span class="s">&quot;Fraudulent Transactions Missed: </span><span class="si" data-group-id="8579620014-22">#{</span><span class="n">fraud_transactions_accepted</span><span class="si" data-group-id="8579620014-22">}</span><span class="s">&quot;</span><span class="p" data-group-id="8579620014-21">)</span><span class="w">
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8579620014-23">(</span><span class="s">&quot;Likelihood of catching fraud: </span><span class="si" data-group-id="8579620014-24">#{</span><span class="n">fraud_denial_percent</span><span class="si" data-group-id="8579620014-24">}</span><span class="s">%&quot;</span><span class="p" data-group-id="8579620014-23">)</span><span class="w">
-  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="8579620014-25">(</span><span class="s">&quot;Likelihood of denying legit transaction: </span><span class="si" data-group-id="8579620014-26">#{</span><span class="n">legit_denial_percent</span><span class="si" data-group-id="8579620014-26">}</span><span class="s">%&quot;</span><span class="p" data-group-id="8579620014-25">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">write</span><span class="p" data-group-id="2339248908-16">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p" data-group-id="2339248908-16">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2339248908-17">(</span><span class="s">&quot;Legit Transactions Declined: </span><span class="si" data-group-id="2339248908-18">#{</span><span class="n">legit_transactions_declined</span><span class="si" data-group-id="2339248908-18">}</span><span class="s">&quot;</span><span class="p" data-group-id="2339248908-17">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2339248908-19">(</span><span class="s">&quot;Fraudulent Transactions Caught: </span><span class="si" data-group-id="2339248908-20">#{</span><span class="n">fraud_transactions_declined</span><span class="si" data-group-id="2339248908-20">}</span><span class="s">&quot;</span><span class="p" data-group-id="2339248908-19">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2339248908-21">(</span><span class="s">&quot;Fraudulent Transactions Missed: </span><span class="si" data-group-id="2339248908-22">#{</span><span class="n">fraud_transactions_accepted</span><span class="si" data-group-id="2339248908-22">}</span><span class="s">&quot;</span><span class="p" data-group-id="2339248908-21">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2339248908-23">(</span><span class="s">&quot;Likelihood of catching fraud: </span><span class="si" data-group-id="2339248908-24">#{</span><span class="n">fraud_denial_percent</span><span class="si" data-group-id="2339248908-24">}</span><span class="s">%&quot;</span><span class="p" data-group-id="2339248908-23">)</span><span class="w">
+  </span><span class="nc">IO</span><span class="o">.</span><span class="n">puts</span><span class="p" data-group-id="2339248908-25">(</span><span class="s">&quot;Likelihood of denying legit transaction: </span><span class="si" data-group-id="2339248908-26">#{</span><span class="n">legit_denial_percent</span><span class="si" data-group-id="2339248908-26">}</span><span class="s">%&quot;</span><span class="p" data-group-id="2339248908-25">)</span><span class="w">
 
-  </span><span class="p" data-group-id="8579620014-27">{</span><span class="ss">:continue</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="8579620014-27">}</span><span class="w">
-</span><span class="k" data-group-id="8579620014-4">end</span><span class="w">
+  </span><span class="p" data-group-id="2339248908-27">{</span><span class="ss">:continue</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="2339248908-27">}</span><span class="w">
+</span><span class="k" data-group-id="2339248908-4">end</span><span class="w">
 
 </span><span class="n">model</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">evaluator</span><span class="p" data-group-id="8579620014-28">(</span><span class="p" data-group-id="8579620014-28">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="8579620014-29">(</span><span class="ss">:true_positives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tp&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="8579620014-29">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="8579620014-30">(</span><span class="ss">:true_negatives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tn&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="8579620014-30">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="8579620014-31">(</span><span class="ss">:false_positives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;fp&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="8579620014-31">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="8579620014-32">(</span><span class="ss">:false_negatives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;fn&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="8579620014-32">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">handle</span><span class="p" data-group-id="8579620014-33">(</span><span class="ss">:epoch_completed</span><span class="p">,</span><span class="w"> </span><span class="n">summarize</span><span class="p" data-group-id="8579620014-33">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="8579620014-34">(</span><span class="n">batched_test</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="8579620014-34">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">evaluator</span><span class="p" data-group-id="2339248908-28">(</span><span class="p" data-group-id="2339248908-28">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="2339248908-29">(</span><span class="ss">:true_positives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tp&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="2339248908-29">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="2339248908-30">(</span><span class="ss">:true_negatives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tn&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="2339248908-30">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="2339248908-31">(</span><span class="ss">:false_positives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;fp&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="2339248908-31">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">metric</span><span class="p" data-group-id="2339248908-32">(</span><span class="ss">:false_negatives</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;fn&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">:running_sum</span><span class="p" data-group-id="2339248908-32">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">handle</span><span class="p" data-group-id="2339248908-33">(</span><span class="ss">:epoch_completed</span><span class="p">,</span><span class="w"> </span><span class="n">summarize</span><span class="p" data-group-id="2339248908-33">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="2339248908-34">(</span><span class="n">batched_test</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="2339248908-34">)</span><span class="w">
 
 </span><span class="ss">:ok</span></code></pre>
 <div class="bottom-actions">
@@ -307,11 +328,11 @@ MNIST Denoising Autoencoder using Kino for visualization
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/notebooks/structured/credit_card_fraud.livemd">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/notebooks/structured/credit_card_fraud.livemd">current file</a>)
 
             </span>
 
@@ -329,7 +350,7 @@ MNIST Denoising Autoencoder using Kino for visualization
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -337,7 +358,7 @@ MNIST Denoising Autoencoder using Kino for visualization
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

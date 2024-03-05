@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Converting ONNX models to Axon — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Converting ONNX models to Axon — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,69 +39,89 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/guides/serialization/onnx_to_axon.livemd#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/guides/serialization/onnx_to_axon.livemd#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
@@ -115,25 +136,25 @@ Axon
     </a>
   </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="3630861754-1">(</span><span class="w">
-  </span><span class="p" data-group-id="3630861754-2">[</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="3630861754-3">}</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-4">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="3630861754-4">}</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-5">{</span><span class="ss">:axon_onnx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.4.0&quot;</span><span class="p" data-group-id="3630861754-5">}</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-6">{</span><span class="ss">:stb_image</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.6.0&quot;</span><span class="p" data-group-id="3630861754-6">}</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-7">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="3630861754-7">}</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="3630861754-8">{</span><span class="ss">:req</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.3.8&quot;</span><span class="p" data-group-id="3630861754-8">}</span><span class="w">
-  </span><span class="p" data-group-id="3630861754-2">]</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="1478075871-1">(</span><span class="w">
+  </span><span class="p" data-group-id="1478075871-2">[</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="1478075871-3">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-4">{</span><span class="ss">:exla</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="1478075871-4">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-5">{</span><span class="ss">:axon_onnx</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.4.0&quot;</span><span class="p" data-group-id="1478075871-5">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-6">{</span><span class="ss">:stb_image</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.6.0&quot;</span><span class="p" data-group-id="1478075871-6">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-7">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="1478075871-7">}</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="1478075871-8">{</span><span class="ss">:req</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.3.8&quot;</span><span class="p" data-group-id="1478075871-8">}</span><span class="w">
+  </span><span class="p" data-group-id="1478075871-2">]</span><span class="w">
   </span><span class="c1"># for Nvidia GPU change to &quot;cuda111&quot; for CUDA 11.1+ or &quot;cuda118&quot; for CUDA 11.8</span><span class="w">
   </span><span class="c1"># CUDA 12.x not supported by XLA</span><span class="w">
   </span><span class="c1"># or you can put this value in ENV variables in Livebook settings</span><span class="w">
   </span><span class="c1"># XLA_TARGET=cuda111</span><span class="w">
   </span><span class="c1"># system_env: %{&quot;XLA_TARGET&quot; =&gt; xla_target}</span><span class="w">
-</span><span class="p" data-group-id="3630861754-1">)</span></code></pre><h2 id="converting-an-onnx-model-into-axon" class="section-heading">
-  <a href="#converting-an-onnx-model-into-axon" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">converting-an-onnx-model-into-axon</p>
+</span><span class="p" data-group-id="1478075871-1">)</span></code></pre><h2 id="converting-an-onnx-model-into-axon" class="section-heading">
+  <a href="#converting-an-onnx-model-into-axon" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Converting an ONNX model into Axon
+  <span class="text">Converting an ONNX model into Axon</span>
 </h2>
 <p>Axon is a new machine learning capability, specific to Elixir. We would like to take
 advantage of a large amount of models that have been written in other languages and
@@ -143,23 +164,23 @@ challenge for all languages and frameworks. <a href="https://onnx.ai/">ONNX</a> 
 format that allows models written in one language or framework to be converted into
 another language and framework.</p><p>The source model must use constructs mapped into ONNX. Also, the destination framework must
 support the model's ONNX constructs. From an Elixir focus, we are interested in ONNX models
-that <a href="https://github.com/elixir-nx/axon_onnx">axon_onnx</a> can convert into Axon models.</p><h3 id="why-is-onnx-important-to-axon" class="section-heading">
-  <a href="#why-is-onnx-important-to-axon" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">why-is-onnx-important-to-axon</p>
+that <a href="https://github.com/elixir-nx/axon_onnx">axon_onnx</a> can convert into Axon models.</p><!-- livebook:{"break_markdown":true} --><h3 id="why-is-onnx-important-to-axon" class="section-heading">
+  <a href="#why-is-onnx-important-to-axon" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Why is ONNX important to Axon?
+  <span class="text">Why is ONNX important to Axon?</span>
 </h3>
-<p>Elixir can get access to thousands of public models and your organization may have private models
+<!-- livebook:{"break_markdown":true} --><p>Elixir can get access to thousands of public models and your organization may have private models
 written in other languages and frameworks. Axon will be hard pressed to quickly repeat the
 countless person-hours spent on developing models in other languages like Tensorflow and PyTorch.
 However, if the model can be converted into ONNX and then into Axon, we can directly run the model
-in Elixir.</p><h3 id="setting-up-our-environment" class="section-heading">
-  <a href="#setting-up-our-environment" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">setting-up-our-environment</p>
+in Elixir.</p><!-- livebook:{"break_markdown":true} --><h3 id="setting-up-our-environment" class="section-heading">
+  <a href="#setting-up-our-environment" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Setting up our environment
+  <span class="text">Setting up our environment</span>
 </h3>
-<p>Axon runs on top of <a href="https://hexdocs.pm/nx">Nx (Numerical Elixir)</a>. Nx has backends for
+<!-- livebook:{"break_markdown":true} --><p>Axon runs on top of <a href="https://hexdocs.pm/nx">Nx (Numerical Elixir)</a>. Nx has backends for
 both Google's XLA (via EXLA) and PyTorch (via Torchx). In this guide, we will use EXLA.
 We'll also convert from an ONNX model into an Axon model using
 <a href="https://github.com/elixir-nx/axon_onnx"><code class="inline">axon_onnx</code></a>.</p><p>You can find all dependencies in the installation cell at the top of the notebook.
@@ -169,7 +190,7 @@ Nx to store tensors in EXLA by default:</p><pre><code class="makeup elixir" tran
 contains the ONNX model file. This notebook assumes the output file location will be
 in models axon. Copy your ONNX model files into the models/onnx folder.</p><p>This opinionated module presents a simple API for loading in an ONNX file and saving
 the converted Axon model in the provided directory. This API will allow us to
-save multiple models pretty quickly.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">OnnxToAxon</span><span class="w"> </span><span class="k" data-group-id="9597074270-1">do</span><span class="w">
+save multiple models pretty quickly.</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">OnnxToAxon</span><span class="w"> </span><span class="k" data-group-id="2241685426-1">do</span><span class="w">
   </span><span class="na">@moduledoc</span><span class="w"> </span><span class="s">&quot;&quot;&quot;
   Helper module from ONNX to Axon.
   &quot;&quot;&quot;</span><span class="w">
@@ -182,40 +203,40 @@ save multiple models pretty quickly.</p><pre><code class="makeup elixir" transla
       OnnxToAxon.onnx_axon(path_to_onnx_file, path_to_axon_dir)
 
   &quot;&quot;&quot;</span><span class="w">
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">onnx_axon</span><span class="p" data-group-id="9597074270-2">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="9597074270-2">)</span><span class="w"> </span><span class="k" data-group-id="9597074270-3">do</span><span class="w">
-    </span><span class="n">axon_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">axon_name_from_onnx_path</span><span class="p" data-group-id="9597074270-4">(</span><span class="n">path_to_onnx_file</span><span class="p" data-group-id="9597074270-4">)</span><span class="w">
-    </span><span class="n">path_to_axon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">join</span><span class="p" data-group-id="9597074270-5">(</span><span class="n">path_to_axon_dir</span><span class="p">,</span><span class="w"> </span><span class="n">axon_name</span><span class="p" data-group-id="9597074270-5">)</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">onnx_axon</span><span class="p" data-group-id="2241685426-2">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="2241685426-2">)</span><span class="w"> </span><span class="k" data-group-id="2241685426-3">do</span><span class="w">
+    </span><span class="n">axon_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">axon_name_from_onnx_path</span><span class="p" data-group-id="2241685426-4">(</span><span class="n">path_to_onnx_file</span><span class="p" data-group-id="2241685426-4">)</span><span class="w">
+    </span><span class="n">path_to_axon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">join</span><span class="p" data-group-id="2241685426-5">(</span><span class="n">path_to_axon_dir</span><span class="p">,</span><span class="w"> </span><span class="n">axon_name</span><span class="p" data-group-id="2241685426-5">)</span><span class="w">
 
-    </span><span class="p" data-group-id="9597074270-6">{</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">parameters</span><span class="p" data-group-id="9597074270-6">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">AxonOnnx</span><span class="o">.</span><span class="kn">import</span><span class="p" data-group-id="9597074270-7">(</span><span class="n">path_to_onnx_file</span><span class="p" data-group-id="9597074270-7">)</span><span class="w">
-    </span><span class="n">model_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">serialize</span><span class="p" data-group-id="9597074270-8">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">parameters</span><span class="p" data-group-id="9597074270-8">)</span><span class="w">
-    </span><span class="nc">File</span><span class="o">.</span><span class="n">write!</span><span class="p" data-group-id="9597074270-9">(</span><span class="n">path_to_axon</span><span class="p">,</span><span class="w"> </span><span class="n">model_bytes</span><span class="p" data-group-id="9597074270-9">)</span><span class="w">
-  </span><span class="k" data-group-id="9597074270-3">end</span><span class="w">
+    </span><span class="p" data-group-id="2241685426-6">{</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">parameters</span><span class="p" data-group-id="2241685426-6">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">AxonOnnx</span><span class="o">.</span><span class="kn">import</span><span class="p" data-group-id="2241685426-7">(</span><span class="n">path_to_onnx_file</span><span class="p" data-group-id="2241685426-7">)</span><span class="w">
+    </span><span class="n">model_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">serialize</span><span class="p" data-group-id="2241685426-8">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">parameters</span><span class="p" data-group-id="2241685426-8">)</span><span class="w">
+    </span><span class="nc">File</span><span class="o">.</span><span class="n">write!</span><span class="p" data-group-id="2241685426-9">(</span><span class="n">path_to_axon</span><span class="p">,</span><span class="w"> </span><span class="n">model_bytes</span><span class="p" data-group-id="2241685426-9">)</span><span class="w">
+  </span><span class="k" data-group-id="2241685426-3">end</span><span class="w">
 
-  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">axon_name_from_onnx_path</span><span class="p" data-group-id="9597074270-10">(</span><span class="n">onnx_path</span><span class="p" data-group-id="9597074270-10">)</span><span class="w"> </span><span class="k" data-group-id="9597074270-11">do</span><span class="w">
-    </span><span class="n">model_root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">onnx_path</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">basename</span><span class="p" data-group-id="9597074270-12">(</span><span class="p" data-group-id="9597074270-12">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">rootname</span><span class="p" data-group-id="9597074270-13">(</span><span class="p" data-group-id="9597074270-13">)</span><span class="w">
-    </span><span class="s">&quot;</span><span class="si" data-group-id="9597074270-14">#{</span><span class="n">model_root</span><span class="si" data-group-id="9597074270-14">}</span><span class="s">.axon&quot;</span><span class="w">
-  </span><span class="k" data-group-id="9597074270-11">end</span><span class="w">
-</span><span class="k" data-group-id="9597074270-1">end</span></code></pre><h2 id="onnx-model" class="section-heading">
-  <a href="#onnx-model" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">onnx-model</p>
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">axon_name_from_onnx_path</span><span class="p" data-group-id="2241685426-10">(</span><span class="n">onnx_path</span><span class="p" data-group-id="2241685426-10">)</span><span class="w"> </span><span class="k" data-group-id="2241685426-11">do</span><span class="w">
+    </span><span class="n">model_root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">onnx_path</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">basename</span><span class="p" data-group-id="2241685426-12">(</span><span class="p" data-group-id="2241685426-12">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Path</span><span class="o">.</span><span class="n">rootname</span><span class="p" data-group-id="2241685426-13">(</span><span class="p" data-group-id="2241685426-13">)</span><span class="w">
+    </span><span class="s">&quot;</span><span class="si" data-group-id="2241685426-14">#{</span><span class="n">model_root</span><span class="si" data-group-id="2241685426-14">}</span><span class="s">.axon&quot;</span><span class="w">
+  </span><span class="k" data-group-id="2241685426-11">end</span><span class="w">
+</span><span class="k" data-group-id="2241685426-1">end</span></code></pre><h2 id="onnx-model" class="section-heading">
+  <a href="#onnx-model" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  ONNX model
+  <span class="text">ONNX model</span>
 </h2>
-<p>For this example, we'll use a couple ONNX models that have been saved in the Huggingface Hub.</p><p>The ONNX models were trained in Fast.ai (PyTorch) using the following notebooks:</p><ul><li><a href="https://github.com/meanderingstream/fastai_course22/blob/main/saving-a-basic-fastai-model-in-onnx.ipynb">https://github.com/meanderingstream/fastai_course22/blob/main/saving-a-basic-fastai-model-in-onnx.ipynb</a></li><li><a href="https://github.com/meanderingstream/fastai_course22/blob/main/saving-cat-dog-breed-fastai-model-in-onnx.ipynb">https://github.com/meanderingstream/fastai_course22/blob/main/saving-cat-dog-breed-fastai-model-in-onnx.ipynb</a></li></ul><p>To repeat this notebook, the onnx files for this notebook can be found on huggingface hub. Download the onnx models from:</p><ul><li><a href="https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX">https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX</a></li><li><a href="https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX">https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX</a></li></ul><p>Download the files and place them in a directory of your choice. By default, we will assume you downloaded them to the same directory as the notebook:</p><pre><code class="makeup elixir" translate="no"><span class="nc">File</span><span class="o">.</span><span class="n">cd!</span><span class="p" data-group-id="6523706601-1">(</span><span class="bp">__DIR__</span><span class="p" data-group-id="6523706601-1">)</span></code></pre><p>Now let's convert an ONNX model into Axon</p><pre><code class="makeup elixir" translate="no"><span class="n">path_to_onnx_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cats_v_dogs.onnx&quot;</span><span class="w">
+<p>For this example, we'll use a couple ONNX models that have been saved in the Huggingface Hub.</p><!-- livebook:{"break_markdown":true} --><p>The ONNX models were trained in Fast.ai (PyTorch) using the following notebooks:</p><ul><li><a href="https://github.com/meanderingstream/fastai_course22/blob/main/saving-a-basic-fastai-model-in-onnx.ipynb">https://github.com/meanderingstream/fastai_course22/blob/main/saving-a-basic-fastai-model-in-onnx.ipynb</a></li><li><a href="https://github.com/meanderingstream/fastai_course22/blob/main/saving-cat-dog-breed-fastai-model-in-onnx.ipynb">https://github.com/meanderingstream/fastai_course22/blob/main/saving-cat-dog-breed-fastai-model-in-onnx.ipynb</a></li></ul><p>To repeat this notebook, the onnx files for this notebook can be found on huggingface hub. Download the onnx models from:</p><ul><li><a href="https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX">https://huggingface.co/ScottMueller/Cats_v_Dogs.ONNX</a></li><li><a href="https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX">https://huggingface.co/ScottMueller/Cat_Dog_Breeds.ONNX</a></li></ul><p>Download the files and place them in a directory of your choice. By default, we will assume you downloaded them to the same directory as the notebook:</p><pre><code class="makeup elixir" translate="no"><span class="nc">File</span><span class="o">.</span><span class="n">cd!</span><span class="p" data-group-id="8309644567-1">(</span><span class="bp">__DIR__</span><span class="p" data-group-id="8309644567-1">)</span></code></pre><p>Now let's convert an ONNX model into Axon</p><pre><code class="makeup elixir" translate="no"><span class="n">path_to_onnx_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cats_v_dogs.onnx&quot;</span><span class="w">
 </span><span class="n">path_to_axon_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;.&quot;</span><span class="w">
-</span><span class="nc">OnnxToAxon</span><span class="o">.</span><span class="n">onnx_axon</span><span class="p" data-group-id="6875609960-1">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="6875609960-1">)</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">path_to_onnx_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cat_dog_breeds.onnx&quot;</span><span class="w">
+</span><span class="nc">OnnxToAxon</span><span class="o">.</span><span class="n">onnx_axon</span><span class="p" data-group-id="0160419713-1">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="0160419713-1">)</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">path_to_onnx_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cat_dog_breeds.onnx&quot;</span><span class="w">
 </span><span class="n">path_to_axon_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;.&quot;</span><span class="w">
-</span><span class="nc">OnnxToAxon</span><span class="o">.</span><span class="n">onnx_axon</span><span class="p" data-group-id="3840367884-1">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="3840367884-1">)</span></code></pre><h2 id="inference-on-onnx-derived-models" class="section-heading">
-  <a href="#inference-on-onnx-derived-models" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">inference-on-onnx-derived-models</p>
+</span><span class="nc">OnnxToAxon</span><span class="o">.</span><span class="n">onnx_axon</span><span class="p" data-group-id="0939340432-1">(</span><span class="n">path_to_onnx_file</span><span class="p">,</span><span class="w"> </span><span class="n">path_to_axon_dir</span><span class="p" data-group-id="0939340432-1">)</span></code></pre><h2 id="inference-on-onnx-derived-models" class="section-heading">
+  <a href="#inference-on-onnx-derived-models" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Inference on ONNX derived models
+  <span class="text">Inference on ONNX derived models</span>
 </h2>
-<p>To run inference on the model, you'll need 10 images focused on cats or dogs. You can download the images used in training the model at:</p><p>&quot;<a href="https://s3.amazonaws.com/fast-ai-imageclas/oxford-iiit-pet.tgz%22">https://s3.amazonaws.com/fast-ai-imageclas/oxford-iiit-pet.tgz&quot;</a></p><p>Or you can find or use your own images. In this notebook, we are going to use the local copies of the Oxford Pets dataset that was used in training the model.</p><p>Let's load the Axon model.</p><pre><code class="makeup elixir" translate="no"><span class="n">cats_v_dogs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="1840755239-1">(</span><span class="s">&quot;cats_v_dogs.axon&quot;</span><span class="p" data-group-id="1840755239-1">)</span><span class="w">
-</span><span class="p" data-group-id="1840755239-2">{</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p" data-group-id="1840755239-2">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="1840755239-3">(</span><span class="n">cats_v_dogs</span><span class="p" data-group-id="1840755239-3">)</span></code></pre><p>We need a tensor representation of an image. Let's start by looking at samples of
-our data.</p><pre><code class="makeup elixir" translate="no"><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="4935399580-1">(</span><span class="s">&quot;oxford-iiit-pet/images/havanese_71.jpg&quot;</span><span class="p" data-group-id="4935399580-1">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Kino.Image</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="4935399580-2">(</span><span class="ss">:jpeg</span><span class="p" data-group-id="4935399580-2">)</span></code></pre><p>To manipulate the images, we will use the <code class="inline">StbImage</code> library:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="8077551830-1">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">img</span><span class="p" data-group-id="8077551830-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">read_file</span><span class="p" data-group-id="8077551830-2">(</span><span class="s">&quot;oxford-iiit-pet/images/havanese_71.jpg&quot;</span><span class="p" data-group-id="8077551830-2">)</span><span class="w">
-</span><span class="p" data-group-id="8077551830-3">%</span><span class="nc" data-group-id="8077551830-3">StbImage</span><span class="p" data-group-id="8077551830-3">{</span><span class="ss">data</span><span class="p">:</span><span class="w"> </span><span class="n">binary</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="n">type</span><span class="p" data-group-id="8077551830-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">resize</span><span class="p" data-group-id="8077551830-4">(</span><span class="n">img</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p" data-group-id="8077551830-4">)</span></code></pre><p>Now let's work on a batch of images and convert them to tensors. Here are the images we will work with:</p><pre><code class="makeup elixir" translate="no"><span class="n">file_names</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="4858703255-1">[</span><span class="w">
+<p>To run inference on the model, you'll need 10 images focused on cats or dogs. You can download the images used in training the model at:</p><p>&quot;<a href="https://s3.amazonaws.com/fast-ai-imageclas/oxford-iiit-pet.tgz%22">https://s3.amazonaws.com/fast-ai-imageclas/oxford-iiit-pet.tgz&quot;</a></p><p>Or you can find or use your own images. In this notebook, we are going to use the local copies of the Oxford Pets dataset that was used in training the model.</p><!-- livebook:{"break_markdown":true} --><p>Let's load the Axon model.</p><pre><code class="makeup elixir" translate="no"><span class="n">cats_v_dogs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="8241185159-1">(</span><span class="s">&quot;cats_v_dogs.axon&quot;</span><span class="p" data-group-id="8241185159-1">)</span><span class="w">
+</span><span class="p" data-group-id="8241185159-2">{</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p" data-group-id="8241185159-2">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="8241185159-3">(</span><span class="n">cats_v_dogs</span><span class="p" data-group-id="8241185159-3">)</span></code></pre><p>We need a tensor representation of an image. Let's start by looking at samples of
+our data.</p><pre><code class="makeup elixir" translate="no"><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="8652695752-1">(</span><span class="s">&quot;oxford-iiit-pet/images/havanese_71.jpg&quot;</span><span class="p" data-group-id="8652695752-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Kino.Image</span><span class="o">.</span><span class="n">new</span><span class="p" data-group-id="8652695752-2">(</span><span class="ss">:jpeg</span><span class="p" data-group-id="8652695752-2">)</span></code></pre><p>To manipulate the images, we will use the <code class="inline">StbImage</code> library:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="7564129752-1">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">img</span><span class="p" data-group-id="7564129752-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">read_file</span><span class="p" data-group-id="7564129752-2">(</span><span class="s">&quot;oxford-iiit-pet/images/havanese_71.jpg&quot;</span><span class="p" data-group-id="7564129752-2">)</span><span class="w">
+</span><span class="p" data-group-id="7564129752-3">%</span><span class="nc" data-group-id="7564129752-3">StbImage</span><span class="p" data-group-id="7564129752-3">{</span><span class="ss">data</span><span class="p">:</span><span class="w"> </span><span class="n">binary</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="n">type</span><span class="p" data-group-id="7564129752-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">resize</span><span class="p" data-group-id="7564129752-4">(</span><span class="n">img</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p" data-group-id="7564129752-4">)</span></code></pre><p>Now let's work on a batch of images and convert them to tensors. Here are the images we will work with:</p><pre><code class="makeup elixir" translate="no"><span class="n">file_names</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="7527480771-1">[</span><span class="w">
   </span><span class="s">&quot;havanese_71.jpg&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;yorkshire_terrier_9.jpg&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;Sphynx_206.jpg&quot;</span><span class="p">,</span><span class="w">
@@ -226,18 +247,18 @@ our data.</p><pre><code class="makeup elixir" translate="no"><span class="nc">Fi
   </span><span class="s">&quot;British_Shorthair_122.jpg&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;Russian_Blue_20.jpg&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;boxer_99.jpg&quot;</span><span class="w">
-</span><span class="p" data-group-id="4858703255-1">]</span></code></pre><p>Next we resize the images:</p><pre><code class="makeup elixir" translate="no"><span class="n">resized_images</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="3680888861-1">(</span><span class="n">file_names</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="3680888861-2">fn</span><span class="w"> </span><span class="n">file_name</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-    </span><span class="p" data-group-id="3680888861-3">(</span><span class="s">&quot;oxford-iiit-pet/images/&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">file_name</span><span class="p" data-group-id="3680888861-3">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="3680888861-4">(</span><span class="ss">label</span><span class="p">:</span><span class="w"> </span><span class="n">file_name</span><span class="p" data-group-id="3680888861-4">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">read_file!</span><span class="p" data-group-id="3680888861-5">(</span><span class="p" data-group-id="3680888861-5">)</span><span class="w">
-    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">resize</span><span class="p" data-group-id="3680888861-6">(</span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p" data-group-id="3680888861-6">)</span><span class="w">
-  </span><span class="k" data-group-id="3680888861-2">end</span><span class="p" data-group-id="3680888861-1">)</span></code></pre><p>And finally convert them into tensors by using <code class="inline">StbImage.to_nx/1</code>. The created tensor will have three axes, named <code class="inline">:height</code>, <code class="inline">:width</code>, and <code class="inline">:channel</code> respectively. Our goal is to stack the tensors, then normalize and transpose their axes to the order expected by the neural network:</p><pre><code class="makeup elixir" translate="no"><span class="n">img_tensors</span><span class="w"> </span><span class="o">=</span><span class="w">
+</span><span class="p" data-group-id="7527480771-1">]</span></code></pre><p>Next we resize the images:</p><pre><code class="makeup elixir" translate="no"><span class="n">resized_images</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="4705693562-1">(</span><span class="n">file_names</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="4705693562-2">fn</span><span class="w"> </span><span class="n">file_name</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="p" data-group-id="4705693562-3">(</span><span class="s">&quot;oxford-iiit-pet/images/&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">file_name</span><span class="p" data-group-id="4705693562-3">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="4705693562-4">(</span><span class="ss">label</span><span class="p">:</span><span class="w"> </span><span class="n">file_name</span><span class="p" data-group-id="4705693562-4">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">read_file!</span><span class="p" data-group-id="4705693562-5">(</span><span class="p" data-group-id="4705693562-5">)</span><span class="w">
+    </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">StbImage</span><span class="o">.</span><span class="n">resize</span><span class="p" data-group-id="4705693562-6">(</span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p" data-group-id="4705693562-6">)</span><span class="w">
+  </span><span class="k" data-group-id="4705693562-2">end</span><span class="p" data-group-id="4705693562-1">)</span></code></pre><p>And finally convert them into tensors by using <code class="inline">StbImage.to_nx/1</code>. The created tensor will have three axes, named <code class="inline">:height</code>, <code class="inline">:width</code>, and <code class="inline">:channel</code> respectively. Our goal is to stack the tensors, then normalize and transpose their axes to the order expected by the neural network:</p><pre><code class="makeup elixir" translate="no"><span class="n">img_tensors</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">resized_images</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="8882150255-1">(</span><span class="o">&amp;</span><span class="nc">StbImage</span><span class="o">.</span><span class="n">to_nx</span><span class="o">/</span><span class="mi">1</span><span class="p" data-group-id="8882150255-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">stack</span><span class="p" data-group-id="8882150255-2">(</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="ss">:index</span><span class="p" data-group-id="8882150255-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="8882150255-3">(</span><span class="mf">255.0</span><span class="p" data-group-id="8882150255-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">transpose</span><span class="p" data-group-id="8882150255-4">(</span><span class="ss">axes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8882150255-5">[</span><span class="ss">:index</span><span class="p">,</span><span class="w"> </span><span class="ss">:channels</span><span class="p">,</span><span class="w"> </span><span class="ss">:height</span><span class="p">,</span><span class="w"> </span><span class="ss">:width</span><span class="p" data-group-id="8882150255-5">]</span><span class="p" data-group-id="8882150255-4">)</span></code></pre><p>With our input data, it is finally time to work on predictions. First let's define a helper module:</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">Predictions</span><span class="w"> </span><span class="k" data-group-id="6470113318-1">do</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="0028217315-1">(</span><span class="o">&amp;</span><span class="nc">StbImage</span><span class="o">.</span><span class="n">to_nx</span><span class="o">/</span><span class="mi">1</span><span class="p" data-group-id="0028217315-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">stack</span><span class="p" data-group-id="0028217315-2">(</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="ss">:index</span><span class="p" data-group-id="0028217315-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">divide</span><span class="p" data-group-id="0028217315-3">(</span><span class="mf">255.0</span><span class="p" data-group-id="0028217315-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">transpose</span><span class="p" data-group-id="0028217315-4">(</span><span class="ss">axes</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0028217315-5">[</span><span class="ss">:index</span><span class="p">,</span><span class="w"> </span><span class="ss">:channels</span><span class="p">,</span><span class="w"> </span><span class="ss">:height</span><span class="p">,</span><span class="w"> </span><span class="ss">:width</span><span class="p" data-group-id="0028217315-5">]</span><span class="p" data-group-id="0028217315-4">)</span></code></pre><p>With our input data, it is finally time to work on predictions. First let's define a helper module:</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">Predictions</span><span class="w"> </span><span class="k" data-group-id="3391970399-1">do</span><span class="w">
   </span><span class="na">@doc</span><span class="w"> </span><span class="s">&quot;&quot;&quot;
   When provided a Tensor of single label predictions, returns the best vocabulary match for
   each row in the prediction tensor.
@@ -248,26 +269,26 @@ our data.</p><pre><code class="makeup elixir" translate="no"><span class="nc">Fi
      # [&quot;dog&quot;, &quot;cat&quot;, &quot;dog&quot;]
 
   &quot;&quot;&quot;</span><span class="w">
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">single_label_classification</span><span class="p" data-group-id="6470113318-2">(</span><span class="n">predictions_batch</span><span class="p">,</span><span class="w"> </span><span class="n">vocabulary</span><span class="p" data-group-id="6470113318-2">)</span><span class="w"> </span><span class="k" data-group-id="6470113318-3">do</span><span class="w">
-    </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="6470113318-4">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">shape</span><span class="p" data-group-id="6470113318-5">(</span><span class="n">predictions_batch</span><span class="p" data-group-id="6470113318-5">)</span><span class="p">,</span><span class="w"> </span><span class="ss">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;predictions batch shape&quot;</span><span class="p" data-group-id="6470113318-4">)</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">single_label_classification</span><span class="p" data-group-id="3391970399-2">(</span><span class="n">predictions_batch</span><span class="p">,</span><span class="w"> </span><span class="n">vocabulary</span><span class="p" data-group-id="3391970399-2">)</span><span class="w"> </span><span class="k" data-group-id="3391970399-3">do</span><span class="w">
+    </span><span class="nc">IO</span><span class="o">.</span><span class="n">inspect</span><span class="p" data-group-id="3391970399-4">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">shape</span><span class="p" data-group-id="3391970399-5">(</span><span class="n">predictions_batch</span><span class="p" data-group-id="3391970399-5">)</span><span class="p">,</span><span class="w"> </span><span class="ss">label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;predictions batch shape&quot;</span><span class="p" data-group-id="3391970399-4">)</span><span class="w">
 
-    </span><span class="k">for</span><span class="w"> </span><span class="n">prediction_tensor</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="6470113318-6">(</span><span class="n">predictions_batch</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="6470113318-6">)</span><span class="w"> </span><span class="k" data-group-id="6470113318-7">do</span><span class="w">
-      </span><span class="p" data-group-id="6470113318-8">{</span><span class="c">_prediction_value</span><span class="p">,</span><span class="w"> </span><span class="n">prediction_label</span><span class="p" data-group-id="6470113318-8">}</span><span class="w"> </span><span class="o">=</span><span class="w">
+    </span><span class="k">for</span><span class="w"> </span><span class="n">prediction_tensor</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_batched</span><span class="p" data-group-id="3391970399-6">(</span><span class="n">predictions_batch</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="3391970399-6">)</span><span class="w"> </span><span class="k" data-group-id="3391970399-7">do</span><span class="w">
+      </span><span class="p" data-group-id="3391970399-8">{</span><span class="c">_prediction_value</span><span class="p">,</span><span class="w"> </span><span class="n">prediction_label</span><span class="p" data-group-id="3391970399-8">}</span><span class="w"> </span><span class="o">=</span><span class="w">
         </span><span class="n">prediction_tensor</span><span class="w">
-        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_flat_list</span><span class="p" data-group-id="6470113318-9">(</span><span class="p" data-group-id="6470113318-9">)</span><span class="w">
-        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="6470113318-10">(</span><span class="n">vocabulary</span><span class="p" data-group-id="6470113318-10">)</span><span class="w">
-        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">max</span><span class="p" data-group-id="6470113318-11">(</span><span class="p" data-group-id="6470113318-11">)</span><span class="w">
+        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">to_flat_list</span><span class="p" data-group-id="3391970399-9">(</span><span class="p" data-group-id="3391970399-9">)</span><span class="w">
+        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">zip</span><span class="p" data-group-id="3391970399-10">(</span><span class="n">vocabulary</span><span class="p" data-group-id="3391970399-10">)</span><span class="w">
+        </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">max</span><span class="p" data-group-id="3391970399-11">(</span><span class="p" data-group-id="3391970399-11">)</span><span class="w">
 
       </span><span class="n">prediction_label</span><span class="w">
-    </span><span class="k" data-group-id="6470113318-7">end</span><span class="w">
-  </span><span class="k" data-group-id="6470113318-3">end</span><span class="w">
-</span><span class="k" data-group-id="6470113318-1">end</span></code></pre><p>Now we deserialize the model</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="2583388478-1">{</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p" data-group-id="2583388478-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="2583388478-2">(</span><span class="n">cats_v_dogs</span><span class="p" data-group-id="2583388478-2">)</span></code></pre><p>run a prediction using the <code class="inline">EXLA</code> compiler for performance</p><pre><code class="makeup elixir" translate="no"><span class="n">tensor_of_predictions</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="9029253653-1">(</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p">,</span><span class="w"> </span><span class="n">img_tensors</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="9029253653-1">)</span></code></pre><p>and finally retrieve the predicted label</p><pre><code class="makeup elixir" translate="no"><span class="n">dog_cat_vocabulary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="7821525374-1">[</span><span class="w">
+    </span><span class="k" data-group-id="3391970399-7">end</span><span class="w">
+  </span><span class="k" data-group-id="3391970399-3">end</span><span class="w">
+</span><span class="k" data-group-id="3391970399-1">end</span></code></pre><p>Now we deserialize the model</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="1589890773-1">{</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p" data-group-id="1589890773-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="1589890773-2">(</span><span class="n">cats_v_dogs</span><span class="p" data-group-id="1589890773-2">)</span></code></pre><p>run a prediction using the <code class="inline">EXLA</code> compiler for performance</p><pre><code class="makeup elixir" translate="no"><span class="n">tensor_of_predictions</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="0939178648-1">(</span><span class="n">cats_v_dogs_model</span><span class="p">,</span><span class="w"> </span><span class="n">cats_v_dogs_params</span><span class="p">,</span><span class="w"> </span><span class="n">img_tensors</span><span class="p">,</span><span class="w"> </span><span class="ss">compiler</span><span class="p">:</span><span class="w"> </span><span class="nc">EXLA</span><span class="p" data-group-id="0939178648-1">)</span></code></pre><p>and finally retrieve the predicted label</p><pre><code class="makeup elixir" translate="no"><span class="n">dog_cat_vocabulary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="5404174740-1">[</span><span class="w">
   </span><span class="s">&quot;dog&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;cat&quot;</span><span class="w">
-</span><span class="p" data-group-id="7821525374-1">]</span><span class="w">
+</span><span class="p" data-group-id="5404174740-1">]</span><span class="w">
 
-</span><span class="nc">Predictions</span><span class="o">.</span><span class="n">single_label_classification</span><span class="p" data-group-id="7821525374-2">(</span><span class="n">tensor_of_predictions</span><span class="p">,</span><span class="w"> </span><span class="n">dog_cat_vocabulary</span><span class="p" data-group-id="7821525374-2">)</span></code></pre><p>Let's repeat the above process for the dog and cat breed model.</p><pre><code class="makeup elixir" translate="no"><span class="n">cat_dog_vocabulary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="8047205713-1">[</span><span class="w">
+</span><span class="nc">Predictions</span><span class="o">.</span><span class="n">single_label_classification</span><span class="p" data-group-id="5404174740-2">(</span><span class="n">tensor_of_predictions</span><span class="p">,</span><span class="w"> </span><span class="n">dog_cat_vocabulary</span><span class="p" data-group-id="5404174740-2">)</span></code></pre><p>Let's repeat the above process for the dog and cat breed model.</p><pre><code class="makeup elixir" translate="no"><span class="n">cat_dog_vocabulary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="2760771530-1">[</span><span class="w">
   </span><span class="s">&quot;abyssinian&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;american_bulldog&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;american_pit_bull_terrier&quot;</span><span class="p">,</span><span class="w">
@@ -305,9 +326,9 @@ our data.</p><pre><code class="makeup elixir" translate="no"><span class="nc">Fi
   </span><span class="s">&quot;staffordshire_bull_terrier&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;wheaten_terrier&quot;</span><span class="p">,</span><span class="w">
   </span><span class="s">&quot;yorkshire_terrier&quot;</span><span class="w">
-</span><span class="p" data-group-id="8047205713-1">]</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">cat_dog_breeds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="0096966319-1">(</span><span class="s">&quot;cat_dog_breeds.axon&quot;</span><span class="p" data-group-id="0096966319-1">)</span><span class="w">
-</span><span class="p" data-group-id="0096966319-2">{</span><span class="n">cat_dog_breeds_model</span><span class="p">,</span><span class="w"> </span><span class="n">cat_dog_breeds_params</span><span class="p" data-group-id="0096966319-2">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="0096966319-3">(</span><span class="n">cat_dog_breeds</span><span class="p" data-group-id="0096966319-3">)</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="5308870200-1">(</span><span class="n">cat_dog_breeds_model</span><span class="p">,</span><span class="w"> </span><span class="n">cat_dog_breeds_params</span><span class="p">,</span><span class="w"> </span><span class="n">img_tensors</span><span class="p" data-group-id="5308870200-1">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Predictions</span><span class="o">.</span><span class="n">single_label_classification</span><span class="p" data-group-id="5308870200-2">(</span><span class="n">cat_dog_vocabulary</span><span class="p" data-group-id="5308870200-2">)</span></code></pre><p>For cat and dog breeds, the model performed pretty well, but it was not perfect.</p>
+</span><span class="p" data-group-id="2760771530-1">]</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">cat_dog_breeds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="0296430555-1">(</span><span class="s">&quot;cat_dog_breeds.axon&quot;</span><span class="p" data-group-id="0296430555-1">)</span><span class="w">
+</span><span class="p" data-group-id="0296430555-2">{</span><span class="n">cat_dog_breeds_model</span><span class="p">,</span><span class="w"> </span><span class="n">cat_dog_breeds_params</span><span class="p" data-group-id="0296430555-2">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="0296430555-3">(</span><span class="n">cat_dog_breeds</span><span class="p" data-group-id="0296430555-3">)</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="9223858962-1">(</span><span class="n">cat_dog_breeds_model</span><span class="p">,</span><span class="w"> </span><span class="n">cat_dog_breeds_params</span><span class="p">,</span><span class="w"> </span><span class="n">img_tensors</span><span class="p" data-group-id="9223858962-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Predictions</span><span class="o">.</span><span class="n">single_label_classification</span><span class="p" data-group-id="9223858962-2">(</span><span class="n">cat_dog_vocabulary</span><span class="p" data-group-id="9223858962-2">)</span></code></pre><p>For cat and dog breeds, the model performed pretty well, but it was not perfect.</p>
 <div class="bottom-actions">
   <div class="bottom-actions-item">
 
@@ -338,11 +359,11 @@ Modeling XOR with a neural network
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/guides/serialization/onnx_to_axon.livemd">current file</a>)
+                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/guides/serialization/onnx_to_axon.livemd">current file</a>)
 
             </span>
 
@@ -360,7 +381,7 @@ Modeling XOR with a neural network
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -368,7 +389,7 @@ Modeling XOR with a neural network
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

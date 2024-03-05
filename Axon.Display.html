@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Axon.Display — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Axon.Display — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,75 +39,95 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/display.ex#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
   <span translate="no">Axon.Display</span> 
-  <small class="app-vsn" translate="no">(Axon v0.6.0)</small>
+  <small class="app-vsn" translate="no">(Axon v0.6.1)</small>
 
 </h1>
 
@@ -120,9 +141,8 @@ Axon
     <h1 class="section-heading">
       <a class="hover-link" href="#summary">
         <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
       </a>
-      Summary
+      <span class="text">Summary</span>
     </h1>
 <div class="summary-functions summary">
   <h2>
@@ -160,9 +180,8 @@ inputs, rendering the execution flow as a table.</p></div>
     <h1 class="section-heading">
       <a class="hover-link" href="#functions">
         <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
       </a>
-Functions
+      <span class="text">Functions</span>
     </h1>
     <div class="functions-list">
 <section class="detail" id="as_graph/3">
@@ -176,7 +195,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">as_graph(axon, input_templates, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/display.ex#L266" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L266" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -189,19 +208,19 @@ Functions
 <p>Traces execution of the given Axon model with the given
 inputs, rendering the execution flow as a mermaid flowchart.</p><p>You must include <a href="https://hex.pm/packages/kino">kino</a> as
 a dependency in your project to make use of this function.</p><h2 id="as_graph/3-options" class="section-heading">
-  <a href="#as_graph/3-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">options</p>
+  <a href="#as_graph/3-options" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Options
+  <span class="text">Options</span>
 </h2>
 <ul><li><code class="inline">:direction</code> - defines the direction of the graph visual. The
 value can either be <code class="inline">:top_down</code> or <code class="inline">:left_right</code>. Defaults to <code class="inline">:top_down</code>.</li></ul><h2 id="as_graph/3-examples" class="section-heading">
-  <a href="#as_graph/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">examples</p>
+  <a href="#as_graph/3-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Examples
+  <span class="text">Examples</span>
 </h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2352323828-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="2352323828-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2352323828-2">(</span><span class="mi">32</span><span class="p" data-group-id="2352323828-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="9264959605-1">(</span><span class="p" data-group-id="9264959605-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="9264959605-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="9264959605-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="0857710592-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="0857710592-1">)</span></code></pre>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1662055345-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="1662055345-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1662055345-2">(</span><span class="mi">32</span><span class="p" data-group-id="1662055345-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="5561740337-1">(</span><span class="p" data-group-id="5561740337-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5561740337-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="5561740337-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="7910605819-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="7910605819-1">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="as_table/2">
@@ -213,7 +232,7 @@ value can either be <code class="inline">:top_down</code> or <code class="inline
     </a>
     <h1 class="signature" translate="no">as_table(axon, input_templates)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/display.ex#L32" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L32" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -226,12 +245,12 @@ value can either be <code class="inline">:top_down</code> or <code class="inline
 <p>Traces execution of the given Axon model with the given
 inputs, rendering the execution flow as a table.</p><p>You must include <a href="https://hex.pm/packages/table_rex">table_rex</a> as
 a dependency in your project to make use of this function.</p><h2 id="as_table/2-examples" class="section-heading">
-  <a href="#as_table/2-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">examples</p>
+  <a href="#as_table/2-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Examples
+  <span class="text">Examples</span>
 </h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="0437029234-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="0437029234-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="0437029234-2">(</span><span class="mi">32</span><span class="p" data-group-id="0437029234-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="3873021469-1">(</span><span class="p" data-group-id="3873021469-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3873021469-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="3873021469-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="3559116134-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="3559116134-1">)</span></code></pre>
+<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7912668924-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="7912668924-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7912668924-2">(</span><span class="mi">32</span><span class="p" data-group-id="7912668924-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="1261772666-1">(</span><span class="p" data-group-id="1261772666-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="1261772666-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="1261772666-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="4868740198-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="4868740198-1">)</span></code></pre>
   </section>
 </section>
 
@@ -242,11 +261,9 @@ a dependency in your project to make use of this function.</p><h2 id="as_table/2
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
-
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/lib/axon/display.ex">current file</a>)
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
             </span>
 
@@ -264,7 +281,7 @@ a dependency in your project to make use of this function.</p><h2 id="as_table/2
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -272,7 +289,7 @@ a dependency in your project to make use of this function.</p><h2 id="as_table/2
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->

@@ -4,20 +4,21 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.29.3">
-    <meta name="project" content="Axon v0.6.0">
+    <meta name="generator" content="ExDoc v0.31.1">
+    <meta name="project" content="Axon v0.6.1">
 
-    <title>Axon.MixedPrecision — Axon v0.6.0</title>
-    <link rel="stylesheet" href="dist/html-elixir-MB5C7R66.css" />
+
+    <title>Axon.MixedPrecision — Axon v0.6.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-XRYTXUVD.js"></script>
-    <script src="dist/sidebar_items-9C58AAE0.js"></script>
+    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/sidebar_items-B66D7C0E.js"></script>
 
       <script src="docs_config.js"></script>
 
-    <script async src="dist/html-EHGDP2LQ.js"></script>
+    <script async src="dist/html-L4O5OK2K.js"></script>
 
 
   </head>
@@ -38,75 +39,95 @@
 
 <div class="main">
 
-<button class="sidebar-button sidebar-toggle" aria-label="toggle sidebar">
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
 
-<section class="sidebar">
-  <form class="sidebar-search" action="search.html">
-    <button type="submit" class="search-button" aria-label="Submit Search">
-      <i class="ri-search-2-line" aria-hidden="true" title="Submit search"></i>
-    </button>
-    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
-      <i class="ri-close-line ri-lg" aria-hidden="true" title="Cancel search"></i>
-    </button>
-    <label class="search-label">
-      <p class="sr-only">Search</p>
-      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-    </label>
-  </form>
+<div class="background-layer"></div>
 
-  <div class="autocomplete">
-    <div class="autocomplete-results">
-    </div>
-  </div>
+<nav id="sidebar" class="sidebar">
 
   <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
 
-      <a href="Axon.html">
-        <img src="assets/logo.png" alt="Axon" class="sidebar-projectImage">
-      </a>
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
 
-    <div class="sidebar-projectDetails">
-      <a href="Axon.html" class="sidebar-projectName" translate="no">
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
 Axon
-      </a>
-      <strong class="sidebar-projectVersion" translate="no">
-        v0.6.0
-      </strong>
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.6.1
+        </div>
+      </div>
     </div>
-    <ul class="sidebar-listNav">
-      <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
 
-        <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
 
 
     </ul>
   </div>
 
-  <div class="gradient"></div>
-  <ul id="full-list"></ul>
-</section>
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
 
-<section class="content">
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
   <output role="status" id="toast"></output>
   <div class="content-outer">
     <div id="content" class="content-inner">
+      <div class="top-search">
+        <div class="search-settings">
+          <form class="search-bar" action="search.html">
+            <label class="search-label">
+              <span class="sr-only">Search documentation of Axon</span>
+              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            </label>
+            <button type="submit" class="search-button" aria-label="Submit Search">
+              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+            </button>
+            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+              <i class="ri-close-line ri-lg" title="Cancel search"></i>
+            </button>
+          </form>
+          <div class="autocomplete">
+          </div>
+          <button class="icon-settings display-settings">
+            <i class="ri-settings-3-line"></i>
+            <span class="sr-only">Settings</span>
+          </button>
+        </div>
+
+      </div>
 
 <h1>
-<button class="icon-action display-settings">
-  <i class="ri-settings-3-line"></i>
-  <span class="sr-only">Settings</span>
-</button>
 
-
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/mixed_precision.ex#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/mixed_precision.ex#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
   <span translate="no">Axon.MixedPrecision</span> 
-  <small class="app-vsn" translate="no">(Axon v0.6.0)</small>
+  <small class="app-vsn" translate="no">(Axon v0.6.1)</small>
 
 </h1>
 
@@ -119,24 +140,24 @@ during training. The <code class="inline">compute</code> policy dictates what ty
 during intermediate computations in the model's forward pass. The <code class="inline">output</code>
 policy dictates what type the model should output.</p><p>Here's an example of creating a mixed precision policy and applying it
 to a model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="1191692254-1">(</span><span class="s">&quot;input&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1191692254-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="1191692254-2">}</span><span class="p" data-group-id="1191692254-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1191692254-3">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="1191692254-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="1191692254-4">(</span><span class="p" data-group-id="1191692254-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="1191692254-5">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="1191692254-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1191692254-6">(</span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="1191692254-6">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="1191692254-7">(</span><span class="p" data-group-id="1191692254-7">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="1191692254-8">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="1191692254-8">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="1191692254-9">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="1191692254-9">)</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="9779583322-1">(</span><span class="s">&quot;input&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9779583322-2">{</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="mi">784</span><span class="p" data-group-id="9779583322-2">}</span><span class="p" data-group-id="9779583322-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9779583322-3">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="9779583322-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="9779583322-4">(</span><span class="p" data-group-id="9779583322-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9779583322-5">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="9779583322-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9779583322-6">(</span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:relu</span><span class="p" data-group-id="9779583322-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">batch_norm</span><span class="p" data-group-id="9779583322-7">(</span><span class="p" data-group-id="9779583322-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="9779583322-8">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="9779583322-8">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="9779583322-9">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="ss">activation</span><span class="p">:</span><span class="w"> </span><span class="ss">:softmax</span><span class="p" data-group-id="9779583322-9">)</span><span class="w">
 
-</span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="1191692254-10">(</span><span class="w">
-  </span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1191692254-11">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="1191692254-11">}</span><span class="p">,</span><span class="w">
-  </span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1191692254-12">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="1191692254-12">}</span><span class="p">,</span><span class="w">
-  </span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1191692254-13">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="1191692254-13">}</span><span class="w">
-</span><span class="p" data-group-id="1191692254-10">)</span><span class="w">
+</span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="9779583322-10">(</span><span class="w">
+  </span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9779583322-11">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="9779583322-11">}</span><span class="p">,</span><span class="w">
+  </span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9779583322-12">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="9779583322-12">}</span><span class="p">,</span><span class="w">
+  </span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9779583322-13">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">32</span><span class="p" data-group-id="9779583322-13">}</span><span class="w">
+</span><span class="p" data-group-id="9779583322-10">)</span><span class="w">
 
 </span><span class="n">mp_model</span><span class="w"> </span><span class="o">=</span><span class="w">
   </span><span class="n">model</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">apply_policy</span><span class="p" data-group-id="1191692254-14">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="ss">except</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1191692254-15">[</span><span class="ss">:batch_norm</span><span class="p" data-group-id="1191692254-15">]</span><span class="p" data-group-id="1191692254-14">)</span></code></pre><p>The example above applies the mixed precision policy to every layer in
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">apply_policy</span><span class="p" data-group-id="9779583322-14">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="ss">except</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9779583322-15">[</span><span class="ss">:batch_norm</span><span class="p" data-group-id="9779583322-15">]</span><span class="p" data-group-id="9779583322-14">)</span></code></pre><p>The example above applies the mixed precision policy to every layer in
 the model except Batch Normalization layers. The policy will cast parameters
 and inputs to <code class="inline">{:f, 16}</code> for intermediate computations in the model's forward
 pass before casting the output back to <code class="inline">{:f, 32}</code>.</p>
@@ -147,9 +168,8 @@ pass before casting the output back to <code class="inline">{:f, 32}</code>.</p>
     <h1 class="section-heading">
       <a class="hover-link" href="#summary">
         <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
       </a>
-      Summary
+      <span class="text">Summary</span>
     </h1>
 <div class="summary-functions summary">
   <h2>
@@ -186,9 +206,8 @@ and type.</p></div>
     <h1 class="section-heading">
       <a class="hover-link" href="#functions">
         <i class="ri-link-m" aria-hidden="true"></i>
-        <span class="sr-only">Link to this section</span>
       </a>
-Functions
+      <span class="text">Functions</span>
     </h1>
     <div class="functions-list">
 <section class="detail" id="cast/3">
@@ -200,7 +219,7 @@ Functions
     </a>
     <h1 class="signature" translate="no">cast(policy, tensor_or_container, variable_type)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/mixed_precision.ex#L150" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/mixed_precision.ex#L159" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -212,28 +231,32 @@ Functions
 
 <p>Casts the given container according to the given policy
 and type.</p><h2 id="cast/3-examples" class="section-heading">
-  <a href="#cast/3-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">examples</p>
+  <a href="#cast/3-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Examples
+  <span class="text">Examples</span>
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="5413565726-1">(</span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5413565726-2">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-2">}</span><span class="p" data-group-id="5413565726-1">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="5413565726-3">%{</span><span class="s">&quot;dense&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5413565726-4">%{</span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5413565726-5">(</span><span class="p" data-group-id="5413565726-6">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="5413565726-6">]</span><span class="p" data-group-id="5413565726-5">)</span><span class="p" data-group-id="5413565726-4">}</span><span class="p" data-group-id="5413565726-3">}</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="5413565726-7">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="ss">:params</span><span class="p" data-group-id="5413565726-7">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="5413565726-8">(</span><span class="n">params</span><span class="p" data-group-id="5413565726-9">[</span><span class="s">&quot;dense&quot;</span><span class="p" data-group-id="5413565726-9">]</span><span class="p" data-group-id="5413565726-10">[</span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="5413565726-10">]</span><span class="p" data-group-id="5413565726-8">)</span><span class="w">
-</span><span class="p" data-group-id="5413565726-11">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-11">}</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="4111639160-1">(</span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4111639160-2">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-2">}</span><span class="p" data-group-id="4111639160-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="4111639160-3">%{</span><span class="s">&quot;dense&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="4111639160-4">%{</span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4111639160-5">(</span><span class="p" data-group-id="4111639160-6">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="4111639160-6">]</span><span class="p" data-group-id="4111639160-5">)</span><span class="p" data-group-id="4111639160-4">}</span><span class="p" data-group-id="4111639160-3">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="4111639160-7">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="ss">:params</span><span class="p" data-group-id="4111639160-7">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="4111639160-8">(</span><span class="n">params</span><span class="p" data-group-id="4111639160-9">[</span><span class="s">&quot;dense&quot;</span><span class="p" data-group-id="4111639160-9">]</span><span class="p" data-group-id="4111639160-10">[</span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4111639160-10">]</span><span class="p" data-group-id="4111639160-8">)</span><span class="w">
+</span><span class="p" data-group-id="4111639160-11">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-11">}</span><span class="w">
 
-</span><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="5413565726-12">(</span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5413565726-13">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-13">}</span><span class="p" data-group-id="5413565726-12">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5413565726-14">(</span><span class="p" data-group-id="5413565726-15">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="5413565726-15">]</span><span class="p" data-group-id="5413565726-14">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="5413565726-16">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="ss">:compute</span><span class="p" data-group-id="5413565726-16">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="5413565726-17">(</span><span class="n">value</span><span class="p" data-group-id="5413565726-17">)</span><span class="w">
-</span><span class="p" data-group-id="5413565726-18">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-18">}</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="4111639160-12">(</span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4111639160-13">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-13">}</span><span class="p" data-group-id="4111639160-12">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4111639160-14">(</span><span class="p" data-group-id="4111639160-15">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="4111639160-15">]</span><span class="p" data-group-id="4111639160-14">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="4111639160-16">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="ss">:compute</span><span class="p" data-group-id="4111639160-16">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="4111639160-17">(</span><span class="n">value</span><span class="p" data-group-id="4111639160-17">)</span><span class="w">
+</span><span class="p" data-group-id="4111639160-18">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-18">}</span><span class="w">
 
-</span><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="5413565726-19">(</span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="5413565726-20">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-20">}</span><span class="p" data-group-id="5413565726-19">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="5413565726-21">(</span><span class="p" data-group-id="5413565726-22">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="5413565726-22">]</span><span class="p" data-group-id="5413565726-21">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="5413565726-23">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="ss">:output</span><span class="p" data-group-id="5413565726-23">)</span><span class="w">
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="5413565726-24">(</span><span class="n">value</span><span class="p" data-group-id="5413565726-24">)</span><span class="w">
-</span><span class="p" data-group-id="5413565726-25">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5413565726-25">}</span></code></pre>
+</span><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="4111639160-19">(</span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4111639160-20">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-20">}</span><span class="p" data-group-id="4111639160-19">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="4111639160-21">(</span><span class="p" data-group-id="4111639160-22">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p" data-group-id="4111639160-22">]</span><span class="p" data-group-id="4111639160-21">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="4111639160-23">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="ss">:output</span><span class="p" data-group-id="4111639160-23">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="4111639160-24">(</span><span class="n">value</span><span class="p" data-group-id="4111639160-24">)</span><span class="w">
+</span><span class="p" data-group-id="4111639160-25">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4111639160-25">}</span></code></pre><p>Note that integers are never promoted to floats:</p><pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="n">policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="0804889122-1">(</span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0804889122-2">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="0804889122-2">}</span><span class="p" data-group-id="0804889122-1">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="0804889122-3">(</span><span class="p" data-group-id="0804889122-4">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p" data-group-id="0804889122-4">]</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:s64</span><span class="p" data-group-id="0804889122-3">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">cast</span><span class="p" data-group-id="0804889122-5">(</span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="ss">:params</span><span class="p" data-group-id="0804889122-5">)</span><span class="w">
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Nx</span><span class="o">.</span><span class="n">type</span><span class="p" data-group-id="0804889122-6">(</span><span class="n">value</span><span class="p" data-group-id="0804889122-6">)</span><span class="w">
+</span><span class="p" data-group-id="0804889122-7">{</span><span class="ss">:s</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p" data-group-id="0804889122-7">}</span></code></pre>
   </section>
 </section>
 <section class="detail" id="create_policy/1">
@@ -247,7 +270,7 @@ and type.</p><h2 id="cast/3-examples" class="section-heading">
     </a>
     <h1 class="signature" translate="no">create_policy(opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.0/lib/axon/mixed_precision.ex#L63" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/mixed_precision.ex#L63" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -258,22 +281,22 @@ and type.</p><h2 id="cast/3-examples" class="section-heading">
   <section class="docstring">
 
 <p>Creates a mixed precision policy with the given options.</p><h2 id="create_policy/1-options" class="section-heading">
-  <a href="#create_policy/1-options" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">options</p>
+  <a href="#create_policy/1-options" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Options
+  <span class="text">Options</span>
 </h2>
 <ul><li><code class="inline">params</code> - parameter precision policy. Defaults to <code class="inline">{:f, 32}</code></li><li><code class="inline">compute</code> - compute precision policy. Defaults to <code class="inline">{:f, 32}</code></li><li><code class="inline">output</code> - output precision policy. Defaults to <code class="inline">{:f, 32}</code></li></ul><h2 id="create_policy/1-examples" class="section-heading">
-  <a href="#create_policy/1-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i>
-  <p class="sr-only">examples</p>
+  <a href="#create_policy/1-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
   </a>
-  Examples
+  <span class="text">Examples</span>
 </h2>
-<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="7087449187-1">(</span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7087449187-2">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="7087449187-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7087449187-3">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="7087449187-3">}</span><span class="p" data-group-id="7087449187-1">)</span><span class="w">
-</span><span class="p" data-group-id="7087449187-4">#</span><span class="nc" data-group-id="7087449187-4">Axon.MixedPrecision.Policy</span><span class="p" data-group-id="7087449187-4">&lt;</span><span class="n">p</span><span class="o">=</span><span class="n">f16</span><span class="w"> </span><span class="n">c</span><span class="o">=</span><span class="n">f32</span><span class="w"> </span><span class="n">o</span><span class="o">=</span><span class="n">f16</span><span class="p" data-group-id="7087449187-4">&gt;</span><span class="w">
+<pre><code class="makeup elixir" translate="no"><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="3561847113-1">(</span><span class="ss">params</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3561847113-2">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3561847113-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">output</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3561847113-3">{</span><span class="ss">:f</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3561847113-3">}</span><span class="p" data-group-id="3561847113-1">)</span><span class="w">
+</span><span class="p" data-group-id="3561847113-4">#</span><span class="nc" data-group-id="3561847113-4">Axon.MixedPrecision.Policy</span><span class="p" data-group-id="3561847113-4">&lt;</span><span class="n">p</span><span class="o">=</span><span class="n">f16</span><span class="w"> </span><span class="n">c</span><span class="o">=</span><span class="n">f32</span><span class="w"> </span><span class="n">o</span><span class="o">=</span><span class="n">f16</span><span class="p" data-group-id="3561847113-4">&gt;</span><span class="w">
 
-</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="7087449187-5">(</span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="7087449187-6">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="7087449187-6">}</span><span class="p" data-group-id="7087449187-5">)</span><span class="w">
-</span><span class="p" data-group-id="7087449187-7">#</span><span class="nc" data-group-id="7087449187-7">Axon.MixedPrecision.Policy</span><span class="p" data-group-id="7087449187-7">&lt;</span><span class="n">p</span><span class="o">=</span><span class="n">f32</span><span class="w"> </span><span class="n">c</span><span class="o">=</span><span class="n">bf16</span><span class="w"> </span><span class="n">o</span><span class="o">=</span><span class="n">f32</span><span class="p" data-group-id="7087449187-7">&gt;</span></code></pre>
+</span><span class="gp unselectable">iex&gt; </span><span class="nc">Axon.MixedPrecision</span><span class="o">.</span><span class="n">create_policy</span><span class="p" data-group-id="3561847113-5">(</span><span class="ss">compute</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="3561847113-6">{</span><span class="ss">:bf</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="3561847113-6">}</span><span class="p" data-group-id="3561847113-5">)</span><span class="w">
+</span><span class="p" data-group-id="3561847113-7">#</span><span class="nc" data-group-id="3561847113-7">Axon.MixedPrecision.Policy</span><span class="p" data-group-id="3561847113-7">&lt;</span><span class="n">p</span><span class="o">=</span><span class="n">f32</span><span class="w"> </span><span class="n">c</span><span class="o">=</span><span class="n">bf16</span><span class="w"> </span><span class="n">o</span><span class="o">=</span><span class="n">f32</span><span class="p" data-group-id="3561847113-7">&gt;</span></code></pre>
   </section>
 </section>
 
@@ -284,11 +307,9 @@ and type.</p><h2 id="cast/3-examples" class="section-heading">
         <p>
 
             <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.0" class="footer-hex-package">Hex Package</a>
+              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
 
-              <a href="https://preview.hex.pm/preview/axon/0.6.0">Hex Preview</a>
-
-                (<a href="https://preview.hex.pm/preview/axon/0.6.0/show/lib/axon/mixed_precision.ex">current file</a>)
+              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
 
             </span>
 
@@ -306,7 +327,7 @@ and type.</p><h2 id="cast/3-examples" class="section-heading">
 
         <p class="built-using">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.29.3) for the
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
 
             <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
 
@@ -314,7 +335,7 @@ and type.</p><h2 id="cast/3-examples" class="section-heading">
       </footer>
     </div>
   </div>
-</section>
+</main>
 </div>
 
 <!-- Render math with KaTeX -->
