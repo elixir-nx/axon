@@ -301,9 +301,14 @@ defmodule Axon do
   to inference function except:
 
     * `:name` - layer name.
+
     * `:op_name` - layer operation for inspection and building parameter map.
+
     * `:mode` - if the layer should run only on `:inference` or `:train`. Defaults to `:both`
 
+    * `:global_options` - a list of global option names that this layer
+      supports. Global options passed to `build/2` will be forwarded to
+      the layer, as long as they are declared
 
   Note this means your layer should not use these as input options,
   as they will always be dropped during inference compilation.
@@ -332,14 +337,15 @@ defmodule Axon do
     {mode, opts} = Keyword.pop(opts, :mode, :both)
     {name, opts} = Keyword.pop(opts, :name)
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
+    {global_options, opts} = Keyword.pop(opts, :global_options, [])
     name = name(op_name, name)
 
     id = System.unique_integer([:positive, :monotonic])
-    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, opts)
+    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, opts, global_options)
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
   end
 
-  defp make_node(id, op, name, op_name, mode, inputs, params, args, layer_opts) do
+  defp make_node(id, op, name, op_name, mode, inputs, params, args, layer_opts, global_options) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
@@ -354,6 +360,7 @@ defmodule Axon do
       policy: Axon.MixedPrecision.create_policy(),
       hooks: [],
       opts: layer_opts,
+      global_options: global_options,
       op_name: op_name,
       stacktrace: stacktrace
     }
@@ -3650,6 +3657,9 @@ defmodule Axon do
     * `:mode` - one of `:inference` or `:train`. Forwarded to layers
       to control differences in compilation at training or inference time.
       Defaults to `:inference`
+
+    * `:global_layer_options` - a keyword list of options passed to
+      layers that accept said options
 
   All other options are forwarded to the underlying JIT compiler.
   """
