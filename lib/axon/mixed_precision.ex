@@ -146,10 +146,26 @@ defmodule Axon.MixedPrecision do
       iex> value = Axon.MixedPrecision.cast(policy, value, :output)
       iex> Nx.type(value)
       {:bf, 16}
+
+  Note that integers are never promoted to floats:
+
+      iex> policy = Axon.MixedPrecision.create_policy(output: {:f, 16})
+      iex> value = Nx.tensor([1, 2, 3], type: :s64)
+      iex> value = Axon.MixedPrecision.cast(policy, value, :params)
+      iex> Nx.type(value)
+      {:s, 64}
+
   """
   def cast(%Policy{} = policy, tensor_or_container, variable_type)
       when variable_type in [:compute, :params, :output] do
-    type = get_in(policy, [Access.key!(variable_type)])
-    deep_new(tensor_or_container, fn x -> Nx.as_type(x, type) end)
+    type = Map.fetch!(policy, variable_type)
+
+    deep_new(tensor_or_container, fn tensor ->
+      if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
+        Nx.as_type(tensor, type)
+      else
+        tensor
+      end
+    end)
   end
 end
