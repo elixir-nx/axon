@@ -352,7 +352,7 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: %{output: output}},
+         %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: policy},
          _nodes,
          {cache, op_counts, block_cache},
          _
@@ -361,7 +361,7 @@ defmodule Axon.Compiler do
     tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
 
     predict_fun = fn _params, _inputs, state, _cache, result_cache, _fn_stacktrace ->
-      out = safe_as_type(tensor, output)
+      out = safe_policy_cast(tensor, policy, :output)
       {out, {state, result_cache}}
     end
 
@@ -841,7 +841,7 @@ defmodule Axon.Compiler do
          name,
          args,
          opts,
-         %{output: output, compute: compute},
+         policy,
          layer_params,
          hooks,
          mode,
@@ -870,7 +870,7 @@ defmodule Axon.Compiler do
 
           layer_input =
             layer_input
-            |> safe_as_type(compute)
+            |> safe_policy_cast(policy, :compute)
             |> apply_hooks(:pre_forward, mode, hooks)
 
           {layer_input, {state, result_cache, none?}}
@@ -889,7 +889,7 @@ defmodule Axon.Compiler do
 
           cond do
             param != nil ->
-              safe_as_type(maybe_freeze(param, frz), compute)
+              safe_policy_cast(maybe_freeze(param, frz), policy, :compute)
 
             true ->
               raise ArgumentError,
@@ -939,7 +939,7 @@ defmodule Axon.Compiler do
               out
               |> apply_hooks(:forward, mode, hooks)
               |> apply_hooks(:backward, mode, hooks)
-              |> safe_as_type(output)
+              |> safe_policy_cast(policy, :output)
 
             new_state = Map.put(state, name, out_state)
             {new_out, new_state}
@@ -949,7 +949,7 @@ defmodule Axon.Compiler do
               out
               |> apply_hooks(:forward, mode, hooks)
               |> apply_hooks(:backward, mode, hooks)
-              |> safe_as_type(output)
+              |> safe_policy_cast(policy, :output)
 
             {new_out, state}
         end
@@ -1130,19 +1130,13 @@ defmodule Axon.Compiler do
     end)
   end
 
-  defp safe_as_type(container_or_tensor, type) do
+  defp safe_policy_cast(container_or_tensor, policy, variable_type) do
     case container_or_tensor do
       %Axon.None{} = none ->
         none
 
       container_or_tensor ->
-        deep_new(container_or_tensor, fn tensor ->
-          if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
-            Nx.as_type(tensor, type)
-          else
-            tensor
-          end
-        end)
+        Axon.MixedPrecision.cast(policy, container_or_tensor, variable_type)
     end
   end
 
