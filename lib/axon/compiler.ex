@@ -50,7 +50,8 @@ defmodule Axon.Compiler do
     debug? = Keyword.get(opts, :debug, false)
     mode = Keyword.get(opts, :mode, :inference)
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
-    config = %{mode: mode, debug?: debug?}
+    global_layer_options = Keyword.get(opts, :global_layer_options, [])
+    config = %{mode: mode, debug?: debug?, global_layer_options: global_layer_options}
 
     {time, {root_id, {cache, _op_counts, _block_cache}}} =
       :timer.tc(fn ->
@@ -718,6 +719,7 @@ defmodule Axon.Compiler do
            parameters: layer_params,
            args: args,
            opts: opts,
+           global_options: global_options,
            policy: policy,
            hooks: hooks,
            op_name: op_name,
@@ -725,7 +727,7 @@ defmodule Axon.Compiler do
          },
          nodes,
          cache_and_counts,
-         %{mode: mode, debug?: debug?} = config
+         %{mode: mode, debug?: debug?, global_layer_options: global_layer_options} = config
        )
        when (is_function(op) or is_atom(op)) and is_list(inputs) do
     # Traverse to accumulate cache and get parent_ids for
@@ -761,10 +763,12 @@ defmodule Axon.Compiler do
         name,
         args,
         opts,
+        global_options,
         policy,
         layer_params,
         hooks,
         mode,
+        global_layer_options,
         stacktrace
       )
 
@@ -841,10 +845,12 @@ defmodule Axon.Compiler do
          name,
          args,
          opts,
+         global_options,
          policy,
          layer_params,
          hooks,
          mode,
+         global_layer_options,
          layer_stacktrace
        ) do
     # Recurse graph inputs and invoke cache to get parent results,
@@ -914,7 +920,12 @@ defmodule Axon.Compiler do
 
       # Compute arguments to be forwarded and ensure `:mode` is included
       # for inference/training behavior dependent functions
-      args = Enum.reverse(tensor_inputs, [Keyword.put(opts, :mode, mode)])
+      layer_opts =
+        opts
+        |> Keyword.merge(Keyword.take(global_layer_options, global_options))
+        |> Keyword.put(:mode, mode)
+
+      args = Enum.reverse(tensor_inputs, [layer_opts])
 
       # For built-in layers we always just apply the equivalent function
       # in Axon.Layers. The implication of this is that every function which

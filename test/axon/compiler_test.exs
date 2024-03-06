@@ -5837,4 +5837,27 @@ defmodule CompilerTest do
       assert predict_fn.(params, x) == Nx.add(x, a)
     end
   end
+
+  describe "global layer options" do
+    test "global options are forwarded to the layer when declared" do
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(
+          fn input, opts ->
+            assert Keyword.has_key?(opts, :option1)
+            refute Keyword.has_key?(opts, :option2)
+            input
+          end,
+          [input],
+          global_options: [:option1]
+        )
+
+      {_, predict_fn} = Axon.build(model, global_layer_options: [option1: true, option2: true])
+
+      params = %{}
+      input = random({1, 1}, type: {:f, 32})
+      predict_fn.(params, input)
+    end
+  end
 end

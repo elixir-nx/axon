@@ -12,6 +12,7 @@ defmodule Axon.Node do
     :policy,
     :hooks,
     :opts,
+    :global_options,
     :op_name,
     :stacktrace
   ]
