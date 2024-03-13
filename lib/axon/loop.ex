@@ -187,10 +187,10 @@ defmodule Axon.Loop do
   module:
 
     * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
-    functions and output transform functions.
+      functions and output transform functions.
 
     * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
-    optimizer.
+      optimizer.
 
     * `Axon.Loop.evaluator/1` - Creates a supervised evaluator loop from model.
 
