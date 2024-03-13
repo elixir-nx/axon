@@ -38,8 +38,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Examples
 
@@ -96,8 +96,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -127,8 +127,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -285,8 +285,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -314,8 +314,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Options
 
@@ -359,8 +359,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Examples
 
@@ -390,8 +390,8 @@ defmodule Axon.Metrics do
 
   ## Argument Shapes
 
-    * `y_true` - $\(d_0, d_1, ..., d_n\)$
-    * `y_pred` - $\(d_0, d_1, ..., d_n\)$
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
 
   ## Examples
 

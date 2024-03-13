@@ -186,13 +186,13 @@ defmodule Axon.Loop do
   Axon loops are typically created from one of the factory functions provided in this
   module:
 
-      * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
+    * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
       functions and output transform functions.
 
-      * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
+    * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
 
-      * `Axon.Loop.evaluator/1` - Creates a supervised evaluator loop from model.
+    * `Axon.Loop.evaluator/1` - Creates a supervised evaluator loop from model.
 
   ## Running loops
 
