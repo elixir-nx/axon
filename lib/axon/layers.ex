@@ -1407,11 +1407,11 @@ defmodule Axon.Layers do
   ## Options
 
     * `:rate` - dropout rate. Used to determine probability a connection
-    will be dropped. Required.
+      will be dropped. Required.
 
     * `:noise_shape` - input noise shape. Shape of `mask` which can be useful
-    for broadcasting `mask` across feature channels or other dimensions.
-    Defaults to shape of input tensor.
+      for broadcasting `mask` across feature channels or other dimensions.
+      Defaults to shape of input tensor.
 
   ## References
 
@@ -1455,11 +1455,11 @@ defmodule Axon.Layers do
   ## Options
 
     * `:rate` - dropout rate. Used to determine probability a connection
-    will be dropped. Required.
+      will be dropped. Required.
 
     * `:noise_shape` - input noise shape. Shape of `mask` which can be useful
-    for broadcasting `mask` across feature channels or other dimensions.
-    Defaults to shape of input tensor.
+      for broadcasting `mask` across feature channels or other dimensions.
+      Defaults to shape of input tensor.
 
   ## References
 
@@ -1490,11 +1490,11 @@ defmodule Axon.Layers do
   ## Options
 
     * `:rate` - dropout rate. Used to determine probability a connection
-    will be dropped. Required.
+      will be dropped. Required.
 
     * `:noise_shape` - input noise shape. Shape of `mask` which can be useful
-    for broadcasting `mask` across feature channels or other dimensions.
-    Defaults to shape of input tensor.
+      for broadcasting `mask` across feature channels or other dimensions.
+      Defaults to shape of input tensor.
 
   ## References
 
@@ -1534,11 +1534,11 @@ defmodule Axon.Layers do
   ## Options
 
     * `:rate` - dropout rate. Used to determine probability a connection
-    will be dropped. Required.
+      will be dropped. Required.
 
     * `:noise_shape` - input noise shape. Shape of `mask` which can be useful
-    for broadcasting `mask` across feature channels or other dimensions.
-    Defaults to shape of input tensor.
+      for broadcasting `mask` across feature channels or other dimensions.
+      Defaults to shape of input tensor.
   """
   @doc type: :dropout
   defn feature_alpha_dropout(input, key, opts \\ []) do

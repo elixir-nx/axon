@@ -143,9 +143,9 @@ defmodule Axon do
   parameters and possibly state. To define a custom layer, you just need to
   define a `defn` implementation:
 
-        defn my_layer(x, weight, _opts \\\\ []) do
-          Nx.atan2(x, weight)
-        end
+      defn my_layer(x, weight, _opts \\\\ []) do
+        Nx.atan2(x, weight)
+      end
 
   Notice the only stipulation is that your custom layer implementation must
   accept at least 1 input and a list of options. At execution time, every
