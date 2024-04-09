@@ -83,10 +83,10 @@ defmodule Axon.Losses do
     * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
       Defaults to `:none`.
 
-    * `:negative_weights` - class weight for `0` class useful for scaling loss
+    * `:negative_weight` - class weight for `0` class useful for scaling loss
       by importance of class. Defaults to `1.0`.
 
-    * `:positive_weights` - class weight for `1` class useful for scaling loss
+    * `:positive_weight` - class weight for `1` class useful for scaling loss
       by importance of class. Defaults to `1.0`.
 
     * `:from_logits` - whether `y_pred` is a logits tensor. Defaults to `false`.
