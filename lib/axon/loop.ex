@@ -1211,7 +1211,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.checkpoint(event: :iteration_completed, filter: [every: 50])
 
   Checkpoints are saved under the `checkpoint/` directory with a pattern
-  of `checkpoint_{epoch}.ckpt`. You can customize the path and pattern
+  of `checkpoint_{epoch}_{iteration}.ckpt`. You can customize the path and pattern
   with the `:path` and `:file_pattern` options:
 
       my_file_pattern =
