@@ -217,8 +217,6 @@ defmodule Axon.Loop do
 
   import Axon.Shared
 
-  import Nx.Defn
-
   @file_version 1
 
   @default_events [
@@ -343,7 +341,9 @@ defmodule Axon.Loop do
     init_fn = fn
       {inp, tar}, %{} = init_model_state ->
         model_state = init_model_fn.(inp, init_model_state)
-        optimizer_state = init_optimizer_fn.(model_state)
+        trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
+
+        optimizer_state = init_optimizer_fn.(trainable_parameters)
         loss_scale_state = init_loss_scale.()
 
         # TODO: is this expensive? Will it compute the entire
@@ -355,9 +355,7 @@ defmodule Axon.Loop do
           y_true: zeros_like(tar),
           y_pred: zeros_like(output),
           loss: Nx.tensor(0.0),
-          gradient_step: Nx.tensor(0),
           model_state: model_state,
-          gradient_state: zeros_like(model_state, type: :f32),
           optimizer_state: optimizer_state,
           loss_scale_state: loss_scale_state
         }
@@ -366,9 +364,13 @@ defmodule Axon.Loop do
         raise_bad_training_inputs!(data, state)
     end
 
-    # TODO: We should probably compute in same compute policy as MP
-    # here
-    objective_fn = fn model_state, loss_scale_state, inp, tar ->
+    objective_fn = fn trainable_parameters, model_state, loss_scale_state, inp, tar ->
+      # hack to use trainable parameters as grad
+      model_state =
+        update_in(model_state, [Access.key!(:data)], fn data ->
+          tree_merge(data, trainable_parameters, fn _, _, v -> v end)
+        end)
+
       model_out = forward_model_fn.(model_state, inp)
 
       {scaled_loss, unscaled_loss} =
@@ -390,54 +392,46 @@ defmodule Axon.Loop do
       {inp, tar}, %{} = state ->
         %{
           i: i,
-          gradient_step: gradient_step,
           loss_scale_state: loss_scale_state,
-          gradient_state: gradient_state,
           model_state: model_state,
           optimizer_state: optimizer_state,
           loss: loss
         } = state
 
-        {{model_out, _batch_scaled_loss, batch_unscaled_loss}, gradients} =
+        trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
+
+        {{model_out, _batch_scaled_loss, batch_loss}, gradients} =
           Nx.Defn.value_and_grad(
-            model_state,
-            &objective_fn.(&1, loss_scale_state, inp, tar),
+            trainable_parameters,
+            &objective_fn.(&1, model_state, loss_scale_state, inp, tar),
             fn x -> elem(x, 1) end
           )
 
         {gradients, new_loss_scale_state} =
           unscale_grads.(gradients, loss_scale_state)
 
-        preds = model_out.prediction
-        new_state = model_out.state
+        {updates, new_optimizer_state} =
+          update_optimizer_fn.(gradients, optimizer_state, trainable_parameters)
+
+        updated_parameters = Polaris.Updates.apply_updates(trainable_parameters, updates)
+
+        %{prediction: preds, state: updated_state} = model_out
 
         new_loss =
           loss
           |> Nx.multiply(i)
-          |> Nx.add(Nx.multiply(batch_unscaled_loss, gradient_accumulation_steps))
+          |> Nx.add(batch_loss)
           |> Nx.divide(Nx.add(i, 1))
 
-        {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step} =
-          accumulate_gradients(
-            gradients,
-            model_state,
-            new_state,
-            optimizer_state,
-            gradient_state,
-            gradient_step,
-            update_optimizer_fn,
-            steps: gradient_accumulation_steps
-          )
+        new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
 
         %{
           state
           | i: Nx.add(i, 1),
-            gradient_step: new_gradient_step,
             y_true: tar,
             y_pred: preds,
             loss: new_loss,
             model_state: new_model_state,
-            gradient_state: new_gradient_state,
             optimizer_state: new_optimizer_state,
             loss_scale_state: new_loss_scale_state
         }
@@ -452,41 +446,25 @@ defmodule Axon.Loop do
     }
   end
 
-  defnp accumulate_gradients(
-          gradients,
-          model_state,
-          new_state,
-          optimizer_state,
-          gradient_state,
-          gradient_step,
-          update_optimizer_fn,
-          opts \\ []
-        ) do
-    opts = keyword!(opts, [:steps])
-    steps = opts[:steps]
+  defp tree_merge(lhs, rhs, fun) do
+    Enum.reduce(lhs, %{}, fn {key, val_lhs}, acc ->
+      case Map.get(rhs, key) do
+        nil ->
+          Map.put(acc, key, val_lhs)
 
-    {_, new_model_state, _, new_optimizer_state, new_gradient_state, new_gradient_step, _} =
-      while {gradients, model_state, new_state, optimizer_state, gradient_state, gradient_step,
-             flag = Nx.tensor(1)},
-            flag do
-        if Nx.greater_equal(gradient_step, steps - 1) do
-          {updates, new_optimizer_state} =
-            update_optimizer_fn.(gradients, optimizer_state, model_state)
+        %Nx.Tensor{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
 
-          new_gradient_state = zeros_like(model_state)
-          new_model_state = Polaris.Updates.apply_updates(model_state, updates, new_state)
+        val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
+          updated_val = tree_merge(val_lhs, val_rhs, fun)
+          Map.put(acc, key, updated_val)
 
-          {gradients, new_model_state, new_state, new_optimizer_state, new_gradient_state, 0,
-           Nx.tensor(0)}
-        else
-          acc_gradients = deep_merge(gradient_state, gradients, fn x, y -> x + y end)
-
-          {gradients, model_state, new_state, optimizer_state, acc_gradients, gradient_step + 1,
-           Nx.tensor(0)}
-        end
+        val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
       end
-
-    {new_model_state, new_optimizer_state, new_gradient_state, new_gradient_step}
+    end)
   end
 
   defp raise_bad_training_inputs!(data, state) do
@@ -1597,6 +1575,10 @@ defmodule Axon.Loop do
       is set, the loop will raise on any cache miss during the training loop. Defaults
       to true.
 
+    * `:force_garbage_collect?` - whether or not to force garbage collection after each
+      iteration. This may help avoid OOMs when training large models, but it will slow
+      training down.
+
     * `:debug` - run loop in debug mode to trace loop progress. Defaults to
       false.
 
@@ -1608,8 +1590,8 @@ defmodule Axon.Loop do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {garbage_collect, opts} = Keyword.pop(opts, :garbage_collect, false)
-    {strict?, jit_opts} = Keyword.pop(opts, :strict?, true)
+    {strict?, opts} = Keyword.pop(opts, :strict?, true)
+    {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
 
     if jit_opts != [] do
@@ -1703,7 +1685,7 @@ defmodule Axon.Loop do
                       state,
                       data,
                       debug?,
-                      garbage_collect
+                      force_garbage_collection?
                     ])
 
                   if debug? do
@@ -1791,7 +1773,7 @@ defmodule Axon.Loop do
     end
   end
 
-  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, garbage_collect) do
+  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
     Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
       case fire_event(:iteration_started, handler_fns, state, debug?) do
         {:halt_epoch, state} ->
@@ -1848,7 +1830,7 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, batch_fn, state}}
 
             {:continue, state} ->
-              if garbage_collect do
+              if force_garbage_collection? do
                 :erlang.garbage_collect()
               end
 

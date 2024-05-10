@@ -1,14 +1,11 @@
 Mix.install([
-  {:axon, "~> 0.5"},
+  {:axon, path: "~/projects/axon"},
   {:polaris, "~> 0.1"},
-  {:exla, "~> 0.5"},
-  {:nx, "~> 0.5"},
+  {:exla, ">= 0.0.0"},
   {:scidata, "~> 0.1"}
 ])
 
 defmodule Mnist do
-  require Axon
-
   @batch_size 32
   @image_side_pixels 28
   @channel_value_max 255

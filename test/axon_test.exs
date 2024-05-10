@@ -2,7 +2,6 @@ defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
 
-  import ExUnit.CaptureLog
   import AxonTestUtil
 
   describe "input" do
@@ -733,7 +732,9 @@ defmodule AxonTest do
         |> Axon.dense(6, kernel_initializer: :identity, name: "dense")
         |> Axon.build()
 
-      assert %{"dense" => %{"kernel" => kernel, "bias" => bias}} = params = init_fn.(inp, %{})
+      assert %Axon.ModelState{data: %{"dense" => %{"kernel" => kernel, "bias" => bias}}} =
+               params = init_fn.(inp, Axon.ModelState.empty())
+
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
 
@@ -750,93 +751,9 @@ defmodule AxonTest do
       model = model()
 
       {init_fn, _} = Axon.build(model)
-      params = init_fn.(inp, %{})
+      params = init_fn.(inp, Axon.ModelState.empty())
 
       assert Axon.predict(model, params, inp) == inp
-    end
-  end
-
-  describe "model freezing" do
-    test "sets metadata correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.freeze()
-
-      assert %Axon{output: id, nodes: nodes} = model
-
-      assert %Axon.Node{
-               parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]
-             } = nodes[id]
-
-      assert %Axon{output: id, nodes: nodes} = model |> Axon.dense(10)
-
-      assert %Axon.Node{
-               parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]
-             } = nodes[id]
-    end
-
-    test "uses predicates correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(down: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i == 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-    end
-
-    test "unfreezes correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-
-      model = Axon.unfreeze(model, up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]} =
-                   layer
-        end
-
-        i + 1
-      end)
     end
   end
 
@@ -892,70 +809,14 @@ defmodule AxonTest do
              >\
              """
     end
-
-    test "works with single namespace" do
-      model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}}
-               outputs: "x"
-               nodes: 3
-             >\
-             """
-    end
-
-    test "works with nested namespace" do
-      model =
-        Axon.input("input_0", shape: {nil, 1})
-        |> Axon.dense(2)
-        |> Axon.namespace("x")
-        |> Axon.namespace("y")
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}}
-               outputs: "y"
-               nodes: 4
-             >\
-             """
-    end
-
-    test "works with multiple namespaces" do
-      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("y")
-
-      model = Axon.add(x, y)
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
-               outputs: "add_0"
-               nodes: 8
-             >\
-             """
-    end
-
-    test "works with single namespace and no namespace" do
-      x = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(2) |> Axon.namespace("x")
-      y = Axon.input("input_1", shape: {nil, 1}) |> Axon.dense(2)
-
-      model = Axon.add(x, y)
-
-      assert inspect(model) == """
-             #Axon<
-               inputs: %{"input_0" => {nil, 1}, "input_1" => {nil, 1}}
-               outputs: "add_0"
-               nodes: 7
-             >\
-             """
-    end
   end
 
   describe "container" do
     test "correctly derives container" do
       model = Axon.input("input", shape: {nil, 1})
-      assert Axon.predict(model, %{}, Nx.tensor([[1.0]])) == Nx.tensor([[1.0]])
+
+      assert Axon.predict(model, Axon.ModelState.empty(), Nx.tensor([[1.0]])) ==
+               Nx.tensor([[1.0]])
     end
 
     test "shape inference works" do
@@ -971,66 +832,6 @@ defmodule AxonTest do
                Axon.container({last_hidden_state, pooled}) |> Axon.nx(&elem(&1, 1))
 
       assert %Axon.Node{} = nodes[id]
-    end
-  end
-
-  describe "serialization" do
-    test "correctly serializes and deserializes simple container" do
-      inp1 = Axon.input("input_0", shape: {nil, 1})
-      inp2 = Axon.input("input_1", shape: {nil, 2})
-      model = Axon.container(%{a: inp1, b: inp2})
-
-      serialized = Axon.serialize(model, %{})
-      {deserialized, params} = Axon.deserialize(serialized)
-
-      input1 = Nx.tensor([[1.0]])
-      input2 = Nx.tensor([[1.0, 2.0]])
-
-      assert %{a: a, b: b} =
-               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
-
-      assert a == input1
-      assert b == input2
-    end
-
-    test "correctly serializes and deserializes nested container" do
-      inp1 = Axon.input("input_0", shape: {nil, 1})
-      inp2 = Axon.input("input_1", shape: {nil, 2})
-      model = Axon.container({{inp1, {}}, %{a: inp1}, {%{b: inp2, c: inp1, d: %{}}}})
-
-      serialized = Axon.serialize(model, %{})
-      {deserialized, params} = Axon.deserialize(serialized)
-
-      input1 = Nx.tensor([[1.0]])
-      input2 = Nx.tensor([[1.0, 2.0]])
-
-      assert {{a, {}}, %{a: b}, {%{b: c, c: d, d: %{}}}} =
-               Axon.predict(deserialized, params, %{"input_0" => input1, "input_1" => input2})
-
-      assert a == input1
-      assert b == input1
-      assert c == input2
-      assert d == input1
-    end
-
-    # TODO: Raise on next release
-    test "warns when serializing anonymous function" do
-      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
-      {init_fn, _} = Axon.build(model)
-      params = init_fn.(Nx.template({1, 1}, :f32), %{})
-
-      assert capture_log(fn -> Axon.serialize(model, params) end) =~ "Attempting to serialize"
-    end
-
-    test "warns when deserializing anonymous function" do
-      model = Axon.input("input") |> Axon.nx(fn x -> Nx.cos(x) end)
-      {init_fn, _} = Axon.build(model)
-      params = init_fn.(Nx.template({1, 1}, :f32), %{})
-
-      assert capture_log(fn ->
-               serialized = Axon.serialize(model, params)
-               Axon.deserialize(serialized)
-             end) =~ "Attempting to deserialize"
     end
   end
 
