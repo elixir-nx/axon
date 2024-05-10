@@ -14,6 +14,7 @@ defmodule Axon.Node do
     :opts,
     :global_options,
     :op_name,
+    :meta,
     :stacktrace
   ]
 end
