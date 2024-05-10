@@ -585,7 +585,7 @@ defmodule Axon do
       iex> inp1 = Axon.input("input_0", shape: {nil, 1})
       iex> inp2 = Axon.input("input_1", shape: {nil, 2})
       iex> model = Axon.container(%{a: inp1, b: inp2})
-      iex> %{a: a, b: b} = Axon.predict(model, %{}, %{
+      iex> %{a: a, b: b} = Axon.predict(model, Axon.ModelState.empty(), %{
       ...>    "input_0" => Nx.tensor([[1.0]]),
       ...>    "input_1" => Nx.tensor([[1.0, 2.0]])
       ...> })
@@ -3377,7 +3377,7 @@ defmodule Axon do
     out =
       Nx.Defn.jit(
         fn inputs ->
-          forward_fn.(init_fn.(inputs, %{}), inputs)
+          forward_fn.(init_fn.(inputs, Axon.ModelState.empty()), inputs)
         end,
         compiler: Axon.Defn
       ).(inputs)

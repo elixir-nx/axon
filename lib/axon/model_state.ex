@@ -158,6 +158,35 @@ defmodule Axon.ModelState do
     |> then(&tree_get(data, &1))
   end
 
+  @doc """
+  Returns an empty model state.
+  """
+  def empty() do
+    %Axon.ModelState{
+      data: %{},
+      parameters: %{},
+      state: %{},
+      frozen_parameters: %{}
+    }
+  end
+
+  @doc """
+  Returns a new model state struct from the given parameter
+  map.
+  """
+  def new(data)
+
+  def new(%Axon.ModelState{} = model_state), do: model_state
+
+  def new(data) when is_map(data) do
+    %Axon.ModelState{
+      data: data,
+      parameters: get_paths(data),
+      state: %{},
+      frozen_parameters: %{}
+    }
+  end
+
   # Helpers
 
   defp get_paths(map) do

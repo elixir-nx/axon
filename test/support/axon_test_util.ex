@@ -65,6 +65,10 @@ defmodule AxonTestUtil do
     end
   end
 
+  def assert_equal(%Axon.ModelState{data: lhs}, %Axon.ModelState{data: rhs}) do
+    assert_equal(lhs, rhs)
+  end
+
   def assert_equal(lhs, rhs) when is_map(lhs) and is_map(rhs) do
     lhs
     |> Map.values()

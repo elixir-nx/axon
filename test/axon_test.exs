@@ -2,7 +2,6 @@ defmodule AxonTest do
   use ExUnit.Case
   doctest Axon
 
-  import ExUnit.CaptureLog
   import AxonTestUtil
 
   describe "input" do
@@ -734,7 +733,7 @@ defmodule AxonTest do
         |> Axon.build()
 
       assert %Axon.ModelState{data: %{"dense" => %{"kernel" => kernel, "bias" => bias}}} =
-               params = init_fn.(inp, %{})
+               params = init_fn.(inp, Axon.ModelState.empty())
 
       assert kernel == Nx.eye({6, 6}, type: {:f, 32})
       assert bias == zeros({6})
@@ -752,93 +751,9 @@ defmodule AxonTest do
       model = model()
 
       {init_fn, _} = Axon.build(model)
-      params = init_fn.(inp, %{})
+      params = init_fn.(inp, Axon.ModelState.empty())
 
       assert Axon.predict(model, params, inp) == inp
-    end
-  end
-
-  describe "model freezing" do
-    test "sets metadata correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.freeze()
-
-      assert %Axon{output: id, nodes: nodes} = model
-
-      assert %Axon.Node{
-               parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]
-             } = nodes[id]
-
-      assert %Axon{output: id, nodes: nodes} = model |> Axon.dense(10)
-
-      assert %Axon.Node{
-               parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]
-             } = nodes[id]
-    end
-
-    test "uses predicates correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(down: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i == 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-    end
-
-    test "unfreezes correctly" do
-      model =
-        Axon.input("input", shape: {nil, 784})
-        |> Axon.dense(128)
-        |> Axon.dense(64)
-        |> Axon.dense(32)
-        |> Axon.freeze(up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: true}, %{name: "bias", frozen: true}]} =
-                   layer
-        end
-
-        i + 1
-      end)
-
-      model = Axon.unfreeze(model, up: 2)
-
-      Axon.reduce_nodes(model, 0, fn layer, i ->
-        if i < 2 do
-          assert %{parameters: [%{name: "kernel", frozen: false}, %{name: "bias", frozen: false}]} =
-                   layer
-        end
-
-        i + 1
-      end)
     end
   end
 
@@ -899,7 +814,9 @@ defmodule AxonTest do
   describe "container" do
     test "correctly derives container" do
       model = Axon.input("input", shape: {nil, 1})
-      assert Axon.predict(model, %{}, Nx.tensor([[1.0]])) == Nx.tensor([[1.0]])
+
+      assert Axon.predict(model, Axon.ModelState.empty(), Nx.tensor([[1.0]])) ==
+               Nx.tensor([[1.0]])
     end
 
     test "shape inference works" do

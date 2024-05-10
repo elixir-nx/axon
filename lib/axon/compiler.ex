@@ -172,12 +172,16 @@ defmodule Axon.Compiler do
           params
         end)
 
-      model_state_meta
-      |> normalize_blocks(params)
+      out =
+        params
+        |> normalize_blocks(model_state_meta)
+        |> merge_model_state!(init_model_state)
 
       if debug? do
         Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
       end
+
+      out
     end
 
     {init_fun, predict_fun}
@@ -285,6 +289,10 @@ defmodule Axon.Compiler do
     end
   end
 
+  defp merge_model_state!(state, init_state) do
+    %{state | data: merge_params!(state.data, init_state.data)}
+  end
+
   defp merge_params!(params, init_params) do
     Enum.reduce(init_params, params, fn {key, value}, params ->
       case params do
@@ -314,28 +322,41 @@ defmodule Axon.Compiler do
     Nx.as_type(value, Nx.type(template))
   end
 
-  defp normalize_blocks(params) do
+  defp normalize_blocks(params, %{
+         state: meta_state,
+         parameters: meta_params,
+         frozen_parameters: frozen
+       }) do
+    model_state = %Axon.ModelState{
+      data: %{},
+      state: meta_state,
+      parameters: meta_params,
+      frozen_parameters: frozen
+    }
+
     # Blocks are kinda hacky and produce a model state,
     # so we normalize them so we get proper model metadata
     # and then have just one root-level model state struct
-    {data, parameters, state} =
-      Enum.reduce(params, {%{}, %{}, %{}}, fn
-        {key, %Axon.ModelState{} = model_state}, {acc, parameters, state} ->
-          updated_parmeters =
-            if model_state.parameters == %{},
-              do: parameters,
-              else: Map.put(parameters, key, model_state.parameters)
+    Enum.reduce(params, model_state, fn
+      {key, %Axon.ModelState{} = model_state}, acc_model_state ->
+        acc_model_state
+        |> update_in([Access.key!(:parameters)], fn state ->
+          if model_state.parameters == %{},
+            do: state,
+            else: Map.put(state, key, model_state.parameters)
+        end)
+        |> update_in([Access.key!(:state)], fn state ->
+          if model_state.state == %{},
+            do: state,
+            else: Map.put(state, key, model_state.state)
+        end)
+        |> update_in([Access.key!(:data)], fn state ->
+          Map.put(state, key, model_state.data)
+        end)
 
-          updated_state =
-            if model_state.state == %{}, do: state, else: Map.put(state, key, model_state.state)
-
-          {Map.put(acc, key, model_state.data), updated_parmeters, updated_state}
-
-        {key, data}, {acc, parameters, state} ->
-          {Map.put(acc, key, data), parameters, state}
-      end)
-
-    {data, %{parameters: parameters, state: state}}
+      {key, data}, acc_model_state ->
+        update_in(acc_model_state, [Access.key!(:data)], &Map.put(&1, key, data))
+    end)
   end
 
   def compile(graph, _opts) do
@@ -490,8 +511,8 @@ defmodule Axon.Compiler do
          {cache, op_counts, block_cache, model_state_meta},
          config
        ) do
-    {parent_id, {cache, op_counts, block_cache}} =
-      to_model_funs(parent, nodes, {cache, op_counts, block_cache}, config)
+    {parent_id, {cache, op_counts, block_cache, model_state_meta}} =
+      to_model_funs(parent, nodes, {cache, op_counts, block_cache, model_state_meta}, config)
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
       {out, {state, result_cache}} =
@@ -642,7 +663,7 @@ defmodule Axon.Compiler do
         {%Axon.None{}, {state, result_cache}}
       else
         block_params = params[block_name] || %{}
-        result = apply(block_predict_fun, [block_params, layer_input])
+        result = apply(block_predict_fun, [Axon.ModelState.new(block_params), layer_input])
 
         {out_result, out_state} =
           case result do
@@ -686,7 +707,7 @@ defmodule Axon.Compiler do
         {%Axon.None{}, {parent_params, result_cache}}
       else
         template = Nx.broadcast(0.0, parent_shape)
-        block_params = apply(block_init_fun, [template, %{}])
+        block_params = apply(block_init_fun, [template, Axon.ModelState.empty()])
 
         params =
           if block_params == %{} do

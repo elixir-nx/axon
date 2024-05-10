@@ -368,7 +368,7 @@ defmodule Axon.Loop do
       # hack to use trainable parameters as grad
       model_state =
         update_in(model_state, [Access.key!(:data)], fn data ->
-          Map.merge(data, trainable_parameters, fn _, _, v -> v end)
+          tree_merge(data, trainable_parameters, fn _, _, v -> v end)
         end)
 
       model_out = forward_model_fn.(model_state, inp)
@@ -444,6 +444,27 @@ defmodule Axon.Loop do
       Nx.Defn.jit(init_fn, on_conflict: :reuse),
       Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
+  end
+
+  defp tree_merge(lhs, rhs, fun) do
+    Enum.reduce(lhs, %{}, fn {key, val_lhs}, acc ->
+      case Map.get(rhs, key) do
+        nil ->
+          Map.put(acc, key, val_lhs)
+
+        %Nx.Tensor{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+
+        val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
+          updated_val = tree_merge(val_lhs, val_rhs, fun)
+          Map.put(acc, key, updated_val)
+
+        val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+      end
+    end)
   end
 
   defp raise_bad_training_inputs!(data, state) do

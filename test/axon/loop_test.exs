@@ -43,8 +43,9 @@ defmodule Axon.LoopTest do
           assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                    Loop.trainer(model, loss, optimizer)
 
-          assert %{model_state: %{}} =
-                   pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
+          assert %{model_state: %Axon.ModelState{}} =
+                   pstate =
+                   init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
           state = %State{step_state: pstate}
 
@@ -66,7 +67,8 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, custom_loss_fn, :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
+      assert %{model_state: %{}} =
+               pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
       state = %State{step_state: pstate}
 
@@ -87,7 +89,8 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, optimizer)
 
-      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
+      assert %{model_state: %{}} =
+               pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
       state = %State{step_state: pstate}
 
@@ -106,7 +109,8 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, :mean_squared_error, :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, %{})
+      assert %{model_state: %{}} =
+               pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
       state = %State{step_state: pstate}
 
@@ -127,7 +131,8 @@ defmodule Axon.LoopTest do
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
 
-      assert %{model_state: %{}} = pstate = init_fn.({Nx.tensor([[2]]), Nx.tensor([[2]])}, %{})
+      assert %{model_state: %{}} =
+               pstate = init_fn.({Nx.tensor([[2]]), Nx.tensor([[2]])}, Axon.ModelState.empty())
 
       state = %State{step_state: pstate}
 
@@ -165,7 +170,7 @@ defmodule Axon.LoopTest do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       {init_fn, _} = Axon.build(model)
 
-      model_state = init_fn.(inp, %{})
+      model_state = init_fn.(inp, Axon.ModelState.empty())
 
       expected_pred = Axon.predict(model, model_state, inp)
 
@@ -192,7 +197,7 @@ defmodule Axon.LoopTest do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       {init_fn, _} = Axon.build(model)
 
-      model_state = init_fn.(inp, %{})
+      model_state = init_fn.(inp, Axon.ModelState.empty())
       data = [{Nx.tensor([[1]]), Nx.tensor([[2]])}]
 
       assert %Loop{} = loop = Loop.evaluator(model)
@@ -210,7 +215,7 @@ defmodule Axon.LoopTest do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       {init_fn, _} = Axon.build(model)
 
-      model_state = init_fn.(inp, %{})
+      model_state = init_fn.(inp, Axon.ModelState.empty())
 
       {init_fn, step_fn} = Axon.Loop.eval_step(model)
       pstate = apply(Nx.Defn.jit(init_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, model_state])
@@ -226,21 +231,21 @@ defmodule Axon.LoopTest do
       model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.({val, val}, %{})
+      state = init_fn.({val, val}, Axon.ModelState.empty())
       state = step_fn.({val, val}, state)
 
-      assert_all_close(state.model_state["batch_norm"]["mean"], Nx.broadcast(0.9, {8}))
-      assert_all_close(state.model_state["batch_norm"]["var"], Nx.broadcast(0.1, {8}))
+      assert_all_close(state.model_state.data["batch_norm"]["mean"], Nx.broadcast(0.9, {8}))
+      assert_all_close(state.model_state.data["batch_norm"]["var"], Nx.broadcast(0.1, {8}))
 
       val = Nx.broadcast(1, {1, 1, 8})
       model = Axon.constant(val) |> Axon.instance_norm(name: "instance_norm")
       {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :adam)
 
-      state = init_fn.({val, val}, %{})
+      state = init_fn.({val, val}, Axon.ModelState.empty())
       state = step_fn.({val, val}, state)
 
-      assert_all_close(state.model_state["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
-      assert_all_close(state.model_state["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
+      assert_all_close(state.model_state.data["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
+      assert_all_close(state.model_state.data["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
     end
   end
 
@@ -370,7 +375,7 @@ defmodule Axon.LoopTest do
       )
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
-        %{},
+        Axon.ModelState.empty(),
         epochs: 5,
         strict?: false
       )
@@ -410,7 +415,7 @@ defmodule Axon.LoopTest do
       )
       |> Loop.run(
         [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}],
-        %{},
+        Axon.ModelState.empty(),
         epochs: 5,
         strict?: false
       )
@@ -457,7 +462,7 @@ defmodule Axon.LoopTest do
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
       |> send_handler(event)
-      |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
+      |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: epochs, iterations: iterations)
     end
 
     def send_handler(loop, event) do
@@ -552,7 +557,7 @@ defmodule Axon.LoopTest do
           {:halt_epoch, state}
         end)
         |> send_handler(:epoch_halted)
-        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 10)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 10)
       end)
 
       for _ <- 1..5 do
@@ -580,7 +585,7 @@ defmodule Axon.LoopTest do
         |> send_handler(:iteration_started)
         |> send_handler(:iteration_completed)
         |> send_handler(:epoch_completed)
-        |> Axon.Loop.run(data, %{}, epochs: 1, iterations: 1)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 1, iterations: 1)
       end)
 
       assert_received :started
@@ -612,7 +617,7 @@ defmodule Axon.LoopTest do
         |> continue_handler(:iteration_started)
         |> continue_handler(:iteration_started)
         |> send_event_counts_handler(:epoch_completed)
-        |> Axon.Loop.run(data, %{}, epochs: 2, iterations: 10)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2, iterations: 10)
       end)
 
       assert_received {:started,
@@ -671,7 +676,7 @@ defmodule Axon.LoopTest do
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :sgd, log: -1)
       |> send_handler(event, filter)
-      |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: iterations)
+      |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: epochs, iterations: iterations)
     end
 
     def send_handler(loop, event, filter) do
@@ -798,7 +803,7 @@ defmodule Axon.LoopTest do
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
-      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor(1)}, %{})
+      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor(1)}, Axon.ModelState.empty())
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
@@ -812,7 +817,7 @@ defmodule Axon.LoopTest do
       deserialize_fn = fn binary, opts -> :erlang.binary_to_term(binary, opts) end
 
       init_fn = fn _data, _state -> %{foo: Nx.tensor(1)} end
-      step_state = init_fn.(Nx.tensor(1), %{})
+      step_state = init_fn.(Nx.tensor(1), Axon.ModelState.empty())
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state, serialize_step_state: serialize_fn)
@@ -840,7 +845,7 @@ defmodule Axon.LoopTest do
     test "saves a checkpoint on each epoch", %{loop: loop} do
       loop
       |> Loop.checkpoint()
-      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], Axon.ModelState.empty(), epochs: 3)
 
       assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()
@@ -853,7 +858,7 @@ defmodule Axon.LoopTest do
                loop
                |> Map.put(:output_transform, & &1)
                |> Loop.checkpoint(event: :iteration_completed, filter: [every: 2])
-               |> Loop.run(data, %{}, epochs: 3)
+               |> Loop.run(data, Axon.ModelState.empty(), epochs: 3)
 
       assert [
                "checkpoint_0_0.ckpt",
@@ -871,7 +876,7 @@ defmodule Axon.LoopTest do
     test "uses the custom file_pattern function", %{loop: loop} do
       loop
       |> Loop.checkpoint(file_pattern: &"ckp_#{&1.epoch}.ckpt")
-      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], Axon.ModelState.empty(), epochs: 3)
 
       assert ["ckp_0.ckpt", "ckp_1.ckpt", "ckp_2.ckpt"] ==
                File.ls!("checkpoint") |> Enum.sort()
@@ -880,7 +885,7 @@ defmodule Axon.LoopTest do
     test "uses a custom path", %{loop: loop} do
       loop
       |> Loop.checkpoint(path: "checkpoint_custom_path")
-      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], %{}, epochs: 3)
+      |> Loop.run([{Nx.tensor([[1]]), Nx.tensor([[2]])}], Axon.ModelState.empty(), epochs: 3)
 
       assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
                File.ls!("checkpoint_custom_path") |> Enum.sort()
@@ -904,7 +909,7 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
           # TODO: Make this an actual function or configurable
           |> Map.put(:output_transform, & &1)
-          |> Axon.Loop.run(data, %{}, epochs: 3, iterations: 5)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 3, iterations: 5)
 
         model
         |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
@@ -942,7 +947,7 @@ defmodule Axon.LoopTest do
           end,
           fn %{epoch: epoch}, _ -> epoch == 1 end
         )
-        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
       end)
     end
   end
@@ -974,7 +979,7 @@ defmodule Axon.LoopTest do
           end,
           fn %{epoch: epoch}, _ -> epoch == 1 end
         )
-        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
       end)
     end
 
@@ -1000,7 +1005,7 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.early_stop("counter", mode: :min, patience: 2)
           # TODO: This API needs to change
           |> Map.update(:output_transform, nil, fn _ -> & &1 end)
-          |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
 
         assert %{epoch: 3} = state
       end)
@@ -1028,7 +1033,7 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.early_stop("counter", mode: :max, patience: 2)
           # TODO: This API needs to change
           |> Map.update(:output_transform, nil, fn _ -> & &1 end)
-          |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
 
         assert %{epoch: 3} = state
       end)
@@ -1062,7 +1067,7 @@ defmodule Axon.LoopTest do
           end,
           fn %{epoch: epoch}, _ -> epoch == 1 end
         )
-        |> Axon.Loop.run(data, %{}, epochs: 5, iterations: 5)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
       end)
     end
 
@@ -1093,7 +1098,7 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :min, patience: 2)
           # TODO: This API needs to change
           |> Map.update(:output_transform, nil, fn _ -> & &1 end)
-          |> Axon.Loop.run(data, %{}, epochs: 7, iterations: 5)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 7, iterations: 5)
 
         assert %{step_state: %{optimizer_state: optimizer_state}} = state
         # TODO: This is a strong assumption
@@ -1129,7 +1134,7 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :max, patience: 2)
           # TODO: This API needs to change
           |> Map.update(:output_transform, nil, fn _ -> & &1 end)
-          |> Axon.Loop.run(data, %{}, epochs: 7, iterations: 5)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 7, iterations: 5)
 
         assert %{step_state: %{optimizer_state: optimizer_state}} = state
         # TODO: This is a strong assumption
