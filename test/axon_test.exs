@@ -1076,5 +1076,19 @@ defmodule AxonTest do
       assert shape = Axon.get_output_shape(model, Nx.template({1, 1}, :f32))
       assert shape == {{1, 2}, {1, 2}}
     end
+
+    test "doesn't raise on none output" do
+      values = Axon.input("values")
+      mask = Axon.input("mask", optional: true)
+
+      model =
+        values
+        |> Axon.dense(10)
+        |> Axon.multiply(mask)
+        |> Axon.dense(1)
+        |> Axon.sigmoid()
+
+      assert %Axon.None{} = Axon.get_output_shape(model, %{"values" => Nx.template({1, 1}, :f32)})
+    end
   end
 end

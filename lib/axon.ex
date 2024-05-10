@@ -3405,7 +3405,7 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_output_shape(%Axon{} = axon, inputs, opts \\ []) do
-    {init_fn, forward_fn} = build(axon, opts)
+    {init_fn, forward_fn} = build(axon, opts ++ [raise_on_none: false])
 
     out =
       Nx.Defn.jit(

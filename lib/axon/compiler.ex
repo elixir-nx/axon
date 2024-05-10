@@ -48,6 +48,7 @@ defmodule Axon.Compiler do
   @doc false
   def build(%Axon{output: id, nodes: nodes}, opts) do
     debug? = Keyword.get(opts, :debug, false)
+    raise_on_none? = Keyword.get(opts, :raise_on_none, true)
     mode = Keyword.get(opts, :mode, :inference)
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
     global_layer_options = Keyword.get(opts, :global_layer_options, [])
@@ -105,10 +106,12 @@ defmodule Axon.Compiler do
       end
 
       with %Axon.None{} <- result do
-        raise ArgumentError,
-              "the compiled model will always result in %Axon.None{}." <>
-                " This most likely means you specified optional output and " <>
-                " did not handle the case when it is missing"
+        if raise_on_none? do
+          raise ArgumentError,
+                "the compiled model will always result in %Axon.None{}." <>
+                  " This most likely means you specified optional output and " <>
+                  " did not handle the case when it is missing"
+        end
       end
 
       result
