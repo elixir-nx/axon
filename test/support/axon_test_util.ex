@@ -27,7 +27,7 @@ defmodule AxonTestUtil do
     |> Enum.zip_with(Tuple.to_list(rhs), &assert_all_close(&1, &2, opts))
   end
 
-  def assert_all_close(lhs, rhs, opts) do
+  def assert_all_close(%Nx.Tensor{} = lhs, %Nx.Tensor{} = rhs, opts) do
     res = Nx.all_close(lhs, rhs, opts) |> Nx.backend_transfer(Nx.BinaryBackend)
 
     unless Nx.to_number(res) == 1 do
@@ -41,6 +41,12 @@ defmodule AxonTestUtil do
       #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
       """
     end
+  end
+
+  def assert_all_close(lhs, rhs, opts) when is_map(lhs) and is_map(rhs) do
+    lhs
+    |> Map.values()
+    |> Enum.zip_with(Map.values(rhs), &assert_all_close(&1, &2, opts))
   end
 
   def assert_equal(lhs, rhs) when is_tuple(lhs) and is_tuple(rhs) do

@@ -967,7 +967,7 @@ defmodule Axon.Compiler do
   defp layer_predict_fun(
          params,
          inputs,
-         state,
+         init_state,
          cache,
          result_cache,
          fn_stacktrace,
@@ -988,10 +988,10 @@ defmodule Axon.Compiler do
     # Recurse graph inputs and invoke cache to get parent results,
     # state, and result_cache and then apply dtype policy and hooks
     # to each input
-    {layer_inputs, {state, result_cache, none?}} =
+    {layer_inputs, {parent_state, result_cache, none?}} =
       Enum.map_reduce(
         parent_ids,
-        {state, result_cache, false},
+        {%{}, result_cache, false},
         fn parent_id, {state, result_cache, none?} ->
           {layer_input, {state, result_cache}} =
             call_predict_cache(
@@ -1014,6 +1014,11 @@ defmodule Axon.Compiler do
           {layer_input, {state, result_cache, none?}}
         end
       )
+
+    # there's an issue where stateful layers can have the same input,
+    # which means that if they're in the same container the "parent" state
+    # will get wiped out. This happens with RNNs, so we fix that here
+    state = Map.merge(init_state, parent_state)
 
     if none? do
       {%Axon.None{}, {state, result_cache}}

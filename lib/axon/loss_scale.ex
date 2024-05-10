@@ -36,7 +36,7 @@ defmodule Axon.LossScale do
   """
   def static(opts \\ []) do
     opts = Keyword.validate!(opts, init_scale: @default_loss_scale)
-    loss_scale = Nx.backend_copy(opts[:init_scale], Nx.BinaryBackend)
+    loss_scale = Nx.backend_copy(opts[:init_scale], Nx.BinaryBackend) |> Nx.as_type(:f32)
     {fn -> init_static(loss_scale) end, &scale_static/2, &unscale_static/2}
   end
 
@@ -67,7 +67,7 @@ defmodule Axon.LossScale do
       )
 
     {loss_scale, opts} = Keyword.pop(opts, :init_scale, @default_loss_scale)
-    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend)
+    loss_scale = Nx.backend_copy(loss_scale, Nx.BinaryBackend) |> Nx.as_type(:f32)
 
     {
       fn -> init_dynamic(loss_scale) end,

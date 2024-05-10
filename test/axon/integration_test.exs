@@ -34,7 +34,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                results
@@ -82,7 +82,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                results
@@ -133,7 +133,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                results
@@ -183,7 +183,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                results
@@ -232,7 +232,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                results
@@ -279,7 +279,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       %{metrics: metrics2, step_state: step_state2} =
         model
@@ -292,7 +292,7 @@ defmodule Axon.IntegrationTest do
         |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
-        |> Axon.Loop.run(train, %{}, epochs: 10)
+        |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
       assert_equal(metrics1, metrics2)
       assert_equal(step_state1, step_state2)
@@ -354,7 +354,7 @@ defmodule Axon.IntegrationTest do
             |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
-            |> Axon.Loop.run(train, %{}, epochs: 10)
+            |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
           assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                    results
@@ -405,23 +405,23 @@ defmodule Axon.IntegrationTest do
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
 
       ExUnit.CaptureIO.capture_io(fn ->
-        dynamic =
+        %Axon.ModelState{data: dynamic} =
           dynamic_model
           |> Axon.Loop.trainer(
             :mean_squared_error,
             Polaris.Optimizers.adam(learning_rate: 1.0e-3),
             seed: 10
           )
-          |> Axon.Loop.run(train, %{}, epochs: 1)
+          |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 1)
 
-        static =
+        %Axon.ModelState{data: static} =
           static_model
           |> Axon.Loop.trainer(
             :mean_squared_error,
             Polaris.Optimizers.adam(learning_rate: 1.0e-3),
             seed: 10
           )
-          |> Axon.Loop.run(train, %{}, epochs: 1)
+          |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 1)
 
         # After a single step, initialized to the same seed with exact same configuration
         # and inputs, these should be exactly the same
@@ -469,7 +469,7 @@ defmodule Axon.IntegrationTest do
             |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
-            |> Axon.Loop.run(train, %{}, epochs: 10)
+            |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
           assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                    results
@@ -485,7 +485,7 @@ defmodule Axon.IntegrationTest do
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
-          assert Nx.type(model_state["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
         end)
       end
 
@@ -520,7 +520,7 @@ defmodule Axon.IntegrationTest do
             |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
-            |> Axon.Loop.run(train, %{}, epochs: 10)
+            |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
 
           assert %{step_state: %{model_state: model_state}, metrics: %{9 => last_epoch_metrics}} =
                    results
@@ -536,7 +536,7 @@ defmodule Axon.IntegrationTest do
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
-          assert Nx.type(model_state["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
         end)
       end
     end
@@ -567,7 +567,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.dense(2, activation: :softmax)
 
       {init_fn, _} = Axon.build(model)
-      initial_state = init_fn.(Nx.template({1, 10}, :f32), %{})
+      initial_state = init_fn.(Nx.template({1, 10}, :f32), Axon.ModelState.empty())
 
       mp_model = Axon.MixedPrecision.apply_policy(model, policy)
 
@@ -595,7 +595,7 @@ defmodule Axon.IntegrationTest do
         assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
         assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
         assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
-        assert Nx.type(model_state["dense_0"]["kernel"]) == policy.params
+        assert Nx.type(model_state.data["dense_0"]["kernel"]) == policy.params
       end)
     end
   end

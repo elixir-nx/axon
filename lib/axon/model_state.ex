@@ -23,17 +23,16 @@ defmodule Axon.ModelState do
         } = model_state,
         updated_parameters,
         updated_state \\ %{}
-      ) do
+      ) do    
     updated_state =
       state
       |> tree_diff(frozen)
       |> then(&tree_get(updated_state, &1))
 
     update_in(model_state, [Access.key!(:data)], fn data ->
-      # TODO: Validate missing keys, etc.
       data
-      |> Map.merge(updated_parameters)
-      |> Map.merge(updated_state)
+      |> tree_merge(updated_parameters, fn _, _, v -> v end)
+      |> tree_merge(updated_state, fn _, _, v -> v end)
     end)
   end
 
@@ -216,7 +215,7 @@ defmodule Axon.ModelState do
     Enum.reduce(access, %{}, &Map.put(&2, &1, Map.fetch!(data, &1)))
   end
 
-  defp tree_get(data, access) when is_map(access) do
+  defp tree_get(data, access) when is_map(access) do    
     Enum.reduce(access, %{}, fn {key, value}, acc ->
       tree = tree_get(data[key], value)
       Map.put(acc, key, tree)
@@ -236,6 +235,27 @@ defmodule Axon.ModelState do
         val_rhs ->
           new_val = val_lhs -- val_rhs
           if new_val == [], do: acc, else: Map.put(acc, key, new_val)
+      end
+    end)
+  end
+
+  defp tree_merge(lhs, rhs, fun) do
+    Enum.reduce(lhs, %{}, fn {key, val_lhs}, acc ->
+      case Map.get(rhs, key) do
+        nil ->
+          Map.put(acc, key, val_lhs)
+
+        %Nx.Tensor{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+
+        val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
+          updated_val = tree_merge(val_lhs, val_rhs, fun)
+          Map.put(acc, key, updated_val)
+
+        val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
       end
     end)
   end

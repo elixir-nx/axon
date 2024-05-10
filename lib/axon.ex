@@ -2978,7 +2978,8 @@ defmodule Axon do
       case parent_name do
         nil ->
           fn _, op_counts ->
-            "lstm_#{op_counts[rnn_type]}_#{state_name}_hidden_state"
+            count = op_counts[rnn_type] || 0
+            "#{Atom.to_string(rnn_type)}_#{count}_#{state_name}_hidden_state"
           end
 
         parent_name when is_binary(parent_name) ->
@@ -3007,9 +3008,15 @@ defmodule Axon do
 
         arity == 3 ->
           fun =
-            fn inputs, key, _opts ->
+            fn inputs, key, opts ->
               shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
-              initializer.(shape, {:f, 32}, key)
+              out = initializer.(shape, {:f, 32}, key)
+
+              if opts[:mode] == :train do
+                %Axon.StatefulOutput{output: out, state: %{"key" => key}}
+              else
+                out
+              end
             end
 
           {fun, [x, key_state]}
