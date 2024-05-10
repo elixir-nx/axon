@@ -2357,17 +2357,31 @@ defmodule Axon do
   """
   def bidirectional(%Axon{} = input, forward_fun, merge_fun, opts \\ [])
       when is_function(forward_fun, 1) and is_function(merge_fun, 2) do
-    opts = Keyword.validate!(opts, axis: 1)
+    opts = Keyword.validate!(opts, [:name, axis: 1])
 
-    forward_out = forward_fun.(input)
+    fun =
+      Axon.block(
+        fn x ->
+          Axon.container(forward_fun.(x))
+        end,
+        name: opts[:name]
+      )
+
+    forward_out = fun.(input)
 
     backward_out =
       input
       |> Axon.nx(&Nx.reverse(&1, axes: [opts[:axis]]))
-      |> forward_fun.()
-      |> deep_new(&Axon.nx(&1, fn x -> Nx.reverse(x, axes: [opts[:axis]]) end))
+      |> fun.()
+      |> Axon.nx(fn x ->
+        deep_new(x, &Nx.reverse(&1, axes: [opts[:axis]]))
+      end)
 
-    deep_merge(forward_out, backward_out, merge_fun)
+    {forward_out, backward_out}
+    |> Axon.container()
+    |> Axon.nx(fn {forward, backward} ->
+      deep_merge(forward, backward, merge_fun)
+    end)
   end
 
   @doc """

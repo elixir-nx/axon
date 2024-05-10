@@ -5650,4 +5650,33 @@ defmodule CompilerTest do
       predict_fn.(params, input)
     end
   end
+
+  describe "bidirectional" do
+    test "works properly with LSTMs" do
+      input = Axon.input("input")
+
+      model =
+        input
+        |> Axon.embedding(10, 16)
+        |> Axon.bidirectional(
+          &Axon.lstm(&1, 32, name: "lstm"),
+          &Nx.concatenate([&1, &2], axis: 1),
+          name: "bidirectional"
+        )
+        |> Axon.nx(&elem(&1, 0))
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      input = Nx.broadcast(1, {1, 10})
+
+      assert %ModelState{
+               data: %{
+                 "bidirectional" => %{"lstm" => _}
+               }
+             } = params = init_fn.(input, ModelState.empty())
+
+      out = predict_fn.(params, input)
+      assert Nx.shape(out) == {1, 20, 32}
+    end
+  end
 end
