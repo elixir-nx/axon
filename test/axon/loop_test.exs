@@ -636,8 +636,8 @@ defmodule Axon.LoopTest do
                          started: 1,
                          epoch_started: 1,
                          epoch_completed: 1,
-                         iteration_started: 10,
-                         iteration_completed: 10
+                         iteration_started: %{total: 10, epoch: 0},
+                         iteration_completed: %{total: 10, epoch: 0}
                        }}
 
       assert_received {:epoch_started,
@@ -645,8 +645,8 @@ defmodule Axon.LoopTest do
                          started: 1,
                          epoch_started: 2,
                          epoch_completed: 1,
-                         iteration_started: 10,
-                         iteration_completed: 10
+                         iteration_started: %{total: 10, epoch: 0},
+                         iteration_completed: %{total: 10, epoch: 0}
                        }}
 
       assert_received {:epoch_completed,
@@ -654,8 +654,8 @@ defmodule Axon.LoopTest do
                          started: 1,
                          epoch_started: 2,
                          epoch_completed: 2,
-                         iteration_started: 20,
-                         iteration_completed: 20
+                         iteration_started: %{total: 20, epoch: 0},
+                         iteration_completed: %{total: 20, epoch: 0}
                        }}
 
       refute_received _
@@ -786,7 +786,7 @@ defmodule Axon.LoopTest do
 
     test "supports function filter" do
       fun = fn
-        %{event_counts: counts}, event -> counts[event] == 5
+        %{event_counts: counts}, event -> counts[event][:total] == 5
       end
 
       run_dummy_loop!(:iteration_started, fun, 5, 10)
@@ -854,18 +854,19 @@ defmodule Axon.LoopTest do
     test "saves a checkpoint on custom events", %{loop: loop} do
       data = List.duplicate({Nx.iota({1, 1}), Nx.iota({1, 1})}, 5)
 
-      assert %Axon.Loop.State{epoch: 3, iteration: 0, event_counts: %{iteration_completed: 15}} =
+      assert %Axon.Loop.State{epoch: 3, iteration: 0, event_counts: %{iteration_completed: %{total: 15}}} =
                loop
                |> Map.put(:output_transform, & &1)
-               |> Loop.checkpoint(event: :iteration_completed, filter: [every: 2])
+               |> Loop.checkpoint(event: :iteration_completed, filter: [every: {:epoch, 2}])
                |> Loop.run(data, Axon.ModelState.empty(), epochs: 3)
 
       assert [
                "checkpoint_0_0.ckpt",
                "checkpoint_0_2.ckpt",
                "checkpoint_0_4.ckpt",
-               "checkpoint_1_1.ckpt",
-               "checkpoint_1_3.ckpt",
+               "checkpoint_1_0.ckpt",
+               "checkpoint_1_2.ckpt",
+               "checkpoint_1_4.ckpt",
                "checkpoint_2_0.ckpt",
                "checkpoint_2_2.ckpt",
                "checkpoint_2_4.ckpt"

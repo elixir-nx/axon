@@ -485,7 +485,9 @@ defmodule Axon.IntegrationTest do
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
-          assert Nx.type(model_state.data["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) ==
+                   unquote(Macro.escape(policy)).params
         end)
       end
 
@@ -536,7 +538,9 @@ defmodule Axon.IntegrationTest do
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
-          assert Nx.type(model_state.data["dense_0"]["kernel"]) == unquote(Macro.escape(policy)).params
+
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) ==
+                   unquote(Macro.escape(policy)).params
         end)
       end
     end
