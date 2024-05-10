@@ -335,14 +335,15 @@ defmodule Axon do
     {name, opts} = Keyword.pop(opts, :name)
     {op_name, opts} = Keyword.pop(opts, :op_name, :custom)
     {global_options, opts} = Keyword.pop(opts, :global_options, [])
+    {meta, opts} = Keyword.pop(opts, :meta, %{})
     name = name(op_name, name)
 
     id = System.unique_integer([:positive, :monotonic])
-    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, opts, global_options)
+    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, meta, opts, global_options)
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
   end
 
-  defp make_node(id, op, name, op_name, mode, inputs, params, args, layer_opts, global_options) do
+  defp make_node(id, op, name, op_name, mode, inputs, params, args, meta, layer_opts, global_options) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
@@ -359,6 +360,7 @@ defmodule Axon do
       opts: layer_opts,
       global_options: global_options,
       op_name: op_name,
+      meta: meta,
       stacktrace: stacktrace
     }
   end
@@ -460,13 +462,14 @@ defmodule Axon do
   def input(name, opts \\ [])
 
   def input(name, opts) when is_binary(name) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:shape, optional: false])
+    opts = Keyword.validate!(opts, [:shape, :meta, optional: false])
     optional = opts[:optional]
+    meta = opts[:meta]
 
     input_shape = opts[:shape]
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
-    layer(:input, [], name: name, shape: output_shape, op_name: :input, optional: optional)
+    layer(:input, [], name: name, shape: output_shape, meta: meta, op_name: :input, optional: optional)
   end
 
   @doc """
@@ -519,8 +522,8 @@ defmodule Axon do
   """
   @doc type: :special
   def optional(%Axon{} = x, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
-    layer(:optional, [x], name: opts[:name], op_name: :optional)
+    opts = Keyword.validate!(opts, [:name, :meta])
+    layer(:optional, [x], name: opts[:name], meta: opts[:meta], op_name: :optional)
   end
 
   @doc """
@@ -548,15 +551,15 @@ defmodule Axon do
 
   @doc type: :special
   def constant(%Nx.Tensor{} = tensor, opts) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
-    layer(:constant, [], name: opts[:name], value: tensor, op_name: :constant)
+    layer(:constant, [], name: opts[:name], meta: opts[:meta], value: tensor, op_name: :constant)
   end
 
   def constant(number, opts) when is_number(number) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
-    layer(:constant, [], name: opts[:name], value: Nx.tensor(number), op_name: :constant)
+    layer(:constant, [], name: opts[:name], meta: opts[:meta], value: Nx.tensor(number), op_name: :constant)
   end
 
   def constant(value, _) do
@@ -607,9 +610,9 @@ defmodule Axon do
   """
   @doc type: :special
   def container(container, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
-    layer(:container, [container], name: opts[:name], op_name: :container)
+    layer(:container, [container], name: opts[:name], meta: opts[:meta], op_name: :container)
   end
 
   # TODO: This should not be duplicated
@@ -716,13 +719,14 @@ defmodule Axon do
   """
   @doc type: :special
   def block(fun, opts \\ []) when is_function(fun) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
     block_id = System.unique_integer([:positive, :monotonic])
 
     fn inputs ->
       layer(:block, List.wrap(inputs),
         op_name: :block,
         name: opts[:name],
+        meta: opts[:meta],
         block_fun: fun,
         block_id: block_id
       )
@@ -765,6 +769,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true
@@ -783,7 +788,7 @@ defmodule Axon do
         {[x, kernel], :dense}
       end
 
-    node = layer(op, inputs, name: opts[:name], op_name: :dense)
+    node = layer(op, inputs, name: opts[:name], meta: opts[:meta], op_name: :dense)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -837,6 +842,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true
@@ -855,7 +861,7 @@ defmodule Axon do
         {[input1, input2, kernel], :bilinear}
       end
 
-    node = layer(op, inputs, name: opts[:name], op_name: :bilinear)
+    node = layer(op, inputs, name: opts[:name], meta: opts[:meta], op_name: :bilinear)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -914,6 +920,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true,
@@ -950,6 +957,7 @@ defmodule Axon do
     node =
       layer(op, inputs,
         name: opts[:name],
+        meta: opts[:meta],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -1009,6 +1017,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true,
@@ -1041,6 +1050,7 @@ defmodule Axon do
     node =
       layer(op, inputs,
         name: opts[:name],
+        meta: opts[:meta],
         strides: strides,
         padding: padding,
         kernel_dilation: kernel_dilation,
@@ -1107,6 +1117,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true,
@@ -1144,6 +1155,7 @@ defmodule Axon do
     node =
       layer(op, inputs,
         name: opts[:name],
+        meta: opts[:meta],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -1207,6 +1219,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true,
@@ -1265,6 +1278,7 @@ defmodule Axon do
         op,
         inputs,
         name: opts[:name],
+        meta: opts[:meta],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -1328,6 +1342,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :activation,
+        :meta,
         kernel_initializer: :glorot_uniform,
         bias_initializer: :zeros,
         use_bias: true,
@@ -1400,6 +1415,7 @@ defmodule Axon do
         op,
         inputs,
         name: opts[:name],
+        meta: opts[:meta],
         strides: strides,
         padding: padding,
         input_dilation: input_dilation,
@@ -1513,7 +1529,7 @@ defmodule Axon do
   end
 
   defp dropout(%Axon{} = x, dropout, opts) do
-    opts = Keyword.validate!(opts, [:name, :seed, rate: 0.5])
+    opts = Keyword.validate!(opts, [:name, :meta, :seed, rate: 0.5])
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
 
     if opts[:rate] < 0 or opts[:rate] >= 1 do
@@ -1530,6 +1546,7 @@ defmodule Axon do
 
     layer(dropout, [x, key_state],
       name: opts[:name],
+      meta: opts[:meta],
       rate: opts[:rate],
       op_name: dropout,
       mode: :train
@@ -1579,6 +1596,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :strides,
+        :meta,
         kernel_size: 1,
         padding: :valid,
         channels: :last,
@@ -1599,6 +1617,7 @@ defmodule Axon do
 
         [
           name: name,
+          meta: opts[:meta],
           kernel_size: kernel_size,
           strides: strides,
           padding: padding,
@@ -1610,6 +1629,7 @@ defmodule Axon do
       else
         [
           name: name,
+          meta: opts[:meta],
           kernel_size: kernel_size,
           strides: strides,
           padding: padding,
@@ -1640,6 +1660,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         channels: :last
       ])
 
@@ -1648,6 +1669,7 @@ defmodule Axon do
 
     opts = [
       name: name,
+      meta: opts[:meta],
       channels: channels,
       op_name: :blur_pool
     ]
@@ -1686,7 +1708,7 @@ defmodule Axon do
   end
 
   defp adaptive_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, :output_size, channels: :last, norm: 2])
+    opts = Keyword.validate!(opts, [:name, :meta, :output_size, channels: :last, norm: 2])
 
     channels = opts[:channels]
     name = opts[:name]
@@ -1698,6 +1720,7 @@ defmodule Axon do
 
         [
           name: name,
+          meta: opts[:meta],
           output_size: output_size,
           norm: norm,
           channels: channels,
@@ -1706,6 +1729,7 @@ defmodule Axon do
       else
         [
           name: name,
+          meta: opts[:meta],
           output_size: output_size,
           channels: channels,
           op_name: pool
@@ -1751,7 +1775,7 @@ defmodule Axon do
   end
 
   defp global_pool(%Axon{} = x, pool, opts) do
-    opts = Keyword.validate!(opts, [:name, keep_axes: false, channels: :last, norm: 2])
+    opts = Keyword.validate!(opts, [:name, :meta, keep_axes: false, channels: :last, norm: 2])
 
     keep_axes = opts[:keep_axes]
     name = opts[:name]
@@ -1763,13 +1787,14 @@ defmodule Axon do
 
         [
           name: name,
+          meta: opts[:meta],
           channels: channels,
           keep_axes: keep_axes,
           norm: norm,
           op_name: pool
         ]
       else
-        [name: name, channels: channels, keep_axes: keep_axes, op_name: pool]
+        [name: name, meta: opts[:meta], channels: channels, keep_axes: keep_axes, op_name: pool]
       end
 
     layer(pool, [x], opts)
@@ -1814,6 +1839,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
         channel_index: -1,
@@ -1838,6 +1864,7 @@ defmodule Axon do
       norm,
       [x, gamma, beta, mean, var],
       name: opts[:name],
+      meta: opts[:meta],
       epsilon: opts[:epsilon],
       channel_index: channel_index,
       momentum: opts[:momentum],
@@ -1881,6 +1908,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         gamma_initializer: :glorot_uniform,
         beta_initializer: :zeros,
         channel_index: -1,
@@ -1897,6 +1925,7 @@ defmodule Axon do
 
     layer(norm, [x, gamma, beta],
       name: opts[:name],
+      meta: opts[:meta],
       epsilon: opts[:epsilon],
       channel_index: channel_index,
       op_name: norm
@@ -1930,6 +1959,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         gamma_initializer: :ones,
         beta_initializer: :zeros,
         channel_index: -1,
@@ -1946,6 +1976,7 @@ defmodule Axon do
 
     layer(:group_norm, [x, gamma, beta],
       name: opts[:name],
+      meta: opts[:meta],
       epsilon: opts[:epsilon],
       channel_index: channel_index,
       num_groups: num_groups,
@@ -1972,10 +2003,10 @@ defmodule Axon do
 
   @doc type: :special
   def nx(%Axon{} = x, fun, opts) when is_function(fun, 1) do
-    opts = Keyword.validate!(opts, [:name, :op_name])
+    opts = Keyword.validate!(opts, [:name, :meta, :op_name])
     op_name = opts[:op_name] || :nx
     fun_with_params = fn x, _opts -> fun.(x) end
-    layer(fun_with_params, [x], name: opts[:name], op_name: op_name)
+    layer(fun_with_params, [x], name: opts[:name], meta: opts[:meta], op_name: op_name)
   end
 
   @doc """
@@ -1992,10 +2023,11 @@ defmodule Axon do
   """
   @doc type: :shape
   def flatten(%Axon{} = x, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
     layer(:flatten, [x],
       name: opts[:name],
+      meta: opts[:meta],
       op_name: :flatten
     )
   end
@@ -2017,10 +2049,11 @@ defmodule Axon do
   """
   @doc type: :shape
   def reshape(%Axon{} = x, new_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
     layer(:reshape, [x],
       name: opts[:name],
+      meta: opts[:meta],
       shape: new_shape,
       op_name: :reshape
     )
@@ -2036,10 +2069,11 @@ defmodule Axon do
   """
   @doc type: :shape
   def transpose(%Axon{} = x, permutation \\ nil, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
     layer(:transpose, [x],
       name: opts[:name],
+      meta: opts[:meta],
       axes: permutation,
       op_name: :transpose
     )
@@ -2063,11 +2097,12 @@ defmodule Axon do
   @doc type: :shape
   def pad(%Axon{} = x, config, value \\ 0.0, opts \\ [])
       when is_list(config) and is_number(value) do
-    opts = Keyword.validate!(opts, [:name, channels: :last])
+    opts = Keyword.validate!(opts, [:name, :meta, channels: :last])
     channels = opts[:channels]
 
     layer(:pad, [x],
       name: opts[:name],
+      meta: opts[:meta],
       padding_config: config,
       value: value,
       channels: channels,
@@ -2102,11 +2137,12 @@ defmodule Axon do
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, method: :nearest, antialias: true, channels: :last])
+    opts = Keyword.validate!(opts, [:name, :meta, method: :nearest, antialias: true, channels: :last])
     channels = opts[:channels]
 
     layer(:resize, [x],
       name: opts[:name],
+      meta: opts[:meta],
       method: opts[:method],
       antialias: opts[:antialias],
       channels: channels,
@@ -2131,11 +2167,12 @@ defmodule Axon do
   @doc type: :combinator
   def concatenate(%Axon{} = x, %Axon{} = y, opts)
       when is_list(opts) do
-    opts = Keyword.validate!(opts, [:name, axis: -1])
+    opts = Keyword.validate!(opts, [:name, :meta, axis: -1])
     axis = opts[:axis]
 
     layer(:concatenate, [container({x, y})],
       name: opts[:name],
+      meta: opts[:meta],
       axis: axis,
       op_name: :concatenate
     )
@@ -2144,11 +2181,12 @@ defmodule Axon do
   @doc type: :combinator
   def concatenate([%Axon{} | _] = inputs, opts)
       when is_list(inputs) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:name, axis: -1])
+    opts = Keyword.validate!(opts, [:name, :meta, axis: -1])
     axis = opts[:axis]
 
     layer(:concatenate, [container(List.to_tuple(inputs))],
       name: opts[:name],
+      meta: opts[:meta],
       axis: axis,
       op_name: :concatenate
     )
@@ -2180,10 +2218,11 @@ defmodule Axon do
     """
     @doc type: :combinator
     def unquote(op)(%Axon{} = x, %Axon{} = y, opts) do
-      opts = Keyword.validate!(opts, [:name])
+      opts = Keyword.validate!(opts, [:name, :meta])
 
       layer(unquote(op), [container({x, y})],
         name: opts[:name],
+        meta: opts[:meta],
         op_name: unquote(op)
       )
     end
@@ -2202,10 +2241,11 @@ defmodule Axon do
     """
     @doc type: :combinator
     def unquote(op)(inputs, opts) when is_list(inputs) and is_list(opts) do
-      opts = Keyword.validate!(opts, [:name])
+      opts = Keyword.validate!(opts, [:name, :meta])
 
       layer(unquote(op), [container(List.to_tuple(inputs))],
         name: opts[:name],
+        meta: opts[:meta],
         op_name: unquote(op)
       )
     end
@@ -2238,10 +2278,11 @@ defmodule Axon do
         opts \\ []
       )
       when is_function(cond_fn, 1) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
     layer(:cond, [parent, true_graph, false_graph],
       name: opts[:name],
+      meta: opts[:meta],
       cond: cond_fn,
       op_name: :cond
     )
@@ -2262,7 +2303,7 @@ defmodule Axon do
   def split(parent, splits, opts \\ [])
 
   def split(%Axon{} = parent, splits, opts) when is_list(splits) do
-    opts = Keyword.validate!(opts, [:name, axis: -1])
+    opts = Keyword.validate!(opts, [:name, :meta, axis: -1])
     axis = opts[:axis]
 
     {_, split_layers} =
@@ -2282,6 +2323,7 @@ defmodule Axon do
               fn x, _ -> Nx.slice_along_axis(x, num_split, split, axis: axis) end,
               [parent],
               name: name,
+              meta: opts[:meta],
               op_name: :split
             )
 
@@ -2292,7 +2334,7 @@ defmodule Axon do
   end
 
   def split(%Axon{} = parent, n, opts) when is_integer(n) do
-    opts = Keyword.validate!(opts, [:name, axis: -1])
+    opts = Keyword.validate!(opts, [:name, :meta, axis: -1])
     axis = opts[:axis]
 
     splits =
@@ -2310,6 +2352,7 @@ defmodule Axon do
           &Axon.Layers.split/2,
           [parent],
           name: name,
+          meta: opts[:meta],
           index: i,
           splits: n,
           axis: axis,
@@ -2335,13 +2378,13 @@ defmodule Axon do
   """
   @doc type: :recurrent
   def mask(%Axon{} = input, eos_token, opts \\ []) when is_integer(eos_token) do
-    opts = Keyword.validate!(opts, [:name])
+    opts = Keyword.validate!(opts, [:name, :meta])
 
     fun = fn x, opts ->
       Nx.equal(Nx.as_type(x, :s64), opts[:eos_token])
     end
 
-    layer(fun, [input], eos_token: eos_token, op_name: :mask, name: opts[:name])
+    layer(fun, [input], eos_token: eos_token, op_name: :mask, meta: opts[:meta], name: opts[:name])
   end
 
   @doc """
@@ -2463,6 +2506,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         activation: :tanh,
         gate: :sigmoid,
         unroll: :dynamic,
@@ -2529,6 +2573,7 @@ defmodule Axon do
         op,
         inputs,
         name: opts[:name],
+        meta: opts[:meta],
         activation: activation,
         gate: gate,
         unroll: unroll,
@@ -2667,6 +2712,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         mask: Axon.constant(0),
         activation: :tanh,
         gate: :sigmoid,
@@ -2730,6 +2776,7 @@ defmodule Axon do
       layer(
         :gru,
         inputs,
+        meta: opts[:meta],
         name: opts[:name],
         activation: activation,
         gate: gate,
@@ -2855,6 +2902,7 @@ defmodule Axon do
     opts =
       Keyword.validate!(opts, [
         :name,
+        :meta,
         mask: Axon.constant(0),
         padding: :same,
         kernel_size: 1,
@@ -2915,6 +2963,7 @@ defmodule Axon do
       layer(
         op,
         inputs,
+        meta: opts[:meta],
         name: opts[:name],
         conv_opts: [
           strides: strides,
@@ -3061,13 +3110,13 @@ defmodule Axon do
   """
   @doc type: :linear
   def embedding(%Axon{} = x, vocab_size, embedding_size, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, kernel_initializer: :uniform])
+    opts = Keyword.validate!(opts, [:name, :meta, kernel_initializer: :uniform])
 
     kernel_shape = &Axon.Shape.embedding_kernel(&1, vocab_size, embedding_size)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
-    layer(:embedding, [x, kernel], name: opts[:name], op_name: :embedding)
+    layer(:embedding, [x, kernel], name: opts[:name], meta: opts[:meta], op_name: :embedding)
   end
 
   @doc """
@@ -3085,12 +3134,12 @@ defmodule Axon do
   """
   @doc type: :linear
   def bias(%Axon{} = x, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, bias_initializer: :zeros])
+    opts = Keyword.validate!(opts, [:name, :meta, bias_initializer: :zeros])
 
     bias_shape = fn shape -> {elem(shape, tuple_size(shape) - 1)} end
     bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
 
-    layer(:bias, [x, bias], name: opts[:name], op_name: :bias)
+    layer(:bias, [x, bias], name: opts[:name], meta: opts[:meta], op_name: :bias)
   end
 
   @doc """
@@ -3114,7 +3163,7 @@ defmodule Axon do
   def stack_columns(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore: []])
 
-    layer(:stack_columns, [x], name: opts[:name], ignore: opts[:ignore], op_name: :stack_columns)
+    layer(:stack_columns, [x], meta: opts[:meta], name: opts[:name], ignore: opts[:ignore], op_name: :stack_columns)
   end
 
   @doc """
