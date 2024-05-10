@@ -3010,10 +3010,11 @@ defmodule Axon do
           fun =
             fn inputs, key, opts ->
               shape = Axon.Shape.rnn_hidden_state(Nx.shape(inputs), units, rnn_type)
-              out = initializer.(shape, {:f, 32}, key)
+              keys = Nx.Random.split(key)
+              out = initializer.(shape, {:f, 32}, keys[1])
 
               if opts[:mode] == :train do
-                %Axon.StatefulOutput{output: out, state: %{"key" => key}}
+                %Axon.StatefulOutput{output: out, state: %{"key" => keys[0]}}
               else
                 out
               end
