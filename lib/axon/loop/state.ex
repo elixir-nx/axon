@@ -6,9 +6,7 @@ defmodule Axon.Loop.State do
 
       %State{
         epoch: integer(),
-        max_epoch: integer(),
         iteration: integer(),
-        max_iteration: integer(),
         metrics: map(string(), container()),
         times: map(integer(), integer()),
         step_state: container(),
@@ -18,14 +16,8 @@ defmodule Axon.Loop.State do
   `epoch` is the current epoch, starting at 0, of the nested loop.
   Defaults to 0.
 
-  `max_epoch` is the maximum number of epochs the loop should run
-  for. Defaults to 1.
-
   `iteration` is the current iteration of the inner loop. In supervised
   settings, this will be the current batch. Defaults to 0.
-
-  `max_iteration` is the maximum number of iterations the loop should
-  run a given epoch for. Defaults to -1 (no max).
 
   `metrics` is a map of `%{"metric_name" => value}` which accumulates metrics
   over the course of loop processing. Defaults to an empty map.
@@ -52,9 +44,7 @@ defmodule Axon.Loop.State do
     :status,
     handler_metadata: %{},
     epoch: 0,
-    max_epoch: 1,
     iteration: 0,
-    max_iteration: -1,
     metrics: %{},
     times: %{},
     event_counts: %{
