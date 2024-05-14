@@ -60,8 +60,8 @@ defmodule Axon.Loop.State do
     event_counts: %{
       started: 0,
       epoch_started: 0,
-      iteration_started: 0,
-      iteration_completed: 0,
+      iteration_started: %{total: 0, epoch: 0},
+      iteration_completed: %{total: 0, epoch: 0},
       epoch_completed: 0,
       epoch_halted: 0,
       halted: 0,

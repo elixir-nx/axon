@@ -690,7 +690,7 @@ defmodule Axon.Loop do
       loop
       |> log(&supervised_log_message_fn/1,
         event: :iteration_completed,
-        filter: [every: log_interval]
+        filter: [every: {:epoch, log_interval}]
       )
       |> log(fn _ -> "\n" end, event: :epoch_completed)
     else
@@ -1912,6 +1912,29 @@ defmodule Axon.Loop do
     end)
   end
 
+  defp update_counts(%State{event_counts: event_counts} = state, event)
+       when event in [:iteration_started, :iteration_completed] do
+    updated_counts =
+      Map.update(event_counts, event, %{total: 1, epoch: 1}, fn total_and_epoch ->
+        total_and_epoch
+        |> Map.update!(:total, &(&1 + 1))
+        |> Map.update!(:epoch, &(&1 + 1))
+      end)
+
+    %{state | event_counts: updated_counts}
+  end
+
+  defp update_counts(%State{event_counts: event_counts} = state, event)
+       when event in [:epoch_halted, :epoch_completed] do
+    updated_counts =
+      event_counts
+      |> Map.update(:iteration_started, %{total: 0, epoch: 0}, &%{&1 | epoch: 0})
+      |> Map.update(:iteration_completed, %{total: 0, epoch: 0}, &%{&1 | epoch: 0})
+      |> Map.update(event, 1, &(&1 + 1))
+
+    %{state | event_counts: updated_counts}
+  end
+
   defp update_counts(%State{event_counts: event_counts} = state, event) do
     %{state | event_counts: Map.update(event_counts, event, 1, fn x -> x + 1 end)}
   end
@@ -2165,29 +2188,53 @@ defmodule Axon.Loop do
 
       :first ->
         fn %State{event_counts: counts}, event ->
-          counts[event] == 1
+          case counts[event] do
+            1 -> true
+            %{total: 1} -> true
+            _ -> false
+          end
         end
 
       filters when is_list(filters) ->
         Enum.reduce(filters, fn _, _ -> true end, fn
+          {:every, {key, n}}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_every_n(state, event, key, n)
+            end
+
           {:every, n}, acc ->
             fn state, event ->
-              acc.(state, event) and filter_every_n(state, event, n)
+              acc.(state, event) and filter_every_n(state, event, :total, n)
+            end
+
+          {:before, {key, n}}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_before_n(state, event, key, n)
             end
 
           {:before, n}, acc ->
             fn state, event ->
-              acc.(state, event) and filter_before_n(state, event, n)
+              acc.(state, event) and filter_before_n(state, event, :total, n)
+            end
+
+          {:after, {key, n}}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_after_n(state, event, key, n)
             end
 
           {:after, n}, acc ->
             fn state, event ->
-              acc.(state, event) and filter_after_n(state, event, n)
+              acc.(state, event) and filter_after_n(state, event, :total, n)
+            end
+
+          {:once, {key, n}}, acc ->
+            fn state, event ->
+              acc.(state, event) and filter_once_n(state, event, key, n)
             end
 
           {:once, n}, acc ->
             fn state, event ->
-              acc.(state, event) and filter_once_n(state, event, n)
+              acc.(state, event) and filter_once_n(state, event, :total, n)
             end
         end)
 
@@ -2204,20 +2251,31 @@ defmodule Axon.Loop do
     end
   end
 
-  defp filter_every_n(%State{event_counts: counts}, event, n) do
-    rem(counts[event] - 1, n) == 0
+  defp filter_every_n(%State{event_counts: counts}, event, key, n) do
+    count = get_count(counts, event, key)
+    rem(count - 1, n) == 0
   end
 
-  defp filter_after_n(%State{event_counts: counts}, event, n) do
-    counts[event] > n
+  defp filter_after_n(%State{event_counts: counts}, event, key, n) do
+    count = get_count(counts, event, key)
+    count > n
   end
 
-  defp filter_before_n(%State{event_counts: counts}, event, n) do
-    counts[event] < n
+  defp filter_before_n(%State{event_counts: counts}, event, key, n) do
+    count = get_count(counts, event, key)
+    count < n
   end
 
-  defp filter_once_n(%State{event_counts: counts}, event, n) do
-    counts[event] == n
+  defp filter_once_n(%State{event_counts: counts}, event, key, n) do
+    count = get_count(counts, event, key)
+    count == n
+  end
+
+  defp get_count(counts, event, key) do
+    case counts[event] do
+      %{^key => count} -> count
+      count -> count
+    end
   end
 
   # JIT-compiles the given function if jit_compile? is true
