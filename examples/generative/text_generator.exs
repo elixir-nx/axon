@@ -72,8 +72,10 @@ defmodule TextGenerator do
   end
 
   def run do
+    options = [transport_opts: [signature_algs_cert: :ssl.signature_algs(:default, :"tlsv1.3") ++ [sha: :rsa]]]
+
     normalized_book_text =
-      Req.get!(@download_url).body
+      Req.get!(@download_url, connect_options: options).body
       |> String.downcase()
       |> String.replace(~r/[^a-z \.\n]/, "")
       |> String.to_charlist()
