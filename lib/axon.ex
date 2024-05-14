@@ -745,18 +745,25 @@ defmodule Axon do
   generated.
   """
   @doc type: :special
-  def block(fun, opts \\ []) when is_function(fun) do
-    opts = Keyword.validate!(opts, [:name, :meta])
-    block_id = System.unique_integer([:positive, :monotonic])
+  def block(fun, opts \\ [])
 
-    fn inputs ->
-      layer(:block, List.wrap(inputs),
-        op_name: :block,
-        name: opts[:name],
-        meta: opts[:meta],
-        block_fun: fun,
-        block_id: block_id
-      )
+  for i <- 1..128 do
+    args = Macro.generate_arguments(i, __MODULE__)
+
+    @doc false
+    def block(fun, opts) when is_function(fun, unquote(i)) do
+      opts = Keyword.validate!(opts, [:name, :meta])
+      block_id = System.unique_integer([:positive, :monotonic])
+
+      fn unquote_splicing(args) ->
+        layer(:block, List.wrap(unquote(args)),
+          op_name: :block,
+          name: opts[:name],
+          meta: opts[:meta],
+          block_fun: fun,
+          block_id: block_id
+        )
+      end
     end
   end
 
