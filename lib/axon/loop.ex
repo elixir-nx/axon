@@ -367,14 +367,8 @@ defmodule Axon.Loop do
         end)
 
       model_out = forward_model_fn.(model_state, inp)
-
-      {scaled_loss, unscaled_loss} =
-        tar
-        |> loss_fn.(model_out.prediction)
-        |> then(fn loss ->
-          scaled = scale_loss.(loss, loss_scale_state)
-          {scaled, loss}
-        end)
+      unscaled_loss = loss_fn.(tar, model_out.prediction)
+      scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
 
       {model_out, scaled_loss, unscaled_loss}
     end

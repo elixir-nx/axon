@@ -62,7 +62,7 @@ defmodule Axon.LoopTest do
 
     test "trainer/3 returns a supervised training loop with custom loss" do
       model = Axon.input("input", shape: {nil, 1})
-      custom_loss_fn = fn _, _ -> Nx.tensor(5.0, backend: Nx.BinaryBackend) end
+      custom_loss_fn = fn _, _ -> Nx.tensor(5.0, backend: Nx.Defn.Expr) end
 
       assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
                Loop.trainer(model, custom_loss_fn, :adam)
