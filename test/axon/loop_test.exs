@@ -854,7 +854,11 @@ defmodule Axon.LoopTest do
     test "saves a checkpoint on custom events", %{loop: loop} do
       data = List.duplicate({Nx.iota({1, 1}), Nx.iota({1, 1})}, 5)
 
-      assert %Axon.Loop.State{epoch: 3, iteration: 0, event_counts: %{iteration_completed: %{total: 15}}} =
+      assert %Axon.Loop.State{
+               epoch: 3,
+               iteration: 0,
+               event_counts: %{iteration_completed: %{total: 15}}
+             } =
                loop
                |> Map.put(:output_transform, & &1)
                |> Loop.checkpoint(event: :iteration_completed, filter: [every: {:epoch, 2}])
