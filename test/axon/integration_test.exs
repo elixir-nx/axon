@@ -32,7 +32,7 @@ defmodule Axon.IntegrationTest do
       model_state =
         model
         |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-        |> Axon.Loop.run(data, Axon.ModelState.empty(), iterations: 100, epochs: 10)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), iterations: 100, epochs: 20)
 
       eval_results =
         model

@@ -1128,6 +1128,9 @@ defmodule Axon.Compiler do
           out = Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
           %{stateful | output: out}
 
+        %Nx.Tensor{data: %{op: :metadata, args: [arg, metadata]} = expr} = out ->
+          %{out | data: %{expr | args: [arg, Map.put(metadata, :axon_layer, op_name)]}}
+
         %Nx.Tensor{} = out ->
           Nx.Defn.Expr.metadata(Nx.Defn.Expr.tensor(out), %{axon_layer: op_name})
 
