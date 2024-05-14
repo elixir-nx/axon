@@ -322,16 +322,11 @@ defmodule Axon.Loop do
     * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
       doing mixed precision training for numerical stability. Defaults to `:identity` or
       no loss-scaling.
-
-    * `:gradient_accumulation_steps` - number of gradient accumulation steps to take during
-      training. Gradient accumulation decreases the number of updates by accumulating gradients
-      between steps, increasing the effective batch size on smaller devices. Defaults to 1.
   """
   def train_step(model, loss, optimizer, opts \\ []) do
-    opts = Keyword.validate!(opts, [:seed, loss_scale: :identity, gradient_accumulation_steps: 1])
+    opts = Keyword.validate!(opts, [:seed, loss_scale: :identity])
 
     loss_scale = opts[:loss_scale] || :identity
-    gradient_accumulation_steps = opts[:gradient_accumulation_steps] || 1
 
     {init_model_fn, forward_model_fn} = build_model_fns(model, :train, opts)
     loss_fn = build_loss_fn(loss)
@@ -377,12 +372,8 @@ defmodule Axon.Loop do
         tar
         |> loss_fn.(model_out.prediction)
         |> then(fn loss ->
-          scaled =
-            loss
-            |> scale_loss.(loss_scale_state)
-            |> Nx.divide(gradient_accumulation_steps)
-
-          {scaled, Nx.divide(loss, gradient_accumulation_steps)}
+          scaled = scale_loss.(loss, loss_scale_state)
+          {scaled, loss}
         end)
 
       {model_out, scaled_loss, unscaled_loss}
@@ -665,17 +656,13 @@ defmodule Axon.Loop do
     * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
       doing mixed precision training for numerical stability. Defaults to `:identity` or
       no loss-scaling.
-
-    * `:gradient_accumulation_steps` - number of gradient accumulation steps to take during
-      training. Gradient accumulation decreases the number of updates by accumulating gradients
-      between steps, increasing the effective batch size on smaller devices. Defaults to 1.
   """
   def trainer(model, loss, optimizer, opts \\ []) do
-    opts = Keyword.validate!(opts, [:seed, :loss_scale, :gradient_accumulation_steps, log: 50])
+    opts = Keyword.validate!(opts, [:seed, :loss_scale, log: 50])
 
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    step_opts = Keyword.take(opts, [:gradient_accumulation_steps, :loss_scale, :seed])
+    step_opts = Keyword.take(opts, [:loss_scale, :seed])
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50

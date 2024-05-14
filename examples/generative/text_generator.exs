@@ -1,8 +1,8 @@
 # Based on https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
 Mix.install([
-  {:axon, "~> 0.5"},
-  {:nx, "~> 0.5"},
-  {:exla, "~> 0.5"},
+  {:axon, path: "/Users/sean/projects/axon"},
+  {:nx, "~> 0.7"},
+  {:exla, "~> 0.7"},
   {:req, "~> 0.3.3"}
 ])
 

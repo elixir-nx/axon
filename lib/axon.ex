@@ -339,11 +339,26 @@ defmodule Axon do
     name = name(op_name, name)
 
     id = System.unique_integer([:positive, :monotonic])
-    axon_node = make_node(id, op, name, op_name, mode, inputs, params, args, meta, opts, global_options)
+
+    axon_node =
+      make_node(id, op, name, op_name, mode, inputs, params, args, meta, opts, global_options)
+
     %Axon{output: id, nodes: Map.put(updated_nodes, id, axon_node)}
   end
 
-  defp make_node(id, op, name, op_name, mode, inputs, params, args, meta, layer_opts, global_options) do
+  defp make_node(
+         id,
+         op,
+         name,
+         op_name,
+         mode,
+         inputs,
+         params,
+         args,
+         meta,
+         layer_opts,
+         global_options
+       ) do
     {:current_stacktrace, [_process_info, _axon_layer | stacktrace]} =
       Process.info(self(), :current_stacktrace)
 
@@ -469,7 +484,14 @@ defmodule Axon do
     input_shape = opts[:shape]
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
-    layer(:input, [], name: name, shape: output_shape, meta: meta, op_name: :input, optional: optional)
+
+    layer(:input, [],
+      name: name,
+      shape: output_shape,
+      meta: meta,
+      op_name: :input,
+      optional: optional
+    )
   end
 
   @doc """
@@ -559,7 +581,12 @@ defmodule Axon do
   def constant(number, opts) when is_number(number) do
     opts = Keyword.validate!(opts, [:name, :meta])
 
-    layer(:constant, [], name: opts[:name], meta: opts[:meta], value: Nx.tensor(number), op_name: :constant)
+    layer(:constant, [],
+      name: opts[:name],
+      meta: opts[:meta],
+      value: Nx.tensor(number),
+      op_name: :constant
+    )
   end
 
   def constant(value, _) do
@@ -2137,7 +2164,9 @@ defmodule Axon do
   """
   @doc type: :shape
   def resize(%Axon{} = x, resize_shape, opts \\ []) do
-    opts = Keyword.validate!(opts, [:name, :meta, method: :nearest, antialias: true, channels: :last])
+    opts =
+      Keyword.validate!(opts, [:name, :meta, method: :nearest, antialias: true, channels: :last])
+
     channels = opts[:channels]
 
     layer(:resize, [x],
@@ -2384,7 +2413,12 @@ defmodule Axon do
       Nx.equal(Nx.as_type(x, :s64), opts[:eos_token])
     end
 
-    layer(fun, [input], eos_token: eos_token, op_name: :mask, meta: opts[:meta], name: opts[:name])
+    layer(fun, [input],
+      eos_token: eos_token,
+      op_name: :mask,
+      meta: opts[:meta],
+      name: opts[:name]
+    )
   end
 
   @doc """
@@ -3163,7 +3197,12 @@ defmodule Axon do
   def stack_columns(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, ignore: []])
 
-    layer(:stack_columns, [x], meta: opts[:meta], name: opts[:name], ignore: opts[:ignore], op_name: :stack_columns)
+    layer(:stack_columns, [x],
+      meta: opts[:meta],
+      name: opts[:name],
+      ignore: opts[:ignore],
+      op_name: :stack_columns
+    )
   end
 
   @doc """
