@@ -765,7 +765,7 @@ defmodule Axon do
   for i <- 0..128 do
     args = Macro.generate_arguments(i, __MODULE__)
 
-    def block_fun(unquote(i), callback) do
+    defp block_fun(unquote(i), callback) do
       fn unquote_splicing(args) -> callback.(unquote(args)) end
     end
   end
