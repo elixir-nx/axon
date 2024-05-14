@@ -49,9 +49,7 @@ defmodule Axon.Loop do
 
       %Axon.Loop.State{
         epoch: integer(),
-        max_epoch: integer(),
         iteration: integer(),
-        max_iteration: integer(),
         metrics: map(string(), container()),
         times: map(integer(), integer()),
         step_state: container()
@@ -65,14 +63,6 @@ defmodule Axon.Loop do
   an additional initialization function to provide some starting point for the step
   state. For machine learning tasks, the initialization function will return things like
   initial model parameters and optimizer state.
-
-  Typically, the final output of the loop is the accumulated final state; however, you
-  may optionally apply an output transform to extract specific values at the end of the
-  loop. For example, `Axon.Loop.trainer/4` by default extracts trained model state:
-
-      output_transform = fn state ->
-        state.step_state[:model_state]
-      end
 
   ## Initialize and Step
 
@@ -274,7 +264,6 @@ defmodule Axon.Loop do
     :init,
     :step,
     :attached_state,
-    :output_transform,
     metrics: %{},
     handlers: @default_handlers
   ]
@@ -531,8 +520,7 @@ defmodule Axon.Loop do
   ## Loop Factories
 
   @doc """
-  Creates a loop from `step_fn`, an optional `init_fn`, and an
-  optional `output_transform`.
+  Creates a loop from `step_fn` and an optional `init_fn`.
 
   `step_fn` is an arity-2 function which takes a batch and state
   and returns an updated step state:
@@ -557,18 +545,12 @@ defmodule Axon.Loop do
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
-
-  `output_transform/1` applies a transformation on the final accumulated loop state.
-  This is useful for extracting specific fields from a loop and piping them into
-  additional functions.
   """
-  def loop(step_fn, init_fn \\ &default_init/2, output_transform \\ & &1)
-      when is_function(step_fn, 2) and is_function(init_fn, 2) and
-             is_function(output_transform, 1) do
+  def loop(step_fn, init_fn \\ &default_init/2)
+      when is_function(step_fn, 2) and is_function(init_fn, 2) do
     %Loop{
       init: init_fn,
-      step: step_fn,
-      output_transform: output_transform
+      step: step_fn
     }
   end
 
@@ -679,11 +661,10 @@ defmodule Axon.Loop do
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
-    output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
       step_fn
-      |> loop(init_fn, output_transform)
+      |> loop(init_fn)
       |> metric(loss_fn, "loss")
 
     if log_interval > 0 do
@@ -773,9 +754,9 @@ defmodule Axon.Loop do
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
-    output_transform = fn state -> state.metrics end
 
-    loop(step_fn, init_fn, output_transform)
+    step_fn
+    |> loop(init_fn)
     |> log(&supervised_log_message_fn(&1, false), event: :iteration_completed)
   end
 
@@ -1529,7 +1510,7 @@ defmodule Axon.Loop do
 
   It is the opposite of `Axon.Loop.serialize_state/2`.
 
-  By default, the step state is deserialized using `Nx.deserialize.2`;
+  By default, the step state is deserialized using `Nx.deserialize/2`;
   however, this behavior can be changed if step state is an application
   specific container. For example, if you introduce your own data
   structure into step_state and you customized the serialization logic,
@@ -1545,6 +1526,118 @@ defmodule Axon.Loop do
     metrics = Nx.deserialize(state_map.metrics, opts)
     state_map = %{state_map | step_state: step_state, metrics: metrics}
     struct!(Axon.Loop.State, state_map)
+  end
+
+  @doc """
+  Creates an Elixir `Stream` from the given loop, data, and state.
+
+  The stream will lazily return the loop state after each training epoch.
+
+  ## Options
+
+  """
+  def stream(
+        %Loop{
+          init: init_fn,
+          step: step_fn,
+          handlers: handler_fns,
+          metrics: metric_fns,
+          attached_state: attached_state
+        },
+        data,
+        init_state \\ %{},
+        opts \\ []
+      ) do
+    {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
+    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
+    {strict?, opts} = Keyword.pop(opts, :strict?, true)
+    {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
+    debug? = Keyword.get(jit_opts, :debug, false)
+
+    sample_data =
+      case Enum.take(data, 1) do
+        [sample_data | _] ->
+          sample_data
+
+        [] ->
+          raise ArgumentError,
+                "Axon.Loop.stream/4 received empty dataset, this can happen" <>
+                  " if you've built a stream and accidentally filtered" <>
+                  " out every value, your dataset must have at least one" <>
+                  " entry"
+      end
+
+    loop_state =
+      init_loop_state(
+        init_fn,
+        sample_data,
+        init_state,
+        attached_state,
+        debug?,
+        jit_compile?,
+        jit_opts
+      )
+
+    # TODO: Can we infer here?
+    zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, type: :f32)} end)
+    loop_state = %{loop_state | metrics: zero_metrics}
+
+    case fire_event(:started, handler_fns, loop_state, debug?) do
+      {halt, loop_state} when halt in [:halt_epoch, :halt_loop] ->
+        Stream.unfold(loop_state, fn _ -> nil end)
+
+      {:continue, loop_state} ->
+        batch_fn =
+          {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
+
+        Stream.unfold({loop_state, batch_fn}, fn
+          :halt ->
+            nil
+
+          {loop_state, batch_fn} ->
+            case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
+              {:halt_epoch, state} ->
+                halt_epoch(handler_fns, batch_fn, state, debug?)
+
+              {:halt_loop, state} ->
+                {state, :halt}
+
+              {:continue, state} ->
+                {time, out} =
+                  run_epoch(
+                    batch_fn,
+                    handler_fns,
+                    state,
+                    data,
+                    max_iterations,
+                    debug?,
+                    force_garbage_collection?
+                  )
+
+                case out do
+                  {:halt_epoch, batch_fn, state} ->
+                    halt_epoch(handler_fns, batch_fn, state, debug?)
+
+                  {:halt_loop, _, state} ->
+                    {state, :halt}
+
+                  {:continue, batch_fn, state} ->
+                    new_loop_state = put_in(state.times[0], time)
+
+                    case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
+                      {:halt_epoch, state} ->
+                        halt_epoch(handler_fns, batch_fn, state, debug?)
+
+                      {:halt_loop, state} ->
+                        {state, :halt}
+
+                      {:continue, state} ->
+                        {state, {%{state | epoch: state.epoch + 1, iteration: 0}, batch_fn}}
+                    end
+                end
+            end
+        end)
+    end
   end
 
   @doc """
@@ -1588,158 +1681,18 @@ defmodule Axon.Loop do
   """
   def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
-    {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
-    {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
-    {strict?, opts} = Keyword.pop(opts, :strict?, true)
-    {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
-    debug? = Keyword.get(jit_opts, :debug, false)
 
-    if jit_opts != [] do
-      Logger.debug("Forwarding options: #{inspect(jit_opts)} to JIT compiler")
-    end
-
-    %Loop{
-      init: init_fn,
-      step: step_fn,
-      handlers: handler_fns,
-      metrics: metric_fns,
-      attached_state: attached_state,
-      output_transform: output_transform
-    } = loop
-
-    sample_data =
-      case Enum.take(data, 1) do
-        [sample_data | _] ->
-          sample_data
-
-        [] ->
-          raise ArgumentError,
-                "Axon.Loop.run received empty dataset, this can happen" <>
-                  " if you've built a stream and accidentally filtered" <>
-                  " out every value, your dataset must have at least one" <>
-                  " entry"
-      end
-
-    if debug? do
-      Logger.debug("Axon.Loop started initializing loop state")
-    end
-
-    {time, loop_state} =
-      :timer.tc(fn ->
-        init_loop_state(
-          init_fn,
-          sample_data,
-          init_state,
-          attached_state,
-          max_epochs,
-          max_iterations,
-          jit_compile?,
-          jit_opts
-        )
-      end)
-
-    epoch_start = loop_state.epoch
-    epoch_end = max_epochs + epoch_start - 1
-
-    if debug? do
-      Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
-    end
-
-    # TODO: Can we infer here?
-    zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, type: :f32)} end)
-    final_metrics_map = loop_state.metrics
-    loop_state = %{loop_state | metrics: zero_metrics}
-
-    {status, final_metrics_map, state} =
-      case fire_event(:started, handler_fns, loop_state, debug?) do
-        {:halt_epoch, state} ->
-          {:halted, final_metrics_map, state}
-
-        {:halt_loop, state} ->
-          {:halted, final_metrics_map, state}
-
-        {:continue, state} ->
-          batch_fn =
-            {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
-
-          Enum.reduce_while(
-            epoch_start..epoch_end//1,
-            {batch_fn, final_metrics_map, state},
-            fn epoch, {batch_fn, final_metrics_map, loop_state} ->
-              case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
-                {:halt_epoch, state} ->
-                  halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                {:halt_loop, state} ->
-                  {:halt, {final_metrics_map, state}}
-
-                {:continue, state} ->
-                  if debug? do
-                    Logger.debug("Axon.Loop started running epoch #{epoch}")
-                  end
-
-                  {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
-                      batch_fn,
-                      handler_fns,
-                      state,
-                      data,
-                      debug?,
-                      force_garbage_collection?
-                    ])
-
-                  if debug? do
-                    Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
-                  end
-
-                  case status_batch_fn_and_state do
-                    {:halt_epoch, batch_fn, state} ->
-                      halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                    {:halt_loop, _, state} ->
-                      {:halt, {final_metrics_map, state}}
-
-                    {:continue, batch_fn, state} ->
-                      new_loop_state = put_in(state.times[epoch], time)
-
-                      case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
-                        {:halt_epoch, state} ->
-                          halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                        {:halt_loop, state} ->
-                          {:halt, {final_metrics_map, state}}
-
-                        {:continue, state} ->
-                          {:cont,
-                           {batch_fn, Map.put(final_metrics_map, epoch, state.metrics),
-                            %State{
-                              state
-                              | epoch: epoch + 1,
-                                metrics: zero_metrics,
-                                iteration: 0,
-                                max_iteration: state.max_iteration
-                            }}}
-                      end
-                  end
-              end
-            end
-          )
-          |> case do
-            {final_metrics_map, state} -> {:halted, final_metrics_map, state}
-            {_batch_fn, final_metrics_map, state} -> {:completed, final_metrics_map, state}
-          end
-      end
-
-    # Fill in epochs in case it was halted. It is a no-op otherwise.
-    final_metrics_map =
-      Enum.reduce(
-        state.epoch..epoch_end//1,
-        final_metrics_map,
-        &Map.put(&2, &1, zero_metrics)
-      )
-
-    state = %State{state | metrics: final_metrics_map, status: status}
-    output_transform.(state)
+    loop
+    |> stream(data, init_state, opts)
+    |> Stream.take(max_epochs)
+    |> Stream.with_index()
+    |> Enum.reduce(%{metrics: %{}, times: %{}}, fn {epoch_state, i}, acc_state ->
+      %{
+        epoch_state
+        | metrics: Map.put(acc_state.metrics, i + 1, epoch_state.metrics),
+          times: Map.put(acc_state.times, i + 1, epoch_state.times[0])
+      }
+    end)
   end
 
   ## Helpers
@@ -1749,80 +1702,58 @@ defmodule Axon.Loop do
          sample_data,
          init_state,
          attached_state,
-         max_epochs,
-         max_iterations,
+         debug?,
          jit_compile?,
          jit_opts
        ) do
-    case attached_state do
-      %State{} = state ->
-        %{state | max_epoch: max_epochs + state.epoch}
-
-      nil ->
-        step_state = maybe_jit(init_fn, [sample_data, init_state], jit_compile?, jit_opts)
-
-        %State{
-          epoch: 0,
-          max_epoch: max_epochs,
-          iteration: 0,
-          max_iteration: max_iterations,
-          step_state: step_state,
-          metrics: %{},
-          times: %{}
-        }
+    if debug? do
+      Logger.debug("Axon.Loop started initializing loop state")
     end
+
+    {time, state} =
+      :timer.tc(fn ->
+        case attached_state do
+          %State{} = state ->
+            state
+
+          nil ->
+            step_state = maybe_jit(init_fn, [sample_data, init_state], jit_compile?, jit_opts)
+
+            %State{
+              epoch: 0,
+              iteration: 0,
+              step_state: step_state,
+              metrics: %{},
+              times: %{}
+            }
+        end
+      end)
+
+    if debug? do
+      Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
+    end
+
+    state
   end
 
-  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
-    Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
-      case fire_event(:iteration_started, handler_fns, state, debug?) do
-        {:halt_epoch, state} ->
-          {:halt, {:halt_epoch, batch_fn, state}}
+  defp run_epoch(
+         batch_fn,
+         handler_fns,
+         loop_state,
+         data,
+         max_iters,
+         debug?,
+         force_garbage_collection?
+       ) do
+    if debug? do
+      Logger.debug("Axon.Loop started running epoch")
+    end
 
-        {:halt_loop, state} ->
-          {:halt, {:halt_loop, batch_fn, state}}
-
-        {:continue, state} ->
-          %State{
-            iteration: iters,
-            max_iteration: max_iters,
-            step_state: step_state,
-            metrics: metrics
-          } = state
-
-          batch_fn =
-            case batch_fn do
-              {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts} ->
-                cond do
-                  jit_compile? and strict? ->
-                    Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
-
-                  jit_compile? ->
-                    Nx.Defn.jit(batch_fn, jit_opts)
-
-                  true ->
-                    batch_fn
-                end
-
-              {:compiled, batch_fn} ->
-                batch_fn
-            end
-
-          if debug? do
-            Logger.debug("Axon.Loop started batch step execution")
-          end
-
-          {time, {new_step_state, new_metrics}} =
-            :timer.tc(fn -> batch_fn.(data, iters, step_state, metrics) end)
-
-          if debug? do
-            Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
-          end
-
-          batch_fn = {:compiled, batch_fn}
-          state = %{state | step_state: new_step_state, metrics: new_metrics}
-
-          case fire_event(:iteration_completed, handler_fns, state, debug?) do
+    {time, out} =
+      :timer.tc(fn ->
+        Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data,
+                                                                      {_, batch_fn, state} ->
+          case fire_event(:iteration_started, handler_fns, state, debug?) do
             {:halt_epoch, state} ->
               {:halt, {:halt_epoch, batch_fn, state}}
 
@@ -1830,20 +1761,73 @@ defmodule Axon.Loop do
               {:halt, {:halt_loop, batch_fn, state}}
 
             {:continue, state} ->
-              if force_garbage_collection? do
-                :erlang.garbage_collect()
+              %State{
+                iteration: iters,
+                step_state: step_state,
+                metrics: metrics
+              } = state
+
+              batch_fn =
+                case batch_fn do
+                  {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts} ->
+                    cond do
+                      jit_compile? and strict? ->
+                        Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+
+                      jit_compile? ->
+                        Nx.Defn.jit(batch_fn, jit_opts)
+
+                      true ->
+                        batch_fn
+                    end
+
+                  {:compiled, batch_fn} ->
+                    batch_fn
+                end
+
+              if debug? do
+                Logger.debug("Axon.Loop started batch step execution")
               end
 
-              state = %{state | iteration: iters + 1}
+              {time, {new_step_state, new_metrics}} =
+                :timer.tc(fn -> batch_fn.(data, iters, step_state, metrics) end)
 
-              if max_iterations_reached?(max_iters, iters) do
-                {:halt, {:continue, batch_fn, state}}
-              else
-                {:cont, {:continue, batch_fn, state}}
+              if debug? do
+                Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
+              end
+
+              batch_fn = {:compiled, batch_fn}
+              state = %{state | step_state: new_step_state, metrics: new_metrics}
+
+              case fire_event(:iteration_completed, handler_fns, state, debug?) do
+                {:halt_epoch, state} ->
+                  {:halt, {:halt_epoch, batch_fn, state}}
+
+                {:halt_loop, state} ->
+                  {:halt, {:halt_loop, batch_fn, state}}
+
+                {:continue, state} ->
+                  if force_garbage_collection? do
+                    :erlang.garbage_collect()
+                  end
+
+                  state = %{state | iteration: iters + 1}
+
+                  if max_iterations_reached?(max_iters, iters) do
+                    {:halt, {:continue, batch_fn, state}}
+                  else
+                    {:cont, {:continue, batch_fn, state}}
+                  end
               end
           end
-      end
-    end)
+        end)
+      end)
+
+    if debug? do
+      Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
+    end
+
+    {time, out}
   end
 
   defp max_iterations_reached?(max_iters, iters) do
@@ -1917,17 +1901,16 @@ defmodule Axon.Loop do
   end
 
   # Halts an epoch during looping
-  defp halt_epoch(handler_fns, batch_fn, final_metrics_map, loop_state, debug?) do
+  defp halt_epoch(handler_fns, batch_fn, loop_state, debug?) do
     case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
-      {:halt_epoch, %{epoch: epoch, metrics: metrics} = state} ->
-        final_metrics_map = Map.put(final_metrics_map, epoch, metrics)
-        {:cont, {batch_fn, final_metrics_map, %State{state | epoch: epoch + 1, iteration: 0}}}
-
-      {:halt_loop, state} ->
-        {:halt, {final_metrics_map, state}}
-
       {:continue, state} ->
-        {:cont, {batch_fn, final_metrics_map, state}}
+        {:continue, batch_fn, state}
+
+      {:halt_epoch, %{epoch: epoch} = state} ->
+        {:continue, batch_fn, %State{state | epoch: epoch + 1, iteration: 0}}
+
+      {:halt_loop, _state} ->
+        :halt
     end
   end
 
