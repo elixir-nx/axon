@@ -761,7 +761,6 @@ defmodule Axon do
     end)
   end
 
-  @doc false
   for i <- 0..128 do
     args = Macro.generate_arguments(i, __MODULE__)
 
