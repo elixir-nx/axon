@@ -5,6 +5,45 @@ defmodule Axon.IntegrationTest do
 
   @moduletag :integration
 
+  test "bce with simple xor model" do
+    x1_input = Axon.input("x1", shape: {nil, 1})
+    x2_input = Axon.input("x2", shape: {nil, 1})
+
+    model =
+      x1_input
+      |> Axon.concatenate(x2_input)
+      |> Axon.dense(8, activation: :tanh)
+      |> Axon.dense(1, activation: :sigmoid)
+
+    batch_size = 32
+
+    data =
+      Stream.unfold(Nx.Random.key(42), fn key ->
+        {x1, key} = Nx.Random.uniform(key, 0, 1, shape: {batch_size, 1})
+        {x2, key} = Nx.Random.uniform(key, 0, 1, shape: {batch_size, 1})
+
+        {x1, x2} = {Nx.round(x1), Nx.round(x2)}
+        y = Nx.logical_xor(x1, x2)
+
+        {{%{"x1" => x1, "x2" => x2}, y}, key}
+      end)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      model_state =
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), iterations: 100, epochs: 10)
+
+      eval_results =
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.metric(:accuracy)
+        |> Axon.Loop.run(data, model_state, iterations: 100)
+
+      assert_greater_equal(get_in(eval_results, [0, "accuracy"]), 0.9)
+    end)
+  end
+
   test "vector classification test" do
     {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
 
