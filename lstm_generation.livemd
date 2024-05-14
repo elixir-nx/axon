@@ -29,8 +29,9 @@ The one that we will use for this experiment is [Alice's Adventures in Wonderlan
 ```elixir
 # Change the URL if you'd like to experiment with other books
 download_url = "https://www.gutenberg.org/files/11/11-0.txt"
+options = [transport_opts: [signature_algs_cert: :ssl.signature_algs(:default, :"tlsv1.3") ++ [sha: :rsa]]]
 
-book_text = Req.get!(download_url).body
+book_text = Req.get!(download_url, connect_options: options).body
 ```
 
 First of all, we need to normalize the content of the book. We are only interested in the sequence of English characters, periods and new lines. Also currently we don't care about the capitalization and things like apostrophe so we can remove all other unknown characters and downcase everything. We can use a regular expression for that.
