@@ -606,7 +606,7 @@ defmodule Axon.Compiler do
          %Axon.Node{
            id: id,
            op: :block,
-           parent: [parent],
+           parent: parents,
            opts: [block_fun: block_fun, block_id: block_id],
            name: name_fn
          },
@@ -614,9 +614,9 @@ defmodule Axon.Compiler do
          cache_and_counts,
          config
        ) do
-    {[parent_id], {cache, op_counts, block_cache, model_state_meta}} =
+    {parent_ids, {cache, op_counts, block_cache, model_state_meta}} =
       Enum.map_reduce(
-        [parent],
+        parents,
         cache_and_counts,
         &to_model_funs(&1, nodes, &2, config)
       )
@@ -627,7 +627,8 @@ defmodule Axon.Compiler do
           {funs, name, block_cache, op_counts}
 
         %{} ->
-          funs = build(block_fun.(Axon.input("subgraph")), debug?: config.debug?)
+          inputs = Enum.with_index(parents, fn _, i -> Axon.input("subgraph#{i}") end)
+          funs = build(apply(block_fun, inputs), debug?: config.debug?)
           name = name_fn.(:block, op_counts)
           op_counts = Map.update(op_counts, :block, 1, fn x -> x + 1 end)
           {funs, name, Map.put(block_cache, block_id, {funs, name}), op_counts}
@@ -637,9 +638,9 @@ defmodule Axon.Compiler do
       # Recurse graph inputs and invoke cache to get parent results,
       # state, and result_cache and then apply dtype policy and hooks
       # to each input
-      {[layer_input], {state, result_cache, none?}} =
+      {layer_inputs, {state, result_cache, none?}} =
         Enum.map_reduce(
-          [parent_id],
+          parent_ids,
           {state, result_cache, false},
           fn parent_id, {state, result_cache, none?} ->
             {layer_input, {state, result_cache}} =
@@ -663,7 +664,13 @@ defmodule Axon.Compiler do
         {%Axon.None{}, {state, result_cache}}
       else
         block_params = params[block_name] || %{}
-        result = apply(block_predict_fun, [Axon.ModelState.new(block_params), layer_input])
+
+        inputs =
+          layer_inputs
+          |> Enum.with_index()
+          |> Map.new(fn {input, i} -> {"subgraph#{i}", input} end)
+
+        result = apply(block_predict_fun, [Axon.ModelState.new(block_params), inputs])
 
         {out_result, out_state} =
           case result do
@@ -685,8 +692,8 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {[parent_shape], {parent_params, result_cache, none?}} =
-        Enum.map_reduce([parent_id], {%{}, result_cache, false}, fn
+      {parent_shapes, {parent_params, result_cache, none?}} =
+        Enum.map_reduce(parent_ids, {%{}, result_cache, false}, fn
           parent_id, {params, result_cache, none?} ->
             {parent_shape, {params, result_cache}} =
               call_init_cache(
@@ -706,8 +713,12 @@ defmodule Axon.Compiler do
       if none? do
         {%Axon.None{}, {parent_params, result_cache}}
       else
-        template = Nx.broadcast(0.0, parent_shape)
-        block_params = apply(block_init_fun, [template, Axon.ModelState.empty()])
+        templates =
+          parent_shapes
+          |> Enum.with_index()
+          |> Map.new(fn {shape, i} -> {"subgraph#{i}", Nx.broadcast(0.0, shape)} end)
+
+        block_params = apply(block_init_fun, [templates, Axon.ModelState.empty()])
 
         params =
           if block_params == %{} do

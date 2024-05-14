@@ -5330,6 +5330,43 @@ defmodule CompilerTest do
       input = random({1, 1})
       assert_equal(predict_fn.(params, input), actual_predict_fn.(input, k, b))
     end
+
+    test "works with multiple block inputs" do
+      block =
+        Axon.block(fn x, y ->
+          dense = Axon.block(&Axon.dense(&1, 4))
+          Axon.add(dense.(y), dense.(x))
+        end)
+
+      input1 = Axon.input("input1")
+      input2 = Axon.input("input2")
+
+      model = block.(input1, input2) |> Axon.dense(1)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      actual_predict_fn = fn %{"input1" => x, "input2" => y}, k1, b1, k2, b2 ->
+        x = Axon.Layers.dense(x, k1, b1)
+        y = Axon.Layers.dense(y, k1, b1)
+
+        x
+        |> Nx.add(y)
+        |> Axon.Layers.dense(k2, b2)
+      end
+
+      input = %{"input1" => Nx.tensor([[0.5]]), "input2" => Nx.tensor([[0.75]])}
+
+      assert %ModelState{
+               data: %{
+                 "block_0" => %{
+                   "block_0" => %{"dense_0" => %{"kernel" => k1, "bias" => b1}}
+                 },
+                 "dense_0" => %{"kernel" => k2, "bias" => b2}
+               }
+             } = params = init_fn.(input, ModelState.empty())
+
+      assert_equal(predict_fn.(params, input), actual_predict_fn.(input, k1, b1, k2, b2))
+    end
   end
 
   describe "initializers" do

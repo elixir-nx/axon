@@ -746,10 +746,11 @@ defmodule Axon do
   """
   @doc type: :special
   def block(fun, opts \\ []) when is_function(fun) do
+    {:arity, arity} = Function.info(fun, :arity)
     opts = Keyword.validate!(opts, [:name, :meta])
     block_id = System.unique_integer([:positive, :monotonic])
 
-    fn inputs ->
+    block_fun(arity, fn inputs ->
       layer(:block, List.wrap(inputs),
         op_name: :block,
         name: opts[:name],
@@ -757,6 +758,14 @@ defmodule Axon do
         block_fun: fun,
         block_id: block_id
       )
+    end)
+  end
+
+  for i <- 0..128 do
+    args = Macro.generate_arguments(i, __MODULE__)
+
+    defp block_fun(unquote(i), callback) do
+      fn unquote_splicing(args) -> callback.(unquote(args)) end
     end
   end
 
