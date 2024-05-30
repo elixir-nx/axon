@@ -27,6 +27,7 @@ defmodule Axon.ModelState do
     updated_state =
       state
       |> tree_diff(frozen)
+      |> IO.inspect
       |> then(&tree_get(updated_state, &1))
 
     update_in(model_state, [Access.key!(:data)], fn data ->

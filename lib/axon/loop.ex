@@ -408,7 +408,6 @@ defmodule Axon.Loop do
           |> Nx.add(batch_loss)
           |> Nx.divide(Nx.add(i, 1))
 
-        IO.inspect updated_state
         new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
 
         %{
