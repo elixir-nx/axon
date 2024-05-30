@@ -27,7 +27,7 @@ defmodule Axon.ModelState do
     updated_state =
       state
       |> tree_diff(frozen)
-      |> then(&tree_get(updated_state, &1, :ignore_missing))
+      |> then(&tree_get(updated_state, &1))
 
     update_in(model_state, [Access.key!(:data)], fn data ->
       data
