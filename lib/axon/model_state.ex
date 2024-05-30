@@ -241,7 +241,7 @@ defmodule Axon.ModelState do
     Enum.reduce(access, %{}, fn {key, value}, acc ->
       case data do
         %{^key => val} ->
-          tree = tree_get(val, value)
+          tree = tree_get(val, value, behavior)
           Map.put(acc, key, tree)
 
         %{} ->
