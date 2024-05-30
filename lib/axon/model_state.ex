@@ -222,13 +222,27 @@ defmodule Axon.ModelState do
   end
 
   defp tree_get(data, access) when is_list(access) do
-    Enum.reduce(access, %{}, &Map.put(&2, &1, Map.fetch!(data, &1)))
+    Enum.reduce(access, %{}, fn key, acc ->
+      case data do
+        %{^key => val} ->
+          Map.put(acc, key, val)
+
+        %{} ->
+          acc
+      end
+    end)
   end
 
   defp tree_get(data, access) when is_map(access) do
     Enum.reduce(access, %{}, fn {key, value}, acc ->
-      tree = tree_get(data[key], value)
-      Map.put(acc, key, tree)
+      case data do
+        %{^key => val} ->
+          tree = tree_get(val, value)
+          Map.put(acc, key, tree)
+
+        %{} ->
+          acc
+      end
     end)
   end
 
