@@ -27,7 +27,6 @@ defmodule Axon.ModelState do
     updated_state =
       state
       |> tree_diff(frozen)
-      |> IO.inspect
       |> then(&tree_get(updated_state, &1))
 
     update_in(model_state, [Access.key!(:data)], fn data ->
@@ -228,8 +227,14 @@ defmodule Axon.ModelState do
 
   defp tree_get(data, access) when is_map(access) do
     Enum.reduce(access, %{}, fn {key, value}, acc ->
-      tree = tree_get(data[key], value)
-      Map.put(acc, key, tree)
+      case data do
+        %{^key => val} ->
+          tree = tree_get(val, value)
+          Map.put(acc, key, tree)
+
+        %{} ->
+          raise "#{key} not found"
+      end
     end)
   end
 
