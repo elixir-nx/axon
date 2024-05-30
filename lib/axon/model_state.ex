@@ -221,33 +221,27 @@ defmodule Axon.ModelState do
     Map.update(acc, key, inner, &nested_put(&1, rest, value))
   end
 
-  defp tree_get(data, access, behavior \\ :raise_on_missing)
-
-  defp tree_get(data, access, behavior) when is_list(access) do
+  defp tree_get(data, access) when is_list(access) do
     Enum.reduce(access, %{}, fn key, acc ->
       case data do
         %{^key => val} ->
           Map.put(acc, key, val)
 
         %{} ->
-          if behavior == :raise_on_missing,
-            do: raise "#{key} not found",
-            else: acc
+          acc
       end
     end)
   end
 
-  defp tree_get(data, access, behavior ) when is_map(access) do
+  defp tree_get(data, access) when is_map(access) do
     Enum.reduce(access, %{}, fn {key, value}, acc ->
       case data do
         %{^key => val} ->
-          tree = tree_get(val, value, behavior)
+          tree = tree_get(val, value)
           Map.put(acc, key, tree)
 
         %{} ->
-          if behavior == :raise_on_missing,
-            do: raise "#{key} not found",
-            else: acc
+          acc
       end
     end)
   end
