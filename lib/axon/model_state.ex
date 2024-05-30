@@ -24,6 +24,8 @@ defmodule Axon.ModelState do
         updated_parameters,
         updated_state \\ %{}
       ) do
+    IO.inspect updated_state
+
     updated_state =
       state
       |> tree_diff(frozen)
