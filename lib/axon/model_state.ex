@@ -36,6 +36,16 @@ defmodule Axon.ModelState do
     end)
   end
 
+  @doc """
+  Merges 2 states with function.
+  """
+  # TODO: Don't assume these have the same shapes
+  def merge(%ModelState{} = lhs, %ModelState{data: rhs_data}, fun) when is_function(fun, 3) do
+    update_in(lhs, [Access.key!(:data)], fn data ->
+      tree_merge(data, rhs_data, fun)
+    end)
+  end
+
   # TODO: Mask syntax with strings?
 
   @doc """
@@ -258,5 +268,60 @@ defmodule Axon.ModelState do
           Map.put(acc, key, new_val)
       end
     end)
+  end
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(%Axon.ModelState{data: params} = model_state, opts) do
+      {total_parameter_count, total_parameter_size} = get_param_info(params)
+
+      {trainable_parameter_count, trainable_parameter_size} =
+        get_param_info(Axon.ModelState.trainable_parameters(model_state))
+
+      {trainable_state_count, trainable_state_size} =
+        get_param_info(Axon.ModelState.trainable_state(model_state))
+
+      inner =
+        concat([
+          line(),
+          "Parameters: #{total_parameter_count} (#{helpful_size(total_parameter_size)})",
+          line(),
+          "Trainable Parameters: #{trainable_parameter_count} (#{helpful_size(trainable_parameter_size)})",
+          line(),
+          "Trainable State: #{trainable_state_count}, (#{helpful_size(trainable_state_size)})"
+        ])
+
+      force_unfit(
+        concat([
+          color("#Axon.ModelState<", :map, opts),
+          nest(inner, 2),
+          line(),
+          color(">", :map, opts)
+        ])
+      )
+    end
+
+    defp get_param_info(params) do
+      Enum.reduce(params, {0, 0}, fn
+        {_, %Nx.Tensor{} = tensor}, {count, size} ->
+          {count + Nx.size(tensor), size + Nx.byte_size(tensor)}
+
+        {_, map}, {count, size} ->
+          {inner_count, inner_size} = get_param_info(map)
+          {count + inner_count, size + inner_size}
+      end)
+    end
+
+    defp helpful_size(n) when n < 1_000, do: "#{n} B"
+
+    defp helpful_size(n) when n >= 1_000 and n < 1_000_000,
+      do: "#{:io_lib.format(~c"~.2f KB", [n / 1_000])}"
+
+    defp helpful_size(n) when n >= 1_000_000 and n < 1_000_000_000,
+      do: "#{:io_lib.format(~c"~.2f MB", [n / 1_000_000])}"
+
+    defp helpful_size(n) when n >= 1_000_000_000 and n < 1_000_000_000_000,
+      do: "#{:io_lib.format(~c"~.2f GB", [n / 1_000_000_000])}"
   end
 end

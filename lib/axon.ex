@@ -549,6 +549,27 @@ defmodule Axon do
   end
 
   @doc """
+  Implements an or else (e.g. an Elixir ||)  
+  """
+  @doc type: :special
+  def or_else(%Axon{} = a, %Axon{} = b, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    Axon.layer(
+      fn x, y, _ ->
+        case x do
+          %Axon.None{} -> y
+          _ -> x
+        end
+      end,
+      [a, b],
+      op_name: :or_else,
+      name: opts[:name],
+      meta: opts[:meta]
+    )
+  end
+
+  @doc """
   Adds a constant layer to the network.
 
   Constant layers encapsulate Nx tensors in an Axon layer for ease
