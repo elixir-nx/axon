@@ -1100,7 +1100,6 @@ defmodule Axon.Compiler do
               |> apply_hooks(:backward, mode, hooks)
               |> safe_policy_cast(policy, :output)
 
-            IO.inspect name
             new_state = Map.put(state, name, out_state)
             {new_out, new_state}
 

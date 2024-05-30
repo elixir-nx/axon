@@ -1556,7 +1556,7 @@ defmodule Axon.Loop do
       is set, the loop will raise on any cache miss during the training loop. Defaults
       to true.
 
-    * `:force_garbage_collect?` - whether or not to force garbage collection after each
+    * `:force_garbage_collection?` - whether or not to force garbage collection after each
       iteration. This may help avoid OOMs when training large models, but it will slow
       training down.
 
