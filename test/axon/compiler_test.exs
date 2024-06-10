@@ -5724,7 +5724,7 @@ defmodule CompilerTest do
         |> Axon.dense(10, name: "foo")
         |> Axon.dense(4, name: "bar")
 
-      {init_fn, predict_fn} = Axon.build(model, inspect_values: true)
+      {init_fn, predict_fn} = Axon.build(model, print_values: true)
       input = Nx.broadcast(1, {1, 10})
 
       model_state = init_fn.(input, ModelState.empty())
