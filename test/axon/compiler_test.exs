@@ -5716,4 +5716,26 @@ defmodule CompilerTest do
       assert Nx.shape(out) == {1, 20, 32}
     end
   end
+
+  describe "inspect values" do
+    test "prints intermediate layer values to the screen" do
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, name: "foo")
+        |> Axon.dense(4, name: "bar")
+
+      {init_fn, predict_fn} = Axon.build(model, inspect_values: true)
+      input = Nx.broadcast(1, {1, 10})
+
+      model_state = init_fn.(input, ModelState.empty())
+
+      out = ExUnit.CaptureIO.capture_io(fn ->
+        predict_fn.(model_state, input)
+      end)
+
+      assert out =~ "x:"
+      assert out =~ "foo:"
+      assert out =~ "bar:"
+    end
+  end
 end
