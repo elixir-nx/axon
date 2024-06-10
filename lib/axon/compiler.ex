@@ -51,8 +51,15 @@ defmodule Axon.Compiler do
     raise_on_none? = Keyword.get(opts, :raise_on_none, true)
     mode = Keyword.get(opts, :mode, :inference)
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
+    print_values = Keyword.get(opts, :print_values, false)
     global_layer_options = Keyword.get(opts, :global_layer_options, [])
-    config = %{mode: mode, debug?: debug?, global_layer_options: global_layer_options}
+
+    config = %{
+      mode: mode,
+      debug?: debug?,
+      global_layer_options: global_layer_options,
+      print_values: print_values
+    }
 
     {time, {root_id, {cache, _op_counts, _block_cache, model_state_meta}}} =
       :timer.tc(fn ->
@@ -446,16 +453,21 @@ defmodule Axon.Compiler do
   end
 
   defp recur_model_funs(
-         %Axon.Node{id: id, op: :constant, opts: [value: tensor], policy: policy},
+         %Axon.Node{id: id, name: name_fn, op: :constant, opts: [value: tensor], policy: policy},
          _nodes,
          {cache, op_counts, block_cache, model_state_meta},
-         _
+         %{print_values: print_values}
        ) do
+    name = name_fn.(:constant, op_counts)
     op_counts = Map.update(op_counts, :constant, 1, fn x -> x + 1 end)
     tensor = Nx.backend_copy(tensor, Nx.BinaryBackend)
 
     predict_fun = fn _params, _inputs, state, _cache, result_cache, _fn_stacktrace ->
-      out = safe_policy_cast(tensor, policy, :output)
+      out =
+        tensor
+        |> safe_policy_cast(policy, :output)
+        |> maybe_print_values(name, print_values)
+
       {out, {state, result_cache}}
     end
 
@@ -477,7 +489,7 @@ defmodule Axon.Compiler do
          },
          _nodes,
          {cache, op_counts, block_cache, model_state_meta},
-         %{mode: mode}
+         %{mode: mode, print_values: print_values}
        ) do
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
@@ -492,6 +504,7 @@ defmodule Axon.Compiler do
         value
         |> apply_hooks(:forward, mode, hooks)
         |> apply_hooks(:backward, mode, hooks)
+        |> maybe_print_values(name, print_values)
 
       {res, {state, result_cache}}
     end
@@ -687,6 +700,8 @@ defmodule Axon.Compiler do
             Map.put(state, block_name, out_state)
           end
 
+        out_result = maybe_print_values(out_result, block_name, config.print_values)
+
         {out_result, {state, result_cache}}
       end
     end
@@ -847,7 +862,12 @@ defmodule Axon.Compiler do
          },
          nodes,
          cache_and_counts,
-         %{mode: mode, debug?: debug?, global_layer_options: global_layer_options} = config
+         %{
+           mode: mode,
+           debug?: debug?,
+           global_layer_options: global_layer_options,
+           print_values: print_values
+         } = config
        )
        when (is_function(op) or is_atom(op)) and is_list(inputs) do
     # Traverse to accumulate cache and get parent_ids for
@@ -912,6 +932,7 @@ defmodule Axon.Compiler do
         hooks,
         mode,
         global_layer_options,
+        print_values,
         stacktrace
       )
 
@@ -994,6 +1015,7 @@ defmodule Axon.Compiler do
          hooks,
          mode,
          global_layer_options,
+         print_values,
          layer_stacktrace
        ) do
     # Recurse graph inputs and invoke cache to get parent results,
@@ -1112,6 +1134,8 @@ defmodule Axon.Compiler do
 
             {new_out, state}
         end
+
+      out = maybe_print_values(out, name, print_values)
 
       {out, {state, result_cache}}
     end
@@ -1269,6 +1293,12 @@ defmodule Axon.Compiler do
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
   defp maybe_freeze(param, false), do: param
+
+  defp maybe_print_values(value, layer, true) do
+    Nx.Defn.Kernel.print_value(value, label: layer)
+  end
+
+  defp maybe_print_values(value, _, _), do: value
 
   defp apply_hooks(res, event, mode, hooks) do
     hooks
