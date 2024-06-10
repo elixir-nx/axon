@@ -3761,6 +3761,10 @@ defmodule Axon do
       metrics. Also forwarded to JIT if debug mode is available
       for your chosen compiler or backend. Defaults to `false`
 
+    * `:inspect_values` - if `true`, will print intermediate layer
+      values to the screen for inspection. This is useful if you need
+      to debug intermediate values of a model
+
     * `:mode` - one of `:inference` or `:train`. Forwarded to layers
       to control differences in compilation at training or inference time.
       Defaults to `:inference`
