@@ -53,7 +53,13 @@ defmodule Axon.Compiler do
     seed = Keyword.get_lazy(opts, :seed, fn -> :erlang.system_time() end)
     inspect_values = Keyword.get(opts, :inspect_values, false)
     global_layer_options = Keyword.get(opts, :global_layer_options, [])
-    config = %{mode: mode, debug?: debug?, global_layer_options: global_layer_options, inspect_values: inspect_values}
+
+    config = %{
+      mode: mode,
+      debug?: debug?,
+      global_layer_options: global_layer_options,
+      inspect_values: inspect_values
+    }
 
     {time, {root_id, {cache, _op_counts, _block_cache, model_state_meta}}} =
       :timer.tc(fn ->
@@ -856,7 +862,12 @@ defmodule Axon.Compiler do
          },
          nodes,
          cache_and_counts,
-         %{mode: mode, debug?: debug?, global_layer_options: global_layer_options, inspect_values: inspect_values} = config
+         %{
+           mode: mode,
+           debug?: debug?,
+           global_layer_options: global_layer_options,
+           inspect_values: inspect_values
+         } = config
        )
        when (is_function(op) or is_atom(op)) and is_list(inputs) do
     # Traverse to accumulate cache and get parent_ids for

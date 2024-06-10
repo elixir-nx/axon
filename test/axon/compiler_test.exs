@@ -5729,9 +5729,10 @@ defmodule CompilerTest do
 
       model_state = init_fn.(input, ModelState.empty())
 
-      out = ExUnit.CaptureIO.capture_io(fn ->
-        predict_fn.(model_state, input)
-      end)
+      out =
+        ExUnit.CaptureIO.capture_io(fn ->
+          predict_fn.(model_state, input)
+        end)
 
       assert out =~ "x:"
       assert out =~ "foo:"
