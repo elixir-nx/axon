@@ -5465,12 +5465,21 @@ defmodule CompilerTest do
   end
 
   describe "edge cases" do
+    test "raises clean error on missing layer" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
+      input = Nx.tensor([[1.0]])
+
+      assert_raise ArgumentError, ~r/layer \"dense_0\" does not exist/, fn ->
+        Axon.predict(model, ModelState.empty(), input)
+      end
+    end
+
     test "raises clean error on missing parameter" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
       input = Nx.tensor([[1.0]])
 
-      assert_raise ArgumentError, ~r/parameter "kernel" for layer:/, fn ->
-        Axon.predict(model, ModelState.empty(), input)
+      assert_raise ArgumentError, ~r/parameter \"kernel\" for layer:/, fn ->
+        Axon.predict(model, ModelState.new(%{"dense_0" => %{}}), input)
       end
     end
 
@@ -5737,6 +5746,48 @@ defmodule CompilerTest do
       assert out =~ "x:"
       assert out =~ "foo:"
       assert out =~ "bar:"
+    end
+  end
+
+  describe "weight tying" do
+    test "initializes with shared parameters" do
+      model =
+        Axon.input("x")
+        |> Axon.embedding(32, 32, name: "embed")
+        |> Axon.dense(32, name: "dense")
+
+      init_state =
+        ModelState.empty()
+        |> ModelState.tie(["embed", "kernel"], ["dense", "kernel"])
+
+      {init_fn, _} = Axon.build(model)
+      input = Nx.template({1, 4}, :u32)
+      assert %Axon.ModelState{data: %{"embed" => %{"kernel" => %Axon.ModelState.SharedParameter{}}}} = init_fn.(input, init_state)
+    end
+
+    test "performs inference with weights tied after initialization" do
+      model =
+        Axon.input("x")
+        |> Axon.embedding(32, 32, name: "embed")
+        |> Axon.dense(32, name: "dense")
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      %Axon.ModelState{data: %{"dense" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(Nx.template({1, 4}, :u32), ModelState.empty())
+
+      model_state =
+        Axon.ModelState.tie(model_state, ["embed", "kernel"], ["dense", "kernel"])
+
+      input = Nx.tensor([[0, 1, 2, 3]])
+
+      actual_predict_fn = fn input, kernel, bias ->
+        input
+        |> Axon.Layers.embedding(kernel)
+        |> Axon.Layers.dense(kernel, bias)
+      end
+
+      assert_equal(actual_predict_fn.(input, k, b), predict_fn.(model_state, input))
     end
   end
 end
