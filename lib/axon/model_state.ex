@@ -196,6 +196,33 @@ defmodule Axon.ModelState do
     }
   end
 
+  @doc """
+  Ties parameters in the model state together.
+
+  Tied parameters should be a map destination parameter to
+  source. For example, if you want the kernel of an embedding
+  layer to use the kernel of a dense layer as it's source, you
+  would do:
+
+      Axon.ModelState.tie(model_state, ["embedding", "kernel"], ["dense", "kernel"])
+
+  You can tie individual parameters or entire layers together:
+
+      Axon.ModelState.tie(model_state, ["embedding"], ["kernel"])
+  """
+  def tie(model_state, destination, source) do
+    update_in(model_state, [Access.key!(:data)], fn data ->
+      shared = Axon.ModelState.SharedParameter.new(source)
+      [key | rest] = Enum.reverse(destination)
+
+      shared = Enum.reduce(rest, %{key => shared}, fn next, acc ->
+        %{next => acc}
+      end)
+
+      tree_merge(shared, data, fn _, lhs, _ -> lhs end)
+    end)
+  end
+
   # Helpers
 
   defp get_paths(map) do
@@ -269,6 +296,10 @@ defmodule Axon.ModelState do
         nil ->
           Map.put(acc, key, val_lhs)
 
+        %Axon.ModelState.SharedParameter{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+
         %Nx.Tensor{} = val_rhs ->
           new_val = fun.(key, val_lhs, val_rhs)
           Map.put(acc, key, new_val)
@@ -320,6 +351,9 @@ defmodule Axon.ModelState do
       Enum.reduce(params, {0, 0}, fn
         {_, %Nx.Tensor{} = tensor}, {count, size} ->
           {count + Nx.size(tensor), size + Nx.byte_size(tensor)}
+
+        {_, %Axon.ModelState.SharedParameter{}}, {count, size} ->
+          {count, size}
 
         {_, map}, {count, size} ->
           {inner_count, inner_size} = get_param_info(map)

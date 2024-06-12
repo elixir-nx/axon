@@ -316,6 +316,10 @@ defmodule Axon.Compiler do
     end)
   end
 
+  defp merge_type(_, %Axon.ModelState.SharedParameter{}, value), do: value
+
+  defp merge_type(_, _, %Axon.ModelState.SharedParameter{} = shared), do: shared
+
   defp merge_type(key, template, value) do
     if Nx.type(template) != Nx.type(value) do
       Logger.warning(
@@ -1061,20 +1065,7 @@ defmodule Axon.Compiler do
       # freezing and dtype policy
       parameter_inputs =
         Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          param = params[name][v]
-
-          cond do
-            param != nil ->
-              safe_policy_cast(maybe_freeze(param, frz), policy, :compute)
-
-            true ->
-              raise ArgumentError,
-                    "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
-                      " was not present in the given parameter map, this can" <>
-                      " happen if you are using parameters intended for another" <>
-                      " model or did not initialize portions of your model with" <>
-                      " Axon.init/3"
-          end
+          resolve_parameter!(params, name, v, frz, policy)
         end)
 
       # Reorder the inputs according to the original input ordering
@@ -1289,6 +1280,44 @@ defmodule Axon.Compiler do
   defp apply_initializer(layer_id, initializer, name, shape, type, keys)
        when is_function(initializer, 3) do
     initializer.(shape, type, keys[layer_id][name])
+  end
+
+  defp resolve_parameter!(params, layer_name, param_name, freeze?, policy) do
+    layer_params =
+      case params[layer_name] do
+        nil ->
+          raise ArgumentError, "layer #{inspect(layer_name)} does not exist in the model state"
+
+        %Axon.ModelState.SharedParameter{path: path} ->
+          get_in(params, path)
+
+        map ->
+          map
+      end
+
+    parameter =
+      case layer_params[param_name] do
+        nil ->
+          raise ArgumentError,
+                "parameter #{inspect(param_name)} for layer: #{inspect(layer_name)}" <>
+                  " was not present in the given parameter map, this can" <>
+                  " happen if you are using parameters intended for another" <>
+                  " model or did not initialize portions of your model with" <>
+                  " Axon.init/3"
+
+        %Axon.ModelState.SharedParameter{path: path} ->
+          with nil <- get_in(params, path) do
+            raise ArgumentError,
+                  "shared parameter for #{inspect(param_name)} in layer:" <>
+                    " #{inspect(layer_name)}, references non-existent parameter" <>
+                    " #{inspect(path)}"
+          end
+
+        parameter ->
+          parameter
+      end
+
+    safe_policy_cast(maybe_freeze(parameter, freeze?), policy, :compute)
   end
 
   defp maybe_freeze(param, true), do: Nx.Defn.Kernel.stop_grad(param)
