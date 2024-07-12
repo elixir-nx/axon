@@ -4096,6 +4096,33 @@ defmodule Axon do
     end
   end
 
+  @doc """
+  Returns a mapping of layer names to layer properties.
+  """
+  def properties(%Axon{output: id, nodes: nodes}) do
+    {_, _, properties} = node_properties(id, nodes, {%{}, %{}, %{}})
+    properties
+  end
+
+  defp node_properties(id, nodes, {cache, op_counts, properties} = acc) do
+    case cache do
+      %{^id => _} ->
+        {cache, op_counts, properties}
+
+      %{} ->
+        %Axon.Node{parent: parents, name: name_fn, op_name: op_name} = nodes[id]
+
+        {cache, op_counts, properties} =
+          Enum.reduce(parents, acc, &node_properties(&1, nodes, &2))
+
+        name = name_fn.(op_name, op_counts)
+        op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
+        properties = Map.put(properties, name, op_name)
+
+        {Map.put(cache, id, name), op_counts, properties}
+    end
+  end
+
   ## Helpers
 
   @valid_initializers [:zeros, :ones, :uniform, :normal, :identity] ++
