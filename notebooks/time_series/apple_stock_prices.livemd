@@ -11,7 +11,8 @@ Mix.install([
   {:polaris, "~> 0.1.0"},
   {:exla, "~> 0.7.3"},
   {:req, "~> 0.5.2"},
-  {:vega_lite, "~> 0.1.9"}
+  {:vega_lite, "~> 0.1.9"},
+  {:nimble_csv, "~> 1.2"}
 ])
 
 Nx.global_default_backend(EXLA.Backend)
@@ -20,26 +21,27 @@ Nx.Defn.global_default_options(compiler: EXLA)
 
 ## Introduction
 
-In this project, we will build a predictor for a time series using an Recurrent Neural Network regressor. The prediction will be made for Apple's stock price 7 days in advance, based on a historical series.
+In this project, we will build a predictor for a time series using a Recurrent Neural Network (RNN) regressor. The prediction will be made for Apple's stock price 7 days in advance, based on historical data.
 
-An architecture known as Long Term Short Memory (LSTM) will be used for the RNN.
+We will use an RNN architecture known as Long Term Short Memory (LSTM).
 
 <!-- livebook:{"break_markdown":true} -->
 
-First, we load the historical data. Subsequently, preprocessing will be conducted to utilize the information with an RNN model. The time series data is already normalized. This helps mitigate significant numerical issues associated with how activation functions like tanh transform very large numbers (whether positive or negative), and it aids in avoiding problems with calculating derivatives.
+First, we load and preprocess the historical data. We will apply *normalization* to the series of historical data. This helps mitigate significant numerical issues associated with how activation functions like `tanh` transform very large numbers (whether positive or negative), and it aids in avoiding problems with calculating derivatives.
 
 ```elixir
-raw_csv =
+NimbleCSV.define(CSVParser, separator: "\n", escape: "\"")
+
+data =
   "https://raw.githubusercontent.com/santiago-imelio/datasets/main/normalized_apple_prices.csv"
   |> Req.get!()
   |> Map.get(:body)
-
-data =
-  Regex.split(~r/\r|\n|\r\n/, raw_csv)
-  |> List.pop_at(-1)
-  |> elem(1)
-  |> Enum.map(&Float.parse/1)
-  |> Enum.map(&elem(&1, 0))
+  |> CSVParser.parse_string()
+  |> Enum.map(fn [price] ->
+    price
+    |> Float.parse()
+    |> elem(0)
+  end)
   |> Nx.tensor()
 ```
 
@@ -107,7 +109,17 @@ sliding_window = fn series, win_size ->
 end
 ```
 
-Next we test our sliding window function with first 10 numbers of the Fibonacci sequence.
+Next, we can test our sliding window function with a given series. For example, we can test it using the first 10 numbers of the Fibonacci sequence, known as $F_{n+1} = F_{n - 1} + F_n$. Passing a window size of 2, we should expect input-output pairs like the following:
+
+$$
+\begin{array}{c|c}
+  \text{Input} & \text{Output}\\
+  \hline \langle F_1, F_2\rangle & F_3 \\
+  \langle F_{2},F_{3}\rangle & F_{4}  \\
+  \vdots & \vdots \\
+  \langle F_{8},F_{9} \rangle & F_{10} \\
+\end{array}
+$$
 
 ```elixir
 test_series = Nx.tensor([0, 1, 1, 2, 3, 5, 8, 13, 21, 34])
