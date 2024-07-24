@@ -3,7 +3,6 @@ defmodule Axon.Display do
   Module for rendering various visual representations of Axon models.
   """
 
-  import Axon.Shared
   alias Axon.Parameter
 
   @compile {:no_warn_undefined, TableRex.Table}
