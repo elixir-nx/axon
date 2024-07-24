@@ -855,6 +855,12 @@ defmodule Axon do
         use_bias: true
       ])
 
+    meta =
+      opts[:meta] ||
+        %{}
+        |> Map.put(:units, units)
+        |> Map.put(:use_bias, opts[:use_bias])
+
     kernel_shape = &Axon.Shape.dense_kernel(&1, units)
     bias_shape = &Axon.Shape.dense_bias(&1, units)
 
@@ -868,7 +874,7 @@ defmodule Axon do
         {[x, kernel], :dense}
       end
 
-    node = layer(op, inputs, name: opts[:name], meta: opts[:meta], op_name: :dense)
+    node = layer(op, inputs, name: opts[:name], meta: meta, op_name: :dense)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -3666,7 +3672,7 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
-    reduce_nodes(axon, %{}, fn %Axon.Node{op: op}, op_counts ->
+    reduce_nodes(axon, %{}, fn %Axon.Node{op_name: op}, op_counts ->
       Map.update(op_counts, op, 1, fn x -> x + 1 end)
     end)
   end

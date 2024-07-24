@@ -192,9 +192,6 @@ defmodule Axon.Shared do
 
   defp recur_deep_reduce(value, acc, fun) do
     case value do
-      %Axon{} = val ->
-        fun.(val, acc)
-
       %Nx.Tensor{} = val ->
         fun.(val, acc)
 
@@ -217,9 +214,6 @@ defmodule Axon.Shared do
 
   defp recur_deep_map_reduce(leaf, acc, fun) do
     case leaf do
-      %Axon{} = leaf ->
-        fun.(leaf, acc)
-
       %Nx.Tensor{} = leaf ->
         fun.(leaf, acc)
 
