@@ -4726,6 +4726,26 @@ defmodule CompilerTest do
       assert_receive {%Nx.Tensor{}, :from_relu}
       assert_receive {%Nx.Tensor{}, :from_sigmoid}
     end
+
+    test "can be overriden at jit-time with layer name", config do
+      model =
+        Axon.input("input_0", shape: {nil, 1})
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_input}) end, on: :forward)
+        |> Axon.relu()
+
+      inp = Nx.tensor([[1.0]])
+      {_, predict_fn} = Axon.build(model)
+
+      hook = fn val -> send(config.test, {val, :overridden}) end
+
+      fun = Nx.Defn.jit(predict_fn, hooks: %{input_0: hook})
+      apply(fun, [ModelState.empty(), inp])
+
+      assert_receive {from_inp, :overridden}
+      refute_receive {_, :from_input}
+
+      assert_equal(from_inp, inp)
+    end
   end
 
   describe "integrated models" do
