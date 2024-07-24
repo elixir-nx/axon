@@ -1,4 +1,17 @@
 defmodule Axon.Quantization do
+  @moduledoc """
+  Model quantization.
+
+  Model quantization is a technique for reducing the memory footprint of
+  a model by converting portions of a model to use quantized representations.
+  Typically, these quantized representations are low-precision integers.
+
+  This is an **experimental** API which implements weight-only quantization.
+  The implementation in this module will convert dense layers in a large
+  model to quantized-variants. The only supported quantization type is
+  `{:s, 8}`. Axon quantization is inference-only. Training is not currently
+  supported.
+  """
   alias Axon.Quantization.Layers
   alias Axon.Quantization.QTensor
 
