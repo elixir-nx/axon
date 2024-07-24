@@ -94,7 +94,8 @@ defmodule Axon.Display do
   defp do_axon_to_rows(
          %Axon.Node{
            id: id,
-           op: :container,
+           op: structure,
+           op_name: :container,
            parent: [parents],
            name: name_fn
          },
@@ -105,7 +106,7 @@ defmodule Axon.Display do
          model_info
        ) do
     {input_names, {cache, op_counts, model_info}} =
-      deep_map_reduce(parents, {cache, op_counts, model_info}, fn
+      Enum.map_reduce(parents, {cache, op_counts, model_info}, fn
         parent_id, {cache, op_counts, model_info} ->
           {_, name, _shape, cache, op_counts, model_info} =
             axon_to_rows(parent_id, nodes, templates, cache, op_counts, model_info)
@@ -119,7 +120,7 @@ defmodule Axon.Display do
     shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
 
     row = [
-      "#{name} ( #{op_string} #{inspect(input_names)} )",
+      "#{name} ( #{op_string} #{inspect(apply(structure, input_names))} )",
       "#{inspect({})}",
       "#{inspect(shape)}",
       render_options([]),
@@ -309,27 +310,6 @@ defmodule Axon.Display do
         op_counts = Map.update(op_counts, op, 1, fn x -> x + 1 end)
         {entry, {Map.put(cache, id, entry), op_counts, edgelist}}
     end
-  end
-
-  defp recur_axon_to_edges(
-         %Axon.Node{id: id, op: :container, name: name_fn, parent: [parents]},
-         nodes,
-         templates,
-         cache_counts_edgelist
-       ) do
-    {node_inputs, {cache, op_counts, edgelist}} =
-      deep_map_reduce(parents, cache_counts_edgelist, &axon_to_edges(&1, nodes, templates, &2))
-
-    name = name_fn.(:container, op_counts)
-    node_shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
-    to_node = %{axon: :axon, id: id, op: :container, name: name, shape: node_shape}
-
-    new_edgelist =
-      deep_reduce(node_inputs, edgelist, fn from_node, acc ->
-        [{from_node, to_node} | acc]
-      end)
-
-    {to_node, {cache, op_counts, new_edgelist}}
   end
 
   defp recur_axon_to_edges(

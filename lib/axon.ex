@@ -279,6 +279,8 @@ defmodule Axon do
   alias __MODULE__, as: Axon
   alias Axon.Parameter
 
+  import Axon.Shared
+
   require Logger
 
   @type t :: %__MODULE__{}
@@ -378,15 +380,6 @@ defmodule Axon do
       meta: meta,
       stacktrace: stacktrace
     }
-  end
-
-  defp split_inputs(:container, [inputs]) do
-    {inputs, cache} =
-      deep_map_reduce(inputs, %{}, fn %Axon{output: id, nodes: nodes}, cache ->
-        {id, Map.merge(nodes, cache)}
-      end)
-
-    {[inputs], [], [:layer], cache}
   end
 
   defp split_inputs(_op, inputs) do
@@ -704,62 +697,47 @@ defmodule Axon do
   @doc type: :special
   def container(container, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, :meta])
-
-    layer(:container, [container], name: opts[:name], meta: opts[:meta], op_name: :container)
+    {structure_fn, nodes} = destructure(container)
+    layer(structure_fn, nodes, name: opts[:name], meta: opts[:meta], op_name: :container)
   end
 
-  # TODO: This should not be duplicated
-  defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
-
-  defp deep_new(x, fun) when is_number(x), do: fun.(x)
-
-  defp deep_new(map, fun) do
-    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
-    cont
+  defp destructure(container) do
+    {structure, {nodes, _}} = recur_destructure(container, {[], 0})
+    fun = restructure(length(nodes) + 1, structure)
+    {fun, Enum.reverse(nodes)}
   end
 
-  defp recur_traverse(item, :ok, fun) do
-    case item do
-      %Axon{} = t ->
-        {fun.(t), :ok}
+  defp recur_destructure(container, acc) do
+    Nx.Container.traverse(container, acc, fn value, {leaves, idx} ->
+      case value do
+        %Axon{} = leaf ->
+          {idx, {[leaf | leaves], idx + 1}}
 
-      %{axon: :axon} = t ->
-        {fun.(t), :ok}
+        container ->
+          recur_destructure(container, {leaves, idx})
+      end
+    end)
+  end
 
-      container ->
-        {deep_new(container, fun), :ok}
+  for i <- 0..128 do
+    args = Macro.generate_arguments(i, __MODULE__)
+
+    defp restructure(unquote(i), structure) do
+      fn unquote_splicing(args) ->
+        args_tuple = {unquote_splicing(args)}
+        {container, :ok} = recur_restructure(structure, args_tuple)
+        container
+      end
     end
   end
 
-  defp deep_merge(left, right, fun) do
-    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
-      {merged, []} ->
-        merged
-
-      {_merged, _leftover} ->
-        raise ArgumentError,
-              "unable to merge arguments with incompatible" <>
-                " structure"
-    end
-  end
-
-  defp leaves(container) do
-    container
-    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
-    |> Enum.reverse()
-  end
-
-  defp recur_merge(left, [right | right_leaves], fun) do
-    case {left, right} do
-      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
-        {fun.(left, right), right_leaves}
-
-      {%Axon{} = left, %Axon{} = right} ->
-        {fun.(left, right), right_leaves}
-
-      {left, right} ->
-        {deep_merge(left, right, fun), right_leaves}
-    end
+  defp recur_restructure(structure, args_tuple) do
+    Nx.Container.traverse(structure, :ok, fn value, :ok ->
+      case value do
+        idx when is_integer(idx) -> {elem(args_tuple, idx), :ok}
+        container -> recur_restructure(container, args_tuple)
+      end
+    end)
   end
 
   @doc """
@@ -3644,35 +3622,31 @@ defmodule Axon do
   end
 
   @doc """
-  Returns a model's output shape from the given input
+  Returns a model's output template from the given input
   template.
+
+  The output template gives you access to the output shape
+  and type of the given input graph.
   """
   @doc type: :graph
   def get_output_shape(%Axon{} = axon, inputs, opts \\ []) do
     {init_fn, forward_fn} = build(axon, opts ++ [raise_on_none: false])
 
-    out =
+    inputs =
+      case inputs do
+        %Nx.Tensor{} = input -> Nx.to_template(input)
+        inputs when is_map(inputs) -> Map.new(inputs, fn {k, v} -> {k, Nx.to_template(v)} end)
+      end
+
+    fun =
       Nx.Defn.jit(
         fn inputs ->
           forward_fn.(init_fn.(inputs, Axon.ModelState.empty()), inputs)
         end,
         compiler: Axon.Defn
-      ).(inputs)
+      )
 
-    safe_shape(out)
-  end
-
-  defp safe_shape(container_or_tensor) do
-    case container_or_tensor do
-      %Axon.None{} = none ->
-        none
-
-      %Nx.Tensor{} = tensor ->
-        Nx.shape(tensor)
-
-      container ->
-        deep_new(container, &Nx.shape/1)
-    end
+    deep_new(apply(fun, [inputs]), &Nx.to_template/1)
   end
 
   @doc """
@@ -3783,71 +3757,14 @@ defmodule Axon do
     if MapSet.member?(visited, id) do
       {acc, visited}
     else
-      %{op: op, parent: parents} = parent = nodes[id]
+      %{parent: parents} = parent = nodes[id]
 
       {acc, visited} =
-        case op do
-          :container ->
-            [container] = parents
-
-            deep_reduce(container, {acc, visited}, fn pid, {acc, visited} ->
-              traverse_nodes(pid, nodes, acc, visited)
-            end)
-
-          _ ->
-            Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
-              traverse_nodes(pid, nodes, acc, visited)
-            end)
-        end
+        Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
+          traverse_nodes(pid, nodes, acc, visited)
+        end)
 
       {[parent | acc], MapSet.put(visited, id)}
-    end
-  end
-
-  # TODO: Do not duplicate
-  defp deep_reduce(item, acc, fun) when is_integer(item) do
-    fun.(item, acc)
-  end
-
-  defp deep_reduce(map, acc, fun) do
-    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
-  end
-
-  defp recur_deep_reduce(value, acc, fun) do
-    case value do
-      %Axon{} = val ->
-        fun.(val, acc)
-
-      %Nx.Tensor{} = val ->
-        fun.(val, acc)
-
-      %{axon: :axon} = val ->
-        fun.(val, acc)
-
-      val when is_integer(val) ->
-        fun.(val, acc)
-
-      val ->
-        deep_reduce(val, acc, fun)
-    end
-  end
-
-  defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
-
-  defp deep_map_reduce(container, acc, fun) do
-    Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
-  end
-
-  defp recur_deep_map_reduce(leaf, acc, fun) do
-    case leaf do
-      %Axon{} = leaf ->
-        fun.(leaf, acc)
-
-      %Nx.Tensor{} = leaf ->
-        fun.(leaf, acc)
-
-      container ->
-        deep_map_reduce(container, acc, fun)
     end
   end
 
