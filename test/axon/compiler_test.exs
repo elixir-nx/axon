@@ -5583,7 +5583,7 @@ defmodule CompilerTest do
   end
 
   describe "parameters" do
-    test "supports passing a tuple instead of a function as the shape" do
+    test "supports passing a template instead of a function as the shape" do
       a = Axon.param("a", {1, 1})
       input = Axon.input("input")
 
@@ -5595,70 +5595,6 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %ModelState{data: %{"custom" => %{"a" => a}}} =
-               params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_equal(predict_fn.(params, x), Nx.add(x, a))
-    end
-
-    test "supports composite/map parameter types" do
-      inner_param = Axon.param("inner", fn _ -> {1, 1} end)
-      param = Axon.param("composite", {:map, [inner_param]})
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(fn x, %{"inner" => inner}, _opts -> Nx.add(x, inner) end, [input, param],
-          name: "custom"
-        )
-
-      x = random({1, 1})
-
-      assert {init_fn, predict_fn} = Axon.build(model)
-
-      assert %ModelState{data: %{"custom" => %{"composite" => %{"inner" => inner}}}} =
-               params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_equal(predict_fn.(params, x), Nx.add(x, inner))
-    end
-
-    test "inner params in composite parameters initialize to different values" do
-      a = Axon.param("a", fn _ -> {1, 1} end)
-      b = Axon.param("b", fn _ -> {1, 1} end)
-      param = Axon.param("composite", {:map, [a, b]})
-
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(fn x, %{"a" => a}, _opts -> Nx.add(x, a) end, [input, param], name: "custom")
-
-      assert {init_fn, _} = Axon.build(model)
-
-      assert %ModelState{data: %{"custom" => %{"composite" => %{"a" => a, "b" => b}}}} =
-               init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_not_equal(a, b)
-    end
-
-    test "supports a composite of composites" do
-      a = Axon.param("a", fn _ -> {1, 1} end)
-      inner_composite = Axon.param("inner_composite", {:map, [a]})
-      composite = Axon.param("composite", {:map, [inner_composite]})
-
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(
-          fn x, %{"inner_composite" => %{"a" => a}}, _opts -> Nx.add(x, a) end,
-          [input, composite],
-          name: "custom"
-        )
-
-      x = random({1, 1})
-
-      assert {init_fn, predict_fn} = Axon.build(model)
-
-      assert %ModelState{
-               data: %{"custom" => %{"composite" => %{"inner_composite" => %{"a" => a}}}}
-             } =
                params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
 
       assert_equal(predict_fn.(params, x), Nx.add(x, a))

@@ -413,20 +413,20 @@ defmodule Axon.Compiler do
   defp call_init_cache(parent_id, template, params, cache, result_cache, fn_stacktrace, keys) do
     key = {:init_cache, parent_id}
 
-    {parent_shape, {parent_params, result_cache}} =
+    {parent_template, {parent_params, result_cache}} =
       case result_cache do
-        %{^key => {parent_shape, parent_params}} ->
-          {parent_shape, {parent_params, result_cache}}
+        %{^key => {parent_template, parent_params}} ->
+          {parent_template, {parent_params, result_cache}}
 
         %{} ->
-          {parent_shape, {parent_params, result_cache}} =
+          {parent_template, {parent_params, result_cache}} =
             cache[parent_id][:init].(template, cache, result_cache, fn_stacktrace, keys)
 
-          {parent_shape,
-           {parent_params, Map.put(result_cache, key, {parent_shape, parent_params})}}
+          {parent_template,
+           {parent_params, Map.put(result_cache, key, {parent_template, parent_params})}}
       end
 
-    {parent_shape, {Map.merge(parent_params, params), result_cache}}
+    {parent_template, {Map.merge(parent_params, params), result_cache}}
   end
 
   # If the node is ignored for the current mode, we pass through and recur next
@@ -511,7 +511,7 @@ defmodule Axon.Compiler do
 
     init_fun = fn template, _cache, result_cache, _fn_stacktrace, _keys ->
       input = get_input(template, name, optional?)
-      {safe_shape(input), {%{}, result_cache}}
+      {Nx.to_template(input), {%{}, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
@@ -588,10 +588,10 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {parent_shape, {parent_params, result_cache, none?}} =
+      {parent_template, {parent_params, result_cache, none?}} =
         deep_map_reduce(parent_ids, {%{}, result_cache, false}, fn
           parent_id, {params, result_cache, none?} ->
-            {parent_shape, {params, result_cache}} =
+            {parent_template, {params, result_cache}} =
               call_init_cache(
                 parent_id,
                 template,
@@ -602,13 +602,13 @@ defmodule Axon.Compiler do
                 keys
               )
 
-            none? = none? or propagating_none?(parent_shape)
-            {parent_shape, {params, result_cache, none?}}
+            none? = none? or propagating_none?(parent_template)
+            {parent_template, {params, result_cache, none?}}
         end)
 
-      parent_shape = if none?, do: %Axon.None{}, else: parent_shape
+      parent_template = if none?, do: %Axon.None{}, else: parent_template
 
-      {parent_shape, {parent_params, result_cache}}
+      {parent_template, {parent_params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
@@ -707,10 +707,10 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {parent_shapes, {parent_params, result_cache, none?}} =
+      {parent_templates, {parent_params, result_cache, none?}} =
         Enum.map_reduce(parent_ids, {%{}, result_cache, false}, fn
           parent_id, {params, result_cache, none?} ->
-            {parent_shape, {params, result_cache}} =
+            {parent_template, {params, result_cache}} =
               call_init_cache(
                 parent_id,
                 template,
@@ -721,17 +721,17 @@ defmodule Axon.Compiler do
                 keys
               )
 
-            none? = none? or propagating_none?(parent_shape)
-            {parent_shape, {params, result_cache, none?}}
+            none? = none? or propagating_none?(parent_template)
+            {parent_template, {params, result_cache, none?}}
         end)
 
       if none? do
         {%Axon.None{}, {parent_params, result_cache}}
       else
         templates =
-          parent_shapes
+          parent_templates
           |> Enum.with_index()
-          |> Map.new(fn {shape, i} -> {"subgraph#{i}", Nx.broadcast(0.0, shape)} end)
+          |> Map.new(fn {template, i} -> {"subgraph#{i}", Nx.broadcast(0.0, template)} end)
 
         block_params = apply(block_init_fun, [templates, Axon.ModelState.empty()])
 
@@ -745,7 +745,7 @@ defmodule Axon.Compiler do
         {pred_expr, {_, result_cache}} =
           predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
 
-        {safe_shape(pred_expr), {params, result_cache}}
+        {Nx.to_template(pred_expr), {params, result_cache}}
       end
     end
 
@@ -825,7 +825,7 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {_parent_shape, {namespace_params, result_cache}} =
+      {_parent_template, {namespace_params, result_cache}} =
         call_init_cache(parent_id, template, %{}, cache, result_cache, fn_stacktrace, keys)
 
       params =
@@ -838,7 +838,7 @@ defmodule Axon.Compiler do
       {pred_expr, {_, result_cache}} =
         predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
 
-      {safe_shape(pred_expr), {params, result_cache}}
+      {Nx.to_template(pred_expr), {params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
@@ -1218,14 +1218,14 @@ defmodule Axon.Compiler do
          %{params: dtype},
          hooks
        ) do
-    {parent_shapes, {parent_params, result_cache, none?}} =
+    {parent_templates, {parent_params, result_cache, none?}} =
       Enum.map_reduce(parent_ids, {%{}, result_cache, false}, fn
         parent_id, {params, result_cache, none?} ->
-          {parent_shape, {params, result_cache}} =
+          {parent_template, {params, result_cache}} =
             call_init_cache(parent_id, template, params, cache, result_cache, fn_stacktrace, keys)
 
-          none? = none? or propagating_none?(parent_shape)
-          {parent_shape, {params, result_cache, none?}}
+          none? = none? or propagating_none?(parent_template)
+          {parent_template, {params, result_cache, none?}}
       end)
 
     if none? do
@@ -1233,7 +1233,7 @@ defmodule Axon.Compiler do
     else
       layer_params =
         Enum.reduce(parameters, %{}, fn param, layer_params ->
-          init_param(layer_id, param, layer_params, parent_shapes, dtype, keys)
+          init_param(layer_id, param, layer_params, parent_templates, dtype, keys)
         end)
 
       layer_params = apply_hooks(layer_params, :initialize, nil, hooks)
@@ -1248,35 +1248,30 @@ defmodule Axon.Compiler do
       {pred_expr, {_, result_cache}} =
         predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
 
-      {safe_shape(pred_expr), {params, result_cache}}
+      {Nx.to_template(pred_expr), {params, result_cache}}
     end
   end
 
-  defp init_param(layer_id, param, layer_params, parent_shapes, dtype, keys) do
-    %{name: name} = param
+  defp init_param(layer_id, param, layer_params, parent_templates, dtype, keys) do
+    %{name: name, template: template, initializer: initializer} = param
 
-    params =
-      case param do
-        %Axon.Parameter{name: parent_name, type: :map, children: children} ->
-          Enum.reduce(children, %{}, fn child_param, acc ->
-            init_param(parent_name, child_param, acc, parent_shapes, dtype, keys[layer_id])
-          end)
+    template =
+      case template do
+        template_fun when is_function(template) ->
+          apply(template_fun, parent_templates)
 
-        %Axon.Parameter{name: name, shape: shape, initializer: initializer} ->
-          shape =
-            case shape do
-              shape when is_function(shape) ->
-                apply(shape, parent_shapes)
+        %Nx.Tensor{} = template ->
+          template
 
-              shape when is_tuple(shape) ->
-                shape
-
-              other ->
-                raise "unsupported parameter shape, parameter shape should be a static tuple, a function, or a composite, got #{inspect(other)}"
-            end
-
-          apply_initializer(layer_id, initializer, name, shape, dtype, keys)
+        other ->
+          raise "unsupported parameter template, template must be a template tensor or function, got #{inspect(other)}"
       end
+
+    # TODO: We might just need to forward the template
+    shape = Nx.shape(template)
+    dtype = dtype || Nx.type(template)
+
+    params = apply_initializer(layer_id, initializer, name, shape, dtype, keys)
 
     Map.put(layer_params, name, params)
   end
@@ -1329,19 +1324,6 @@ defmodule Axon.Compiler do
 
       container_or_tensor ->
         Axon.MixedPrecision.cast(policy, container_or_tensor, variable_type)
-    end
-  end
-
-  defp safe_shape(container_or_tensor) do
-    case container_or_tensor do
-      %Axon.None{} = none ->
-        none
-
-      %Nx.Tensor{} = tensor ->
-        Nx.shape(tensor)
-
-      container ->
-        deep_new(container, &Nx.shape/1)
     end
   end
 

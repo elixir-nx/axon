@@ -8,14 +8,25 @@ defmodule Axon.MixedPrecision.Policy do
     import Inspect.Algebra
 
     def inspect(policy, _opts) do
+      policy = [
+        policy.params && "p=#{Nx.Type.to_string(policy.params)}",
+        policy.compute && "c=#{Nx.Type.to_string(policy.compute)}",
+        policy.output && "o=#{Nx.Type.to_string(policy.output)}"
+      ]
+
+      inner =
+        policy
+        |> Enum.reject(&is_nil/1)
+        |> Enum.intersperse(" ")
+
       force_unfit(
-        concat([
-          "#Axon.MixedPrecision.Policy<",
-          "p=#{Nx.Type.to_string(policy.params)} ",
-          "c=#{Nx.Type.to_string(policy.compute)} ",
-          "o=#{Nx.Type.to_string(policy.output)}",
-          ">"
-        ])
+        concat(
+          List.flatten([
+            "#Axon.MixedPrecision.Policy<",
+            inner,
+            ">"
+          ])
+        )
       )
     end
   end
