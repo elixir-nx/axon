@@ -5675,4 +5675,122 @@ defmodule CompilerTest do
       assert out =~ "bar:"
     end
   end
+
+  describe "graph manipulation" do
+    test "rewrite_nodes does nothing if all rewrites are skip" do
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model = Axon.rewrite_nodes(model, fn _ -> :skip end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(model_state, input),
+        Axon.Activations.relu(Axon.Layers.dense(input, k, b))
+      )
+    end
+
+    test "rewrite_nodes applies simple rewriters" do
+      relu_rewriter = fn [%Axon{} = x], _ ->
+        Axon.tanh(x)
+      end
+
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :relu} -> relu_rewriter
+          _ -> :skip
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(model_state, input),
+        Axon.Activations.tanh(Axon.Layers.dense(input, k, b))
+      )
+    end
+
+    test "rewrite_nodes applies residual rewriter" do
+      residual_rewriter = fn [%Axon{} = x], %Axon{} = out ->
+        Axon.add(x, out)
+      end
+
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :dense} -> residual_rewriter
+          _ -> :skip
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      real_fn = fn input, k, b ->
+        out = Nx.add(Axon.Layers.dense(input, k, b), input)
+        Axon.Activations.relu(out)
+      end
+
+      assert_equal(predict_fn.(model_state, input), real_fn.(input, k, b))
+    end
+
+    test "rewrite_nodes properly removes layers" do
+      remove_relu_rewriter = fn [%Axon{} = x], _out ->
+        x
+      end
+
+      input = Axon.input("x")
+      relu_tanh_input = Axon.tanh(Axon.relu(input))
+
+      model =
+        input
+        |> Axon.relu()
+        |> Axon.tanh()
+        |> Axon.relu()
+        |> Axon.tanh()
+        |> Axon.tanh()
+        |> Axon.relu()
+        |> Axon.relu()
+        |> Axon.add(relu_tanh_input)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :relu} -> remove_relu_rewriter
+          _ -> :skip
+        end)
+
+      {_, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      real_fn = fn input ->
+        tanh_input = Axon.Activations.tanh(input)
+
+        input
+        |> Axon.Activations.tanh()
+        |> Axon.Activations.tanh()
+        |> Axon.Activations.tanh()
+        |> Nx.add(tanh_input)
+      end
+
+      assert_equal(predict_fn.(ModelState.empty(), input), real_fn.(input))
+    end
+  end
 end

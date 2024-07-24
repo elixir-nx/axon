@@ -3731,16 +3731,15 @@ defmodule Axon do
   relu layers with tanh layers:
 
       new_model = Axon.map_nodes(model, fn
-        %Axon{op: :relu} = graph ->
-          # Get nodes immediate parent
-          parent = Axon.get_parent(graph)
-          # Replace node with a tanh
-          Axon.tanh(parent)
+        %Axon.Node{op: :relu} = axon_node ->
+          %{axon_node | op: :tanh}
 
         graph ->
           graph
       end)
 
+  For more complex graph rewriting and manipulation cases, see
+  `Axon.rewrite_nodes/2`.
   """
   @doc type: :graph
   def map_nodes(%Axon{output: id, nodes: nodes} = axon, fun) when is_function(fun, 1) do
@@ -3777,6 +3776,74 @@ defmodule Axon do
     {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
 
     Enum.reduce(inorder_nodes, acc, fun)
+  end
+
+  @doc """
+  Rewrite and manipulate nodes in the Axon execution graph.
+
+  Axon models are represented as a graph of nodes. Working on these nodes
+  directly can be difficult and lead to disconnected and invalid graphs.
+  In some cases, you simply want to rewrite patterns. This function takes
+  an Axon model and traverses the nodes, applying the rewrite `fun` on each
+  node to rewrite some or all of the nodes in the Axon model.
+
+  The rewrite function is an arity-1 function which takes the current Axon node
+  as input and returns a function that replaces or rewrites the given node.
+  For example, you can define a simple rewriter which replaces the `:relu`
+  layers with `:tanh` layers:
+      
+      tanh_rewriter = fn [%Axon{} = x], _output ->
+        Axon.relu(x)
+      end
+
+      Axon.rewrite_nodes(model, fn
+        %Axon.Node{op: :relu} -> tanh_rewriter
+        _ -> :skip
+      end)
+
+  Notice that the rewriter receives all of the original graph inputs *as well as*
+  the original graph outputs. This makes certain transformations which may rely
+  on both the input and output, such as LoRA, much easier to perform.
+  """
+  @doc type: :graph
+  def rewrite_nodes(%Axon{output: id, nodes: nodes}, fun) when is_function(fun, 1) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+
+    updated_nodes =
+      Enum.reduce(inorder_nodes, nodes, fn
+        %{id: original_id, parent: parents} = current_node, nodes ->
+          rewriter = fun.(current_node)
+
+          case rewriter do
+            :skip ->
+              nodes
+
+            rewriter when is_function(rewriter, 2) ->
+              input_axons = Enum.map(parents, &%Axon{output: &1, nodes: nodes})
+              %Axon{output: swapped_id} = placeholder_output = Axon.input("placeholder_output")
+
+              %Axon{output: new_node_id, nodes: updated_nodes} =
+                rewriter.(input_axons, placeholder_output)
+
+              # now we have to swap the IDs for the rewritten model so that
+              # anything that references this node takes the new, rewritten form
+              # as an input properly
+              original_node = %{updated_nodes[original_id] | id: swapped_id}
+              updated_node = %{updated_nodes[new_node_id] | id: original_id}
+
+              updated_nodes
+              |> Map.replace(swapped_id, original_node)
+              |> Map.replace(original_id, updated_node)
+          end
+      end)
+
+    # if we removed any nodes (like by just using the input instead)
+    # then technically we will have extra nodes in the graph, so we
+    # can prune them by traversing once again
+    {pruned_nodes, _} = traverse_nodes(id, updated_nodes, [], MapSet.new())
+    pruned_nodes = Map.new(pruned_nodes, fn %{id: id} = axon_node -> {id, axon_node} end)
+
+    %Axon{output: id, nodes: pruned_nodes}
   end
 
   defp traverse_nodes(id, nodes, acc, visited) do
