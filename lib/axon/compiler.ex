@@ -40,7 +40,6 @@ defmodule Axon.Compiler do
   @moduledoc false
   require Logger
 
-  import Axon.Shared
   alias Axon.StatefulOutput
 
   ## Init JIT Compilation
@@ -543,72 +542,6 @@ defmodule Axon.Compiler do
       out = with %Axon.None{} <- out, do: %Axon.None{__propagate__: false}
 
       {out, {params, result_cache}}
-    end
-
-    model_funs = %{predict: predict_fun, init: init_fun}
-    {id, model_funs, cache, op_counts, block_cache, model_state_meta}
-  end
-
-  defp recur_model_funs(
-         %Axon.Node{id: id, op: :container, parent: [parents]},
-         nodes,
-         cache_and_counts,
-         config
-       ) do
-    {parent_ids, {cache, op_counts, block_cache, model_state_meta}} =
-      deep_map_reduce(parents, cache_and_counts, &to_model_funs(&1, nodes, &2, config))
-
-    op_counts = Map.update(op_counts, :container, 1, fn x -> x + 1 end)
-
-    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
-      {input, {state, result_cache, none?}} =
-        deep_map_reduce(
-          parent_ids,
-          {state, result_cache, false},
-          fn parent_id, {state, result_cache, none?} ->
-            {input, {state, result_cache}} =
-              call_predict_cache(
-                parent_id,
-                params,
-                inputs,
-                state,
-                cache,
-                result_cache,
-                fn_stacktrace
-              )
-
-            none? = none? or propagating_none?(input)
-            {input, {state, result_cache, none?}}
-          end
-        )
-
-      input = if none?, do: %Axon.None{}, else: input
-
-      {input, {state, result_cache}}
-    end
-
-    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
-      {parent_template, {parent_params, result_cache, none?}} =
-        deep_map_reduce(parent_ids, {%{}, result_cache, false}, fn
-          parent_id, {params, result_cache, none?} ->
-            {parent_template, {params, result_cache}} =
-              call_init_cache(
-                parent_id,
-                template,
-                params,
-                cache,
-                result_cache,
-                fn_stacktrace,
-                keys
-              )
-
-            none? = none? or propagating_none?(parent_template)
-            {parent_template, {params, result_cache, none?}}
-        end)
-
-      parent_template = if none?, do: %Axon.None{}, else: parent_template
-
-      {parent_template, {parent_params, result_cache}}
     end
 
     model_funs = %{predict: predict_fun, init: init_fun}
