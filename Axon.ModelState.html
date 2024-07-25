@@ -14,7 +14,7 @@
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
     <script src="dist/handlebars.templates-43PMFBC7.js"></script>
-    <script src="dist/sidebar_items-35602AB1.js"></script>
+    <script src="dist/sidebar_items-496153D3.js"></script>
 
       <script src="docs_config.js"></script>
 
@@ -313,10 +313,10 @@ using the given mask.</p></div>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be frozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="8817037626-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="8817037626-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="8817037626-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="8817037626-3">(</span><span class="n">n</span><span class="p" data-group-id="8817037626-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="1810032954-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="1810032954-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="1810032954-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="1810032954-3">(</span><span class="n">n</span><span class="p" data-group-id="1810032954-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="8817037626-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="1810032954-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 freezing the entire model.</p>
   </section>
 </section>
@@ -478,10 +478,10 @@ map.</p>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be unfrozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="9171189549-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="9171189549-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="9171189549-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="4751141161-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="4751141161-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4751141161-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="9171189549-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="4751141161-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 unfreezing the entire model.</p>
   </section>
 </section>

@@ -8,7 +8,7 @@
     <meta name="project" content="Axon v0.6.1">
 
 
-    <title>Axon.Display — Axon v0.6.1</title>
+    <title>Axon.Quantization — Axon v0.6.1</title>
     <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
 
 
@@ -121,19 +121,25 @@ Pages
 
 <h1>
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L1" title="View Source" class="icon-action" rel="help">
+    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L1" title="View Source" class="icon-action" rel="help">
       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
       <span class="sr-only">View Source</span>
     </a>
 
-  <span translate="no">Axon.Display</span> 
+  <span translate="no">Axon.Quantization</span> 
   <small class="app-vsn" translate="no">(Axon v0.6.1)</small>
 
 </h1>
 
 
   <section id="moduledoc">
-<p>Module for rendering various visual representations of Axon models.</p>
+<p>Model quantization.</p><p>Model quantization is a technique for reducing the memory footprint of
+a model by converting portions of a model to use quantized representations.
+Typically, these quantized representations are low-precision integers.</p><p>This is an <strong>experimental</strong> API which implements weight-only quantization.
+The implementation in this module will convert dense layers in a large
+model to quantized-variants. The only supported quantization type is
+<code class="inline">{:s, 8}</code>. Axon quantization is inference-only. Training is not currently
+supported.</p>
   </section>
 
 
@@ -151,23 +157,41 @@ Pages
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#as_graph/3" translate="no">as_graph(axon, input_templates, opts \\ [])</a>
+        <a href="#quantize/2" translate="no">quantize(model, model_state)</a>
 
       </div>
 
-        <div class="summary-synopsis"><p>Traces execution of the given Axon model with the given
-inputs, rendering the execution flow as a mermaid flowchart.</p></div>
+        <div class="summary-synopsis"><p>Quantizes a model and a model state.</p></div>
 
     </div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#as_table/2" translate="no">as_table(axon, input_templates)</a>
+        <a href="#quantize_model/1" translate="no">quantize_model(model)</a>
 
       </div>
 
-        <div class="summary-synopsis"><p>Traces execution of the given Axon model with the given
-inputs, rendering the execution flow as a table.</p></div>
+        <div class="summary-synopsis"><p>Replaces standard operations with quantized variants.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#quantize_model_state/2" translate="no">quantize_model_state(model, model_state)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a quantized model state.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#weight_only_quantized_dense/3" translate="no">weight_only_quantized_dense(x, units, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Adds a weight-only quantized dense layer to the network.</p></div>
 
     </div>
 
@@ -184,18 +208,16 @@ inputs, rendering the execution flow as a table.</p></div>
       <span class="text">Functions</span>
     </h1>
     <div class="functions-list">
-<section class="detail" id="as_graph/3">
-
-    <span id="as_graph/2"></span>
+<section class="detail" id="quantize/2">
 
   <div class="detail-header">
-    <a href="#as_graph/3" class="detail-link" title="Link to this function">
+    <a href="#quantize/2" class="detail-link" title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
-    <h1 class="signature" translate="no">as_graph(axon, input_templates, opts \\ [])</h1>
+    <h1 class="signature" translate="no">quantize(model, model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L266" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L27" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -205,52 +227,94 @@ inputs, rendering the execution flow as a table.</p></div>
 
   <section class="docstring">
 
-<p>Traces execution of the given Axon model with the given
-inputs, rendering the execution flow as a mermaid flowchart.</p><p>You must include <a href="https://hex.pm/packages/kino">kino</a> as
-a dependency in your project to make use of this function.</p><h2 id="as_graph/3-options" class="section-heading">
-  <a href="#as_graph/3-options" class="hover-link">
+<p>Quantizes a model and a model state.</p><p>Given a model and model state, this method will rewrite all
+of the dense layers in the model to perform weight-only 8-bit
+integer versions of the same operation. It will also replace values
+for all dense kernels in the given model state with quantized
+tensors.</p>
+  </section>
+</section>
+<section class="detail" id="quantize_model/1">
+
+  <div class="detail-header">
+    <a href="#quantize_model/1" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">quantize_model(model)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L43" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Replaces standard operations with quantized variants.</p><p>The only supported conversion is to convert regular dense layers
+to a weight-only 8-bit integer variant. Note that this only replaces
+the properties of the model. If you have a pre-trained model state
+that you wish to quantize, refer to <code class="inline">Axon.Quantization.quantize_model_state/1</code>.</p><p>All <code class="inline">:dense</code> layers in the model are replaced with <a href="#weight_only_quantized_dense/3"><code class="inline">Axon.Quantization.weight_only_quantized_dense/3</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="quantize_model_state/2">
+
+  <div class="detail-header">
+    <a href="#quantize_model_state/2" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">quantize_model_state(model, model_state)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L66" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Returns a quantized model state.</p><p>Given a model and a model state, this function will replace
+all dense layer kernels with a quantized version of the weight.</p><p>Training is not currently supported, so all quantized layers are
+automatically frozen.</p>
+  </section>
+</section>
+<section class="detail" id="weight_only_quantized_dense/3">
+
+    <span id="weight_only_quantized_dense/2"></span>
+
+  <div class="detail-header">
+    <a href="#weight_only_quantized_dense/3" class="detail-link" title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">weight_only_quantized_dense(x, units, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L107" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Adds a weight-only quantized dense layer to the network.</p><p>This is equivalent to a dense layer, but works on quantized
+weights for reducing model memory footprint.</p><p>Compiles to <a href="Axon.Quantization.Layers.html#weight_only_quantized_dense/4"><code class="inline">Axon.Quantization.Layers.weight_only_quantized_dense/4</code></a>.</p><h2 id="weight_only_quantized_dense/3-options" class="section-heading">
+  <a href="#weight_only_quantized_dense/3-options" class="hover-link">
     <i class="ri-link-m" aria-hidden="true"></i>
   </a>
   <span class="text">Options</span>
 </h2>
-<ul><li><code class="inline">:direction</code> - defines the direction of the graph visual. The
-value can either be <code class="inline">:top_down</code> or <code class="inline">:left_right</code>. Defaults to <code class="inline">:top_down</code>.</li></ul><h2 id="as_graph/3-examples" class="section-heading">
-  <a href="#as_graph/3-examples" class="hover-link">
-    <i class="ri-link-m" aria-hidden="true"></i>
-  </a>
-  <span class="text">Examples</span>
-</h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="3011317620-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="3011317620-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="3011317620-2">(</span><span class="mi">32</span><span class="p" data-group-id="3011317620-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="5043314732-1">(</span><span class="p" data-group-id="5043314732-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5043314732-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="5043314732-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="2681585130-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="ss">direction</span><span class="p">:</span><span class="w"> </span><span class="ss">:top_down</span><span class="p" data-group-id="2681585130-1">)</span></code></pre>
-  </section>
-</section>
-<section class="detail" id="as_table/2">
-
-  <div class="detail-header">
-    <a href="#as_table/2" class="detail-link" title="Link to this function">
-      <i class="ri-link-m" aria-hidden="true"></i>
-      <span class="sr-only">Link to this function</span>
-    </a>
-    <h1 class="signature" translate="no">as_table(axon, input_templates)</h1>
-
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/display.ex#L31" class="icon-action" rel="help" title="View Source">
-       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-       <span class="sr-only">View Source</span>
-     </a>
-
-
-  </div>
-
-  <section class="docstring">
-
-<p>Traces execution of the given Axon model with the given
-inputs, rendering the execution flow as a table.</p><p>You must include <a href="https://hex.pm/packages/table_rex">table_rex</a> as
-a dependency in your project to make use of this function.</p><h2 id="as_table/2-examples" class="section-heading">
-  <a href="#as_table/2-examples" class="hover-link">
-    <i class="ri-link-m" aria-hidden="true"></i>
-  </a>
-  <span class="text">Examples</span>
-</h2>
-<p>Given an Axon model:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7123691941-1">(</span><span class="s">&quot;input&quot;</span><span class="p" data-group-id="7123691941-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7123691941-2">(</span><span class="mi">32</span><span class="p" data-group-id="7123691941-2">)</span></code></pre><p>You can define input templates for each input:</p><pre><code class="makeup elixir" translate="no"><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="0226376031-1">(</span><span class="p" data-group-id="0226376031-2">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="0226376031-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="0226376031-1">)</span></code></pre><p>And then display the execution flow of the model:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_table</span><span class="p" data-group-id="2393096199-1">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="2393096199-1">)</span></code></pre>
+<ul><li><p><code class="inline">:name</code> - layer name.</p></li><li><p><code class="inline">:kernel_initializer</code> - initializer for <code class="inline">kernel</code> weights.
+Defaults to <code class="inline">:glorot_uniform</code>.</p></li><li><p><code class="inline">:bias_initializer</code> - initializer for <code class="inline">bias</code> weights. Defaults
+to <code class="inline">:zeros</code>.</p></li><li><p><code class="inline">:use_bias</code> - whether the layer should add bias to the output.
+Defaults to <code class="inline">true</code>.</p></li></ul>
   </section>
 </section>
 
