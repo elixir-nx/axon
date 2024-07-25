@@ -855,6 +855,12 @@ defmodule Axon do
         use_bias: true
       ])
 
+    meta =
+      opts[:meta] ||
+        %{}
+        |> Map.put(:units, units)
+        |> Map.put(:use_bias, opts[:use_bias])
+
     kernel_shape = &Axon.Shape.dense_kernel(&1, units)
     bias_shape = &Axon.Shape.dense_bias(&1, units)
 
@@ -868,7 +874,7 @@ defmodule Axon do
         {[x, kernel], :dense}
       end
 
-    node = layer(op, inputs, name: opts[:name], meta: opts[:meta], op_name: :dense)
+    node = layer(op, inputs, name: opts[:name], meta: meta, op_name: :dense)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -3666,7 +3672,7 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
-    reduce_nodes(axon, %{}, fn %Axon.Node{op: op}, op_counts ->
+    reduce_nodes(axon, %{}, fn %Axon.Node{op_name: op}, op_counts ->
       Map.update(op_counts, op, 1, fn x -> x + 1 end)
     end)
   end
@@ -4093,6 +4099,33 @@ defmodule Axon do
           color(">", :map, opts)
         ])
       )
+    end
+  end
+
+  @doc """
+  Returns a mapping of layer names to layer properties.
+  """
+  def properties(%Axon{output: id, nodes: nodes}) do
+    {_, _, properties} = node_properties(id, nodes, {%{}, %{}, %{}})
+    properties
+  end
+
+  defp node_properties(id, nodes, {cache, op_counts, properties} = acc) do
+    case cache do
+      %{^id => _} ->
+        {cache, op_counts, properties}
+
+      %{} ->
+        %Axon.Node{parent: parents, name: name_fn, op_name: op_name} = nodes[id]
+
+        {cache, op_counts, properties} =
+          Enum.reduce(parents, acc, &node_properties(&1, nodes, &2))
+
+        name = name_fn.(op_name, op_counts)
+        op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
+        properties = Map.put(properties, name, op_name)
+
+        {Map.put(cache, id, name), op_counts, properties}
     end
   end
 

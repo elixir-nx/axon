@@ -206,6 +206,8 @@ defmodule Axon.ModelState do
 
   defp traverse(%Nx.Tensor{}, acc), do: [Enum.reverse(acc)]
 
+  defp traverse(%Axon.Quantization.QTensor{}, acc), do: [Enum.reverse(acc)]
+
   defp traverse(map, acc) do
     Enum.flat_map(map, fn {k, value} ->
       traverse(value, [k | acc])
@@ -273,6 +275,10 @@ defmodule Axon.ModelState do
           new_val = fun.(key, val_lhs, val_rhs)
           Map.put(acc, key, new_val)
 
+        %Axon.Quantization.QTensor{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+
         val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
           updated_val = tree_merge(val_lhs, val_rhs, fun)
           Map.put(acc, key, updated_val)
@@ -320,6 +326,11 @@ defmodule Axon.ModelState do
       Enum.reduce(params, {0, 0}, fn
         {_, %Nx.Tensor{} = tensor}, {count, size} ->
           {count + Nx.size(tensor), size + Nx.byte_size(tensor)}
+
+        {_, %Axon.Quantization.QTensor{value: value, scale: scale, zero_point: zero}},
+        {count, size} ->
+          {count + Nx.size(value) + Nx.size(scale) + Nx.size(zero),
+           size + Nx.byte_size(value) + Nx.byte_size(scale) + Nx.byte_size(zero)}
 
         {_, map}, {count, size} ->
           {inner_count, inner_size} = get_param_info(map)
