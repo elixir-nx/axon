@@ -36,7 +36,7 @@ defmodule Axon.Quantization do
   The only supported conversion is to convert regular dense layers
   to a weight-only 8-bit integer variant. Note that this only replaces
   the properties of the model. If you have a pre-trained model state
-  that you wish to quantize, refer to `Axon.Quantization.quantize_model_state/1`.
+  that you wish to quantize, refer to `Axon.Quantization.quantize_model_state/2`.
 
   All `:dense` layers in the model are replaced with `Axon.Quantization.weight_only_quantized_dense/3`.
   """
@@ -89,7 +89,7 @@ defmodule Axon.Quantization do
   This is equivalent to a dense layer, but works on quantized
   weights for reducing model memory footprint.
 
-  Compiles to `Axon.Quantization.Layers.weight_only_quantized_dense/4`.
+  Compiles to `Axon.Quantization.Layers.weight_only_quantized_dense/3`.
 
   ## Options
 
