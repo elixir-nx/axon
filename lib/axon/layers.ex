@@ -222,7 +222,7 @@ defmodule Axon.Layers do
   ## Options
 
     * `:strides` - kernel strides. Can be a scalar or a list
-      who's length matches the number of spatial dimensions in
+      whose length matches the number of spatial dimensions in
       the input tensor. Defaults to 1.
 
     * `:padding` - zero padding on the input. Can be one of
