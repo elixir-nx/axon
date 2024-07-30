@@ -3849,9 +3849,19 @@ defmodule Axon do
       {_node, model} = Axon.pop_node(model)
   """
   @doc type: :graph
-  def pop_node(%Axon{nodes: nodes, output: id} = axon) do
-    {%{parent: [parent_id]} = popped, nodes} = Map.pop!(nodes, id)
-    {popped, %{axon | nodes: nodes, output: parent_id}}
+  def pop_node(%Axon{nodes: nodes, output: id}) do
+    {popped, nodes} = Map.pop!(nodes, id)
+
+    case popped do
+      %{op_name: :container, parent: parents, op: fun} = popped ->
+        {popped, apply(fun, Enum.map(parents, &%Axon{nodes: nodes, output: &1}) ++ [[]])}
+
+      %{parent: [_ | _] = parents} = popped ->
+        {popped, Enum.map(parents, &%Axon{nodes: nodes, output: &1})}
+
+      %{parent: [parent_id]} = popped ->
+        {popped, %Axon{nodes: nodes, output: parent_id}}
+    end
   end
 
   @doc """

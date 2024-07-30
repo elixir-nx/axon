@@ -22,7 +22,7 @@ defmodule Axon.Quantization.QTensor do
 
     case opts[:type] do
       {:s, 8} ->
-        dynamically_quantize_per_channel(x, min: -128, max: 127, type: {:s, 8})
+        dynamically_quantize_per_channel(Nx.transpose(x), min: -128, max: 127, type: {:s, 8})
 
       other ->
         raise "unsupported quantization type #{inspect(other)}"

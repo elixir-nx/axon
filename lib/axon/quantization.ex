@@ -41,13 +41,16 @@ defmodule Axon.Quantization do
   All `:dense` layers in the model are replaced with `Axon.Quantization.weight_only_quantized_dense/3`.
   """
   def quantize_model(%Axon{} = model) do
-    quantized_dense_rewriter = fn [%Axon{} = x], _output, units, use_bias ->
-      weight_only_quantized_dense(x, units, use_bias: use_bias)
+    quantized_dense_rewriter = fn [%Axon{} = x], _output, name_fn, units, use_bias ->
+      weight_only_quantized_dense(x, units,
+        use_bias: use_bias,
+        name: name_fn
+      )
     end
 
     Axon.rewrite_nodes(model, fn
-      %Axon.Node{op: :dense, meta: meta} ->
-        &quantized_dense_rewriter.(&1, &2, meta[:units], meta[:use_bias])
+      %Axon.Node{op: :dense, meta: meta, name: name_fn} ->
+        &quantized_dense_rewriter.(&1, &2, name_fn, meta[:units], meta[:use_bias])
 
       _ ->
         :skip

@@ -30,14 +30,26 @@ defmodule Axon.Quantization.Layers do
   end
 
   defnp weight_only_quantized_dense_impl(
-          input,
-          %QTensor{value: kernel, scale: scale},
+          x,
+          %QTensor{value: w_int8, scale: scales},
           bias,
           _opts
         ) do
-    input
-    |> Nx.dot([Nx.rank(input) - 1], Nx.as_type(kernel, Nx.type(input)), [0])
-    |> Nx.multiply(scale)
-    |> Nx.add(bias)
+    x_shape = Nx.shape(x)
+    last_dim = Nx.axis_size(x, -1)
+
+    x_view = Nx.reshape(x, {:auto, last_dim})
+
+    y = Nx.dot(x_view, Nx.as_type(Nx.transpose(w_int8), Nx.type(x)))
+    y = Nx.multiply(y, scales)
+    y = reshape_output(y, x_shape)
+
+    Nx.add(y, bias)
+  end
+
+  deftransformp reshape_output(output, x_shape) do
+    all_but_last = Tuple.delete_at(x_shape, tuple_size(x_shape) - 1)
+    new_shape = Tuple.append(all_but_last, :auto)
+    Nx.reshape(output, new_shape)
   end
 end
