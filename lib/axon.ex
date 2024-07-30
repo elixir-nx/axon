@@ -3974,7 +3974,7 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def trace_init(model, template, params \\ %{}, opts \\ []) do
+  def trace_init(model, template, params \\ Axon.ModelState.empty(), opts \\ []) do
     {init_fn, _} = build(model, opts)
     Nx.Defn.jit(init_fn, compiler: Axon.Defn).(template, params)
   end

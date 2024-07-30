@@ -35,16 +35,18 @@ defmodule Axon.Quantization.Layers do
           bias,
           _opts
         ) do
-    x_shape = Nx.shape(x)
-    last_dim = Nx.axis_size(x, -1)
+    x_view = Nx.reshape(x, {:auto, Nx.axis_size(x, -1)})
 
-    x_view = Nx.reshape(x, {:auto, last_dim})
-
-    y = Nx.dot(x_view, Nx.as_type(Nx.transpose(w_int8), Nx.type(x)))
-    y = Nx.multiply(y, scales)
-    y = reshape_output(y, x_shape)
+    y = Nx.dot(x_view, Nx.as_type(w_int8, Nx.type(x)))
+    y = Nx.multiply(y, reshape_scales(scales, y))
+    y = reshape_output(y, Nx.shape(x))
 
     Nx.add(y, bias)
+  end
+
+  deftransformp reshape_scales(scales, y) do
+    ones = List.to_tuple(List.duplicate(1, Nx.rank(y) - 1))
+    Nx.reshape(scales, Tuple.append(ones, :auto))
   end
 
   deftransformp reshape_output(output, x_shape) do

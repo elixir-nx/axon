@@ -59,7 +59,7 @@ defmodule Axon.Quantization.QTensor do
         max: opts[:max]
       )
 
-    struct(__MODULE__, value: quantized_value, scale: scale, zero_point: zero_point)
+    struct(__MODULE__, value: Nx.transpose(quantized_value), scale: scale, zero_point: zero_point)
   end
 
   deftransformp quantize_affine(
