@@ -256,7 +256,7 @@ tensors.</p>
 <p>Replaces standard operations with quantized variants.</p><p>The only supported conversion is to convert regular dense layers
 to a weight-only 8-bit integer variant. Note that this only replaces
 the properties of the model. If you have a pre-trained model state
-that you wish to quantize, refer to <code class="inline">Axon.Quantization.quantize_model_state/1</code>.</p><p>All <code class="inline">:dense</code> layers in the model are replaced with <a href="#weight_only_quantized_dense/3"><code class="inline">Axon.Quantization.weight_only_quantized_dense/3</code></a>.</p>
+that you wish to quantize, refer to <a href="#quantize_model_state/2"><code class="inline">Axon.Quantization.quantize_model_state/2</code></a>.</p><p>All <code class="inline">:dense</code> layers in the model are replaced with <a href="#weight_only_quantized_dense/3"><code class="inline">Axon.Quantization.weight_only_quantized_dense/3</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="quantize_model_state/2">
@@ -305,7 +305,7 @@ automatically frozen.</p>
   <section class="docstring">
 
 <p>Adds a weight-only quantized dense layer to the network.</p><p>This is equivalent to a dense layer, but works on quantized
-weights for reducing model memory footprint.</p><p>Compiles to <a href="Axon.Quantization.Layers.html#weight_only_quantized_dense/4"><code class="inline">Axon.Quantization.Layers.weight_only_quantized_dense/4</code></a>.</p><h2 id="weight_only_quantized_dense/3-options" class="section-heading">
+weights for reducing model memory footprint.</p><p>Compiles to <a href="Axon.Quantization.Layers.html#weight_only_quantized_dense/3"><code class="inline">Axon.Quantization.Layers.weight_only_quantized_dense/3</code></a>.</p><h2 id="weight_only_quantized_dense/3-options" class="section-heading">
   <a href="#weight_only_quantized_dense/3-options" class="hover-link">
     <i class="ri-link-m" aria-hidden="true"></i>
   </a>
