@@ -455,7 +455,7 @@ defmodule Axon.Loop do
   defp raise_bad_training_inputs!(data, state) do
     raise ArgumentError,
           "invalid arguments given to train-step initialization," <>
-            " this usually happens when you pass a invalid parameters" <>
+            " this usually happens when you pass invalid parameters" <>
             " to Axon.Loop.run with a loop constructed using Axon.Loop.trainer" <>
             " or Axon.Loop.evaluator, supervised training and evaluation loops" <>
             " expect a stream or enumerable of inputs" <>

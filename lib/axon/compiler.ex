@@ -17,7 +17,7 @@ defmodule Axon.CompileError do
       else
         """
 
-        (pass debug: true to build/compile see where the layer was defined)
+        (pass debug: true to build/compile to see where the layer was defined)
 
         """
       end
