@@ -12,7 +12,8 @@ Mix.install([
   {:exla, "~> 0.7.3"},
   {:req, "~> 0.5.2"},
   {:vega_lite, "~> 0.1.9"},
-  {:nimble_csv, "~> 1.2"}
+  {:nimble_csv, "~> 1.2"},
+  {:scholar, "~> 0.3.1"}
 ])
 
 Nx.global_default_backend(EXLA.Backend)
@@ -33,7 +34,7 @@ First, we load and preprocess the historical data. We will apply *normalization*
 NimbleCSV.define(CSVParser, separator: "\n", escape: "\"")
 
 data =
-  "https://raw.githubusercontent.com/santiago-imelio/datasets/main/normalized_apple_prices.csv"
+  "https://raw.githubusercontent.com/santiago-imelio/datasets/main/apple_stock_prices.csv"
   |> Req.get!()
   |> Map.get(:body)
   |> CSVParser.parse_string()
@@ -45,14 +46,54 @@ data =
   |> Nx.tensor()
 ```
 
-The series is normalized to belong within the range [-1, 1] using min-max scaling. It's also common to see applications where normalization is performed using standard deviation. Let's visualize the loaded data.
-
 ```elixir
+min = Nx.reduce_min(data) |> Nx.to_number()
+max = Nx.reduce_max(data) |> Nx.to_number()
+
 {series_size} = Nx.shape(data)
 days = Nx.iota({series_size})
 
 Tucan.lineplot([Prices: data, Days: days], "Days", "Prices")
 |> Tucan.set_size(600, 400)
+|> Tucan.Scale.set_y_domain(min, max)
+```
+
+## Train-test splitting
+
+Here we split the dataset into train and test sets. We will use two thirds of the data for training and the remaining for validation. Since the dataset is a ordered time-series, we shouldn't shuffle the data before splitting.
+
+```elixir
+train_test_split = 2 / 3
+
+{train, test} = Nx.split(data, train_test_split)
+```
+
+## Normalization
+
+We normalize the series to belong within the range [-1, 1] using min-max scaling. It's also common to see applications where normalization is performed using standard deviation.
+
+```elixir
+alias Scholar.Preprocessing.MinMaxScaler
+```
+
+We fit a min-max scaler on the training data, and then transform both train and test sets using the fitted scaler. This prevents data leakage from the test set to the training set.
+
+```elixir
+scaler = MinMaxScaler.fit(train, min_bound: -1, max_bound: 1)
+train = MinMaxScaler.transform(scaler, train)
+test = MinMaxScaler.transform(scaler, test)
+```
+
+Let's visualize the normalized data.
+
+```elixir
+norm_data = Nx.concatenate([train, test])
+new_min = Nx.reduce_min(norm_data) |> Nx.to_number()
+new_max = Nx.reduce_max(norm_data) |> Nx.to_number()
+
+Tucan.lineplot([Prices: norm_data, Days: days], "Days", "Prices")
+|> Tucan.set_size(600, 400)
+|> Tucan.Scale.set_y_domain(new_min, new_max)
 ```
 
 ## Sliding window
@@ -126,29 +167,26 @@ test_series = Nx.tensor([0, 1, 1, 2, 3, 5, 8, 13, 21, 34])
 sliding_window.(test_series, 2)
 ```
 
-Now we apply the sliding window to our dataset with a window size of 7.
+Now we apply the sliding window to our dataset with a window size of 7. For simplicity, we truncate the test and train to a size divisible by the window length.
 
 ```elixir
-p = 133
 win_size = 7
-data = data[0..(p - 1)]
 
-{x, y} = sliding_window.(data, win_size)
+{train_size} = Nx.shape(train)
+{test_size} = Nx.shape(test)
+
+p_train = train_size - rem(train_size, win_size)
+p_test = test_size - rem(test_size, win_size)
+
+train = train[0..(p_train - 1)]
+test = test[0..(p_test - 1)]
+
+{x_train, y_train} = sliding_window.(train, win_size)
+{x_test, y_test} = sliding_window.(test, win_size)
 ```
 
 ```elixir
-{dataset_size, _} = Nx.shape(x)
-```
-
-## Train-test splitting
-
-Here we split the dataset into train and test sets. We will use two thirds of the data for training and the remaining for validation. Since the dataset is a ordered time-series, we shouldn't shuffle the data before splitting.
-
-```elixir
-train_test_split = 2 / 3
-
-{x_train, x_test} = Nx.split(x, train_test_split)
-{y_train, y_test} = Nx.split(y, train_test_split)
+dataset_size = p_train + p_test
 ```
 
 ## Building and training our RNN regressor
@@ -198,7 +236,7 @@ test_data = Stream.zip([x_test_batches, y_test_batches])
 We are ready to create our training loop and run it. Since our network is simple, we choose SGD as the network optimizer.
 
 ```elixir
-optimizer = Polaris.Optimizers.sgd(learning_rate: 0.08)
+optimizer = Polaris.Optimizers.sgd(learning_rate: 0.04)
 loop = Axon.Loop.trainer(model, :mean_squared_error, optimizer)
 
 trained_model_state = Axon.Loop.run(loop, train_data, %{}, epochs: 100)
@@ -240,8 +278,8 @@ Let's visualize the predictions compared to the real trend of the prices. First 
 interval = Nx.iota({dataset_size})
 
 plt_data = [
-  Prices: data[(win_size - 1)..(dataset_size - 1)],
-  Day: interval[(win_size - 1)..(dataset_size - 1)],
+  Prices: norm_data[0..(dataset_size - 1)],
+  Day: interval[0..(dataset_size - 1)],
   Eval: List.duplicate("Real prices", dataset_size)
 ]
 
@@ -256,7 +294,7 @@ plt_data_train = [
 
 plt_data_test = [
   Prices: Nx.to_flat_list(y_pred_test),
-  Day: interval[(train_size + win_size - 1)..(dataset_size - 1)],
+  Day: interval[(dataset_size - test_size)..(dataset_size - 1)],
   Eval: List.duplicate("Predictions test", test_size)
 ]
 
@@ -271,6 +309,6 @@ Tucan.layers([
 ])
 |> Tucan.color_by("Eval")
 |> Tucan.set_size(600, 400)
-|> Tucan.Scale.set_x_domain(win_size - 1, dataset_size - 1)
+|> Tucan.Scale.set_x_domain(0, dataset_size - 1)
 |> VegaLite.encode(:color, field: "Eval", scale: [scheme: "set1"])
 ```
