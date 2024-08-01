@@ -1,5 +1,3 @@
-<!-- livebook:{"file_entries":[{"name":"Apple_Stock_Prices_1981_to_2023.csv","type":"attachment"},{"name":"apple_prices.png","type":"attachment"},{"name":"normalized_apple_prices.csv","type":"attachment"},{"name":"predictions.png","type":"attachment"},{"name":"train_test_plt.png","type":"attachment"}]} -->
-
 # Time-series regression with RNNs
 
 ```elixir
