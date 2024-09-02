@@ -4726,6 +4726,26 @@ defmodule CompilerTest do
       assert_receive {%Nx.Tensor{}, :from_relu}
       assert_receive {%Nx.Tensor{}, :from_sigmoid}
     end
+
+    test "can be overriden at jit-time with layer name", config do
+      model =
+        Axon.input("input_0", shape: {nil, 1})
+        |> Axon.attach_hook(fn x -> send(config.test, {x, :from_input}) end, on: :forward)
+        |> Axon.relu()
+
+      inp = Nx.tensor([[1.0]])
+      {_, predict_fn} = Axon.build(model)
+
+      hook = fn val -> send(config.test, {val, :overridden}) end
+
+      fun = Nx.Defn.jit(predict_fn, hooks: %{input_0: hook})
+      apply(fun, [ModelState.empty(), inp])
+
+      assert_receive {from_inp, :overridden}
+      refute_receive {_, :from_input}
+
+      assert_equal(from_inp, inp)
+    end
   end
 
   describe "integrated models" do
@@ -5583,7 +5603,7 @@ defmodule CompilerTest do
   end
 
   describe "parameters" do
-    test "supports passing a tuple instead of a function as the shape" do
+    test "supports passing a template instead of a function as the shape" do
       a = Axon.param("a", {1, 1})
       input = Axon.input("input")
 
@@ -5595,70 +5615,6 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.build(model)
 
       assert %ModelState{data: %{"custom" => %{"a" => a}}} =
-               params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_equal(predict_fn.(params, x), Nx.add(x, a))
-    end
-
-    test "supports composite/map parameter types" do
-      inner_param = Axon.param("inner", fn _ -> {1, 1} end)
-      param = Axon.param("composite", {:map, [inner_param]})
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(fn x, %{"inner" => inner}, _opts -> Nx.add(x, inner) end, [input, param],
-          name: "custom"
-        )
-
-      x = random({1, 1})
-
-      assert {init_fn, predict_fn} = Axon.build(model)
-
-      assert %ModelState{data: %{"custom" => %{"composite" => %{"inner" => inner}}}} =
-               params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_equal(predict_fn.(params, x), Nx.add(x, inner))
-    end
-
-    test "inner params in composite parameters initialize to different values" do
-      a = Axon.param("a", fn _ -> {1, 1} end)
-      b = Axon.param("b", fn _ -> {1, 1} end)
-      param = Axon.param("composite", {:map, [a, b]})
-
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(fn x, %{"a" => a}, _opts -> Nx.add(x, a) end, [input, param], name: "custom")
-
-      assert {init_fn, _} = Axon.build(model)
-
-      assert %ModelState{data: %{"custom" => %{"composite" => %{"a" => a, "b" => b}}}} =
-               init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
-
-      assert_not_equal(a, b)
-    end
-
-    test "supports a composite of composites" do
-      a = Axon.param("a", fn _ -> {1, 1} end)
-      inner_composite = Axon.param("inner_composite", {:map, [a]})
-      composite = Axon.param("composite", {:map, [inner_composite]})
-
-      input = Axon.input("input")
-
-      model =
-        Axon.layer(
-          fn x, %{"inner_composite" => %{"a" => a}}, _opts -> Nx.add(x, a) end,
-          [input, composite],
-          name: "custom"
-        )
-
-      x = random({1, 1})
-
-      assert {init_fn, predict_fn} = Axon.build(model)
-
-      assert %ModelState{
-               data: %{"custom" => %{"composite" => %{"inner_composite" => %{"a" => a}}}}
-             } =
                params = init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
 
       assert_equal(predict_fn.(params, x), Nx.add(x, a))
@@ -5737,6 +5693,124 @@ defmodule CompilerTest do
       assert out =~ "x:"
       assert out =~ "foo:"
       assert out =~ "bar:"
+    end
+  end
+
+  describe "graph manipulation" do
+    test "rewrite_nodes does nothing if all rewrites are skip" do
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model = Axon.rewrite_nodes(model, fn _ -> :skip end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(model_state, input),
+        Axon.Activations.relu(Axon.Layers.dense(input, k, b))
+      )
+    end
+
+    test "rewrite_nodes applies simple rewriters" do
+      relu_rewriter = fn [%Axon{} = x], _ ->
+        Axon.tanh(x)
+      end
+
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :relu} -> relu_rewriter
+          _ -> :skip
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(model_state, input),
+        Axon.Activations.tanh(Axon.Layers.dense(input, k, b))
+      )
+    end
+
+    test "rewrite_nodes applies residual rewriter" do
+      residual_rewriter = fn [%Axon{} = x], %Axon{} = out ->
+        Axon.add(x, out)
+      end
+
+      model =
+        Axon.input("x")
+        |> Axon.dense(10, activation: :relu)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :dense} -> residual_rewriter
+          _ -> :skip
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      %ModelState{data: %{"dense_0" => %{"kernel" => k, "bias" => b}}} =
+        model_state = init_fn.(input, ModelState.empty())
+
+      real_fn = fn input, k, b ->
+        out = Nx.add(Axon.Layers.dense(input, k, b), input)
+        Axon.Activations.relu(out)
+      end
+
+      assert_equal(predict_fn.(model_state, input), real_fn.(input, k, b))
+    end
+
+    test "rewrite_nodes properly removes layers" do
+      remove_relu_rewriter = fn [%Axon{} = x], _out ->
+        x
+      end
+
+      input = Axon.input("x")
+      relu_tanh_input = Axon.tanh(Axon.relu(input))
+
+      model =
+        input
+        |> Axon.relu()
+        |> Axon.tanh()
+        |> Axon.relu()
+        |> Axon.tanh()
+        |> Axon.tanh()
+        |> Axon.relu()
+        |> Axon.relu()
+        |> Axon.add(relu_tanh_input)
+
+      model =
+        Axon.rewrite_nodes(model, fn
+          %Axon.Node{op: :relu} -> remove_relu_rewriter
+          _ -> :skip
+        end)
+
+      {_, predict_fn} = Axon.build(model)
+      input = Nx.broadcast(1, {1, 10})
+
+      real_fn = fn input ->
+        tanh_input = Axon.Activations.tanh(input)
+
+        input
+        |> Axon.Activations.tanh()
+        |> Axon.Activations.tanh()
+        |> Axon.Activations.tanh()
+        |> Nx.add(tanh_input)
+      end
+
+      assert_equal(predict_fn.(ModelState.empty(), input), real_fn.(input))
     end
   end
 end

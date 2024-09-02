@@ -874,8 +874,9 @@ defmodule AxonTest do
       out = Axon.input("input") |> Axon.dense(2)
       model = Axon.container({out, out})
 
-      assert shape = Axon.get_output_shape(model, Nx.template({1, 1}, :f32))
-      assert shape == {{1, 2}, {1, 2}}
+      assert {t1, t2} = Axon.get_output_shape(model, Nx.template({1, 1}, :f32))
+      assert Nx.shape(t1) == {1, 2}
+      assert Nx.shape(t2) == {1, 2}
     end
 
     test "doesn't raise on none output" do

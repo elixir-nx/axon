@@ -46,24 +46,29 @@ defmodule Axon.MixedPrecision do
   @doc """
   Creates a mixed precision policy with the given options.
 
+  The default policy `nil` dictates that no casting will be done.
+
   ## Options
 
-    * `params` - parameter precision policy. Defaults to `{:f, 32}`
-    * `compute` - compute precision policy. Defaults to `{:f, 32}`
-    * `output` - output precision policy. Defaults to `{:f, 32}`
+    * `params` - parameter precision policy. Defaults to `nil`
+    * `compute` - compute precision policy. Defaults to `nil`
+    * `output` - output precision policy. Defaults to `nil`
 
   ## Examples
 
       iex> Axon.MixedPrecision.create_policy(params: {:f, 16}, output: {:f, 16})
-      #Axon.MixedPrecision.Policy<p=f16 c=f32 o=f16>
+      #Axon.MixedPrecision.Policy<p=f16 o=f16>
 
       iex> Axon.MixedPrecision.create_policy(compute: {:bf, 16})
-      #Axon.MixedPrecision.Policy<p=f32 c=bf16 o=f32>
+      #Axon.MixedPrecision.Policy<c=bf16>
+
+      iex> Axon.MixedPrecision.create_policy()
+      #Axon.MixedPrecision.Policy<>
   """
   def create_policy(opts \\ []) do
-    params = opts[:params] || {:f, 32}
-    compute = opts[:compute] || {:f, 32}
-    output = opts[:output] || {:f, 32}
+    params = opts[:params]
+    compute = opts[:compute]
+    output = opts[:output]
 
     %Policy{params: params, compute: compute, output: output}
   end
@@ -158,14 +163,16 @@ defmodule Axon.MixedPrecision do
   """
   def cast(%Policy{} = policy, tensor_or_container, variable_type)
       when variable_type in [:compute, :params, :output] do
-    type = Map.fetch!(policy, variable_type)
-
-    deep_new(tensor_or_container, fn tensor ->
-      if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
-        Nx.as_type(tensor, type)
-      else
-        tensor
-      end
-    end)
+    if type = Map.fetch!(policy, variable_type) do
+      deep_new(tensor_or_container, fn tensor ->
+        if not Nx.Type.integer?(Nx.type(tensor)) and not Nx.Type.integer?(type) do
+          Nx.as_type(tensor, type)
+        else
+          tensor
+        end
+      end)
+    else
+      tensor_or_container
+    end
   end
 end

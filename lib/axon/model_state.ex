@@ -171,12 +171,7 @@ defmodule Axon.ModelState do
   Returns an empty model state.
   """
   def empty() do
-    %Axon.ModelState{
-      data: %{},
-      parameters: %{},
-      state: %{},
-      frozen_parameters: %{}
-    }
+    new(%{})
   end
 
   @doc """
@@ -190,10 +185,38 @@ defmodule Axon.ModelState do
   def new(data) when is_map(data) do
     %Axon.ModelState{
       data: data,
-      parameters: get_paths(data),
+      parameters: transform_to_parameters(data),
       state: %{},
       frozen_parameters: %{}
     }
+  end
+
+  defp transform_to_parameters(%Nx.Tensor{}), do: nil
+
+  defp transform_to_parameters(map) when is_map(map) do
+    map
+    |> Enum.map(fn {k, v} -> {k, transform_to_parameters(v)} end)
+    |> Enum.into(%{})
+  end
+
+  defp transform_to_parameters(list) when is_list(list) do
+    Enum.map(list, &transform_to_parameters/1)
+  end
+
+  defp transform_to_parameters(value) do
+    case value do
+      map when is_map(map) ->
+        keys = Map.keys(map)
+
+        if Enum.all?(keys, &(is_map(map[&1]) or match?(%Nx.Tensor{}, map[&1]))) do
+          keys
+        else
+          transform_to_parameters(map)
+        end
+
+      _ ->
+        value
+    end
   end
 
   # Helpers
@@ -205,6 +228,8 @@ defmodule Axon.ModelState do
   end
 
   defp traverse(%Nx.Tensor{}, acc), do: [Enum.reverse(acc)]
+
+  defp traverse(%Axon.Quantization.QTensor{}, acc), do: [Enum.reverse(acc)]
 
   defp traverse(map, acc) do
     Enum.flat_map(map, fn {k, value} ->
@@ -273,6 +298,10 @@ defmodule Axon.ModelState do
           new_val = fun.(key, val_lhs, val_rhs)
           Map.put(acc, key, new_val)
 
+        %Axon.Quantization.QTensor{} = val_rhs ->
+          new_val = fun.(key, val_lhs, val_rhs)
+          Map.put(acc, key, new_val)
+
         val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
           updated_val = tree_merge(val_lhs, val_rhs, fun)
           Map.put(acc, key, updated_val)
@@ -320,6 +349,11 @@ defmodule Axon.ModelState do
       Enum.reduce(params, {0, 0}, fn
         {_, %Nx.Tensor{} = tensor}, {count, size} ->
           {count + Nx.size(tensor), size + Nx.byte_size(tensor)}
+
+        {_, %Axon.Quantization.QTensor{value: value, scale: scale, zero_point: zero}},
+        {count, size} ->
+          {count + Nx.size(value) + Nx.size(scale) + Nx.size(zero),
+           size + Nx.byte_size(value) + Nx.byte_size(scale) + Nx.byte_size(zero)}
 
         {_, map}, {count, size} ->
           {inner_count, inner_size} = get_param_info(map)

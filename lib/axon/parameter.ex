@@ -2,6 +2,7 @@ defmodule Axon.Parameter do
   @moduledoc false
   defstruct [
     :name,
+    :template,
     :shape,
     :initializer,
     :children,

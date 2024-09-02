@@ -279,6 +279,8 @@ defmodule Axon do
   alias __MODULE__, as: Axon
   alias Axon.Parameter
 
+  import Axon.Shared
+
   require Logger
 
   @type t :: %__MODULE__{}
@@ -380,15 +382,6 @@ defmodule Axon do
     }
   end
 
-  defp split_inputs(:container, [inputs]) do
-    {inputs, cache} =
-      deep_map_reduce(inputs, %{}, fn %Axon{output: id, nodes: nodes}, cache ->
-        {id, Map.merge(nodes, cache)}
-      end)
-
-    {[inputs], [], [:layer], cache}
-  end
-
   defp split_inputs(_op, inputs) do
     Enum.reduce(inputs, {[], [], [], %{}}, fn
       %Axon{output: layer_input, nodes: nodes}, {layers, params, args, cache} ->
@@ -400,6 +393,52 @@ defmodule Axon do
       invalid, _ ->
         raise ArgumentError, "invalid input given to layer: #{inspect(invalid)}"
     end)
+  end
+
+  @doc """
+  Trainable Axon parameter used to create custom layers.
+
+  Parameters are specified in usages of `Axon.layer` and will be
+  automatically initialized and used in subsequent applications of
+  Axon models.
+
+  You must specify a parameter "template" which can be a static template
+  tensor or a function which takes model input templates and returns a
+  template. It's most common to use functions because most parameters'
+  shapes rely on input shape information.
+  """
+  @doc type: :special
+  def parameter(name, template, opts \\ [])
+
+  def parameter(name, %Nx.Tensor{} = template, opts) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter)
+    initializer = validate_initializer!(opts[:initializer])
+    kind = opts[:kind] || :parameter
+
+    template = Nx.to_template(template)
+
+    %Axon.Parameter{
+      name: name,
+      template: template,
+      initializer: initializer,
+      kind: kind,
+      # Legacy
+      type: Nx.type(template),
+      shape: Nx.shape(template)
+    }
+  end
+
+  def parameter(name, function, opts) when is_function(function) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter)
+    initializer = validate_initializer!(opts[:initializer])
+    kind = opts[:kind] || :parameter
+
+    %Axon.Parameter{
+      name: name,
+      template: function,
+      initializer: initializer,
+      kind: kind
+    }
   end
 
   @doc """
@@ -421,36 +460,35 @@ defmodule Axon do
   @doc type: :special
   def param(name, shape, opts \\ [])
 
-  def param(name, {:map, [_ | _] = inner_params}, opts) do
-    maybe_warn_on_param_opts(opts)
-
-    %Axon.Parameter{
-      name: name,
-      type: :map,
-      children: inner_params
-    }
-  end
-
-  def param(name, shape, opts) when is_binary(name) and (is_tuple(shape) or is_function(shape)) do
+  def param(name, shape, opts) when is_binary(name) and is_tuple(shape) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
-    initializer = validate_initializer!(opts[:initializer])
-    type = opts[:type] || {:f, 32}
-    kind = opts[:kind] || :parameter
+    {type, opts} = Keyword.pop(opts, :type, {:f, 32})
 
-    %Axon.Parameter{
-      name: name,
-      shape: shape,
-      type: type,
-      initializer: initializer,
-      kind: kind
-    }
+    template = Nx.template(shape, type)
+    parameter(name, template, opts)
   end
 
-  defp maybe_warn_on_param_opts(opts) do
-    if :initializer in opts or :type in opts do
-      Logger.warning(
-        "Passing options to a composite parameter has no effect. Pass them to inner parameters instead"
-      )
+  def param(name, shape, opts) when is_binary(name) and is_function(shape) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    {type, opts} = Keyword.pop(opts, :type, {:f, 32})
+
+    {:arity, arity} = Function.info(shape, :arity)
+
+    template =
+      shape_fun(arity, fn templates ->
+        shapes = Enum.map(List.wrap(templates), &Nx.shape/1)
+        out_shape = apply(shape, shapes)
+        Nx.template(out_shape, type)
+      end)
+
+    parameter(name, template, opts)
+  end
+
+  for i <- 0..128 do
+    args = Macro.generate_arguments(i, __MODULE__)
+
+    defp shape_fun(unquote(i), callback) do
+      fn unquote_splicing(args) -> callback.(unquote(args)) end
     end
   end
 
@@ -659,62 +697,47 @@ defmodule Axon do
   @doc type: :special
   def container(container, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, :meta])
-
-    layer(:container, [container], name: opts[:name], meta: opts[:meta], op_name: :container)
+    {structure_fn, nodes} = destructure(container)
+    layer(structure_fn, nodes, name: opts[:name], meta: opts[:meta], op_name: :container)
   end
 
-  # TODO: This should not be duplicated
-  defp deep_new(%Nx.Tensor{} = x, fun), do: fun.(x)
-
-  defp deep_new(x, fun) when is_number(x), do: fun.(x)
-
-  defp deep_new(map, fun) do
-    {cont, :ok} = Nx.Container.traverse(map, :ok, &recur_traverse(&1, &2, fun))
-    cont
+  defp destructure(container) do
+    {structure, {nodes, _}} = recur_destructure(container, {[], 0})
+    fun = restructure(length(nodes) + 1, structure)
+    {fun, Enum.reverse(nodes)}
   end
 
-  defp recur_traverse(item, :ok, fun) do
-    case item do
-      %Axon{} = t ->
-        {fun.(t), :ok}
+  defp recur_destructure(container, acc) do
+    Nx.Container.traverse(container, acc, fn value, {leaves, idx} ->
+      case value do
+        %Axon{} = leaf ->
+          {idx, {[leaf | leaves], idx + 1}}
 
-      %{axon: :axon} = t ->
-        {fun.(t), :ok}
+        container ->
+          recur_destructure(container, {leaves, idx})
+      end
+    end)
+  end
 
-      container ->
-        {deep_new(container, fun), :ok}
+  for i <- 0..128 do
+    args = Macro.generate_arguments(i, __MODULE__)
+
+    defp restructure(unquote(i), structure) do
+      fn unquote_splicing(args) ->
+        args_tuple = {unquote_splicing(args)}
+        {container, :ok} = recur_restructure(structure, args_tuple)
+        container
+      end
     end
   end
 
-  defp deep_merge(left, right, fun) do
-    case Nx.Container.traverse(left, leaves(right), &recur_merge(&1, &2, fun)) do
-      {merged, []} ->
-        merged
-
-      {_merged, _leftover} ->
-        raise ArgumentError,
-              "unable to merge arguments with incompatible" <>
-                " structure"
-    end
-  end
-
-  defp leaves(container) do
-    container
-    |> Nx.Container.reduce([], fn x, acc -> [x | acc] end)
-    |> Enum.reverse()
-  end
-
-  defp recur_merge(left, [right | right_leaves], fun) do
-    case {left, right} do
-      {%Nx.Tensor{} = left, %Nx.Tensor{} = right} ->
-        {fun.(left, right), right_leaves}
-
-      {%Axon{} = left, %Axon{} = right} ->
-        {fun.(left, right), right_leaves}
-
-      {left, right} ->
-        {deep_merge(left, right, fun), right_leaves}
-    end
+  defp recur_restructure(structure, args_tuple) do
+    Nx.Container.traverse(structure, :ok, fn value, :ok ->
+      case value do
+        idx when is_integer(idx) -> {elem(args_tuple, idx), :ok}
+        container -> recur_restructure(container, args_tuple)
+      end
+    end)
   end
 
   @doc """
@@ -832,6 +855,12 @@ defmodule Axon do
         use_bias: true
       ])
 
+    meta =
+      opts[:meta] ||
+        %{}
+        |> Map.put(:units, units)
+        |> Map.put(:use_bias, opts[:use_bias])
+
     kernel_shape = &Axon.Shape.dense_kernel(&1, units)
     bias_shape = &Axon.Shape.dense_bias(&1, units)
 
@@ -845,7 +874,7 @@ defmodule Axon do
         {[x, kernel], :dense}
       end
 
-    node = layer(op, inputs, name: opts[:name], meta: opts[:meta], op_name: :dense)
+    node = layer(op, inputs, name: opts[:name], meta: meta, op_name: :dense)
 
     if activation = opts[:activation] do
       activation(node, activation)
@@ -2583,25 +2612,63 @@ defmodule Axon do
     activation = opts[:activation]
     gate = opts[:gate]
     unroll = opts[:unroll]
+
     kernel_initializer = opts[:kernel_initializer]
 
-    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :lstm) end
-    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :lstm) end
-    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :lstm) end
+    input_kernel_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_input_kernel(Nx.shape(inp), units, :lstm)
+      Nx.template(shape, :f32)
+    end
 
-    wii = param("wii", input_kernel_shape, initializer: kernel_initializer)
-    wif = param("wif", input_kernel_shape, initializer: kernel_initializer)
-    wig = param("wig", input_kernel_shape, initializer: kernel_initializer)
-    wio = param("wio", input_kernel_shape, initializer: kernel_initializer)
+    hidden_kernel_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_hidden_kernel(Nx.shape(inp), units, :lstm)
+      Nx.template(shape, :f32)
+    end
 
-    whi = param("whi", hidden_kernel_shape, initializer: kernel_initializer)
-    whf = param("whf", hidden_kernel_shape, initializer: kernel_initializer)
-    whg = param("whg", hidden_kernel_shape, initializer: kernel_initializer)
-    who = param("who", hidden_kernel_shape, initializer: kernel_initializer)
+    bias_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_bias(Nx.shape(inp), units, :lstm)
+      Nx.template(shape, :f32)
+    end
+
+    initializer = fn prefix, init ->
+      fn shape, type, key ->
+        split_key = Nx.Random.split(key, parts: 4)
+
+        init =
+          if is_atom(init) do
+            apply(Axon.Initializers, init, [])
+          else
+            init
+          end
+
+        fun =
+          case init do
+            init when is_function(init, 2) ->
+              fn _ -> init.(shape, type) end
+
+            init when is_function(init, 3) ->
+              fn key -> init.(shape, type, key) end
+          end
+
+        %{
+          "#{prefix}i" => fun.(split_key[0]),
+          "#{prefix}f" => fun.(split_key[1]),
+          "#{prefix}g" => fun.(split_key[2]),
+          "#{prefix}o" => fun.(split_key[3])
+        }
+      end
+    end
 
     # Parameters
-    input_kernel = param("input_kernel", {:map, [wii, wif, wig, wio]})
-    hidden_kernel = param("hidden_kernel", {:map, [whi, whf, whg, who]})
+    input_kernel =
+      parameter("input_kernel", input_kernel_template,
+        initializer: initializer.("wi", kernel_initializer)
+      )
+
+    hidden_kernel =
+      parameter("hidden_kernel", hidden_kernel_template,
+        initializer: initializer.("wh", kernel_initializer)
+      )
 
     hidden_state_name =
       case opts[:name] do
@@ -2620,12 +2687,7 @@ defmodule Axon do
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
 
-        bi = param("bi", bias_shape, initializer: bias_initializer)
-        bf = param("bf", bias_shape, initializer: bias_initializer)
-        bg = param("bg", bias_shape, initializer: bias_initializer)
-        bo = param("bo", bias_shape, initializer: bias_initializer)
-
-        bias = param("bias", {:map, [bi, bf, bg, bo]})
+        bias = parameter("bias", bias_template, initializer: initializer.("b", bias_initializer))
 
         {[x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias], :lstm}
       else
@@ -2790,22 +2852,58 @@ defmodule Axon do
     gate = opts[:gate]
     unroll = opts[:unroll]
 
-    input_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_input_kernel(inp, units, :gru) end
-    hidden_kernel_shape = fn inp, _, _ -> Axon.Shape.rnn_hidden_kernel(inp, units, :gru) end
-    bias_shape = fn inp, _, _ -> Axon.Shape.rnn_bias(inp, units, :gru) end
+    input_kernel_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_input_kernel(Nx.shape(inp), units, :gru)
+      Nx.template(shape, :f32)
+    end
 
-    kernel_initializer = opts[:kernel_initializer]
+    hidden_kernel_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_hidden_kernel(Nx.shape(inp), units, :gru)
+      Nx.template(shape, :f32)
+    end
 
-    wir = param("wir", input_kernel_shape, initializer: kernel_initializer)
-    wiz = param("wiz", input_kernel_shape, initializer: kernel_initializer)
-    win = param("win", input_kernel_shape, initializer: kernel_initializer)
+    bias_template = fn inp, _, _ ->
+      shape = Axon.Shape.rnn_bias(Nx.shape(inp), units, :gru)
+      Nx.template(shape, :f32)
+    end
 
-    whr = param("whr", hidden_kernel_shape, initializer: kernel_initializer)
-    whz = param("whz", hidden_kernel_shape, initializer: kernel_initializer)
-    whn = param("whn", hidden_kernel_shape, initializer: kernel_initializer)
+    initializer = fn prefix, init ->
+      fn shape, type, key ->
+        split_key = Nx.Random.split(key, parts: 3)
 
-    input_kernel = param("input_kernel", {:map, [wir, wiz, win]})
-    hidden_kernel = param("hidden_kernel", {:map, [whr, whz, whn]})
+        init =
+          if is_atom(init) do
+            apply(Axon.Initializers, init, [])
+          else
+            init
+          end
+
+        fun =
+          case init do
+            init when is_function(init, 2) ->
+              fn _ -> init.(shape, type) end
+
+            init when is_function(init, 3) ->
+              fn key -> init.(shape, type, key) end
+          end
+
+        %{
+          "#{prefix}r" => fun.(split_key[0]),
+          "#{prefix}z" => fun.(split_key[1]),
+          "#{prefix}n" => fun.(split_key[2])
+        }
+      end
+    end
+
+    input_kernel =
+      parameter("input_kernel", input_kernel_template,
+        initializer: initializer.("wi", opts[:kernel_initializer])
+      )
+
+    hidden_kernel =
+      parameter("hidden_kernel", hidden_kernel_template,
+        initializer: initializer.("wh", opts[:kernel_initializer])
+      )
 
     hidden_state_name =
       case opts[:name] do
@@ -2822,14 +2920,34 @@ defmodule Axon do
 
     inputs =
       if opts[:use_bias] do
-        bias_initializer = opts[:bias_initializer]
+        bias_initializer = fn shape, type, key ->
+          split_key = Nx.Random.split(key, parts: 4)
 
-        br = param("br", bias_shape, initializer: bias_initializer)
-        bz = param("bz", bias_shape, initializer: bias_initializer)
-        bin = param("bin", bias_shape, initializer: bias_initializer)
-        bhn = param("bhn", bias_shape, initializer: bias_initializer)
+          init =
+            if is_atom(opts[:bias_initializer]) do
+              apply(Axon.Initializers, opts[:bias_initializer], [])
+            else
+              opts[:bias_initializer]
+            end
 
-        bias = param("bias", {:map, [br, bz, bin, bhn]})
+          fun =
+            case init do
+              init when is_function(init, 2) ->
+                fn _ -> init.(shape, type) end
+
+              init when is_function(init, 3) ->
+                fn key -> init.(shape, type, key) end
+            end
+
+          %{
+            "br" => fun.(split_key[0]),
+            "bz" => fun.(split_key[1]),
+            "bin" => fun.(split_key[2]),
+            "bhn" => fun.(split_key[3])
+          }
+        end
+
+        bias = parameter("bias", bias_template, initializer: bias_initializer)
 
         [x, hidden_state, opts[:mask], input_kernel, hidden_kernel, bias]
       else
@@ -2983,23 +3101,26 @@ defmodule Axon do
     unroll = opts[:unroll]
     kernel_initializer = opts[:kernel_initializer]
 
-    hidden_kernel_shape = fn _, {inp, _}, _ ->
-      shape = Tuple.delete_at(inp, 1)
-      Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
+    hidden_kernel_template = fn _, {inp, _}, _ ->
+      shape = Tuple.delete_at(Nx.shape(inp), 1)
+      shape = Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
+      Nx.template(shape, :f32)
     end
 
-    input_kernel_shape = fn inp, _, _ ->
-      shape = Tuple.delete_at(inp, 1)
-      Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
+    input_kernel_template = fn inp, _, _ ->
+      shape = Tuple.delete_at(Nx.shape(inp), 1)
+      shape = Axon.Shape.conv_kernel(shape, 4 * units, kernel_size, :first, 1)
+      Nx.template(shape, :f32)
     end
 
-    bias_shape = fn inp, _, _ ->
-      shape = Tuple.delete_at(inp, 1)
-      Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
+    bias_template = fn inp, _, _ ->
+      shape = Tuple.delete_at(Nx.shape(inp), 1)
+      shape = Axon.Shape.conv_bias(shape, 4 * units, kernel_size, :first, 1)
+      Nx.template(shape, :f32)
     end
 
-    wi = param("input_kernel", input_kernel_shape, initializer: kernel_initializer)
-    wh = param("hidden_kernel", hidden_kernel_shape, initializer: kernel_initializer)
+    wi = parameter("input_kernel", input_kernel_template, initializer: kernel_initializer)
+    wh = parameter("hidden_kernel", hidden_kernel_template, initializer: kernel_initializer)
 
     hidden_state_name =
       case opts[:name] do
@@ -3017,7 +3138,7 @@ defmodule Axon do
     {inputs, op} =
       if opts[:use_bias] do
         bias_initializer = opts[:bias_initializer]
-        b = param("bias", bias_shape, initializer: bias_initializer)
+        b = parameter("bias", bias_template, initializer: bias_initializer)
         {[x, hidden_state, opts[:mask], wi, wh, b], :conv_lstm}
       else
         {[x, hidden_state, opts[:mask], wi, wh], :conv_lstm}
@@ -3507,35 +3628,31 @@ defmodule Axon do
   end
 
   @doc """
-  Returns a model's output shape from the given input
+  Returns a model's output template from the given input
   template.
+
+  The output template gives you access to the output shape
+  and type of the given input graph.
   """
   @doc type: :graph
   def get_output_shape(%Axon{} = axon, inputs, opts \\ []) do
     {init_fn, forward_fn} = build(axon, opts ++ [raise_on_none: false])
 
-    out =
+    inputs =
+      case inputs do
+        %Nx.Tensor{} = input -> Nx.to_template(input)
+        inputs when is_map(inputs) -> Map.new(inputs, fn {k, v} -> {k, Nx.to_template(v)} end)
+      end
+
+    fun =
       Nx.Defn.jit(
         fn inputs ->
           forward_fn.(init_fn.(inputs, Axon.ModelState.empty()), inputs)
         end,
         compiler: Axon.Defn
-      ).(inputs)
+      )
 
-    safe_shape(out)
-  end
-
-  defp safe_shape(container_or_tensor) do
-    case container_or_tensor do
-      %Axon.None{} = none ->
-        none
-
-      %Nx.Tensor{} = tensor ->
-        Nx.shape(tensor)
-
-      container ->
-        deep_new(container, &Nx.shape/1)
-    end
+    deep_new(apply(fun, [inputs]), &Nx.to_template/1)
   end
 
   @doc """
@@ -3555,7 +3672,7 @@ defmodule Axon do
   """
   @doc type: :graph
   def get_op_counts(%Axon{} = axon) do
-    reduce_nodes(axon, %{}, fn %Axon.Node{op: op}, op_counts ->
+    reduce_nodes(axon, %{}, fn %Axon.Node{op_name: op}, op_counts ->
       Map.update(op_counts, op, 1, fn x -> x + 1 end)
     end)
   end
@@ -3594,16 +3711,15 @@ defmodule Axon do
   relu layers with tanh layers:
 
       new_model = Axon.map_nodes(model, fn
-        %Axon{op: :relu} = graph ->
-          # Get nodes immediate parent
-          parent = Axon.get_parent(graph)
-          # Replace node with a tanh
-          Axon.tanh(parent)
+        %Axon.Node{op: :relu} = axon_node ->
+          %{axon_node | op: :tanh}
 
         graph ->
           graph
       end)
 
+  For more complex graph rewriting and manipulation cases, see
+  `Axon.rewrite_nodes/2`.
   """
   @doc type: :graph
   def map_nodes(%Axon{output: id, nodes: nodes} = axon, fun) when is_function(fun, 1) do
@@ -3642,75 +3758,86 @@ defmodule Axon do
     Enum.reduce(inorder_nodes, acc, fun)
   end
 
+  @doc """
+  Rewrite and manipulate nodes in the Axon execution graph.
+
+  Axon models are represented as a graph of nodes. Working on these nodes
+  directly can be difficult and lead to disconnected and invalid graphs.
+  In some cases, you simply want to rewrite patterns. This function takes
+  an Axon model and traverses the nodes, applying the rewrite `fun` on each
+  node to rewrite some or all of the nodes in the Axon model.
+
+  The rewrite function is an arity-1 function which takes the current Axon node
+  as input and returns a function that replaces or rewrites the given node.
+  For example, you can define a simple rewriter which replaces the `:relu`
+  layers with `:tanh` layers:
+      
+      tanh_rewriter = fn [%Axon{} = x], _output ->
+        Axon.relu(x)
+      end
+
+      Axon.rewrite_nodes(model, fn
+        %Axon.Node{op: :relu} -> tanh_rewriter
+        _ -> :skip
+      end)
+
+  Notice that the rewriter receives all of the original graph inputs *as well as*
+  the original graph outputs. This makes certain transformations which may rely
+  on both the input and output, such as LoRA, much easier to perform.
+  """
+  @doc type: :graph
+  def rewrite_nodes(%Axon{output: id, nodes: nodes}, fun) when is_function(fun, 1) do
+    {inorder_nodes, _} = traverse_nodes(id, nodes, [], MapSet.new())
+
+    updated_nodes =
+      Enum.reduce(inorder_nodes, nodes, fn
+        %{id: original_id, parent: parents} = current_node, nodes ->
+          rewriter = fun.(current_node)
+
+          case rewriter do
+            :skip ->
+              nodes
+
+            rewriter when is_function(rewriter, 2) ->
+              input_axons = Enum.map(parents, &%Axon{output: &1, nodes: nodes})
+              %Axon{output: swapped_id} = placeholder_output = Axon.input("placeholder_output")
+
+              %Axon{output: new_node_id, nodes: updated_nodes} =
+                rewriter.(input_axons, placeholder_output)
+
+              # now we have to swap the IDs for the rewritten model so that
+              # anything that references this node takes the new, rewritten form
+              # as an input properly
+              original_node = %{updated_nodes[original_id] | id: swapped_id}
+              updated_node = %{updated_nodes[new_node_id] | id: original_id}
+
+              updated_nodes
+              |> Map.replace(swapped_id, original_node)
+              |> Map.replace(original_id, updated_node)
+          end
+      end)
+
+    # if we removed any nodes (like by just using the input instead)
+    # then technically we will have extra nodes in the graph, so we
+    # can prune them by traversing once again
+    {pruned_nodes, _} = traverse_nodes(id, updated_nodes, [], MapSet.new())
+    pruned_nodes = Map.new(pruned_nodes, fn %{id: id} = axon_node -> {id, axon_node} end)
+
+    %Axon{output: id, nodes: pruned_nodes}
+  end
+
   defp traverse_nodes(id, nodes, acc, visited) do
     if MapSet.member?(visited, id) do
       {acc, visited}
     else
-      %{op: op, parent: parents} = parent = nodes[id]
+      %{parent: parents} = parent = nodes[id]
 
       {acc, visited} =
-        case op do
-          :container ->
-            [container] = parents
-
-            deep_reduce(container, {acc, visited}, fn pid, {acc, visited} ->
-              traverse_nodes(pid, nodes, acc, visited)
-            end)
-
-          _ ->
-            Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
-              traverse_nodes(pid, nodes, acc, visited)
-            end)
-        end
+        Enum.reduce(parents, {acc, visited}, fn pid, {acc, visited} ->
+          traverse_nodes(pid, nodes, acc, visited)
+        end)
 
       {[parent | acc], MapSet.put(visited, id)}
-    end
-  end
-
-  # TODO: Do not duplicate
-  defp deep_reduce(item, acc, fun) when is_integer(item) do
-    fun.(item, acc)
-  end
-
-  defp deep_reduce(map, acc, fun) do
-    Nx.Container.reduce(map, acc, &recur_deep_reduce(&1, &2, fun))
-  end
-
-  defp recur_deep_reduce(value, acc, fun) do
-    case value do
-      %Axon{} = val ->
-        fun.(val, acc)
-
-      %Nx.Tensor{} = val ->
-        fun.(val, acc)
-
-      %{axon: :axon} = val ->
-        fun.(val, acc)
-
-      val when is_integer(val) ->
-        fun.(val, acc)
-
-      val ->
-        deep_reduce(val, acc, fun)
-    end
-  end
-
-  defp deep_map_reduce(leaf, acc, fun) when is_integer(leaf), do: fun.(leaf, acc)
-
-  defp deep_map_reduce(container, acc, fun) do
-    Nx.Container.traverse(container, acc, &recur_deep_map_reduce(&1, &2, fun))
-  end
-
-  defp recur_deep_map_reduce(leaf, acc, fun) do
-    case leaf do
-      %Axon{} = leaf ->
-        fun.(leaf, acc)
-
-      %Nx.Tensor{} = leaf ->
-        fun.(leaf, acc)
-
-      container ->
-        deep_map_reduce(container, acc, fun)
     end
   end
 
@@ -3722,9 +3849,19 @@ defmodule Axon do
       {_node, model} = Axon.pop_node(model)
   """
   @doc type: :graph
-  def pop_node(%Axon{nodes: nodes, output: id} = axon) do
-    {%{parent: [parent_id]} = popped, nodes} = Map.pop!(nodes, id)
-    {popped, %{axon | nodes: nodes, output: parent_id}}
+  def pop_node(%Axon{nodes: nodes, output: id}) do
+    {popped, nodes} = Map.pop!(nodes, id)
+
+    case popped do
+      %{op_name: :container, parent: parents, op: fun} = popped ->
+        {popped, apply(fun, Enum.map(parents, &%Axon{nodes: nodes, output: &1}) ++ [[]])}
+
+      %{parent: [_ | _] = parents} = popped ->
+        {popped, Enum.map(parents, &%Axon{nodes: nodes, output: &1})}
+
+      %{parent: [parent_id]} = popped ->
+        {popped, %Axon{nodes: nodes, output: parent_id}}
+    end
   end
 
   @doc """
@@ -3806,9 +3943,10 @@ defmodule Axon do
   It accepts the same options as `build/2`.
   """
   @doc type: :model
-  def compile(model, template, init_params \\ %{}, opts \\ []) when is_list(opts) do
+  def compile(model, template, init_params \\ Axon.ModelState.empty(), opts \\ [])
+      when is_list(opts) do
     {init_fn, predict_fn} = build(model, opts)
-    init_params = Nx.Defn.jit_apply(init_fn, [template, init_params], opts)
+    init_params = Nx.Defn.jit_apply(init_fn, [template, Axon.ModelState.new(init_params)], opts)
     predict_compiled_fn = Nx.Defn.compile(predict_fn, [init_params, template], opts)
     {init_params, predict_compiled_fn}
   end
@@ -3837,9 +3975,9 @@ defmodule Axon do
 
   """
   @doc type: :debug
-  def trace_init(model, template, params \\ %{}, opts \\ []) do
+  def trace_init(model, template, params \\ Axon.ModelState.empty(), opts \\ []) do
     {init_fn, _} = build(model, opts)
-    Nx.Defn.jit(init_fn, compiler: Axon.Defn).(template, params)
+    Nx.Defn.jit(init_fn, compiler: Axon.Defn).(template, Axon.ModelState.new(params))
   end
 
   @doc """
@@ -3864,7 +4002,7 @@ defmodule Axon do
   @doc type: :debug
   def trace_forward(model, inputs, params, opts \\ []) when is_list(opts) do
     {_, forward_fun} = build(model, opts)
-    Nx.Defn.jit(forward_fun, compiler: Axon.Defn).(params, inputs)
+    Nx.Defn.jit(forward_fun, compiler: Axon.Defn).(Axon.ModelState.new(params), inputs)
   end
 
   @doc """
@@ -3897,7 +4035,9 @@ defmodule Axon do
       end)
     end
 
-    %{prediction: outputs} = Nx.Defn.jit(forward_fn, compiler: Axon.Defn).(params, inputs)
+    %{prediction: outputs} =
+      Nx.Defn.jit(forward_fn, compiler: Axon.Defn).(Axon.ModelState.new(params), inputs)
+
     inputs = [params, inputs, outputs]
 
     apply(Nx.Defn.jit(backward_fn, compiler: Axon.Defn), inputs)
@@ -3905,9 +4045,9 @@ defmodule Axon do
 
   @doc false
   @deprecated "Use Axon.build/2 instead"
-  def init(model, template, params \\ %{}, opts \\ []) when is_list(opts) do
+  def init(model, template, params \\ Axon.ModelState.empty(), opts \\ []) when is_list(opts) do
     {init_fn, _predict_fn} = build(model, opts)
-    init_fn.(template, params)
+    init_fn.(template, Axon.ModelState.new(params))
   end
 
   @doc """
@@ -3932,7 +4072,7 @@ defmodule Axon do
   @doc type: :model
   def predict(%Axon{} = model, params, input, opts \\ []) when is_list(opts) do
     {_init_fn, predict_fn} = build(model, opts)
-    predict_fn.(params, input)
+    predict_fn.(Axon.ModelState.new(params), input)
   end
 
   ## Inspection
@@ -3972,6 +4112,33 @@ defmodule Axon do
           color(">", :map, opts)
         ])
       )
+    end
+  end
+
+  @doc """
+  Returns a mapping of layer names to layer properties.
+  """
+  def properties(%Axon{output: id, nodes: nodes}) do
+    {_, _, properties} = node_properties(id, nodes, {%{}, %{}, %{}})
+    properties
+  end
+
+  defp node_properties(id, nodes, {cache, op_counts, properties} = acc) do
+    case cache do
+      %{^id => _} ->
+        {cache, op_counts, properties}
+
+      %{} ->
+        %Axon.Node{parent: parents, name: name_fn, op_name: op_name} = nodes[id]
+
+        {cache, op_counts, properties} =
+          Enum.reduce(parents, acc, &node_properties(&1, nodes, &2))
+
+        name = name_fn.(op_name, op_counts)
+        op_counts = Map.update(op_counts, op_name, 1, fn x -> x + 1 end)
+        properties = Map.put(properties, name, op_name)
+
+        {Map.put(cache, id, name), op_counts, properties}
     end
   end
 
