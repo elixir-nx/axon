@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.0 (2023-08-17)
+
+### Breaking
+
+* Shape is now passed as an option in `Axon.input/2`.
+
+### Deprecations
+
+* Deprecated `Axon.Optimizers` module. Use `Polaris.Optimizers` instead.
+* Deprecated `Axon.Schedules` module. Use `Polaris.Schedules` instead.
+* Deprecated `Axon.Updates` module. Use `Polaris.Updates` instead.
+
+### Enhancements
+
+* Add `Axon.mask/2` function.
+* Add `Axon.blur_pool/1` function.
+* Add `Axon.MixedPrecision.cast/3` function.
+* Add `Axon.Losses.huber/2` function.
+* Add label smoothing functionality with `Axon.Losses.label_smoothing/1` and `Axon.Losses.apply_label_smoothing/2`.
+
 ## v0.5.1 (2023-02-17)
 
 ### Bug Fixes
