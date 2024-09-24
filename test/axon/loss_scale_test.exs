@@ -244,15 +244,26 @@ defmodule Axon.LossScaleTest do
 
       non_finite = Nx.tensor([:infinity, :infinity, :infinity])
 
-      # TODO: increase to 99 when https://github.com/elixir-nx/complex/issues/26
-      # is fixed
-      for i <- 0..62, reduce: state do
+      for i <- 0..99, reduce: state do
         new_state ->
           {_, %{loss_scale: loss_scale, counter: counter} = new_state} =
             adjust_fn.(non_finite, new_state)
 
-          expected_new_scale = Nx.max(1, Nx.divide(init_scale, Nx.pow(factor, i + 1)))
+          # We want to check if init_scale / factor ** (i + 1) is greater than 1.
+          # If we rely on `i` directly, we run into integer overflow issues.
+          # Instead, we accumulate the divisor on the reduce.
+
+          scale_divisor = 2 ** (i + 1)
+
+          expected_new_scale =
+            if scale_divisor >= 2 ** 32 do
+              Nx.tensor(1)
+            else
+              Nx.max(1, Nx.divide(init_scale, scale_divisor))
+            end
+
           assert_equal(counter, Nx.tensor(0))
+
           assert_all_close(loss_scale, expected_new_scale)
 
           new_state
@@ -277,15 +288,19 @@ defmodule Axon.LossScaleTest do
 
       non_finite = Nx.tensor([:infinity, :infinity, :infinity])
 
-      # TODO: increase to 99 when https://github.com/elixir-nx/complex/issues/26
-      # is fixed
-      for i <- 0..62, reduce: state do
+      for i <- 0..99, reduce: state do
         new_state ->
           {_, %{loss_scale: loss_scale, counter: counter} = new_state} =
             adjust_fn.(non_finite, new_state)
 
+          scale_divisor = 2 ** (i + 1)
+
           expected_new_scale =
-            Nx.max(min_loss_scale, Nx.divide(init_scale, Nx.pow(factor, i + 1)))
+            if scale_divisor >= 2 ** 32 do
+              Nx.tensor(min_loss_scale)
+            else
+              Nx.max(min_loss_scale, Nx.divide(init_scale, scale_divisor))
+            end
 
           assert_equal(counter, Nx.tensor(0))
           assert_all_close(loss_scale, expected_new_scale)
