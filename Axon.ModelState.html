@@ -4,22 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.31.1">
-    <meta name="project" content="Axon v0.6.1">
+    <meta name="generator" content="ExDoc v0.34.2">
+    <meta name="project" content="Axon v0.7.0">
 
 
-    <title>Axon.ModelState — Axon v0.6.1</title>
-    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
+    <title>Axon.ModelState — Axon v0.7.0</title>
+    <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/handlebars.templates-K7URE6B4.js"></script>
     <script src="dist/sidebar_items-02629AA9.js"></script>
-
-      <script src="docs_config.js"></script>
-
-    <script async src="dist/html-L4O5OK2K.js"></script>
-
+    <script src="docs_config.js"></script>
+    <script async src="dist/html-YIPIRHGU.js"></script>
 
   </head>
   <body data-type="modules" class="page-module">
@@ -37,13 +34,11 @@
       } catch (error) { }
     </script>
 
-<div class="main">
+<div class="body-wrapper">
 
 <button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
-
-<div class="background-layer"></div>
 
 <nav id="sidebar" class="sidebar">
 
@@ -59,7 +54,7 @@
 Axon
         </a>
         <div class="sidebar-projectVersion" translate="no">
-          v0.6.1
+          v0.7.0
         </div>
       </div>
     </div>
@@ -93,50 +88,51 @@ Pages
 
 <main class="content">
   <output role="status" id="toast"></output>
-  <div class="content-outer">
-    <div id="content" class="content-inner">
-      <div class="top-search">
-        <div class="search-settings">
-          <form class="search-bar" action="search.html">
-            <label class="search-label">
-              <span class="sr-only">Search documentation of Axon</span>
-              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-            </label>
-            <button type="submit" class="search-button" aria-label="Submit Search">
-              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
-            </button>
-            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
-              <i class="ri-close-line ri-lg" title="Cancel search"></i>
-            </button>
-          </form>
-          <div class="autocomplete">
-          </div>
-          <button class="icon-settings display-settings">
-            <i class="ri-settings-3-line"></i>
-            <span class="sr-only">Settings</span>
+
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Axon</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
           </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
         </div>
-
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
       </div>
+    </div>
 
-<h1>
+<div id="top-content">
+  <h1>
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L1" title="View Source" class="icon-action" rel="help">
-      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-      <span class="sr-only">View Source</span>
-    </a>
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
 
-  <span translate="no">Axon.ModelState</span> 
-  <small class="app-vsn" translate="no">(Axon v0.6.1)</small>
+    <span translate="no">Axon.ModelState</span> 
+    <small class="app-vsn" translate="no">(Axon v0.7.0)</small>
 
-</h1>
+  </h1>
 
 
-  <section id="moduledoc">
+    <section id="moduledoc">
 <p>Model State Data Structure.</p><p>This data structure represents all the state needed for
 a model to perform inference.</p>
-  </section>
+    </section>
 
+</div>
 
   <section id="summary" class="details-list">
     <h1 class="section-heading">
@@ -152,7 +148,7 @@ a model to perform inference.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#empty/0" translate="no">empty()</a>
+        <a href="#empty/0" data-no-tooltip translate="no">empty()</a>
 
       </div>
 
@@ -162,7 +158,7 @@ a model to perform inference.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#freeze/2" translate="no">freeze(model_state, mask \\ fn _ -&gt; true end)</a>
+        <a href="#freeze/2" data-no-tooltip translate="no">freeze(model_state, mask \\ fn _ -&gt; true end)</a>
 
       </div>
 
@@ -173,7 +169,7 @@ using the given mask.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#frozen_parameters/1" translate="no">frozen_parameters(model_state)</a>
+        <a href="#frozen_parameters/1" data-no-tooltip translate="no">frozen_parameters(model_state)</a>
 
       </div>
 
@@ -183,7 +179,7 @@ using the given mask.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#frozen_state/1" translate="no">frozen_state(model_state)</a>
+        <a href="#frozen_state/1" data-no-tooltip translate="no">frozen_state(model_state)</a>
 
       </div>
 
@@ -193,7 +189,7 @@ using the given mask.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#merge/3" translate="no">merge(lhs, model_state, fun)</a>
+        <a href="#merge/3" data-no-tooltip translate="no">merge(lhs, model_state, fun)</a>
 
       </div>
 
@@ -203,7 +199,7 @@ using the given mask.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#new/1" translate="no">new(data)</a>
+        <a href="#new/1" data-no-tooltip translate="no">new(data)</a>
 
       </div>
 
@@ -214,7 +210,7 @@ map.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#trainable_parameters/1" translate="no">trainable_parameters(model_state)</a>
+        <a href="#trainable_parameters/1" data-no-tooltip translate="no">trainable_parameters(model_state)</a>
 
       </div>
 
@@ -224,7 +220,7 @@ map.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#trainable_state/1" translate="no">trainable_state(model_state)</a>
+        <a href="#trainable_state/1" data-no-tooltip translate="no">trainable_state(model_state)</a>
 
       </div>
 
@@ -234,7 +230,7 @@ map.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#unfreeze/2" translate="no">unfreeze(model_state, mask \\ fn _ -&gt; true end)</a>
+        <a href="#unfreeze/2" data-no-tooltip translate="no">unfreeze(model_state, mask \\ fn _ -&gt; true end)</a>
 
       </div>
 
@@ -245,7 +241,7 @@ using the given mask.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#update/3" translate="no">update(model_state, updated_parameters, updated_state \\ %{})</a>
+        <a href="#update/3" data-no-tooltip translate="no">update(model_state, updated_parameters, updated_state \\ %{})</a>
 
       </div>
 
@@ -269,13 +265,13 @@ using the given mask.</p></div>
 <section class="detail" id="empty/0">
 
   <div class="detail-header">
-    <a href="#empty/0" class="detail-link" title="Link to this function">
+    <a href="#empty/0" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">empty()</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L173" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L173" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -293,13 +289,13 @@ using the given mask.</p></div>
     <span id="freeze/1"></span>
 
   <div class="detail-header">
-    <a href="#freeze/2" class="detail-link" title="Link to this function">
+    <a href="#freeze/2" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">freeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L68" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L68" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -313,23 +309,23 @@ using the given mask.</p></div>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be frozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="2351140583-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="2351140583-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="2351140583-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="2351140583-3">(</span><span class="n">n</span><span class="p" data-group-id="2351140583-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="2215304984-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="2215304984-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="2215304984-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="2215304984-3">(</span><span class="n">n</span><span class="p" data-group-id="2215304984-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="2351140583-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="2215304984-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 freezing the entire model.</p>
   </section>
 </section>
 <section class="detail" id="frozen_parameters/1">
 
   <div class="detail-header">
-    <a href="#frozen_parameters/1" class="detail-link" title="Link to this function">
+    <a href="#frozen_parameters/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">frozen_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L146" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L146" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -345,13 +341,13 @@ freezing the entire model.</p>
 <section class="detail" id="frozen_state/1">
 
   <div class="detail-header">
-    <a href="#frozen_state/1" class="detail-link" title="Link to this function">
+    <a href="#frozen_state/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">frozen_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L164" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L164" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -367,13 +363,13 @@ freezing the entire model.</p>
 <section class="detail" id="merge/3">
 
   <div class="detail-header">
-    <a href="#merge/3" class="detail-link" title="Link to this function">
+    <a href="#merge/3" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">merge(lhs, model_state, fun)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L43" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L43" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -389,13 +385,13 @@ freezing the entire model.</p>
 <section class="detail" id="new/1">
 
   <div class="detail-header">
-    <a href="#new/1" class="detail-link" title="Link to this function">
+    <a href="#new/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">new(data)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L181" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L181" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -412,13 +408,13 @@ map.</p>
 <section class="detail" id="trainable_parameters/1">
 
   <div class="detail-header">
-    <a href="#trainable_parameters/1" class="detail-link" title="Link to this function">
+    <a href="#trainable_parameters/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">trainable_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L133" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L133" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -434,13 +430,13 @@ map.</p>
 <section class="detail" id="trainable_state/1">
 
   <div class="detail-header">
-    <a href="#trainable_state/1" class="detail-link" title="Link to this function">
+    <a href="#trainable_state/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">trainable_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L155" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L155" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -458,13 +454,13 @@ map.</p>
     <span id="unfreeze/1"></span>
 
   <div class="detail-header">
-    <a href="#unfreeze/2" class="detail-link" title="Link to this function">
+    <a href="#unfreeze/2" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">unfreeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L106" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L106" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -478,10 +474,10 @@ map.</p>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be unfrozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="7286316408-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="7286316408-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7286316408-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="6255741597-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="6255741597-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="6255741597-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="7286316408-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="6255741597-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 unfreezing the entire model.</p>
   </section>
 </section>
@@ -490,13 +486,13 @@ unfreezing the entire model.</p>
     <span id="update/2"></span>
 
   <div class="detail-header">
-    <a href="#update/3" class="detail-link" title="Link to this function">
+    <a href="#update/3" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">update(model_state, updated_parameters, updated_state \\ %{})</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/model_state.ex#L19" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L19" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -513,41 +509,40 @@ unfreezing the entire model.</p>
     </div>
   </section>
 
-      <footer class="footer">
-        <p>
-
-            <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
-
-              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
-
-            </span>
+    <footer class="footer">
+      <p>
 
           <span class="line">
-            <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
-              Search HexDocs
-            </button>
+            <a href="https://hex.pm/packages/axon/0.7.0" class="footer-hex-package">Hex Package</a>
 
-              <a href="Axon.epub" title="ePub version">
-                Download ePub version
-              </a>
+            <a href="https://preview.hex.pm/preview/axon/0.7.0">Hex Preview</a>
 
           </span>
-        </p>
 
-        <p class="built-using">
-          Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
 
-            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+            <a href="Axon.epub" title="ePub version">
+              Download ePub version
+            </a>
 
-        </p>
-      </footer>
-    </div>
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.34.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
   </div>
 </main>
 </div>
-
 <!-- Render math with KaTeX -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>

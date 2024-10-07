@@ -4,22 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.31.1">
-    <meta name="project" content="Axon v0.6.1">
+    <meta name="generator" content="ExDoc v0.34.2">
+    <meta name="project" content="Axon v0.7.0">
 
 
-    <title>Sequential models — Axon v0.6.1</title>
-    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
+    <title>Sequential models — Axon v0.7.0</title>
+    <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/handlebars.templates-K7URE6B4.js"></script>
     <script src="dist/sidebar_items-02629AA9.js"></script>
-
-      <script src="docs_config.js"></script>
-
-    <script async src="dist/html-L4O5OK2K.js"></script>
-
+    <script src="docs_config.js"></script>
+    <script async src="dist/html-YIPIRHGU.js"></script>
 
   </head>
   <body data-type="extras" class="page-livemd">
@@ -37,13 +34,11 @@
       } catch (error) { }
     </script>
 
-<div class="main">
+<div class="body-wrapper">
 
 <button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
-
-<div class="background-layer"></div>
 
 <nav id="sidebar" class="sidebar">
 
@@ -59,7 +54,7 @@
 Axon
         </a>
         <div class="sidebar-projectVersion" translate="no">
-          v0.6.1
+          v0.7.0
         </div>
       </div>
     </div>
@@ -93,73 +88,73 @@ Pages
 
 <main class="content">
   <output role="status" id="toast"></output>
-  <div class="content-outer">
-    <div id="content" class="content-inner">
-      <div class="top-search">
-        <div class="search-settings">
-          <form class="search-bar" action="search.html">
-            <label class="search-label">
-              <span class="sr-only">Search documentation of Axon</span>
-              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-            </label>
-            <button type="submit" class="search-button" aria-label="Submit Search">
-              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
-            </button>
-            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
-              <i class="ri-close-line ri-lg" title="Cancel search"></i>
-            </button>
-          </form>
-          <div class="autocomplete">
-          </div>
-          <button class="icon-settings display-settings">
-            <i class="ri-settings-3-line"></i>
-            <span class="sr-only">Settings</span>
+
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Axon</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
           </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
         </div>
-
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
       </div>
+    </div>
 
-<h1>
+<div id="top-content">
+  <h1>
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/guides/model_creation/sequential_models.livemd#L1" title="View Source" class="icon-action" rel="help">
-      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-      <span class="sr-only">View Source</span>
-    </a>
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/guides/model_creation/sequential_models.livemd#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
 
 
-  <span>Sequential models</span>
-</h1>
+    <span>Sequential models</span>
+  </h1>
 
-  <div class="livebook-badge-container">
-    <a href="#" class="livebook-badge">
-      <img src="https://livebook.dev/badge/v1/blue.svg" alt="Run in Livebook" width="150" />
-    </a>
-  </div>
+    <div class="livebook-badge-container">
+      <a href="#" class="livebook-badge">
+        <img src="https://livebook.dev/badge/v1/blue.svg" alt="Run in Livebook" width="150" />
+      </a>
+    </div>
 
-<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="3262658269-1">(</span><span class="p" data-group-id="3262658269-2">[</span><span class="w">
-  </span><span class="p" data-group-id="3262658269-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="3262658269-3">}</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="3262658269-4">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="3262658269-4">}</span><span class="w">
-</span><span class="p" data-group-id="3262658269-2">]</span><span class="p" data-group-id="3262658269-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="creating-a-sequential-model" class="section-heading">
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="6250849358-1">(</span><span class="p" data-group-id="6250849358-2">[</span><span class="w">
+  </span><span class="p" data-group-id="6250849358-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.5.0&quot;</span><span class="p" data-group-id="6250849358-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="6250849358-4">{</span><span class="ss">:kino</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&gt;= 0.9.0&quot;</span><span class="p" data-group-id="6250849358-4">}</span><span class="w">
+</span><span class="p" data-group-id="6250849358-2">]</span><span class="p" data-group-id="6250849358-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="ss">:ok</span></code></pre><h2 id="creating-a-sequential-model" class="section-heading">
   <a href="#creating-a-sequential-model" class="hover-link">
     <i class="ri-link-m" aria-hidden="true"></i>
   </a>
   <span class="text">Creating a sequential model</span>
 </h2>
 <p>In the <a href="your_first_axon_model.html">last guide</a>, you created a simple identity model which just returned the input. Of course, you would never actually use Axon for such purposes. You want to create real neural networks!</p><p>In equivalent frameworks in the Python ecosystem such as Keras and PyTorch, there is a concept of <em>sequential models</em>. Sequential models are named after the sequential nature in which data flows through them. Sequential models transform the input with sequential, successive transformations.</p><p>If you're an experienced Elixir programmer, this paradigm of sequential transformations might sound a lot like what happens when using the pipe (<code class="inline">|&gt;</code>) operator. In Elixir, it's common to see code blocks like:</p><!-- livebook:{"force_markdown":true} --><pre><code class="makeup elixir" translate="no"><span class="n">list</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="3083392952-1">(</span><span class="k" data-group-id="3083392952-2">fn</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k" data-group-id="3083392952-2">end</span><span class="p" data-group-id="3083392952-1">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">filter</span><span class="p" data-group-id="3083392952-3">(</span><span class="o">&amp;</span><span class="n">rem</span><span class="p" data-group-id="3083392952-4">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="3083392952-4">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3083392952-3">)</span><span class="w">
-</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="3083392952-5">(</span><span class="p" data-group-id="3083392952-5">)</span></code></pre><p>The snippet above passes <code class="inline">list</code> through a sequence of transformations. You can apply this same paradigm in Axon to create sequential models. In fact, creating sequential models is so natural with Elixir's pipe operator, that Axon does not need a distinct <em>sequential</em> construct. To create a sequential model, you just pass Axon models through successive transformations in the Axon API:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
-  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6172311290-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="6172311290-1">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6172311290-2">(</span><span class="mi">32</span><span class="p" data-group-id="6172311290-2">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="6172311290-3">(</span><span class="ss">:relu</span><span class="p" data-group-id="6172311290-3">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="6172311290-4">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="6172311290-4">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6172311290-5">(</span><span class="mi">1</span><span class="p" data-group-id="6172311290-5">)</span><span class="w">
-  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="6172311290-6">(</span><span class="ss">:softmax</span><span class="p" data-group-id="6172311290-6">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="6842541793-1">#</span><span class="nc" data-group-id="6842541793-1">Axon</span><span class="p" data-group-id="6842541793-1">&lt;</span><span class="w">
-  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="6842541793-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="6842541793-2">}</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">map</span><span class="p" data-group-id="4107473273-1">(</span><span class="k" data-group-id="4107473273-2">fn</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k" data-group-id="4107473273-2">end</span><span class="p" data-group-id="4107473273-1">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">filter</span><span class="p" data-group-id="4107473273-3">(</span><span class="o">&amp;</span><span class="n">rem</span><span class="p" data-group-id="4107473273-4">(</span><span class="ni">&amp;1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p" data-group-id="4107473273-4">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="4107473273-3">)</span><span class="w">
+</span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Enum</span><span class="o">.</span><span class="n">count</span><span class="p" data-group-id="4107473273-5">(</span><span class="p" data-group-id="4107473273-5">)</span></code></pre><p>The snippet above passes <code class="inline">list</code> through a sequence of transformations. You can apply this same paradigm in Axon to create sequential models. In fact, creating sequential models is so natural with Elixir's pipe operator, that Axon does not need a distinct <em>sequential</em> construct. To create a sequential model, you just pass Axon models through successive transformations in the Axon API:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="6109711484-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="6109711484-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6109711484-2">(</span><span class="mi">32</span><span class="p" data-group-id="6109711484-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="6109711484-3">(</span><span class="ss">:relu</span><span class="p" data-group-id="6109711484-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dropout</span><span class="p" data-group-id="6109711484-4">(</span><span class="ss">rate</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p" data-group-id="6109711484-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="6109711484-5">(</span><span class="mi">1</span><span class="p" data-group-id="6109711484-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">activation</span><span class="p" data-group-id="6109711484-6">(</span><span class="ss">:softmax</span><span class="p" data-group-id="6109711484-6">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="4426390285-1">#</span><span class="nc" data-group-id="4426390285-1">Axon</span><span class="p" data-group-id="4426390285-1">&lt;</span><span class="w">
+  </span><span class="ss">inputs</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4426390285-2">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="4426390285-2">}</span><span class="w">
   </span><span class="ss">outputs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;softmax_0&quot;</span><span class="w">
   </span><span class="ss">nodes</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w">
-</span><span class="p" data-group-id="6842541793-1">&gt;</span></code></pre><p>If you visualize this model, it's easy to see how data flows sequentially through it:</p><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="5981085253-1">(</span><span class="p" data-group-id="5981085253-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="5981085253-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="5981085253-1">)</span><span class="w">
-</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="5981085253-3">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="5981085253-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
+</span><span class="p" data-group-id="4426390285-1">&gt;</span></code></pre><p>If you visualize this model, it's easy to see how data flows sequentially through it:</p><pre><code class="makeup elixir" translate="no"><span class="n">template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">template</span><span class="p" data-group-id="0683393533-1">(</span><span class="p" data-group-id="0683393533-2">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="0683393533-2">}</span><span class="p">,</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="0683393533-1">)</span><span class="w">
+</span><span class="nc">Axon.Display</span><span class="o">.</span><span class="n">as_graph</span><span class="p" data-group-id="0683393533-3">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">template</span><span class="p" data-group-id="0683393533-3">)</span></code></pre><pre><code class="mermaid output">graph TD;
 3[/&quot;data (:input) {2, 16}&quot;/];
 4[&quot;dense_0 (:dense) {2, 32}&quot;];
 5[&quot;relu_0 (:relu) {2, 32}&quot;];
@@ -170,73 +165,75 @@ Pages
 6 --&gt; 7;
 5 --&gt; 6;
 4 --&gt; 5;
-3 --&gt; 4;</code></pre><p>Your model is more involved and as a result so is the execution graph! Now, using the same constructs from the last section, you can build and run your model:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="4445834826-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="4445834826-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="4445834826-2">(</span><span class="n">model</span><span class="p" data-group-id="4445834826-2">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="8918507731-1">{</span><span class="p" data-group-id="8918507731-2">#</span><span class="nc" data-group-id="8918507731-2">Function</span><span class="p" data-group-id="8918507731-2">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="8918507731-2">&gt;</span><span class="p">,</span><span class="w">
- </span><span class="p" data-group-id="8918507731-3">#</span><span class="nc" data-group-id="8918507731-3">Function</span><span class="p" data-group-id="8918507731-3">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="8918507731-3">&gt;</span><span class="p" data-group-id="8918507731-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="5977378903-1">(</span><span class="n">template</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5977378903-2">%{</span><span class="p" data-group-id="5977378903-2">}</span><span class="p" data-group-id="5977378903-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="5800615166-1">%{</span><span class="w">
-  </span><span class="s">&quot;dense_0&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-2">%{</span><span class="w">
-    </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-3">#</span><span class="nc" data-group-id="5800615166-3">Nx.Tensor</span><span class="p" data-group-id="5800615166-3">&lt;</span><span class="w">
-      </span><span class="n">f32</span><span class="p" data-group-id="5800615166-4">[</span><span class="mi">32</span><span class="p" data-group-id="5800615166-4">]</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-5">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="5800615166-5">]</span><span class="w">
-    </span><span class="p" data-group-id="5800615166-3">&gt;</span><span class="p">,</span><span class="w">
-    </span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-6">#</span><span class="nc" data-group-id="5800615166-6">Nx.Tensor</span><span class="p" data-group-id="5800615166-6">&lt;</span><span class="w">
-      </span><span class="n">f32</span><span class="p" data-group-id="5800615166-7">[</span><span class="mi">16</span><span class="p" data-group-id="5800615166-7">]</span><span class="p" data-group-id="5800615166-8">[</span><span class="mi">32</span><span class="p" data-group-id="5800615166-8">]</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-9">[</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-10">[</span><span class="mf">0.21433714032173157</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.04525795578956604</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32405969500541687</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.06933712959289551</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.24735209345817566</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1957167088985443</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.2714379131793976</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.34026962518692017</span><span class="p">,</span><span class="w"> </span><span class="mf">0.03781759738922119</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.16317953169345856</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1272507756948471</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.08459293842315674</span><span class="p">,</span><span class="w"> </span><span class="mf">0.20401403307914734</span><span class="p">,</span><span class="w"> </span><span class="mf">0.26613888144493103</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.3234696388244629</span><span class="p">,</span><span class="w"> </span><span class="mf">0.295791357755661</span><span class="p">,</span><span class="w"> </span><span class="mf">0.29850414395332336</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.22220905125141144</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.33034151792526245</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32582345604896545</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.19104702770709991</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.3434463143348694</span><span class="p">,</span><span class="w"> </span><span class="mf">0.031930625438690186</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32875487208366394</span><span class="p">,</span><span class="w"> </span><span class="mf">0.17335721850395203</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.0336279571056366</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.02203202247619629</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.30805233120918274</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01472097635269165</span><span class="p">,</span><span class="w"> </span><span class="mf">0.293319970369339</span><span class="p">,</span><span class="w"> </span><span class="mf">0.17995354533195496</span><span class="p">,</span><span class="w"> </span><span class="mf">0.09916016459465027</span><span class="p" data-group-id="5800615166-10">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-11">[</span><span class="o">-</span><span class="mf">0.33202630281448364</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.09507006406784058</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.12178492546081543</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.005500674247741699</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.24997547268867493</span><span class="p">,</span><span class="w"> </span><span class="mf">0.31693217158317566</span><span class="p">,</span><span class="w"> </span><span class="mf">0.31857630610466003</span><span class="p">,</span><span class="w"> </span><span class="mf">0.13662374019622803</span><span class="p">,</span><span class="w"> </span><span class="mf">0.11216515302658081</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.2711845338344574</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.18932600319385529</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.10278302431106567</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1910824328660965</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.15239068865776062</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2373746931552887</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="5800615166-11">]</span><span class="p">,</span><span class="w">
+3 --&gt; 4;</code></pre><p>Your model is more involved and as a result so is the execution graph! Now, using the same constructs from the last section, you can build and run your model:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="8193407645-1">{</span><span class="n">init_fn</span><span class="p">,</span><span class="w"> </span><span class="n">predict_fn</span><span class="p" data-group-id="8193407645-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">build</span><span class="p" data-group-id="8193407645-2">(</span><span class="n">model</span><span class="p" data-group-id="8193407645-2">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="6607565690-1">{</span><span class="p" data-group-id="6607565690-2">#</span><span class="nc" data-group-id="6607565690-2">Function</span><span class="p" data-group-id="6607565690-2">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="6607565690-2">&gt;</span><span class="p">,</span><span class="w">
+ </span><span class="p" data-group-id="6607565690-3">#</span><span class="nc" data-group-id="6607565690-3">Function</span><span class="p" data-group-id="6607565690-3">&lt;</span><span class="mf">135.109794929</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nc">Nx.Defn.Compiler</span><span class="o">.</span><span class="n">fun</span><span class="o">/</span><span class="mi">2</span><span class="p" data-group-id="6607565690-3">&gt;</span><span class="p" data-group-id="6607565690-1">}</span></code></pre><pre><code class="makeup elixir" translate="no"><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_fn</span><span class="o">.</span><span class="p" data-group-id="5925398687-1">(</span><span class="n">template</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="5925398687-2">%{</span><span class="p" data-group-id="5925398687-2">}</span><span class="p" data-group-id="5925398687-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="6528838823-1">%{</span><span class="w">
+  </span><span class="s">&quot;dense_0&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-2">%{</span><span class="w">
+    </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-3">#</span><span class="nc" data-group-id="6528838823-3">Nx.Tensor</span><span class="p" data-group-id="6528838823-3">&lt;</span><span class="w">
+      </span><span class="n">f32</span><span class="p" data-group-id="6528838823-4">[</span><span class="mi">32</span><span class="p" data-group-id="6528838823-4">]</span><span class="w">
+      </span><span class="p" data-group-id="6528838823-5">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p" data-group-id="6528838823-5">]</span><span class="w">
+    </span><span class="p" data-group-id="6528838823-3">&gt;</span><span class="p">,</span><span class="w">
+    </span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-6">#</span><span class="nc" data-group-id="6528838823-6">Nx.Tensor</span><span class="p" data-group-id="6528838823-6">&lt;</span><span class="w">
+      </span><span class="n">f32</span><span class="p" data-group-id="6528838823-7">[</span><span class="mi">16</span><span class="p" data-group-id="6528838823-7">]</span><span class="p" data-group-id="6528838823-8">[</span><span class="mi">32</span><span class="p" data-group-id="6528838823-8">]</span><span class="w">
+      </span><span class="p" data-group-id="6528838823-9">[</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-10">[</span><span class="mf">0.21433714032173157</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.04525795578956604</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32405969500541687</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.06933712959289551</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.24735209345817566</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1957167088985443</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.2714379131793976</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.34026962518692017</span><span class="p">,</span><span class="w"> </span><span class="mf">0.03781759738922119</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.16317953169345856</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1272507756948471</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.08459293842315674</span><span class="p">,</span><span class="w"> </span><span class="mf">0.20401403307914734</span><span class="p">,</span><span class="w"> </span><span class="mf">0.26613888144493103</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.3234696388244629</span><span class="p">,</span><span class="w"> </span><span class="mf">0.295791357755661</span><span class="p">,</span><span class="w"> </span><span class="mf">0.29850414395332336</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.22220905125141144</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.33034151792526245</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32582345604896545</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.19104702770709991</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.3434463143348694</span><span class="p">,</span><span class="w"> </span><span class="mf">0.031930625438690186</span><span class="p">,</span><span class="w"> </span><span class="mf">0.32875487208366394</span><span class="p">,</span><span class="w"> </span><span class="mf">0.17335721850395203</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.0336279571056366</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.02203202247619629</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.30805233120918274</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01472097635269165</span><span class="p">,</span><span class="w"> </span><span class="mf">0.293319970369339</span><span class="p">,</span><span class="w"> </span><span class="mf">0.17995354533195496</span><span class="p">,</span><span class="w"> </span><span class="mf">0.09916016459465027</span><span class="p" data-group-id="6528838823-10">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-11">[</span><span class="o">-</span><span class="mf">0.33202630281448364</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.09507006406784058</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.12178492546081543</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.005500674247741699</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.24997547268867493</span><span class="p">,</span><span class="w"> </span><span class="mf">0.31693217158317566</span><span class="p">,</span><span class="w"> </span><span class="mf">0.31857630610466003</span><span class="p">,</span><span class="w"> </span><span class="mf">0.13662374019622803</span><span class="p">,</span><span class="w"> </span><span class="mf">0.11216515302658081</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.2711845338344574</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.18932600319385529</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.10278302431106567</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.1910824328660965</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">0.15239068865776062</span><span class="p">,</span><span class="w"> </span><span class="mf">0.2373746931552887</span><span class="p">,</span><span class="w"> </span><span class="n">...</span><span class="p" data-group-id="6528838823-11">]</span><span class="p">,</span><span class="w">
         </span><span class="n">...</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-9">]</span><span class="w">
-    </span><span class="p" data-group-id="5800615166-6">&gt;</span><span class="w">
-  </span><span class="p" data-group-id="5800615166-2">}</span><span class="p">,</span><span class="w">
-  </span><span class="s">&quot;dense_1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-12">%{</span><span class="w">
-    </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-13">#</span><span class="nc" data-group-id="5800615166-13">Nx.Tensor</span><span class="p" data-group-id="5800615166-13">&lt;</span><span class="w">
-      </span><span class="n">f32</span><span class="p" data-group-id="5800615166-14">[</span><span class="mi">1</span><span class="p" data-group-id="5800615166-14">]</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-15">[</span><span class="mf">0.0</span><span class="p" data-group-id="5800615166-15">]</span><span class="w">
-    </span><span class="p" data-group-id="5800615166-13">&gt;</span><span class="p">,</span><span class="w">
-    </span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="5800615166-16">#</span><span class="nc" data-group-id="5800615166-16">Nx.Tensor</span><span class="p" data-group-id="5800615166-16">&lt;</span><span class="w">
-      </span><span class="n">f32</span><span class="p" data-group-id="5800615166-17">[</span><span class="mi">32</span><span class="p" data-group-id="5800615166-17">]</span><span class="p" data-group-id="5800615166-18">[</span><span class="mi">1</span><span class="p" data-group-id="5800615166-18">]</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-19">[</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-20">[</span><span class="o">-</span><span class="mf">0.22355356812477112</span><span class="p" data-group-id="5800615166-20">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-21">[</span><span class="mf">0.09599864482879639</span><span class="p" data-group-id="5800615166-21">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-22">[</span><span class="mf">0.06676572561264038</span><span class="p" data-group-id="5800615166-22">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-23">[</span><span class="o">-</span><span class="mf">0.06866732239723206</span><span class="p" data-group-id="5800615166-23">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-24">[</span><span class="mf">0.1822824478149414</span><span class="p" data-group-id="5800615166-24">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-25">[</span><span class="mf">0.1860904097557068</span><span class="p" data-group-id="5800615166-25">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-26">[</span><span class="o">-</span><span class="mf">0.3795042335987091</span><span class="p" data-group-id="5800615166-26">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-27">[</span><span class="o">-</span><span class="mf">0.18182222545146942</span><span class="p" data-group-id="5800615166-27">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-28">[</span><span class="mf">0.4170041084289551</span><span class="p" data-group-id="5800615166-28">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-29">[</span><span class="mf">0.1812545657157898</span><span class="p" data-group-id="5800615166-29">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-30">[</span><span class="mf">0.18777817487716675</span><span class="p" data-group-id="5800615166-30">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-31">[</span><span class="o">-</span><span class="mf">0.15454193949699402</span><span class="p" data-group-id="5800615166-31">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-32">[</span><span class="mf">0.16937363147735596</span><span class="p" data-group-id="5800615166-32">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-33">[</span><span class="o">-</span><span class="mf">0.007449895143508911</span><span class="p" data-group-id="5800615166-33">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-34">[</span><span class="mf">0.421792209148407</span><span class="p" data-group-id="5800615166-34">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-35">[</span><span class="o">-</span><span class="mf">0.3314356803894043</span><span class="p" data-group-id="5800615166-35">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-36">[</span><span class="o">-</span><span class="mf">0.29834187030792236</span><span class="p" data-group-id="5800615166-36">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-37">[</span><span class="mf">0.3285354971885681</span><span class="p" data-group-id="5800615166-37">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-38">[</span><span class="mf">0.034806013107299805</span><span class="p" data-group-id="5800615166-38">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-39">[</span><span class="mf">0.1091541051864624</span><span class="p" data-group-id="5800615166-39">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-40">[</span><span class="o">-</span><span class="mf">0.385672390460968</span><span class="p" data-group-id="5800615166-40">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-41">[</span><span class="mf">0.004853636026382446</span><span class="p" data-group-id="5800615166-41">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-42">[</span><span class="mf">0.3387643098831177</span><span class="p" data-group-id="5800615166-42">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-43">[</span><span class="mf">0.03320261836051941</span><span class="p" data-group-id="5800615166-43">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-44">[</span><span class="mf">0.3905656933784485</span><span class="p" data-group-id="5800615166-44">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-45">[</span><span class="o">-</span><span class="mf">0.3835979700088501</span><span class="p" data-group-id="5800615166-45">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-46">[</span><span class="o">-</span><span class="mf">0.06302008032798767</span><span class="p" data-group-id="5800615166-46">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-47">[</span><span class="mf">0.03648516535758972</span><span class="p" data-group-id="5800615166-47">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-48">[</span><span class="mf">0.24170255661010742</span><span class="p" data-group-id="5800615166-48">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-49">[</span><span class="mf">0.01687285304069519</span><span class="p" data-group-id="5800615166-49">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-50">[</span><span class="o">-</span><span class="mf">0.017035305500030518</span><span class="p" data-group-id="5800615166-50">]</span><span class="p">,</span><span class="w">
-        </span><span class="p" data-group-id="5800615166-51">[</span><span class="o">-</span><span class="mf">0.2674438953399658</span><span class="p" data-group-id="5800615166-51">]</span><span class="w">
-      </span><span class="p" data-group-id="5800615166-19">]</span><span class="w">
-    </span><span class="p" data-group-id="5800615166-16">&gt;</span><span class="w">
-  </span><span class="p" data-group-id="5800615166-12">}</span><span class="w">
-</span><span class="p" data-group-id="5800615166-1">}</span></code></pre><p>Wow! Notice that this model actually has trainable parameters. You can see that the parameter map is just a regular Elixir map. Each top-level entry maps to a layer with a key corresponding to that layer's name and a value corresponding to that layer's trainable parameters. Each layer's individual trainable parameters are given layer-specific names and map directly to Nx tensors.</p><p>Now you can use these <code class="inline">params</code> with your <code class="inline">predict_fn</code>:</p><pre><code class="makeup elixir" translate="no"><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="4816712386-1">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="4816712386-2">(</span><span class="p" data-group-id="4816712386-3">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="4816712386-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="4816712386-2">)</span><span class="p" data-group-id="4816712386-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="2659555604-1">#</span><span class="nc" data-group-id="2659555604-1">Nx.Tensor</span><span class="p" data-group-id="2659555604-1">&lt;</span><span class="w">
-  </span><span class="n">f32</span><span class="p" data-group-id="2659555604-2">[</span><span class="mi">2</span><span class="p" data-group-id="2659555604-2">]</span><span class="p" data-group-id="2659555604-3">[</span><span class="mi">1</span><span class="p" data-group-id="2659555604-3">]</span><span class="w">
-  </span><span class="p" data-group-id="2659555604-4">[</span><span class="w">
-    </span><span class="p" data-group-id="2659555604-5">[</span><span class="mf">1.0</span><span class="p" data-group-id="2659555604-5">]</span><span class="p">,</span><span class="w">
-    </span><span class="p" data-group-id="2659555604-6">[</span><span class="mf">1.0</span><span class="p" data-group-id="2659555604-6">]</span><span class="w">
-  </span><span class="p" data-group-id="2659555604-4">]</span><span class="w">
-</span><span class="p" data-group-id="2659555604-1">&gt;</span></code></pre><p>And voila! You've successfully created and used a sequential model in Axon!</p>
-<div class="bottom-actions">
+      </span><span class="p" data-group-id="6528838823-9">]</span><span class="w">
+    </span><span class="p" data-group-id="6528838823-6">&gt;</span><span class="w">
+  </span><span class="p" data-group-id="6528838823-2">}</span><span class="p">,</span><span class="w">
+  </span><span class="s">&quot;dense_1&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-12">%{</span><span class="w">
+    </span><span class="s">&quot;bias&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-13">#</span><span class="nc" data-group-id="6528838823-13">Nx.Tensor</span><span class="p" data-group-id="6528838823-13">&lt;</span><span class="w">
+      </span><span class="n">f32</span><span class="p" data-group-id="6528838823-14">[</span><span class="mi">1</span><span class="p" data-group-id="6528838823-14">]</span><span class="w">
+      </span><span class="p" data-group-id="6528838823-15">[</span><span class="mf">0.0</span><span class="p" data-group-id="6528838823-15">]</span><span class="w">
+    </span><span class="p" data-group-id="6528838823-13">&gt;</span><span class="p">,</span><span class="w">
+    </span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p" data-group-id="6528838823-16">#</span><span class="nc" data-group-id="6528838823-16">Nx.Tensor</span><span class="p" data-group-id="6528838823-16">&lt;</span><span class="w">
+      </span><span class="n">f32</span><span class="p" data-group-id="6528838823-17">[</span><span class="mi">32</span><span class="p" data-group-id="6528838823-17">]</span><span class="p" data-group-id="6528838823-18">[</span><span class="mi">1</span><span class="p" data-group-id="6528838823-18">]</span><span class="w">
+      </span><span class="p" data-group-id="6528838823-19">[</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-20">[</span><span class="o">-</span><span class="mf">0.22355356812477112</span><span class="p" data-group-id="6528838823-20">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-21">[</span><span class="mf">0.09599864482879639</span><span class="p" data-group-id="6528838823-21">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-22">[</span><span class="mf">0.06676572561264038</span><span class="p" data-group-id="6528838823-22">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-23">[</span><span class="o">-</span><span class="mf">0.06866732239723206</span><span class="p" data-group-id="6528838823-23">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-24">[</span><span class="mf">0.1822824478149414</span><span class="p" data-group-id="6528838823-24">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-25">[</span><span class="mf">0.1860904097557068</span><span class="p" data-group-id="6528838823-25">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-26">[</span><span class="o">-</span><span class="mf">0.3795042335987091</span><span class="p" data-group-id="6528838823-26">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-27">[</span><span class="o">-</span><span class="mf">0.18182222545146942</span><span class="p" data-group-id="6528838823-27">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-28">[</span><span class="mf">0.4170041084289551</span><span class="p" data-group-id="6528838823-28">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-29">[</span><span class="mf">0.1812545657157898</span><span class="p" data-group-id="6528838823-29">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-30">[</span><span class="mf">0.18777817487716675</span><span class="p" data-group-id="6528838823-30">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-31">[</span><span class="o">-</span><span class="mf">0.15454193949699402</span><span class="p" data-group-id="6528838823-31">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-32">[</span><span class="mf">0.16937363147735596</span><span class="p" data-group-id="6528838823-32">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-33">[</span><span class="o">-</span><span class="mf">0.007449895143508911</span><span class="p" data-group-id="6528838823-33">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-34">[</span><span class="mf">0.421792209148407</span><span class="p" data-group-id="6528838823-34">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-35">[</span><span class="o">-</span><span class="mf">0.3314356803894043</span><span class="p" data-group-id="6528838823-35">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-36">[</span><span class="o">-</span><span class="mf">0.29834187030792236</span><span class="p" data-group-id="6528838823-36">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-37">[</span><span class="mf">0.3285354971885681</span><span class="p" data-group-id="6528838823-37">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-38">[</span><span class="mf">0.034806013107299805</span><span class="p" data-group-id="6528838823-38">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-39">[</span><span class="mf">0.1091541051864624</span><span class="p" data-group-id="6528838823-39">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-40">[</span><span class="o">-</span><span class="mf">0.385672390460968</span><span class="p" data-group-id="6528838823-40">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-41">[</span><span class="mf">0.004853636026382446</span><span class="p" data-group-id="6528838823-41">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-42">[</span><span class="mf">0.3387643098831177</span><span class="p" data-group-id="6528838823-42">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-43">[</span><span class="mf">0.03320261836051941</span><span class="p" data-group-id="6528838823-43">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-44">[</span><span class="mf">0.3905656933784485</span><span class="p" data-group-id="6528838823-44">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-45">[</span><span class="o">-</span><span class="mf">0.3835979700088501</span><span class="p" data-group-id="6528838823-45">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-46">[</span><span class="o">-</span><span class="mf">0.06302008032798767</span><span class="p" data-group-id="6528838823-46">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-47">[</span><span class="mf">0.03648516535758972</span><span class="p" data-group-id="6528838823-47">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-48">[</span><span class="mf">0.24170255661010742</span><span class="p" data-group-id="6528838823-48">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-49">[</span><span class="mf">0.01687285304069519</span><span class="p" data-group-id="6528838823-49">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-50">[</span><span class="o">-</span><span class="mf">0.017035305500030518</span><span class="p" data-group-id="6528838823-50">]</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="6528838823-51">[</span><span class="o">-</span><span class="mf">0.2674438953399658</span><span class="p" data-group-id="6528838823-51">]</span><span class="w">
+      </span><span class="p" data-group-id="6528838823-19">]</span><span class="w">
+    </span><span class="p" data-group-id="6528838823-16">&gt;</span><span class="w">
+  </span><span class="p" data-group-id="6528838823-12">}</span><span class="w">
+</span><span class="p" data-group-id="6528838823-1">}</span></code></pre><p>Wow! Notice that this model actually has trainable parameters. You can see that the parameter map is just a regular Elixir map. Each top-level entry maps to a layer with a key corresponding to that layer's name and a value corresponding to that layer's trainable parameters. Each layer's individual trainable parameters are given layer-specific names and map directly to Nx tensors.</p><p>Now you can use these <code class="inline">params</code> with your <code class="inline">predict_fn</code>:</p><pre><code class="makeup elixir" translate="no"><span class="n">predict_fn</span><span class="o">.</span><span class="p" data-group-id="7601862727-1">(</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">iota</span><span class="p" data-group-id="7601862727-2">(</span><span class="p" data-group-id="7601862727-3">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p" data-group-id="7601862727-3">}</span><span class="p">,</span><span class="w"> </span><span class="ss">type</span><span class="p">:</span><span class="w"> </span><span class="ss">:f32</span><span class="p" data-group-id="7601862727-2">)</span><span class="p" data-group-id="7601862727-1">)</span></code></pre><pre><code class="makeup output" translate="no"><span class="p" data-group-id="7330204194-1">#</span><span class="nc" data-group-id="7330204194-1">Nx.Tensor</span><span class="p" data-group-id="7330204194-1">&lt;</span><span class="w">
+  </span><span class="n">f32</span><span class="p" data-group-id="7330204194-2">[</span><span class="mi">2</span><span class="p" data-group-id="7330204194-2">]</span><span class="p" data-group-id="7330204194-3">[</span><span class="mi">1</span><span class="p" data-group-id="7330204194-3">]</span><span class="w">
+  </span><span class="p" data-group-id="7330204194-4">[</span><span class="w">
+    </span><span class="p" data-group-id="7330204194-5">[</span><span class="mf">1.0</span><span class="p" data-group-id="7330204194-5">]</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="7330204194-6">[</span><span class="mf">1.0</span><span class="p" data-group-id="7330204194-6">]</span><span class="w">
+  </span><span class="p" data-group-id="7330204194-4">]</span><span class="w">
+</span><span class="p" data-group-id="7330204194-1">&gt;</span></code></pre><p>And voila! You've successfully created and used a sequential model in Axon!</p>
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
   <div class="bottom-actions-item">
 
       <a href="your_first_axon_model.html" class="bottom-actions-button" rel="prev">
@@ -262,43 +259,42 @@ Complex models
 
   </div>
 </div>
-      <footer class="footer">
-        <p>
-
-            <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
-
-              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
-
-                (<a href="https://preview.hex.pm/preview/axon/0.6.1/show/guides/model_creation/sequential_models.livemd">current file</a>)
-
-            </span>
+    <footer class="footer">
+      <p>
 
           <span class="line">
-            <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
-              Search HexDocs
-            </button>
+            <a href="https://hex.pm/packages/axon/0.7.0" class="footer-hex-package">Hex Package</a>
 
-              <a href="Axon.epub" title="ePub version">
-                Download ePub version
-              </a>
+            <a href="https://preview.hex.pm/preview/axon/0.7.0">Hex Preview</a>
+
+              (<a href="https://preview.hex.pm/preview/axon/0.7.0/show/guides/model_creation/sequential_models.livemd">current file</a>)
 
           </span>
-        </p>
 
-        <p class="built-using">
-          Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
 
-            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+            <a href="Axon.epub" title="ePub version">
+              Download ePub version
+            </a>
 
-        </p>
-      </footer>
-    </div>
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.34.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
   </div>
 </main>
 </div>
-
 <!-- Render math with KaTeX -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>

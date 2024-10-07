@@ -4,22 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.31.1">
-    <meta name="project" content="Axon v0.6.1">
+    <meta name="generator" content="ExDoc v0.34.2">
+    <meta name="project" content="Axon v0.7.0">
 
 
-    <title>Axon.Quantization — Axon v0.6.1</title>
-    <link rel="stylesheet" href="dist/html-elixir-FM2CSD74.css" />
+    <title>Axon.Quantization — Axon v0.7.0</title>
+    <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
-    <script src="dist/handlebars.templates-43PMFBC7.js"></script>
+    <script src="dist/handlebars.templates-K7URE6B4.js"></script>
     <script src="dist/sidebar_items-02629AA9.js"></script>
-
-      <script src="docs_config.js"></script>
-
-    <script async src="dist/html-L4O5OK2K.js"></script>
-
+    <script src="docs_config.js"></script>
+    <script async src="dist/html-YIPIRHGU.js"></script>
 
   </head>
   <body data-type="modules" class="page-module">
@@ -37,13 +34,11 @@
       } catch (error) { }
     </script>
 
-<div class="main">
+<div class="body-wrapper">
 
 <button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
   <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
 </button>
-
-<div class="background-layer"></div>
 
 <nav id="sidebar" class="sidebar">
 
@@ -59,7 +54,7 @@
 Axon
         </a>
         <div class="sidebar-projectVersion" translate="no">
-          v0.6.1
+          v0.7.0
         </div>
       </div>
     </div>
@@ -93,46 +88,46 @@ Pages
 
 <main class="content">
   <output role="status" id="toast"></output>
-  <div class="content-outer">
-    <div id="content" class="content-inner">
-      <div class="top-search">
-        <div class="search-settings">
-          <form class="search-bar" action="search.html">
-            <label class="search-label">
-              <span class="sr-only">Search documentation of Axon</span>
-              <input name="q" type="text" class="search-input" placeholder="Search Documentation (press /)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-            </label>
-            <button type="submit" class="search-button" aria-label="Submit Search">
-              <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
-            </button>
-            <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
-              <i class="ri-close-line ri-lg" title="Cancel search"></i>
-            </button>
-          </form>
-          <div class="autocomplete">
-          </div>
-          <button class="icon-settings display-settings">
-            <i class="ri-settings-3-line"></i>
-            <span class="sr-only">Settings</span>
+
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Axon</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
           </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
         </div>
-
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
       </div>
+    </div>
 
-<h1>
+<div id="top-content">
+  <h1>
 
-    <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L1" title="View Source" class="icon-action" rel="help">
-      <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-      <span class="sr-only">View Source</span>
-    </a>
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/quantization.ex#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
 
-  <span translate="no">Axon.Quantization</span> 
-  <small class="app-vsn" translate="no">(Axon v0.6.1)</small>
+    <span translate="no">Axon.Quantization</span> 
+    <small class="app-vsn" translate="no">(Axon v0.7.0)</small>
 
-</h1>
+  </h1>
 
 
-  <section id="moduledoc">
+    <section id="moduledoc">
 <p>Model quantization.</p><p>Model quantization is a technique for reducing the memory footprint of
 a model by converting portions of a model to use quantized representations.
 Typically, these quantized representations are low-precision integers.</p><p>This is an <strong>experimental</strong> API which implements weight-only quantization.
@@ -140,8 +135,9 @@ The implementation in this module will convert dense layers in a large
 model to quantized-variants. The only supported quantization type is
 <code class="inline">{:s, 8}</code>. Axon quantization is inference-only. Training is not currently
 supported.</p>
-  </section>
+    </section>
 
+</div>
 
   <section id="summary" class="details-list">
     <h1 class="section-heading">
@@ -157,7 +153,7 @@ supported.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#quantize/2" translate="no">quantize(model, model_state)</a>
+        <a href="#quantize/2" data-no-tooltip translate="no">quantize(model, model_state)</a>
 
       </div>
 
@@ -167,7 +163,7 @@ supported.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#quantize_model/1" translate="no">quantize_model(model)</a>
+        <a href="#quantize_model/1" data-no-tooltip translate="no">quantize_model(model)</a>
 
       </div>
 
@@ -177,7 +173,7 @@ supported.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#quantize_model_state/2" translate="no">quantize_model_state(model, model_state)</a>
+        <a href="#quantize_model_state/2" data-no-tooltip translate="no">quantize_model_state(model, model_state)</a>
 
       </div>
 
@@ -187,7 +183,7 @@ supported.</p>
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#weight_only_quantized_dense/3" translate="no">weight_only_quantized_dense(x, units, opts \\ [])</a>
+        <a href="#weight_only_quantized_dense/3" data-no-tooltip translate="no">weight_only_quantized_dense(x, units, opts \\ [])</a>
 
       </div>
 
@@ -211,13 +207,13 @@ supported.</p>
 <section class="detail" id="quantize/2">
 
   <div class="detail-header">
-    <a href="#quantize/2" class="detail-link" title="Link to this function">
+    <a href="#quantize/2" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">quantize(model, model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L27" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/quantization.ex#L27" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -237,13 +233,13 @@ tensors.</p>
 <section class="detail" id="quantize_model/1">
 
   <div class="detail-header">
-    <a href="#quantize_model/1" class="detail-link" title="Link to this function">
+    <a href="#quantize_model/1" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">quantize_model(model)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L43" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/quantization.ex#L43" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -262,13 +258,13 @@ that you wish to quantize, refer to <a href="#quantize_model_state/2"><code clas
 <section class="detail" id="quantize_model_state/2">
 
   <div class="detail-header">
-    <a href="#quantize_model_state/2" class="detail-link" title="Link to this function">
+    <a href="#quantize_model_state/2" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">quantize_model_state(model, model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L69" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/quantization.ex#L69" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -288,13 +284,13 @@ automatically frozen.</p>
     <span id="weight_only_quantized_dense/2"></span>
 
   <div class="detail-header">
-    <a href="#weight_only_quantized_dense/3" class="detail-link" title="Link to this function">
+    <a href="#weight_only_quantized_dense/3" class="detail-link" data-no-tooltip title="Link to this function">
       <i class="ri-link-m" aria-hidden="true"></i>
       <span class="sr-only">Link to this function</span>
     </a>
     <h1 class="signature" translate="no">weight_only_quantized_dense(x, units, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.6.1/lib/axon/quantization.ex#L110" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/quantization.ex#L110" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -321,41 +317,40 @@ Defaults to <code class="inline">true</code>.</p></li></ul>
     </div>
   </section>
 
-      <footer class="footer">
-        <p>
-
-            <span class="line">
-              <a href="https://hex.pm/packages/axon/0.6.1" class="footer-hex-package">Hex Package</a>
-
-              <a href="https://preview.hex.pm/preview/axon/0.6.1">Hex Preview</a>
-
-            </span>
+    <footer class="footer">
+      <p>
 
           <span class="line">
-            <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
-              Search HexDocs
-            </button>
+            <a href="https://hex.pm/packages/axon/0.7.0" class="footer-hex-package">Hex Package</a>
 
-              <a href="Axon.epub" title="ePub version">
-                Download ePub version
-              </a>
+            <a href="https://preview.hex.pm/preview/axon/0.7.0">Hex Preview</a>
 
           </span>
-        </p>
 
-        <p class="built-using">
-          Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.31.1) for the
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
 
-            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+            <a href="Axon.epub" title="ePub version">
+              Download ePub version
+            </a>
 
-        </p>
-      </footer>
-    </div>
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.34.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
   </div>
 </main>
 </div>
-
 <!-- Render math with KaTeX -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
