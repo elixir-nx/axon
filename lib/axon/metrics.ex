@@ -166,7 +166,7 @@ defmodule Axon.Metrics do
       iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
       iex> Axon.Metrics.true_positives(y_true, y_pred)
       #Nx.Tensor<
-        u64
+        u32
         1
       >
   """
@@ -198,7 +198,7 @@ defmodule Axon.Metrics do
       iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
       iex> Axon.Metrics.false_negatives(y_true, y_pred)
       #Nx.Tensor<
-        u64
+        u32
         3
       >
   """
@@ -230,7 +230,7 @@ defmodule Axon.Metrics do
       iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
       iex> Axon.Metrics.true_negatives(y_true, y_pred)
       #Nx.Tensor<
-        u64
+        u32
         1
       >
   """
@@ -262,7 +262,7 @@ defmodule Axon.Metrics do
       iex> y_pred = Nx.tensor([0.8, 0.6, 0.4, 0.2, 0.8, 0.2, 0.2])
       iex> Axon.Metrics.false_positives(y_true, y_pred)
       #Nx.Tensor<
-        u64
+        u32
         2
       >
   """
