@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.7.0 (2024-10-08)
+
+### Bug Fixes
+
+* Do not cast integers in in Axon.MixedPrecision.cast/2
+* Fix iteration counts handler in loops
+* Various documentation fixes and enhancements
+
+### Enhancements
+
+* Add support for global layer options
+* Add `inspect_values` option in compiler
+* Add `Axon.rewrite_nodes` API for graph manipulation
+* Add simple quantization API
+* Replace model parameter map with model state struct
+* Use layer name as a hook name for introspection
+* Use templates as parameters
+
 ## v0.6.0 (2023-08-17)
 
 ### Breaking
