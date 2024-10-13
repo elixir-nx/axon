@@ -132,7 +132,7 @@ defmodule Axon.Quantization do
           fun =
             case opts[:kernel_initializer] do
               init when is_atom(init) ->
-                apply(Axon.Initializers, [])
+                apply(Axon.Initializers, init, [])
 
               fun when is_function(fun) ->
                 fun
