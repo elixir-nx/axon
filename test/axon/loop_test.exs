@@ -132,7 +132,11 @@ defmodule Axon.LoopTest do
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
 
       assert %{model_state: %{}} =
-               pstate = init_fn.({Nx.tensor([[2]]), Nx.tensor([[2]])}, Axon.ModelState.empty())
+               pstate =
+               init_fn.(
+                 {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])}, Nx.tensor(0)},
+                 Axon.ModelState.empty()
+               )
 
       state = %State{step_state: pstate}
 

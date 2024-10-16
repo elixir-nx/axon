@@ -128,6 +128,20 @@ defmodule CompilerTest do
       assert message =~ "exception found when compiling layer Axon.Layers.add/2 named add_0"
       assert message =~ "cannot broadcast tensor of dimensions {1, 32} to {1, 64}"
     end
+
+    test "raises if inputs are ambiguous" do
+      x = Axon.input("x")
+      y = Axon.input("y")
+      model = Axon.add(x, y)
+
+      {_, predict_fn} = Axon.build(model)
+
+      exception = assert_raise ArgumentError, fn ->
+        predict_fn.(ModelState.empty(), Nx.tensor([1]))
+      end
+
+      assert Exception.message(exception) =~ "ambiguous"
+    end
   end
 
   describe "optional" do

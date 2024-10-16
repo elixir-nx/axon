@@ -486,15 +486,16 @@ defmodule Axon.Compiler do
            name: name_fn,
            opts: [shape: _input_shape, optional: optional?]
          },
-         _nodes,
+         nodes,
          {cache, op_counts, block_cache, model_state_meta},
          %{mode: mode, print_values: print_values}
        ) do
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
+    all_inputs = get_all_inputs(nodes)
 
     predict_fun = fn _params, inputs, state, _cache, result_cache, _fn_stacktrace ->
-      value = get_input(inputs, name, optional?)
+      value = get_input(all_inputs, inputs, name, optional?)
 
       # TODO: Add this back in
       # validate_input_shape!(value, shape)
@@ -509,7 +510,7 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, _cache, result_cache, _fn_stacktrace, _keys ->
-      input = get_input(template, name, optional?)
+      input = get_input(all_inputs, template, name, optional?)
       {Nx.to_template(input), {%{}, result_cache}}
     end
 
@@ -889,16 +890,32 @@ defmodule Axon.Compiler do
     {id, model_funs, cache, op_counts, block_cache, model_state_meta}
   end
 
-  defp get_input(inputs, name, optional?) do
+  defp get_all_inputs(nodes) do
+    nodes
+    |> Enum.filter(fn {_, %{op: op}} -> op == :input end)
+    |> Enum.map(fn {_, %{name: name_fn}} ->
+      # inputs require a name, so we can just ignore op counts
+      name_fn.(:input, %{})
+    end)
+    |> Enum.uniq()
+  end
+
+  defp get_input(all_input_names, inputs, name, optional?) do
     res =
-      case inputs do
-        %Nx.Tensor{} = inputs ->
+      case {all_input_names, inputs} do
+        {[^name], %Nx.Tensor{} = inputs} ->
           inputs
 
-        %{} = inputs ->
+        {_, %Nx.Tensor{}} ->
+          raise ArgumentError,
+                "ambiguous input given to the model," <>
+                  " expected inputs with names #{inspect(all_input_names)}" <>
+                  " but received a single tensor as input"
+
+        {_, %{} = inputs} ->
           inputs[name]
 
-        inputs when is_tuple(inputs) ->
+        {[^name], inputs} when is_tuple(inputs) ->
           inputs
 
         _ ->
