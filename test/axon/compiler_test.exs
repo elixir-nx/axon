@@ -136,9 +136,10 @@ defmodule CompilerTest do
 
       {_, predict_fn} = Axon.build(model)
 
-      exception = assert_raise ArgumentError, fn ->
-        predict_fn.(ModelState.empty(), Nx.tensor([1]))
-      end
+      exception =
+        assert_raise ArgumentError, fn ->
+          predict_fn.(ModelState.empty(), Nx.tensor([1]))
+        end
 
       assert Exception.message(exception) =~ "ambiguous"
     end
