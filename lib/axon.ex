@@ -3773,7 +3773,7 @@ defmodule Axon do
   layers with `:tanh` layers:
 
       tanh_rewriter = fn [%Axon{} = x], _output ->
-        Axon.relu(x)
+        Axon.tanh(x)
       end
 
       Axon.rewrite_nodes(model, fn
