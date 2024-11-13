@@ -3875,7 +3875,7 @@ defmodule Axon do
   ## `init_fn`
 
   The `init_fn` receives two arguments, the input template and
-  an optional map with initial parameters for layers or namespaces:
+  an optional map with initial parameters for layers:
 
       {init_fn, predict_fn} = Axon.build(model)
       init_fn.(Nx.template({1, 1}, {:f, 32}), %{"dense_0" => dense_params})
@@ -3968,7 +3968,7 @@ defmodule Axon do
   purposes.
 
   You may optionally specify initial parameters for some layers or
-  namespaces by passing a partial parameter map:
+  by passing a partial parameter map:
 
       Axon.trace_init(model, %{"dense_0" => dense_params})
 
