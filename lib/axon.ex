@@ -3746,7 +3746,7 @@ defmodule Axon do
   of a certain type of operation in the graph:
 
       Axon.reduce_nodes(model, 0, fn
-        %Axon.Nodes{op: :relu}, acc -> acc + 1
+        %Axon.Node{op: :relu}, acc -> acc + 1
         _, acc -> acc
       end)
 
