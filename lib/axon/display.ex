@@ -109,7 +109,7 @@ defmodule Axon.Display do
          %Axon.Node{
            id: id,
            op_name: :container,
-           parent: [parents],
+           parent: [_ | _] = parents,
            name: name_fn
          },
          nodes,
@@ -219,6 +219,13 @@ defmodule Axon.Display do
     type = type_str(Nx.type(template))
     shape = shape_string(Nx.shape(template))
     "#{type}#{shape}"
+  end
+
+  defp render_output_shape(shapes) when is_tuple(shapes) do
+    shapes
+    |> Tuple.to_list()
+    |> Enum.map(&render_output_shape(&1))
+    |> Enum.join(", ")
   end
 
   defp type_str({type, size}), do: "#{Atom.to_string(type)}#{size}"
@@ -347,7 +354,9 @@ defmodule Axon.Display do
 
     name = name_fn.(op, op_counts)
     node_shape = Axon.get_output_shape(%Axon{output: id, nodes: nodes}, templates)
-    to_node = %{axon: :axon, id: id, op: op, name: name, shape: node_shape}
+    shape = expand_output_shape(node_shape)
+
+    to_node = %{axon: :axon, id: id, op: op, name: name, shape: shape}
 
     new_edgelist =
       Enum.reduce(node_inputs, edgelist, fn from_node, acc ->
@@ -355,6 +364,15 @@ defmodule Axon.Display do
       end)
 
     {to_node, {cache, op_counts, new_edgelist}}
+  end
+
+  defp expand_output_shape(%Nx.Tensor{} = tensor), do: Nx.shape(tensor)
+
+  defp expand_output_shape(shapes) when is_tuple(shapes) do
+    shapes
+    |> Tuple.to_list()
+    |> Enum.map(&expand_output_shape/1)
+    |> List.to_tuple()
   end
 
   defp generate_mermaid_node_entry(%{id: id, op: :input, name: name, shape: shape}) do
