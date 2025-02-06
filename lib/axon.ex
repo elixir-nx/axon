@@ -2801,7 +2801,7 @@ defmodule Axon do
   GRUs apply `Axon.Layers.gru_cell/7` over an entire input
   sequence and return:
 
-      {{new_hidden}, output_sequence}
+      {output_sequence, {new_hidden}}
 
   You can use the output state as the hidden state of another
   GRU layer.
