@@ -38,11 +38,13 @@ defmodule Axon.MixProject do
       {:nx, "~> 0.9", nx_opts()},
       {:exla, "~> 0.9", [only: :test] ++ exla_opts()},
       {:torchx, "~> 0.9", [only: :test] ++ torchx_opts()},
-      {:ex_doc, "~> 0.23", only: :docs},
+      {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
       {:kino, "~> 0.7", optional: true},
       {:kino_vega_lite, "~> 0.1.7", optional: true},
-      {:polaris, "~> 0.1"}
+      {:polaris, "~> 0.1"},
+      {:makeup, "~> 1.2.1", only: :docs},
+      {:makeup_syntect, "~> 0.1", only: :docs}
     ]
   end
 
@@ -103,6 +105,7 @@ defmodule Axon.MixProject do
         "guides/training_and_evaluation/writing_custom_metrics.livemd",
         "guides/training_and_evaluation/writing_custom_event_handlers.livemd",
         "guides/serialization/onnx_to_axon.livemd",
+        "guides/cheatsheets/axon_pytorch.cheatmd",
         # Examples
         "notebooks/basics/xor.livemd",
         "notebooks/vision/mnist.livemd",
@@ -114,6 +117,7 @@ defmodule Axon.MixProject do
         "notebooks/generative/fashionmnist_vae.livemd"
       ],
       groups_for_extras: [
+        "Guides: Cheatsheets": Path.wildcard("guides/cheatsheets/*.cheatmd"),
         "Guides: Model Creation": Path.wildcard("guides/model_creation/*.livemd"),
         "Guides: Model Execution": Path.wildcard("guides/model_execution/*.livemd"),
         "Guides: Training and Evaluation":
