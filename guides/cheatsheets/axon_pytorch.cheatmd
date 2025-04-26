@@ -59,9 +59,9 @@ Applies a linear transformation to the incoming data: `y = xW^T + b`.
 
 #### Axon
 ```elixir
-Axon.dense(out_features, activation: :relu, name: "my_dense_layer")
-dense_layer = Axon.dense(128)
-```
+input = Axon.input("features")
+Axon.dense(input, out_features, activation: :relu, name: "my_dense_layer")
+dense_layer = Axon.dense(input, 128)
 
 #### PyTorch
 ```python
@@ -248,7 +248,7 @@ Axon allows for the definition of custom layers and models.
 # Example:
 defmodule MyCustomLayer do
   def call(x) do
-    Axon.dense(128, activation: :relu, name: "my_dense_layer")
+    Axon.dense(x, 128, activation: :relu, name: "my_dense_layer")
   end
 end
 
