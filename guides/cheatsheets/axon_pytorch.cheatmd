@@ -60,7 +60,7 @@ Applies a linear transformation to the incoming data: `y = xW^T + b`.
 #### Axon
 ```elixir
 input = Axon.input("features")
-Axon.dense(input, out_features, activation: :relu, name: "my_dense_layer")
+dense_layer = Axon.dense(input, out_features, activation: :relu, name: "my_dense_layer")
 dense_layer = Axon.dense(input, 128)
 
 #### PyTorch
@@ -77,10 +77,11 @@ Applies a 2D convolution over an input signal composed of several input planes.
 #### Axon
 ```elixir
 # Example: 32 filters, 3x3 kernel, ReLU activation
-Axon.conv(32, kernel_size: 3, activation: :relu, padding: :same, name: "conv1")
+x = Axon.input("features")
+Axon.conv(x, 32, kernel_size: 3, activation: :relu, padding: :same, name: "conv1")
 
 # Stride, padding, etc., are options:
-Axon.conv(64, kernel_size: {3, 3}, strides: 2, padding: :valid)
+Axon.conv(x, 64, kernel_size: {3, 3}, strides: 2, padding: :valid)
 ```
 
 *Note: Axon typically uses NHWC (Batch, Height, Width, Channels) format by default, common in TensorFlow/Keras.*
@@ -106,10 +107,10 @@ Applies 2D max pooling over an input signal.
 #### Axon
 ```elixir
 # Example: 2x2 pool size, stride 2
-Axon.max_pool(kernel_size: 2, strides: 2, name: "pool1")
+Axon.max_pool(previous_layer, kernel_size: 2, strides: 2, name: "pool1")
 
 # Padding can also be specified (default is :valid)
-Axon.max_pool(kernel_size: {3, 3}, strides: 1, padding: :same)
+Axon.max_pool(previous_layer, kernel_size: {3, 3}, strides: 1, padding: :same)
 ```
 
 *Note: Operates on NHWC format by default.*
@@ -145,7 +146,7 @@ Applies dropout during training (`mode: :train`). It's a no-op during inference 
 
 ```elixir
 # Rate is the probability of an element being zeroed.
-Axon.dropout(rate: 0.5, name: "dropout1")
+Axon.dropout(previous_layer, rate: 0.5, name: "dropout1")
 
 # Usage is implicit within the model's structure.
 # The mode (:train or :infer) is passed to the model execution function.
@@ -177,10 +178,10 @@ Normalizes the activations of the previous layer for each given example independ
 #### Axon
 ```elixir
 # Typically applied to the feature dimension(s).
-Axon.layer_norm(name: "layernorm1")
+Axon.layer_norm(previous_layer, name: "layernorm1")
 
 # Can specify the axis/axes for normalization (default is usually the last axis)
-# Axon.layer_norm(axis: -1, epsilon: 1.0e-5)
+# Axon.layer_norm(previous_layer, axis: -1, epsilon: 1.0e-5)
 ```
 
 #### PyTorch
@@ -216,10 +217,12 @@ model = Axon.input("input", shape: {nil, 784})
 
 # Option 2: As separate layer
 model = Axon.input("input", shape: {nil, 10})
+        |> Axon.dense(128)
         |> Axon.softmax()
 
 # Common activation atoms: :relu, :softmax, :sigmoid, :tanh, :identity, etc.
 # Custom functions can also be used.
+# Axon.activation(layer, name) can also be used with the function name atoms.
 ```
 
 #### PyTorch
@@ -243,17 +246,37 @@ output = tanh(x)
 #### Axon
 
 Axon allows for the definition of custom layers and models.
+`Axon.block/1` as shown below allows us to reuse the same parameters
+for an arbitrary Axon subgraph.
+
+This means that the difference between the 2 examples below is that
+while the first has separate weights for the first and second dense layers,
+the second example uses the same weights for both.
 
 ```elixir
 # Example:
-defmodule MyCustomLayer do
-  def call(x) do
+defmodule MyCustomLayers do
+  def dense(x) do
     Axon.dense(x, 128, activation: :relu, name: "my_dense_layer")
+  end
+
+  def block do
+    Axon.block(&dense/1)
   end
 end
 
 # Usage:
-model = Axon.input("input", shape: {nil, 784}) |> MyCustomLayer.call()
+input = Axon.input("input", shape: {nil, 784})
+model =
+  input
+  |> MyCustomLayers.dense()
+  |> MyCustomLayers.dense()
+
+dense_block = MyCustomLayers.block()
+model =
+  input
+  |> then(dense_block)
+  |> then(dense_block)
 ```
 
 #### PyTorch
