@@ -1147,7 +1147,6 @@ defmodule Axon.Loop do
         {status, state} = fun.(state)
         default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
         updated_handler_meta = Map.put(handler_meta, name, default)
-
         {status, %{state | handler_metadata: updated_handler_meta}}
     end
   end
@@ -1221,6 +1220,7 @@ defmodule Axon.Loop do
         filter: :always,
         path: "checkpoint",
         file_pattern: &default_checkpoint_file/1,
+        patience: 3,
         mode: :min
       ])
 
@@ -1229,6 +1229,7 @@ defmodule Axon.Loop do
     {filter, opts} = Keyword.pop!(opts, :filter)
     {path, opts} = Keyword.pop!(opts, :path)
     {file_pattern, opts} = Keyword.pop!(opts, :file_pattern)
+    {patience, opts} = Keyword.pop!(opts, :patience)
     {mode, serialize_opts} = Keyword.pop!(opts, :mode)
 
     checkpoint_fun = &checkpoint_impl(&1, path, file_pattern, serialize_opts)
@@ -1237,7 +1238,8 @@ defmodule Axon.Loop do
       monitor(loop, criteria, checkpoint_fun, :checkpoint,
         mode: mode,
         event: event,
-        filter: filter
+        filter: filter,
+        patience: patience
       )
     else
       handle_event(loop, event, checkpoint_fun, filter)
