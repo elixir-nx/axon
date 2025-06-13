@@ -12,6 +12,7 @@ Mix.install([
 
 Nx.global_default_backend(EXLA.Backend)
 Nx.Defn.global_default_options(compiler: EXLA)
+
 ```
 
 ## Dataset
@@ -54,7 +55,6 @@ In metric learning, we don’t hand the model lone examples, instead we show it 
 class_idx_to_train_idxs =
   bin
   |> Nx.from_binary(type)
-  |> Nx.reshape(shape)
   |> Nx.to_flat_list()
   |> Enum.with_index()
   |> Enum.group_by(&elem(&1, 0), fn {_, i} -> i end)
@@ -64,7 +64,6 @@ class_idx_to_train_idxs =
 class_idx_to_test_idxs =
   bin
   |> Nx.from_binary(type)
-  |> Nx.reshape(shape)
   |> Nx.to_flat_list()
   |> Enum.with_index()
   |> Enum.group_by(&elem(&1, 0), fn {_, i} -> i end)
@@ -80,22 +79,15 @@ With the index in place, the training loop draws one anchor and one sibling set 
 ```elixir
 defmodule GetImages do
   def batch(train_images, class_idx_to_train_idxs) do
-    anchors_idx = Enum.map(0..9, fn class ->
-      indices = class_idx_to_train_idxs[class]
-      Enum.random(indices)
-    end)
+    {anchors_idx, positives_idx} =
+      Enum.unzip(for class <- 0..9 do
+        [a, p] = Enum.take_random(class_idx_to_train_idxs[class], 2)
+        {a, p}
+      end)
 
-    positives_idx = Enum.map(0..9, fn class ->
-      indices = class_idx_to_train_idxs[class]
-      # Exclude the anchor from possible positives
-      anchor_idx = Enum.at(anchors_idx, class)
-      indices
-        |> Enum.filter(fn idx -> idx != anchor_idx end)
-        |> Enum.random()
-    end)
+    anchors = Nx.take(train_images, Nx.tensor(anchors_idx)) |> Nx.rename(nil)
+    positives = Nx.take(train_images, Nx.tensor(positives_idx)) |> Nx.rename(nil)
 
-    anchors = Nx.take(train_images, Nx.tensor(anchors_idx)) |> Nx.reshape({10, 32, 32, 3})
-    positives = Nx.take(train_images, Nx.tensor(positives_idx)) |> Nx.reshape({10, 32, 32, 3})
     {anchors, positives}
   end
 end
@@ -155,13 +147,9 @@ defmodule MetricModel do
   end
 
    defn normalize(x) do
-    den =
-      Nx.multiply(x, x)
-      |> Nx.sum(axes: [-1], keep_axes: true)
-      |> Nx.sqrt()
-    den = Nx.max(den, 1.0e-7)
-    Nx.divide(x, den)
-  end
+      norm = Nx.LinAlg.norm(x, axes: [-1], keep_axes: true)
+      Nx.divide(x, norm)
+    end
 
 end
 ```
@@ -211,7 +199,7 @@ The training loop then uses that loss to nudge parameters, pulling same-class ve
 defmodule MetricLearning do
   import Nx.Defn
   require Logger
-  
+
   defn objective_fn(predict_fn, params, {anchor, positive}) do
     %{prediction: anchor_embeddings} = predict_fn.(params, %{"input" => anchor})
     %{prediction: positive_embeddings} = predict_fn.(params, %{"input" => positive})
@@ -304,43 +292,40 @@ near_neighbors_per_example = 10
 
 embeddings = Nx.rename(embeddings, [nil, nil])
 gram_matrix = Nx.dot(embeddings, Nx.transpose(embeddings))
+
 {_vals, neighbors} = Nx.top_k(gram_matrix, k: near_neighbors_per_example + 1)
+
 :ok
 ```
 
-To visually inspect how well our embeddings capture similarity, we create a collage for each of the ten classes. For each class, we randomly pick one example and place it in the first column. Then, in the next ten columns, we display its ten closest neighbors so you can  see which images the network considers its nearest matches.
+To visually inspect how well our embeddings capture similarity, we create a collage for each of the ten classes. For each class, we pick the first example in each class and place it in the first column. Then, in the next ten columns, we display its ten closest neighbors to see which images the network considers its nearest matches.
 
 ```elixir
 # take first image of each class
 example_per_class_idx =
   0..9
   |> Enum.map(fn class_idx ->
-    class_idx_to_test_idxs[class_idx] |> Enum.random()
+    class_idx_to_test_idxs[class_idx] |> Enum.at(0)
   end)
   |> Nx.tensor(type: {:s, 64})
 
 # take nearest neighbors for each example
 neighbors_for_samples = Nx.take(neighbors, example_per_class_idx, axis: 0)
 
-# show the ten closest images
-images = for row_idx <- 0..9 do
-  neighbour_idxs =
-    neighbors_for_samples
-    |> Nx.slice([row_idx, 0], [1, near_neighbors_per_example])
-    |> Nx.squeeze()
+neighbour_idxs =
+  neighbors_for_samples
     |> Nx.to_flat_list()
 
-  images =
-    for idx <- neighbour_idxs do
-      test_images
-      |> Nx.take(Nx.tensor([idx]), axis: 0)
-      |> Nx.squeeze()
-      |> Nx.transpose(axes: [:width, :height, :channels])
-      |> create_kino_image.()
-    end
+images =
+  for idx <- neighbour_idxs do
+    test_images[idx]
+    |> Nx.squeeze()
+    |> Nx.transpose(axes: [:width, :height, :channels])
+    |> create_kino_image.()
+  end
 
-  Kino.render(Kino.Layout.grid(images, columns: near_neighbors_per_example))
-end
+Kino.render(Kino.Layout.grid(images, columns: 11))
+
 :ok
 ```
 
