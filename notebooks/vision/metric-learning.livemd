@@ -291,7 +291,7 @@ near_neighbors_per_example = 10
 %{prediction: embeddings} = predict_fn.(final_params, %{"input" => test_images})
 
 embeddings = Nx.rename(embeddings, [nil, nil])
-gram_matrix = Nx.dot(embeddings, Nx.transpose(embeddings))
+gram_matrix = Nx.dot(embeddings, [1], embeddings, [1])
 
 {_vals, neighbors} = Nx.top_k(gram_matrix, k: near_neighbors_per_example + 1)
 
