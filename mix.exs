@@ -14,11 +14,14 @@ defmodule Axon.MixProject do
       deps: deps(),
       docs: docs(),
       description: "Create and train neural networks in Elixir",
-      package: package(),
-      preferred_cli_env: [
-        docs: :docs,
-        "hex.publish": :docs
-      ]
+      package: package()
+    ]
+  end
+
+  def cli do
+    [
+      docs: :docs,
+      "hex.publish": :docs
     ]
   end
 
