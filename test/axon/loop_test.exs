@@ -899,6 +899,51 @@ defmodule Axon.LoopTest do
       assert ["checkpoint_0_1.ckpt", "checkpoint_1_1.ckpt", "checkpoint_2_1.ckpt"] ==
                File.ls!("checkpoint_custom_path") |> Enum.sort()
     end
+
+    test "with :criteria, saves checkpoint after :patience is exceeded when metric stops improving",
+         %{loop: loop} do
+      loop
+      |> Loop.handle_event(:epoch_completed, fn
+        %{epoch: 0} = state ->
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(15))}
+          {:continue, state}
+
+        %{epoch: 1} = state ->
+          # loss is improved (15 -> 10)
+          # since_last_improvement = 0
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(10))}
+          {:continue, state}
+
+        %{epoch: 2} = state ->
+          # loss is improved (10 -> 5)
+          # since_last_improvement = 0
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(5))}
+          {:continue, state}
+
+        %{epoch: 3} = state ->
+          # loss is NOT improved (5 -> 5)
+          # since_last_improvement = 1
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(5))}
+          {:continue, state}
+
+        %{epoch: 4} = state ->
+          # loss is NOT improved (5 -> 5)
+          # since_last_improvement = 2
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(5))}
+          {:continue, state}
+
+        %{epoch: 5} = state ->
+          # loss is NOT improved (5 -> 5)
+          # since_last_improvement = 0 (goes back to 0 and waits for improvement)
+          state = %{state | metrics: Map.put(state.metrics, "loss", Nx.tensor(5))}
+          {:continue, state}
+      end)
+      |> Loop.checkpoint(criteria: "loss", mode: :min, patience: 2)
+      |> Loop.run([{Nx.tensor([[0]]), Nx.tensor([[1]])}], Axon.ModelState.empty(), epochs: 6)
+
+      # checkpoint_{epoch}_{iteration}.ckpt
+      assert ["checkpoint_5_1.ckpt"] == File.ls!("checkpoint")
+    end
   end
 
   describe "from_state" do

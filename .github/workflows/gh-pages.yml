@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OTP_VERSION: "25.0"
-  ELIXIR_VERSION: "1.14.0"
+  OTP_VERSION: "26.1.1"
+  ELIXIR_VERSION: "1.15.6"
 
 jobs:
   deploy:

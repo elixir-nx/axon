@@ -377,7 +377,13 @@ defmodule Axon.LayersTest do
       bias = 0.0
 
       assert_equal(
-        Axon.Layers.conv_transpose(inp, kernel, bias, padding: [{0, 1}, {1, 2}], channels: :first),
+        Axon.Layers.conv_transpose(
+          inp,
+          kernel,
+          bias,
+          padding: [{0, 1}, {1, 2}],
+          channels: :first
+        ),
         Nx.tensor([[[[0.0, 2.0, 3.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0]]]])
       )
     end

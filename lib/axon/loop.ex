@@ -1147,7 +1147,6 @@ defmodule Axon.Loop do
         {status, state} = fun.(state)
         default = %{monitor => cur_criteria_value, :since_last_improvement => 0}
         updated_handler_meta = Map.put(handler_meta, name, default)
-
         {status, %{state | handler_metadata: updated_handler_meta}}
     end
   end
@@ -1221,6 +1220,7 @@ defmodule Axon.Loop do
         filter: :always,
         path: "checkpoint",
         file_pattern: &default_checkpoint_file/1,
+        patience: 3,
         mode: :min
       ])
 
@@ -1229,6 +1229,7 @@ defmodule Axon.Loop do
     {filter, opts} = Keyword.pop!(opts, :filter)
     {path, opts} = Keyword.pop!(opts, :path)
     {file_pattern, opts} = Keyword.pop!(opts, :file_pattern)
+    {patience, opts} = Keyword.pop!(opts, :patience)
     {mode, serialize_opts} = Keyword.pop!(opts, :mode)
 
     checkpoint_fun = &checkpoint_impl(&1, path, file_pattern, serialize_opts)
@@ -1237,7 +1238,8 @@ defmodule Axon.Loop do
       monitor(loop, criteria, checkpoint_fun, :checkpoint,
         mode: mode,
         event: event,
-        filter: filter
+        filter: filter,
+        patience: patience
       )
     else
       handle_event(loop, event, checkpoint_fun, filter)
@@ -1630,7 +1632,7 @@ defmodule Axon.Loop do
     final_metrics_map = loop_state.metrics
     loop_state = %{loop_state | metrics: zero_metrics}
 
-    {status, final_metrics_map, state} =
+    {status, final_metrics_map, %State{} = state} =
       case fire_event(:started, handler_fns, loop_state, debug?) do
         {:halt_epoch, state} ->
           {:halted, final_metrics_map, state}
@@ -1645,7 +1647,7 @@ defmodule Axon.Loop do
           Enum.reduce_while(
             epoch_start..epoch_end//1,
             {batch_fn, final_metrics_map, state},
-            fn epoch, {batch_fn, final_metrics_map, loop_state} ->
+            fn epoch, {batch_fn, final_metrics_map, %State{} = loop_state} ->
               case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
                 {:halt_epoch, state} ->
                   halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
@@ -1689,7 +1691,7 @@ defmodule Axon.Loop do
                         {:halt_loop, state} ->
                           {:halt, {final_metrics_map, state}}
 
-                        {:continue, state} ->
+                        {:continue, %State{} = state} ->
                           {:cont,
                            {batch_fn, Map.put(final_metrics_map, epoch, state.metrics),
                             %State{
@@ -1922,7 +1924,7 @@ defmodule Axon.Loop do
   # Halts an epoch during looping
   defp halt_epoch(handler_fns, batch_fn, final_metrics_map, loop_state, debug?) do
     case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
-      {:halt_epoch, %{epoch: epoch, metrics: metrics} = state} ->
+      {:halt_epoch, %State{epoch: epoch, metrics: metrics} = state} ->
         final_metrics_map = Map.put(final_metrics_map, epoch, metrics)
         {:cont, {batch_fn, final_metrics_map, %State{state | epoch: epoch + 1, iteration: 0}}}
 
