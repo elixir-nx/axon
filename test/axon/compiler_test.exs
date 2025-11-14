@@ -5716,6 +5716,8 @@ defmodule CompilerTest do
       out =
         ExUnit.CaptureIO.capture_io(fn ->
           predict_fn.(model_state, input)
+          # Wait for async print operations to flush
+          Process.sleep(1000)
         end)
 
       assert out =~ "x:"
