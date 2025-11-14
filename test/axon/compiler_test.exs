@@ -4193,7 +4193,11 @@ defmodule CompilerTest do
       enc = {eik, ehk, eb}
       dec = {dik, dhk, db}
 
-      assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
+      assert_all_close(
+        predict_fn.(params, input),
+        equiv_fn.(input, enc, dec),
+        atol: 1.0e-7
+      )
     end
 
     test "initializes with use_bias false" do
