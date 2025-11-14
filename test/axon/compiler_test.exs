@@ -5247,7 +5247,11 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert_all_close(predict_fn.(params, input), expected_predict_fn.(input, k1, b1, k2, b2), atol: 1.0e-7)
+      assert_all_close(
+        predict_fn.(params, input),
+        expected_predict_fn.(input, k1, b1, k2, b2),
+        atol: 1.0e-7
+      )
     end
 
     test "predicts correctly with multiple dense, used twice" do
