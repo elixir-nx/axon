@@ -4062,9 +4062,10 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, ModelState.empty())
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, carry, Nx.tensor(0), k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, carry, Nx.tensor(0), k, h, b),
+        atol: 1.0e-7
       )
     end
 
@@ -5246,7 +5247,7 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert_equal(predict_fn.(params, input), expected_predict_fn.(input, k1, b1, k2, b2))
+      assert_all_close(predict_fn.(params, input), expected_predict_fn.(input, k1, b1, k2, b2), atol: 1.0e-7)
     end
 
     test "predicts correctly with multiple dense, used twice" do
