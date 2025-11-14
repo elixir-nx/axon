@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.7.0"
+  @version "0.8.0"
 
   def project do
     [
@@ -113,6 +113,7 @@ defmodule Axon.MixProject do
         "notebooks/basics/xor.livemd",
         "notebooks/vision/mnist.livemd",
         "notebooks/vision/horses_or_humans.livemd",
+        "notebooks/vision/metric-learning.livemd",
         "notebooks/text/lstm_generation.livemd",
         "notebooks/structured/credit_card_fraud.livemd",
         "notebooks/generative/mnist_autoencoder_using_kino.livemd",

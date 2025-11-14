@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.0 (2025-11-14)
+
+### Bug Fixes
+
+* Axon.Initializers apply/3 invokation
+* Removed dead code
+* Axon.Display.as_table with multi-input models
+
+### Enhancements
+
+* Updated Nx, EXLA and Torchx
+* Improved documentation
+
 ## v0.7.0 (2024-10-08)
 
 ### Bug Fixes
