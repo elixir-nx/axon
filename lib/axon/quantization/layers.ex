@@ -45,13 +45,15 @@ defmodule Axon.Quantization.Layers do
   end
 
   deftransformp reshape_scales(scales, y) do
-    ones = List.to_tuple(List.duplicate(1, Nx.rank(y) - 1))
-    Nx.reshape(scales, Tuple.append(ones, :auto))
+    n = Nx.rank(y) - 1
+    ones = Tuple.duplicate(1, n)
+    Nx.reshape(scales, Tuple.insert_at(ones, n, :auto))
   end
 
   deftransformp reshape_output(output, x_shape) do
-    all_but_last = Tuple.delete_at(x_shape, tuple_size(x_shape) - 1)
-    new_shape = Tuple.append(all_but_last, :auto)
+    n = tuple_size(x_shape) - 1
+    all_but_last = Tuple.delete_at(x_shape, n)
+    new_shape = Tuple.insert_at(all_but_last, n, :auto)
     Nx.reshape(output, new_shape)
   end
 end

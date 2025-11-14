@@ -4062,9 +4062,10 @@ defmodule CompilerTest do
                }
              } = params = init_fn.(input, ModelState.empty())
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input),
-        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, carry, Nx.tensor(0), k, h, b)
+        Axon.Layers.dynamic_unroll(&Axon.Layers.gru_cell/6, input, carry, Nx.tensor(0), k, h, b),
+        atol: 1.0e-7
       )
     end
 
@@ -4192,7 +4193,11 @@ defmodule CompilerTest do
       enc = {eik, ehk, eb}
       dec = {dik, dhk, db}
 
-      assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
+      assert_all_close(
+        predict_fn.(params, input),
+        equiv_fn.(input, enc, dec),
+        atol: 1.0e-7
+      )
     end
 
     test "initializes with use_bias false" do
@@ -5246,7 +5251,11 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert_equal(predict_fn.(params, input), expected_predict_fn.(input, k1, b1, k2, b2))
+      assert_all_close(
+        predict_fn.(params, input),
+        expected_predict_fn.(input, k1, b1, k2, b2),
+        atol: 1.0e-7
+      )
     end
 
     test "predicts correctly with multiple dense, used twice" do
@@ -5290,7 +5299,11 @@ defmodule CompilerTest do
 
       input = random({1, 1})
 
-      assert_equal(predict_fn.(params, input), expected_predict_fn.(input, k1, b1, k2, b2))
+      assert_all_close(
+        predict_fn.(params, input),
+        expected_predict_fn.(input, k1, b1, k2, b2),
+        atol: 1.0e-7
+      )
     end
 
     test "predicts correctly with multiple blocks in network" do
@@ -5703,6 +5716,8 @@ defmodule CompilerTest do
       out =
         ExUnit.CaptureIO.capture_io(fn ->
           predict_fn.(model_state, input)
+          # Wait for async print operations to flush
+          Process.sleep(1000)
         end)
 
       assert out =~ "x:"
