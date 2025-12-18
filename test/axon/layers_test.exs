@@ -1740,7 +1740,10 @@ defmodule Axon.LayersTest do
           Nx.tensor([weight]),
           Nx.tensor([bias]),
           Nx.tensor([mean]),
-          Nx.tensor([variance]), mode: :inference, epsilon: epsilon)
+          Nx.tensor([variance]),
+          mode: :inference,
+          epsilon: epsilon
+        )
 
       assert_all_close(expected, actual, atol: 1.0e-3)
     end
