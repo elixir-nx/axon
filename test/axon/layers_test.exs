@@ -1722,4 +1722,27 @@ defmodule Axon.LayersTest do
       assert_all_close(expected, actual, atol: 1.0e-3)
     end
   end
+
+  describe "batch_norm" do
+    test "matches pytorch when variance < epsilon" do
+      input_val = -0.002805
+      mean = -0.008561
+      variance = 0.000412
+      weight = 1.0
+      bias = -0.144881
+      epsilon = 0.001
+
+      expected = Nx.tensor([0.0083])
+
+      actual =
+        Axon.Layers.batch_norm(
+          Nx.tensor([[[[input_val]]]]),
+          Nx.tensor([weight]),
+          Nx.tensor([bias]),
+          Nx.tensor([mean]),
+          Nx.tensor([variance]), mode: :inference, epsilon: epsilon)
+
+      assert_all_close(expected, actual, atol: 1.0e-3)
+    end
+  end
 end

@@ -245,12 +245,7 @@ defmodule Axon.Shared do
 
   defn normalize(input, mean, variance, gamma, bias, opts \\ []) do
     [epsilon: epsilon] = keyword!(opts, epsilon: 1.0e-6)
-
-    # The select is so that we improve numerical stability by clipping
-    # both insignificant values of variance and NaNs to epsilon.
-    scale =
-      gamma * Nx.select(variance >= epsilon, Nx.rsqrt(variance + epsilon), Nx.rsqrt(epsilon))
-
+    scale = gamma * Nx.rsqrt(variance + epsilon)
     scale * (input - mean) + bias
   end
 
