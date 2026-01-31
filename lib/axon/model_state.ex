@@ -191,6 +191,54 @@ defmodule Axon.ModelState do
     }
   end
 
+  @doc """
+  Ties a parameter to another parameter, enabling weight sharing.
+
+  The destination parameter will reference the source parameter's tensor,
+  optionally applying a transformation. Both `destination` and `source`
+  are access paths (lists of strings) into the model state data.
+
+  ## Options
+
+    * `:transform` - a function to transform the source tensor before
+      use at the destination. For example, `&Nx.transpose/1` for tying
+      an embedding layer to an output projection.
+
+  ## Examples
+
+      # Tie output projection to embedding weights (transposed)
+      model_state = Axon.ModelState.tie(
+        model_state,
+        ["output", "kernel"],
+        ["embed", "kernel"],
+        transform: &Nx.transpose/1
+      )
+
+  """
+  def tie(model_state, destination, source, opts \\ []) do
+    update_in(model_state, [Access.key!(:data)], fn data ->
+      shared = Axon.ModelState.SharedParameter.new(source, opts)
+      [key | rest] = Enum.reverse(destination)
+
+      shared =
+        Enum.reduce(rest, %{key => shared}, fn next, acc ->
+          %{next => acc}
+        end)
+
+      deep_merge(data, shared)
+    end)
+  end
+
+  defp deep_merge(left, right) do
+    Map.merge(left, right, fn
+      _key, left_val, right_val when is_map(left_val) and is_map(right_val) ->
+        deep_merge(left_val, right_val)
+
+      _key, _left_val, right_val ->
+        right_val
+    end)
+  end
+
   defp transform_to_parameters(%Nx.Tensor{}), do: nil
 
   defp transform_to_parameters(map) when is_map(map) do
@@ -249,6 +297,9 @@ defmodule Axon.ModelState do
   defp tree_get(data, access) when is_list(access) do
     Enum.reduce(access, %{}, fn key, acc ->
       case data do
+        %{^key => %Axon.ModelState.SharedParameter{}} ->
+          acc
+
         %{^key => val} ->
           Map.put(acc, key, val)
 
@@ -261,9 +312,13 @@ defmodule Axon.ModelState do
   defp tree_get(data, access) when is_map(access) do
     Enum.reduce(access, %{}, fn {key, value}, acc ->
       case data do
+        %{^key => %Axon.ModelState.SharedParameter{}} ->
+          # Skip shared parameters - they reference another parameter
+          acc
+
         %{^key => val} ->
           tree = tree_get(val, value)
-          Map.put(acc, key, tree)
+          if map_size(tree) == 0, do: acc, else: Map.put(acc, key, tree)
 
         %{} ->
           acc

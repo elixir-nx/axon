@@ -916,23 +916,11 @@ defmodule Axon.Compiler do
     else
       # Parameters are just accessed in the layer sub-map of the nested
       # parameter map, so we just need to extract them and then apply
-      # freezing and dtype policy
+      # freezing and dtype policy. Parameters may be SharedParameter
+      # structs for tied weights, which are resolved to their source.
       parameter_inputs =
         Enum.map(layer_params, fn %{name: v, frozen: frz} ->
-          param = params[name][v]
-
-          cond do
-            param != nil ->
-              safe_policy_cast(maybe_freeze(param, frz), policy, :compute)
-
-            true ->
-              raise ArgumentError,
-                    "parameter #{inspect(v)} for layer: #{inspect(name)} in" <>
-                      " was not present in the given parameter map, this can" <>
-                      " happen if you are using parameters intended for another" <>
-                      " model or did not initialize portions of your model with" <>
-                      " Axon.init/3"
-          end
+          resolve_parameter!(params, name, v, frz, policy)
         end)
 
       # Reorder the inputs according to the original input ordering
@@ -1187,6 +1175,43 @@ defmodule Axon.Compiler do
 
   defp propagating_none?(%Axon.None{__propagate__: true}), do: true
   defp propagating_none?(_), do: false
+
+  defp resolve_parameter!(params, layer_name, param_name, freeze?, policy) do
+    # Special case where this is a SharedParameter at the layer level, so we
+    # need to resolve that before forwarding. Otherwise this falls through and
+    # is handled at the next step
+    layer_params =
+      with %Axon.ModelState.SharedParameter{path: path} <- params[layer_name] do
+        get_in(params, path)
+      end
+
+    parameter =
+      case layer_params[param_name] do
+        nil ->
+          raise ArgumentError,
+                "parameter #{inspect(param_name)} for layer: #{inspect(layer_name)}" <>
+                  " was not present in the given parameter map, this can" <>
+                  " happen if you are using parameters intended for another" <>
+                  " model or did not initialize portions of your model with" <>
+                  " Axon.init/3"
+
+        %Axon.ModelState.SharedParameter{path: path, transform: transform} ->
+          tensor =
+            with nil <- get_in(params, path) do
+              raise ArgumentError,
+                    "shared parameter for #{inspect(param_name)} in layer:" <>
+                      " #{inspect(layer_name)}, references non-existent parameter" <>
+                      " #{inspect(path)}"
+            end
+
+          if transform, do: transform.(tensor), else: tensor
+
+        parameter ->
+          parameter
+      end
+
+    safe_policy_cast(maybe_freeze(parameter, freeze?), policy, :compute)
+  end
 
   defp us_to_ms(time), do: Float.round(time / 1000, 1)
 end
