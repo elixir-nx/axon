@@ -402,13 +402,51 @@ defmodule Axon do
   automatically initialized and used in subsequent applications of
   Axon models.
 
-  You must specify a parameter "template" which can be a static template
-  tensor or a function which takes model input templates and returns a
-  template. It's most common to use functions because most parameters'
-  shapes rely on input shape information.
+  You may specify the parameter shape as:
+
+    * A static tuple shape, e.g. `{32, 64}`
+    * A static template tensor
+    * A function which takes model input templates and returns a template
+    * A shape list using `{:axis, n}` or `{:axis, n, input: k}` to
+      reference input dimensions dynamically
+
+  ## Options
+
+    * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
+    * `:type` - parameter type. Defaults to `{:f, 32}`.
+    * `:kind` - parameter kind. Defaults to `:parameter`.
+
+  ## Examples
+
+  A static shape:
+
+      parameter("kernel", {32, 64})
+
+  Using a function:
+
+      parameter("kernel", fn input ->
+        Nx.template({elem(Nx.shape(input), 1), 64}, Nx.type(input))
+      end)
+
+  Using the shape DSL:
+
+      parameter("kernel", [{:axis, -1}, 64])
+
+  With options:
+
+      parameter("kernel", {32, 64}, type: {:bf, 16}, initializer: :lecun_normal)
+
   """
   @doc type: :special
   def parameter(name, template, opts \\ [])
+
+  def parameter(name, shape, opts) when is_tuple(shape) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    {type, opts} = Keyword.pop!(opts, :type)
+
+    template = Nx.template(shape, type)
+    parameter(name, template, opts)
+  end
 
   def parameter(name, %Nx.Tensor{} = template, opts) do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter)
@@ -429,24 +467,40 @@ defmodule Axon do
   end
 
   def parameter(name, function, opts) when is_function(function) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter)
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: nil, kind: :parameter)
+    {type, opts} = Keyword.pop!(opts, :type)
     initializer = validate_initializer!(opts[:initializer])
     kind = opts[:kind] || :parameter
 
+    template =
+      if type do
+        {:arity, arity} = Function.info(function, :arity)
+
+        shape_fun(arity, fn templates ->
+          result = apply(function, List.wrap(templates))
+          Nx.template(Nx.shape(result), type)
+        end)
+      else
+        function
+      end
+
     %Axon.Parameter{
       name: name,
-      template: function,
+      template: template,
       initializer: initializer,
       kind: kind
     }
   end
 
   def parameter(name, shape_dsl, opts) when is_list(shape_dsl) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    {type, opts} = Keyword.pop!(opts, :type)
+
     if Enum.all?(shape_dsl, &is_integer/1) do
-      template = Nx.template(List.to_tuple(shape_dsl), {:f, 32})
+      template = Nx.template(List.to_tuple(shape_dsl), type)
       parameter(name, template, opts)
     else
-      template_fn = compile_shape_dsl(shape_dsl, {:f, 32})
+      template_fn = compile_shape_dsl(shape_dsl, type)
       parameter(name, template_fn, opts)
     end
   end
