@@ -533,7 +533,6 @@ defmodule Axon do
     opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
     {type, opts} = Keyword.pop(opts, :type, {:f, 32})
 
-    # If all elements are integers, treat it as a static shape (like tuples)
     if Enum.all?(shape_dsl, &is_integer/1) do
       template = Nx.template(List.to_tuple(shape_dsl), type)
       parameter(name, template, opts)
