@@ -2070,6 +2070,74 @@ defmodule Axon do
     )
   end
 
+  @doc ~S"""
+  Adds an RMS normalization layer to the network.
+
+  RMS normalization normalizes the input tensor using only the root
+  mean square, without centering by the mean. This is computationally
+  simpler than layer normalization while achieving similar results.
+
+  See `Axon.Layers.rms_norm/3` for more details.
+
+  $$y = \frac{x}{\sqrt{E[x^2] + \epsilon}} * (\text{shift} + \gamma)$$
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:gamma_initializer` - gamma parameter initializer. Defaults
+      to `:ones`.
+
+    * `:channel_index` - input feature index used for calculating
+      the root mean square. Defaults to `-1`.
+
+    * `:epsilon` - numerical stability term. Defaults to `1.0e-6`.
+
+    * `:shift` - numeric shift added to gamma before scaling.
+      Defaults to `0.0`.
+
+    * `:upcast` - adds explicit type casting to make sure the norm
+      is computed in high numerical precision. Either of:
+
+      * `:normalization` (default) - upcasts only the input normalization
+        part
+
+      * `:all` - upcasts both input normalization and the scaling
+        expression
+
+  ## References
+
+    * [Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)
+
+  """
+  @doc type: :normalization
+  def rms_norm(%Axon{} = x, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :meta,
+        gamma_initializer: :ones,
+        channel_index: -1,
+        epsilon: 1.0e-6,
+        shift: 0.0,
+        upcast: :normalization
+      ])
+
+    channel_index = opts[:channel_index]
+    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
+    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
+
+    layer(:rms_norm, [x, gamma],
+      name: opts[:name],
+      meta: opts[:meta],
+      epsilon: opts[:epsilon],
+      channel_index: channel_index,
+      shift: opts[:shift],
+      upcast: opts[:upcast],
+      op_name: :rms_norm
+    )
+  end
+
   @doc """
   Applies the given `Nx` expression to the input.
 

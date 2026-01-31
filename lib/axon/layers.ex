@@ -1302,6 +1302,101 @@ defmodule Axon.Layers do
   end
 
   @doc ~S"""
+  Functional implementation of RMS normalization.
+
+  Normalizes the input by calculating the root mean square of the
+  input tensor along the given feature dimension `:channel_index`.
+  Unlike layer normalization, RMS normalization does not center the
+  input by subtracting the mean.
+
+  $$y = \frac{x}{\sqrt{E[x^2] + \epsilon}} * (\text{shift} + \gamma)$$
+
+  `gamma` is often a trainable parameter. This method does not maintain
+  an EMA of variance.
+
+  ## Options
+
+    * `:epsilon` - numerical stability term. $\epsilon$ in the above
+      formulation. Defaults to `1.0e-6`.
+
+    * `:channel_index` - channel index used to determine reduction
+      axes for RMS calculation. Defaults to `-1`.
+
+    * `:shift` - numeric shift added to gamma before scaling.
+      Defaults to `0.0`.
+
+    * `:upcast` - controls type casting for numerical precision.
+      Either `:normalization` (default) to upcast only the normalization
+      part, or `:all` to upcast the entire computation.
+
+  ## References
+
+    * [Root Mean Square Layer Normalization](https://arxiv.org/abs/1910.07467)
+  """
+  @doc type: :normalization
+  defn rms_norm(input, gamma, opts \\ []) do
+    opts =
+      keyword!(opts,
+        epsilon: 1.0e-6,
+        channel_index: -1,
+        shift: 0.0,
+        upcast: :normalization,
+        mode: :inference
+      )
+
+    rms_norm_impl(input, gamma, opts)
+  end
+
+  deftransformp rms_norm_impl(input, gamma, opts) do
+    case opts[:upcast] do
+      :normalization ->
+        rms_norm_upcast_normalization(input, gamma, opts)
+
+      :all ->
+        rms_norm_upcast_all(input, gamma, opts)
+
+      other ->
+        raise ArgumentError,
+              "expected :upcast to be either :all or :normalization, got: #{inspect(other)}"
+    end
+  end
+
+  defnp rms_norm_upcast_normalization(input, gamma, opts) do
+    num_channels = Nx.axis_size(input, opts[:channel_index])
+    parameter_shape = norm_parameter_reshape(input, num_channels, opts[:channel_index])
+    gamma = Nx.reshape(gamma, parameter_shape)
+
+    normalized_input =
+      input
+      |> Nx.as_type(:f32)
+      |> rms_normalize(opts)
+      |> Nx.as_type(Nx.type(input))
+
+    normalized_input * (opts[:shift] + gamma)
+  end
+
+  defnp rms_norm_upcast_all(input, gamma, opts) do
+    num_channels = Nx.axis_size(input, opts[:channel_index])
+    parameter_shape = norm_parameter_reshape(input, num_channels, opts[:channel_index])
+    gamma = Nx.reshape(gamma, parameter_shape)
+
+    input = Nx.as_type(input, :f32)
+    gamma = Nx.as_type(gamma, :f32)
+
+    normalized_input = rms_normalize(input, opts)
+    normalized_input * (opts[:shift] + gamma)
+  end
+
+  defnp rms_normalize(input, opts) do
+    variance =
+      input
+      |> Nx.pow(2)
+      |> Nx.mean(axes: [opts[:channel_index]], keep_axes: true)
+
+    input * Nx.rsqrt(variance + opts[:epsilon])
+  end
+
+  @doc ~S"""
   Functional implementation of instance normalization.
 
   Normalizes the input by calculating mean and variance of the
