@@ -123,11 +123,8 @@ defmodule Axon.Quantization do
         |> Map.put(:units, units)
         |> Map.put(:use_bias, opts[:use_bias])
 
-    kernel_shape = &Axon.Shape.dense_kernel(&1, units)
-    bias_shape = &Axon.Shape.dense_bias(&1, units)
-
     kernel =
-      Axon.param("kernel", kernel_shape,
+      Axon.param("kernel", [{:axis, -1}, units],
         initializer: fn shape, type, key ->
           fun =
             case opts[:kernel_initializer] do
@@ -153,7 +150,7 @@ defmodule Axon.Quantization do
 
     {inputs, op} =
       if opts[:use_bias] do
-        bias = Axon.param("bias", bias_shape, initializer: opts[:bias_initializer])
+        bias = Axon.param("bias", [units], initializer: opts[:bias_initializer])
         {[x, kernel, bias], &Layers.weight_only_quantized_dense/4}
       else
         {[x, kernel], &Layers.weight_only_quantized_dense/3}

@@ -441,6 +441,51 @@ defmodule Axon do
     }
   end
 
+  def parameter(name, shape_dsl, opts) when is_list(shape_dsl) do
+    if Enum.all?(shape_dsl, &is_integer/1) do
+      template = Nx.template(List.to_tuple(shape_dsl), {:f, 32})
+      parameter(name, template, opts)
+    else
+      template_fn = compile_shape_dsl(shape_dsl, {:f, 32})
+      parameter(name, template_fn, opts)
+    end
+  end
+
+  defp compile_shape_dsl(shape_dsl, type) do
+    arity =
+      Enum.reduce(shape_dsl, 1, fn
+        {:axis, _n, [input: k]}, acc -> max(acc, k + 1)
+        _, acc -> acc
+      end)
+
+    shape_fn = fn shapes ->
+      shape_dsl
+      |> Enum.map(fn
+        {:axis, n} ->
+          shape = hd(shapes)
+          axis = normalize_axis(n, tuple_size(shape))
+          elem(shape, axis)
+
+        {:axis, n, [input: k]} ->
+          shape = Enum.at(shapes, k)
+          axis = normalize_axis(n, tuple_size(shape))
+          elem(shape, axis)
+
+        n when is_integer(n) ->
+          n
+      end)
+      |> List.to_tuple()
+    end
+
+    shape_fun(arity, fn templates ->
+      shapes = templates |> List.wrap() |> Enum.map(&Nx.shape/1)
+      Nx.template(shape_fn.(shapes), type)
+    end)
+  end
+
+  defp normalize_axis(axis, rank) when axis < 0, do: rank + axis
+  defp normalize_axis(axis, _rank), do: axis
+
   @doc """
   Trainable Axon parameter used to create custom layers.
 
@@ -482,6 +527,20 @@ defmodule Axon do
       end)
 
     parameter(name, template, opts)
+  end
+
+  def param(name, shape_dsl, opts) when is_binary(name) and is_list(shape_dsl) do
+    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    {type, opts} = Keyword.pop(opts, :type, {:f, 32})
+
+    # If all elements are integers, treat it as a static shape (like tuples)
+    if Enum.all?(shape_dsl, &is_integer/1) do
+      template = Nx.template(List.to_tuple(shape_dsl), type)
+      parameter(name, template, opts)
+    else
+      template_fn = compile_shape_dsl(shape_dsl, type)
+      parameter(name, template_fn, opts)
+    end
   end
 
   for i <- 0..128 do
@@ -861,14 +920,11 @@ defmodule Axon do
         |> Map.put(:units, units)
         |> Map.put(:use_bias, opts[:use_bias])
 
-    kernel_shape = &Axon.Shape.dense_kernel(&1, units)
-    bias_shape = &Axon.Shape.dense_bias(&1, units)
-
-    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
+    kernel = param("kernel", [{:axis, -1}, units], initializer: opts[:kernel_initializer])
 
     {inputs, op} =
       if opts[:use_bias] do
-        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        bias = param("bias", [units], initializer: opts[:bias_initializer])
         {[x, kernel, bias], :dense}
       else
         {[x, kernel], :dense}
@@ -934,14 +990,14 @@ defmodule Axon do
         use_bias: true
       ])
 
-    kernel_shape = &Axon.Shape.bilinear_kernel(&1, &2, units)
-    bias_shape = &Axon.Shape.bilinear_bias(&1, &2, units)
-
-    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
+    kernel =
+      param("kernel", [units, {:axis, -1, input: 0}, {:axis, -1, input: 1}],
+        initializer: opts[:kernel_initializer]
+      )
 
     {inputs, op} =
       if opts[:use_bias] do
-        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        bias = param("bias", [units], initializer: opts[:bias_initializer])
         {[input1, input2, kernel, bias], :bilinear}
       else
         {[input1, input2, kernel], :bilinear}
@@ -1028,13 +1084,12 @@ defmodule Axon do
     feature_group_size = opts[:feature_group_size]
 
     kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
-    bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, feature_group_size)
 
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     {inputs, op} =
       if opts[:use_bias] do
-        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        bias = param("bias", [units], initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv}
       else
         {[x, kernel], :conv}
@@ -1121,13 +1176,11 @@ defmodule Axon do
     channels = opts[:channels]
 
     kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
-    bias_shape = &Axon.Shape.conv_bias(&1, units, kernel_size, channels, 1)
-
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     {inputs, op} =
       if opts[:use_bias] do
-        bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+        bias = param("bias", [units], initializer: opts[:bias_initializer])
         {[x, kernel, bias], :conv_transpose}
       else
         {[x, kernel], :conv_transpose}
@@ -1935,16 +1988,11 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
-    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
-    mean_shape = &Axon.Shape.norm_param(&1, channel_index)
-    var_shape = &Axon.Shape.norm_param(&1, channel_index)
+    gamma = param("gamma", [{:axis, channel_index}], initializer: opts[:gamma_initializer])
+    beta = param("beta", [{:axis, channel_index}], initializer: opts[:beta_initializer])
 
-    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
-    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
-
-    mean = param("mean", mean_shape, initializer: :zeros, kind: :state)
-    var = param("var", var_shape, initializer: :ones, kind: :state)
+    mean = param("mean", [{:axis, channel_index}], initializer: :zeros, kind: :state)
+    var = param("var", [{:axis, channel_index}], initializer: :ones, kind: :state)
 
     layer(
       norm,
@@ -2003,11 +2051,8 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
-    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
-
-    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
-    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
+    gamma = param("gamma", [{:axis, channel_index}], initializer: opts[:gamma_initializer])
+    beta = param("beta", [{:axis, channel_index}], initializer: opts[:beta_initializer])
 
     layer(norm, [x, gamma, beta],
       name: opts[:name],
@@ -2054,11 +2099,8 @@ defmodule Axon do
 
     channel_index = opts[:channel_index]
 
-    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
-    beta_shape = &Axon.Shape.norm_param(&1, channel_index)
-
-    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
-    beta = param("beta", beta_shape, initializer: opts[:beta_initializer])
+    gamma = param("gamma", [{:axis, channel_index}], initializer: opts[:gamma_initializer])
+    beta = param("beta", [{:axis, channel_index}], initializer: opts[:beta_initializer])
 
     layer(:group_norm, [x, gamma, beta],
       name: opts[:name],
@@ -2124,8 +2166,7 @@ defmodule Axon do
       ])
 
     channel_index = opts[:channel_index]
-    gamma_shape = &Axon.Shape.norm_param(&1, channel_index)
-    gamma = param("gamma", gamma_shape, initializer: opts[:gamma_initializer])
+    gamma = param("gamma", [{:axis, channel_index}], initializer: opts[:gamma_initializer])
 
     layer(:rms_norm, [x, gamma],
       name: opts[:name],
@@ -2740,13 +2781,8 @@ defmodule Axon do
 
     hidden_state_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "lstm_#{op_counts[:lstm]}_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_hidden_state"
+        nil -> "lstm_{n}_hidden_state"
+        name when is_binary(name) -> "#{name}_hidden_state"
       end
 
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
@@ -2776,35 +2812,20 @@ defmodule Axon do
 
     new_c_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "lstm_#{op_counts[:lstm]}_c_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_c_hidden_state"
+        nil -> "lstm_{n}_c_hidden_state"
+        name when is_binary(name) -> "#{name}_c_hidden_state"
       end
 
     new_h_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "lstm_#{op_counts[:lstm]}_h_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_h_hidden_state"
+        nil -> "lstm_{n}_h_hidden_state"
+        name when is_binary(name) -> "#{name}_h_hidden_state"
       end
 
     output_sequence_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "lstm_#{op_counts[:lstm]}_output_sequence"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_output_sequence"
+        nil -> "lstm_{n}_output_sequence"
+        name when is_binary(name) -> "#{name}_output_sequence"
       end
 
     output_sequence =
@@ -2975,13 +2996,8 @@ defmodule Axon do
 
     hidden_state_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "gru_#{op_counts[:gru]}_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_hidden_state"
+        nil -> "gru_{n}_hidden_state"
+        name when is_binary(name) -> "#{name}_hidden_state"
       end
 
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
@@ -3036,24 +3052,14 @@ defmodule Axon do
 
     new_h_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "gru_#{op_counts[:gru]}_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_hidden_state"
+        nil -> "gru_{n}_hidden_state"
+        name when is_binary(name) -> "#{name}_hidden_state"
       end
 
     output_sequence_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "gru_#{op_counts[:gru]}_output_sequence"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_output_sequence"
+        nil -> "gru_{n}_output_sequence"
+        name when is_binary(name) -> "#{name}_output_sequence"
       end
 
     output_sequence =
@@ -3192,13 +3198,8 @@ defmodule Axon do
 
     hidden_state_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "conv_lstm_#{op_counts[:conv_lstm]}_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_hidden_state"
+        nil -> "conv_lstm_{n}_hidden_state"
+        name when is_binary(name) -> "#{name}_hidden_state"
       end
 
     hidden_state = Axon.container(hidden_state, name: hidden_state_name)
@@ -3228,35 +3229,20 @@ defmodule Axon do
 
     new_c_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "conv_lstm_#{op_counts[:lstm]}_c_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_c_hidden_state"
+        nil -> "conv_lstm_{n}_c_hidden_state"
+        name when is_binary(name) -> "#{name}_c_hidden_state"
       end
 
     new_h_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "conv_lstm_#{op_counts[:lstm]}_h_hidden_state"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_h_hidden_state"
+        nil -> "conv_lstm_{n}_h_hidden_state"
+        name when is_binary(name) -> "#{name}_h_hidden_state"
       end
 
     output_sequence_name =
       case opts[:name] do
-        nil ->
-          fn _, op_counts ->
-            "conv_lstm_#{op_counts[:lstm]}_output_sequence"
-          end
-
-        name when is_binary(name) ->
-          "#{name}_output_sequence"
+        nil -> "conv_lstm_{n}_output_sequence"
+        name when is_binary(name) -> "#{name}_output_sequence"
       end
 
     output_sequence =
@@ -3292,14 +3278,8 @@ defmodule Axon do
 
     name =
       case parent_name do
-        nil ->
-          fn _, op_counts ->
-            count = op_counts[rnn_type] || 0
-            "#{Atom.to_string(rnn_type)}_#{count}_#{state_name}_hidden_state"
-          end
-
-        parent_name when is_binary(parent_name) ->
-          "#{parent_name}_#{state_name}_hidden_state"
+        nil -> "#{Atom.to_string(rnn_type)}_{n}_#{state_name}_hidden_state"
+        parent_name when is_binary(parent_name) -> "#{parent_name}_#{state_name}_hidden_state"
       end
 
     initializer =
@@ -3365,9 +3345,7 @@ defmodule Axon do
   def embedding(%Axon{} = x, vocab_size, embedding_size, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, :meta, kernel_initializer: :uniform])
 
-    kernel_shape = &Axon.Shape.embedding_kernel(&1, vocab_size, embedding_size)
-
-    kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
+    kernel = param("kernel", [vocab_size, embedding_size], initializer: opts[:kernel_initializer])
 
     layer(:embedding, [x, kernel], name: opts[:name], meta: opts[:meta], op_name: :embedding)
   end
@@ -3389,8 +3367,7 @@ defmodule Axon do
   def bias(%Axon{} = x, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, :meta, bias_initializer: :zeros])
 
-    bias_shape = fn shape -> {elem(shape, tuple_size(shape) - 1)} end
-    bias = param("bias", bias_shape, initializer: opts[:bias_initializer])
+    bias = param("bias", [{:axis, -1}], initializer: opts[:bias_initializer])
 
     layer(:bias, [x, bias], name: opts[:name], meta: opts[:meta], op_name: :bias)
   end
@@ -4259,7 +4236,14 @@ defmodule Axon do
   end
 
   defp name(_type, name) when is_binary(name) do
-    fn _, _ -> name end
+    if String.contains?(name, "{n}") do
+      fn op, op_counts ->
+        count = op_counts[op] || 0
+        String.replace(name, "{n}", Integer.to_string(count))
+      end
+    else
+      fn _, _ -> name end
+    end
   end
 
   defp name(_type, name) do
