@@ -82,7 +82,7 @@ predict_fn.(params :: map(tensor), input :: map(tensor) | tensor)
 `predict_fn` returns transformed inputs from your model's trainable parameters and the given inputs.
 
 ```elixir
-params = init_fn.(Nx.template({1, 8}, :f32), %Axon.ModelState{})
+params = init_fn.(Nx.template({1, 8}, :f32), Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
