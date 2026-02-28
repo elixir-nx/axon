@@ -686,13 +686,18 @@ defmodule Axon.Initializers do
 
     {m, n} = get_flat_shape(shape)
 
+    # Generate a square random matrix of size max(m, n) so QR
+    # produces enough orthogonal columns for wide matrices
+    # (e.g. LSTM weights shaped {hidden, 4*hidden})
+    k = max(m, n)
+
     random_seed =
       case distribution do
         :uniform ->
-          Nx.Random.uniform_split(key, 0.0, 1.0, shape: {m, n}, type: type)
+          Nx.Random.uniform_split(key, 0.0, 1.0, shape: {k, k}, type: type)
 
         :normal ->
-          Nx.Random.normal_split(key, 0.0, 1.0, shape: {m, n}, type: type)
+          Nx.Random.normal_split(key, 0.0, 1.0, shape: {k, k}, type: type)
 
         dist ->
           raise ArgumentError,

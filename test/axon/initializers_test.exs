@@ -164,6 +164,31 @@ defmodule Axon.InitializersTest do
       )
     end
 
+    test "works with wide matrices (n > m, e.g. LSTM/GRU weights)" do
+      init_fn = Axon.Initializers.orthogonal()
+
+      # Wide matrix like LSTM kernel {hidden, 4*hidden}
+      # Using small dims to keep QR fast on BinaryBackend
+      t = init_fn.({8, 32}, {:f, 32}, Nx.Random.key(1))
+      assert Nx.shape(t) == {8, 32}
+
+      # Rows should be orthonormal: t * t^T = I
+      identity = t |> Nx.dot(Nx.transpose(t))
+
+      assert_all_close(identity, Nx.eye(Nx.shape(identity)),
+        atol: 1.0e-3,
+        rtol: 1.0e-3
+      )
+    end
+
+    test "works with wide high-rank shapes" do
+      init_fn = Axon.Initializers.orthogonal()
+
+      # Shape that flattens to wide: {2, 3} -> {2, 3} where n > m
+      t = init_fn.({2, 8}, {:f, 32}, Nx.Random.key(1))
+      assert Nx.shape(t) == {2, 8}
+    end
+
     test "raises on input rank less than 2" do
       assert_raise ArgumentError,
                    ~r/Axon.Initializers.orthogonal: expected input_shape shape to have at least rank 2/,
