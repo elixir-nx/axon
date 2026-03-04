@@ -689,6 +689,8 @@ defmodule Axon.Initializers do
     # Generate a square random matrix of size max(m, n) so QR
     # produces enough orthogonal columns for wide matrices
     # (e.g. LSTM weights shaped {hidden, 4*hidden})
+    # This is because mode: :complete returns Q {m, m} for an {m, n} tensor.
+    # mode: :reduced return Q {m, min(m, n)}
     k = max(m, n)
 
     random_seed =

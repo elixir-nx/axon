@@ -173,7 +173,7 @@ defmodule Axon.InitializersTest do
       assert Nx.shape(t) == {8, 32}
 
       # Rows should be orthonormal: t * t^T = I
-      identity = t |> Nx.dot(Nx.transpose(t))
+      identity = Nx.dot(t, 1, t, 1)
 
       assert_all_close(identity, Nx.eye(Nx.shape(identity)),
         atol: 1.0e-3,
