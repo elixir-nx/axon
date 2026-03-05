@@ -28,5 +28,5 @@ Axon is a library for creating and training neural networks in Elixir. The Axon 
 
 ## Serialization
 
-* [Converting ONNX models to Axon](serialization/onnx_to_axon.livemd) 
+* [Saving and loading models](serialization/saving_and_loading.livemd)
 

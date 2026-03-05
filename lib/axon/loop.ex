@@ -1511,7 +1511,7 @@ defmodule Axon.Loop do
 
   It is the opposite of `Axon.Loop.serialize_state/2`.
 
-  By default, the step state is deserialized using `Nx.deserialize.2`;
+  By default, the step state is deserialized using `Nx.deserialize/2`;
   however, this behavior can be changed if step state is an application
   specific container. For example, if you introduce your own data
   structure into step_state and you customized the serialization logic,
