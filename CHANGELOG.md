@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.9.0 (2026-03-11)
+
+### Bug Fixes
+
+* Axon.Shared.normalize logic error when calculating the scale
+* Orthogonal initializer now handles wide shapes
+
+### Enhancements
+
+* `rms_norm` layer
+* Parameter shape and name conveniences
+* Documentation improvements
+
 ## v0.8.0 (2025-11-14)
 
 ### Bug Fixes
