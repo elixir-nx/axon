@@ -15,6 +15,10 @@
 
 ## v0.7.0 (2024-10-08)
 
+### Breaking Changes
+
+* **Removed `Axon.serialize/2` and `Axon.deserialize/2`** — Use `Nx.serialize/2` and `Nx.deserialize/2` for parameters instead. Axon recommends serializing only the trained parameters (weights) and keeping the model definition in code. See the [Saving and Loading](guides/serialization/saving_and_loading.livemd) guide.
+
 ### Bug Fixes
 
 * Do not cast integers in in Axon.MixedPrecision.cast/2
