@@ -10,6 +10,7 @@ defmodule Axon.MixProject do
       version: @version,
       name: "Axon",
       elixir: "~> 1.13",
+      cli: cli(),
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       docs: docs(),
@@ -20,8 +21,10 @@ defmodule Axon.MixProject do
 
   def cli do
     [
-      docs: :docs,
-      "hex.publish": :docs
+      preferred_envs: [
+        docs: :docs,
+        "hex.publish": :docs
+      ]
     ]
   end
 
