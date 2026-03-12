@@ -5,16 +5,16 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.34.2">
-    <meta name="project" content="Axon v0.7.0">
+    <meta name="project" content="Axon v0.8.1">
 
 
-    <title>Axon.ModelState — Axon v0.7.0</title>
+    <title>Axon.ModelState — Axon v0.8.1</title>
     <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
 
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
     <script src="dist/handlebars.templates-K7URE6B4.js"></script>
-    <script src="dist/sidebar_items-02629AA9.js"></script>
+    <script src="dist/sidebar_items-B53E3CCB.js"></script>
     <script src="docs_config.js"></script>
     <script async src="dist/html-YIPIRHGU.js"></script>
 
@@ -54,7 +54,7 @@
 Axon
         </a>
         <div class="sidebar-projectVersion" translate="no">
-          v0.7.0
+          v0.8.1
         </div>
       </div>
     </div>
@@ -116,13 +116,13 @@ Pages
 <div id="top-content">
   <h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L1" title="View Source" class="icon-action" rel="help">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L1" title="View Source" class="icon-action" rel="help">
         <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         <span class="sr-only">View Source</span>
       </a>
 
     <span translate="no">Axon.ModelState</span> 
-    <small class="app-vsn" translate="no">(Axon v0.7.0)</small>
+    <small class="app-vsn" translate="no">(Axon v0.8.1)</small>
 
   </h1>
 
@@ -271,7 +271,7 @@ using the given mask.</p></div>
     </a>
     <h1 class="signature" translate="no">empty()</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L173" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L173" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -295,7 +295,7 @@ using the given mask.</p></div>
     </a>
     <h1 class="signature" translate="no">freeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L68" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L68" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -309,10 +309,10 @@ using the given mask.</p></div>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be frozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="1544245040-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="1544245040-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="1544245040-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="1544245040-3">(</span><span class="n">n</span><span class="p" data-group-id="1544245040-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="3276844170-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="3276844170-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="3276844170-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="3276844170-3">(</span><span class="n">n</span><span class="p" data-group-id="3276844170-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="1544245040-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="3276844170-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 freezing the entire model.</p>
   </section>
 </section>
@@ -325,7 +325,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">frozen_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L146" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L146" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -347,7 +347,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">frozen_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L164" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L164" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -369,7 +369,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">merge(lhs, model_state, fun)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L43" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L43" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -391,7 +391,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">new(data)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L181" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L181" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -414,7 +414,7 @@ map.</p>
     </a>
     <h1 class="signature" translate="no">trainable_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L133" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L133" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -436,7 +436,7 @@ map.</p>
     </a>
     <h1 class="signature" translate="no">trainable_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L155" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L155" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -460,7 +460,7 @@ map.</p>
     </a>
     <h1 class="signature" translate="no">unfreeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L106" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L106" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -474,10 +474,10 @@ map.</p>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be unfrozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="4013043447-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="4013043447-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4013043447-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="9241610096-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="9241610096-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="9241610096-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="4013043447-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="9241610096-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 unfreezing the entire model.</p>
   </section>
 </section>
@@ -492,7 +492,7 @@ unfreezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">update(model_state, updated_parameters, updated_state \\ %{})</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.7.0/lib/axon/model_state.ex#L19" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L19" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -513,9 +513,9 @@ unfreezing the entire model.</p>
       <p>
 
           <span class="line">
-            <a href="https://hex.pm/packages/axon/0.7.0" class="footer-hex-package">Hex Package</a>
+            <a href="https://hex.pm/packages/axon/0.8.1" class="footer-hex-package">Hex Package</a>
 
-            <a href="https://preview.hex.pm/preview/axon/0.7.0">Hex Preview</a>
+            <a href="https://preview.hex.pm/preview/axon/0.8.1">Hex Preview</a>
 
           </span>
 

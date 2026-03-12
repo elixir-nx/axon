@@ -8,6 +8,7 @@
 /home/runner/work/axon/axon/doc/horses_or_humans.livemd
 /home/runner/work/axon/axon/doc/instrumenting_loops_with_metrics.livemd
 /home/runner/work/axon/axon/doc/lstm_generation.livemd
+/home/runner/work/axon/axon/doc/metric-learning.livemd
 /home/runner/work/axon/axon/doc/mnist.livemd
 /home/runner/work/axon/axon/doc/mnist_autoencoder_using_kino.livemd
 /home/runner/work/axon/axon/doc/model_hooks.livemd
@@ -44,6 +45,7 @@ Axon.html
 accelerating_axon.html
 api-reference.html
 assets/logo.png
+axon_pytorch.html
 complex_models.html
 credit_card_fraud.html
 custom_layers.html
@@ -65,8 +67,8 @@ dist/lato-latin-ext-300-normal-VPGGJKJL.woff2
 dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/remixicon-NKANDIL5.woff2
-dist/search_data-3D42ECD7.js
-dist/sidebar_items-02629AA9.js
+dist/search_data-08F06D76.js
+dist/sidebar_items-B53E3CCB.js
 fashionmnist_autoencoder.html
 fashionmnist_vae.html
 guides.html
@@ -74,6 +76,7 @@ horses_or_humans.html
 index.html
 instrumenting_loops_with_metrics.html
 lstm_generation.html
+metric-learning.html
 mnist.html
 mnist_autoencoder_using_kino.html
 model_hooks.html
