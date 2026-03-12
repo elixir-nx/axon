@@ -10,6 +10,7 @@ defmodule Axon.MixProject do
       version: @version,
       name: "Axon",
       elixir: "~> 1.13",
+      cli: cli(),
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       docs: docs(),
@@ -20,8 +21,10 @@ defmodule Axon.MixProject do
 
   def cli do
     [
-      docs: :docs,
-      "hex.publish": :docs
+      preferred_envs: [
+        docs: :docs,
+        "hex.publish": :docs
+      ]
     ]
   end
 
@@ -108,6 +111,7 @@ defmodule Axon.MixProject do
         "guides/training_and_evaluation/writing_custom_metrics.livemd",
         "guides/training_and_evaluation/writing_custom_event_handlers.livemd",
         "guides/serialization/onnx_to_axon.livemd",
+        "guides/serialization/saving_and_loading.livemd",
         "guides/cheatsheets/axon_pytorch.cheatmd",
         # Examples
         "notebooks/basics/xor.livemd",
