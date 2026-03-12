@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.34.2">
+    <meta name="project" content="Axon v0.8.1">
+
+
+    <title>Saving and Loading Models — Axon v0.8.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
+
+
+    <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
+    <script src="dist/handlebars.templates-K7URE6B4.js"></script>
+    <script src="dist/sidebar_items-0F952FCA.js"></script>
+    <script src="docs_config.js"></script>
+    <script async src="dist/html-YIPIRHGU.js"></script>
+
+  </head>
+  <body data-type="extras" class="page-livemd">
+    <script>
+
+      try {
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
+        }
+      } catch (error) { }
+    </script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
+
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
+Axon
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.8.1
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
+
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
+
+
+    </ul>
+  </div>
+
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
+
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
+  <output role="status" id="toast"></output>
+
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Axon</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+          </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/guides/serialization/saving_and_loading.livemd#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+
+    <span>Saving and Loading Models</span>
+  </h1>
+
+    <div class="livebook-badge-container">
+      <a href="#" class="livebook-badge">
+        <img src="https://livebook.dev/badge/v1/blue.svg" alt="Run in Livebook" width="150" />
+      </a>
+    </div>
+
+<h2 id="section" class="section-heading">
+  <a href="#section" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Section</span>
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="nc">Mix</span><span class="o">.</span><span class="n">install</span><span class="p" data-group-id="1100002825-1">(</span><span class="p" data-group-id="1100002825-2">[</span><span class="w">
+  </span><span class="p" data-group-id="1100002825-3">{</span><span class="ss">:axon</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.8&quot;</span><span class="p" data-group-id="1100002825-3">}</span><span class="w">
+</span><span class="p" data-group-id="1100002825-2">]</span><span class="p" data-group-id="1100002825-1">)</span></code></pre><h2 id="overview" class="section-heading">
+  <a href="#overview" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Overview</span>
+</h2>
+<p>Axon recommends a <strong>parameters-only</strong> approach to saving models: serialize only the trained parameters (weights) using <a href="https://hexdocs.pm/nx/0.10.0/Nx.html#serialize/2"><code class="inline">Nx.serialize/2</code></a> and <a href="https://hexdocs.pm/nx/0.10.0/Nx.html#deserialize/2"><code class="inline">Nx.deserialize/2</code></a>, and keep the model definition in your code. This approach:</p><ul><li>Avoids serialization issues with anonymous functions and complex model structures</li><li>Makes the model structure explicit and version-controlled in code</li><li>Works reliably across processes and deployments</li></ul><p>The model itself is just code, you define it once and reuse it. Only the learned parameters need to be persisted.</p><h2 id="saving-a-model-after-training" class="section-heading">
+  <a href="#saving-a-model-after-training" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Saving a Model After Training</span>
+</h2>
+<p>When you run a training loop, it returns the trained model state by default. Extract the parameters and serialize them:</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="4415908129-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="4415908129-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="4415908129-2">(</span><span class="mi">8</span><span class="p" data-group-id="4415908129-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="4415908129-3">(</span><span class="p" data-group-id="4415908129-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="4415908129-4">(</span><span class="mi">4</span><span class="p" data-group-id="4415908129-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="4415908129-5">(</span><span class="p" data-group-id="4415908129-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="4415908129-6">(</span><span class="mi">1</span><span class="p" data-group-id="4415908129-6">)</span><span class="w">
+
+</span><span class="n">loop</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="4415908129-7">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="ss">:mean_squared_error</span><span class="p">,</span><span class="w"> </span><span class="ss">:sgd</span><span class="p" data-group-id="4415908129-7">)</span><span class="w">
+
+</span><span class="n">train_data</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Stream</span><span class="o">.</span><span class="n">repeatedly</span><span class="p" data-group-id="4415908129-8">(</span><span class="k" data-group-id="4415908129-9">fn</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="p" data-group-id="4415908129-10">{</span><span class="n">xs</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="4415908129-10">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx.Random</span><span class="o">.</span><span class="n">key</span><span class="p" data-group-id="4415908129-11">(</span><span class="nc">System</span><span class="o">.</span><span class="n">unique_integer</span><span class="p" data-group-id="4415908129-12">(</span><span class="p" data-group-id="4415908129-13">[</span><span class="ss">:positive</span><span class="p" data-group-id="4415908129-13">]</span><span class="p" data-group-id="4415908129-12">)</span><span class="p" data-group-id="4415908129-11">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx.Random</span><span class="o">.</span><span class="n">normal</span><span class="p" data-group-id="4415908129-14">(</span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4415908129-15">{</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="4415908129-15">}</span><span class="p" data-group-id="4415908129-14">)</span><span class="w">
+    </span><span class="p" data-group-id="4415908129-16">{</span><span class="n">xs</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">sin</span><span class="p" data-group-id="4415908129-17">(</span><span class="n">xs</span><span class="p" data-group-id="4415908129-17">)</span><span class="p" data-group-id="4415908129-16">}</span><span class="w">
+  </span><span class="k" data-group-id="4415908129-9">end</span><span class="p" data-group-id="4415908129-8">)</span><span class="w">
+
+</span><span class="n">trained_model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="4415908129-18">(</span><span class="n">loop</span><span class="p">,</span><span class="w"> </span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">empty</span><span class="p" data-group-id="4415908129-19">(</span><span class="p" data-group-id="4415908129-19">)</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="ss">iterations</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p" data-group-id="4415908129-18">)</span></code></pre><p>The training loop returns <code class="inline">model_state</code> by default (from <a href="Axon.Loop.html#trainer/3"><code class="inline">Axon.Loop.trainer/3</code></a>). For inference, we need the parameters—extract the <code class="inline">data</code> field from <code class="inline">ModelState</code>:</p><pre><code class="makeup elixir" translate="no"><span class="c1"># Extract parameters - trained_model_state.data contains the nested map of weights</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">trained_model_state</span><span class="o">.</span><span class="n">data</span><span class="w">
+
+</span><span class="c1"># Serialize and save</span><span class="w">
+</span><span class="n">params_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">serialize</span><span class="p" data-group-id="2156759970-1">(</span><span class="n">params</span><span class="p" data-group-id="2156759970-1">)</span><span class="w">
+</span><span class="nc">File</span><span class="o">.</span><span class="n">write!</span><span class="p" data-group-id="2156759970-2">(</span><span class="s">&quot;model_params.axon&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">params_bytes</span><span class="p" data-group-id="2156759970-2">)</span></code></pre><h2 id="loading-a-model-for-inference" class="section-heading">
+  <a href="#loading-a-model-for-inference" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Loading a Model for Inference</span>
+</h2>
+<p>To load and run inference, you need:</p><ol><li>The model definition (in code—the same structure you trained)</li><li>The saved parameters</li></ol><pre><code class="makeup elixir" translate="no"><span class="c1"># 1. Define the same model structure (must match training)</span><span class="w">
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="2179436144-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="2179436144-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2179436144-2">(</span><span class="mi">8</span><span class="p" data-group-id="2179436144-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="2179436144-3">(</span><span class="p" data-group-id="2179436144-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2179436144-4">(</span><span class="mi">4</span><span class="p" data-group-id="2179436144-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="2179436144-5">(</span><span class="p" data-group-id="2179436144-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="2179436144-6">(</span><span class="mi">1</span><span class="p" data-group-id="2179436144-6">)</span><span class="w">
+
+</span><span class="c1"># 2. Load parameters</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="2179436144-7">(</span><span class="s">&quot;model_params.axon&quot;</span><span class="p" data-group-id="2179436144-7">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">deserialize</span><span class="p" data-group-id="2179436144-8">(</span><span class="p" data-group-id="2179436144-8">)</span><span class="w">
+
+</span><span class="c1"># 3. Run inference</span><span class="w">
+</span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">tensor</span><span class="p" data-group-id="2179436144-9">(</span><span class="p" data-group-id="2179436144-10">[</span><span class="p" data-group-id="2179436144-11">[</span><span class="mf">1.0</span><span class="p" data-group-id="2179436144-11">]</span><span class="p" data-group-id="2179436144-10">]</span><span class="p" data-group-id="2179436144-9">)</span><span class="w">  </span><span class="c1"># shape {1, 1}: 1 sample with 1 feature (matches model input)</span><span class="w">
+</span><span class="nc">Axon</span><span class="o">.</span><span class="n">predict</span><span class="p" data-group-id="2179436144-12">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2179436144-13">%{</span><span class="s">&quot;data&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">input</span><span class="p" data-group-id="2179436144-13">}</span><span class="p" data-group-id="2179436144-12">)</span></code></pre><h2 id="checkpointing-during-training" class="section-heading">
+  <a href="#checkpointing-during-training" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Checkpointing During Training</span>
+</h2>
+<p>To save checkpoints during training (e.g., every epoch or when validation improves), use <a href="Axon.Loop.html#checkpoint/2"><code class="inline">Axon.Loop.checkpoint/2</code></a>. This serializes the full loop state—including model parameters and optimizer state—so you can resume training later.</p><pre><code class="makeup elixir" translate="no"><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="8965497681-1">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="8965497681-1">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8965497681-2">(</span><span class="mi">8</span><span class="p" data-group-id="8965497681-2">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="8965497681-3">(</span><span class="p" data-group-id="8965497681-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="8965497681-4">(</span><span class="mi">1</span><span class="p" data-group-id="8965497681-4">)</span><span class="w">
+
+</span><span class="n">loop</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="8965497681-5">(</span><span class="ss">:mean_squared_error</span><span class="p">,</span><span class="w"> </span><span class="ss">:sgd</span><span class="p" data-group-id="8965497681-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">checkpoint</span><span class="p" data-group-id="8965497681-6">(</span><span class="ss">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;checkpoints&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">event</span><span class="p">:</span><span class="w"> </span><span class="ss">:epoch_completed</span><span class="p" data-group-id="8965497681-6">)</span><span class="w">
+
+</span><span class="n">train_data</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Stream</span><span class="o">.</span><span class="n">repeatedly</span><span class="p" data-group-id="8965497681-7">(</span><span class="k" data-group-id="8965497681-8">fn</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="p" data-group-id="8965497681-9">{</span><span class="n">xs</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="8965497681-9">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Nx.Random</span><span class="o">.</span><span class="n">key</span><span class="p" data-group-id="8965497681-10">(</span><span class="nc">System</span><span class="o">.</span><span class="n">unique_integer</span><span class="p" data-group-id="8965497681-11">(</span><span class="p" data-group-id="8965497681-12">[</span><span class="ss">:positive</span><span class="p" data-group-id="8965497681-12">]</span><span class="p" data-group-id="8965497681-11">)</span><span class="p" data-group-id="8965497681-10">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx.Random</span><span class="o">.</span><span class="n">normal</span><span class="p" data-group-id="8965497681-13">(</span><span class="ss">shape</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8965497681-14">{</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="8965497681-14">}</span><span class="p" data-group-id="8965497681-13">)</span><span class="w">
+    </span><span class="p" data-group-id="8965497681-15">{</span><span class="n">xs</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">sin</span><span class="p" data-group-id="8965497681-16">(</span><span class="n">xs</span><span class="p" data-group-id="8965497681-16">)</span><span class="p" data-group-id="8965497681-15">}</span><span class="w">
+  </span><span class="k" data-group-id="8965497681-8">end</span><span class="p" data-group-id="8965497681-7">)</span><span class="w">
+
+</span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="8965497681-17">(</span><span class="n">loop</span><span class="p">,</span><span class="w"> </span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">empty</span><span class="p" data-group-id="8965497681-18">(</span><span class="p" data-group-id="8965497681-18">)</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="ss">iterations</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p" data-group-id="8965497681-17">)</span></code></pre><p>Checkpoints are saved to the <code class="inline">checkpoints/</code> directory, as configured above. Each file contains the serialized loop state from <a href="Axon.Loop.html#serialize_state/2"><code class="inline">Axon.Loop.serialize_state/2</code></a>.</p><h2 id="resuming-from-a-checkpoint" class="section-heading">
+  <a href="#resuming-from-a-checkpoint" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Resuming from a Checkpoint</span>
+</h2>
+<p>To resume training from a saved checkpoint:</p><ol><li>Load the checkpoint with <a href="Axon.Loop.html#deserialize_state/2"><code class="inline">Axon.Loop.deserialize_state/2</code></a></li><li>Attach it to your loop with <a href="Axon.Loop.html#from_state/2"><code class="inline">Axon.Loop.from_state/2</code></a></li><li>Run the loop as usual</li></ol><pre><code class="makeup elixir" translate="no"><span class="c1"># Load the checkpoint (use the path from your checkpoint files)</span><span class="w">
+</span><span class="n">checkpoint_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;checkpoints/checkpoint_2_50.ckpt&quot;</span><span class="w">
+</span><span class="n">serialized</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="7917182432-1">(</span><span class="n">checkpoint_path</span><span class="p" data-group-id="7917182432-1">)</span><span class="w">
+</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">deserialize_state</span><span class="p" data-group-id="7917182432-2">(</span><span class="n">serialized</span><span class="p" data-group-id="7917182432-2">)</span><span class="w">
+
+</span><span class="c1"># Resume training</span><span class="w">
+</span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">Axon</span><span class="o">.</span><span class="n">input</span><span class="p" data-group-id="7917182432-3">(</span><span class="s">&quot;data&quot;</span><span class="p" data-group-id="7917182432-3">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7917182432-4">(</span><span class="mi">8</span><span class="p" data-group-id="7917182432-4">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">relu</span><span class="p" data-group-id="7917182432-5">(</span><span class="p" data-group-id="7917182432-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon</span><span class="o">.</span><span class="n">dense</span><span class="p" data-group-id="7917182432-6">(</span><span class="mi">1</span><span class="p" data-group-id="7917182432-6">)</span><span class="w">
+
+</span><span class="n">loop</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="n">model</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">trainer</span><span class="p" data-group-id="7917182432-7">(</span><span class="ss">:mean_squared_error</span><span class="p">,</span><span class="w"> </span><span class="ss">:sgd</span><span class="p" data-group-id="7917182432-7">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">from_state</span><span class="p" data-group-id="7917182432-8">(</span><span class="n">state</span><span class="p" data-group-id="7917182432-8">)</span><span class="w">
+
+</span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="7917182432-9">(</span><span class="n">loop</span><span class="p">,</span><span class="w"> </span><span class="n">train_data</span><span class="p">,</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">empty</span><span class="p" data-group-id="7917182432-10">(</span><span class="p" data-group-id="7917182432-10">)</span><span class="p">,</span><span class="w"> </span><span class="ss">epochs</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="ss">iterations</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="p" data-group-id="7917182432-9">)</span></code></pre><h2 id="saving-only-parameters-from-a-checkpoint" class="section-heading">
+  <a href="#saving-only-parameters-from-a-checkpoint" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Saving Only Parameters from a Checkpoint</span>
+</h2>
+<p>If you have a checkpoint file and want to extract parameters for inference (without optimizer state):</p><pre><code class="makeup elixir" translate="no"><span class="n">checkpoint_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;checkpoints/checkpoint_2_50.ckpt&quot;</span><span class="w">
+</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">File</span><span class="o">.</span><span class="n">read!</span><span class="p" data-group-id="2820855401-1">(</span><span class="n">checkpoint_path</span><span class="p" data-group-id="2820855401-1">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Axon.Loop</span><span class="o">.</span><span class="n">deserialize_state</span><span class="p" data-group-id="2820855401-2">(</span><span class="p" data-group-id="2820855401-2">)</span><span class="w">
+
+</span><span class="c1"># Extract model parameters from step_state</span><span class="w">
+</span><span class="p" data-group-id="2820855401-3">%{</span><span class="ss">model_state</span><span class="p">:</span><span class="w"> </span><span class="n">model_state</span><span class="p" data-group-id="2820855401-3">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="o">.</span><span class="n">step_state</span><span class="w">
+</span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">model_state</span><span class="o">.</span><span class="n">data</span><span class="w">
+
+</span><span class="c1"># Save for inference</span><span class="w">
+</span><span class="nc">File</span><span class="o">.</span><span class="n">write!</span><span class="p" data-group-id="2820855401-4">(</span><span class="s">&quot;model_params.axon&quot;</span><span class="p">,</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">serialize</span><span class="p" data-group-id="2820855401-5">(</span><span class="n">params</span><span class="p" data-group-id="2820855401-5">)</span><span class="p" data-group-id="2820855401-4">)</span></code></pre><h2 id="summary" class="section-heading">
+  <a href="#summary" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Summary</span>
+</h2>
+<table><thead><tr><th style="text-align: left;">Use Case</th><th style="text-align: left;">Save</th><th style="text-align: left;">Load</th></tr></thead><tbody><tr><td style="text-align: left;">Inference only</td><td style="text-align: left;"><code class="inline">Nx.serialize(params)</code> → file</td><td style="text-align: left;"><code class="inline">Nx.deserialize(file)</code> + model in code</td></tr><tr><td style="text-align: left;">Checkpoint (resume training)</td><td style="text-align: left;"><a href="Axon.Loop.html#checkpoint/2"><code class="inline">Axon.Loop.checkpoint/2</code></a> or <a href="Axon.Loop.html#serialize_state/2"><code class="inline">Axon.Loop.serialize_state/2</code></a></td><td style="text-align: left;"><a href="Axon.Loop.html#deserialize_state/2"><code class="inline">Axon.Loop.deserialize_state/2</code></a> + <a href="Axon.Loop.html#from_state/2"><code class="inline">Axon.Loop.from_state/2</code></a></td></tr><tr><td style="text-align: left;">Extract params from checkpoint</td><td style="text-align: left;"><code class="inline">state.step_state.model_state.data</code> → <code class="inline">Nx.serialize</code></td><td style="text-align: left;">Use with model in code</td></tr></tbody></table>
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="onnx_to_axon.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+Converting ONNX models to Axon
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="xor.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Modeling XOR with a neural network
+        </span>
+      </a>
+
+  </div>
+</div>
+    <footer class="footer">
+      <p>
+
+          <span class="line">
+            <a href="https://hex.pm/packages/axon/0.8.1" class="footer-hex-package">Hex Package</a>
+
+            <a href="https://preview.hex.pm/preview/axon/0.8.1">Hex Preview</a>
+
+              (<a href="https://preview.hex.pm/preview/axon/0.8.1/show/guides/serialization/saving_and_loading.livemd">current file</a>)
+
+          </span>
+
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
+
+            <a href="Axon.epub" title="ePub version">
+              Download ePub version
+            </a>
+
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.34.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
+  </div>
+</main>
+</div>
+<!-- Render math with KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+      ]
+    });
+  });
+</script>
+
+<!-- Render diagrams with Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@8.13.3/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    mermaid.initialize({ startOnLoad: false });
+    let id = 0;
+    for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+      const preEl = codeEl.parentElement;
+      const graphDefinition = codeEl.textContent;
+      const graphEl = document.createElement("div");
+      const graphId = "mermaid-graph-" + id++;
+      mermaid.render(graphId, graphDefinition, function (svgSource, bindListeners) {
+        graphEl.innerHTML = svgSource;
+        bindListeners && bindListeners(graphEl);
+        preEl.insertAdjacentElement("afterend", graphEl);
+        preEl.remove();
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

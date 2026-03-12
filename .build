@@ -14,6 +14,7 @@
 /home/runner/work/axon/axon/doc/model_hooks.livemd
 /home/runner/work/axon/axon/doc/multi_input_multi_output_models.livemd
 /home/runner/work/axon/axon/doc/onnx_to_axon.livemd
+/home/runner/work/axon/axon/doc/saving_and_loading.livemd
 /home/runner/work/axon/axon/doc/sequential_models.livemd
 /home/runner/work/axon/axon/doc/training_and_inference_mode.livemd
 /home/runner/work/axon/axon/doc/using_loop_event_handlers.livemd
@@ -67,8 +68,8 @@ dist/lato-latin-ext-300-normal-VPGGJKJL.woff2
 dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/remixicon-NKANDIL5.woff2
-dist/search_data-08F06D76.js
-dist/sidebar_items-B53E3CCB.js
+dist/search_data-05102D3C.js
+dist/sidebar_items-0F952FCA.js
 fashionmnist_autoencoder.html
 fashionmnist_vae.html
 guides.html
@@ -82,6 +83,7 @@ mnist_autoencoder_using_kino.html
 model_hooks.html
 multi_input_multi_output_models.html
 onnx_to_axon.html
+saving_and_loading.html
 search.html
 sequential_models.html
 training_and_inference_mode.html
