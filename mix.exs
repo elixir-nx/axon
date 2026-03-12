@@ -111,6 +111,7 @@ defmodule Axon.MixProject do
         "guides/training_and_evaluation/writing_custom_metrics.livemd",
         "guides/training_and_evaluation/writing_custom_event_handlers.livemd",
         "guides/serialization/onnx_to_axon.livemd",
+        "guides/serialization/saving_and_loading.livemd",
         "guides/cheatsheets/axon_pytorch.cheatmd",
         # Examples
         "notebooks/basics/xor.livemd",
