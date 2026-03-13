@@ -5538,6 +5538,120 @@ defmodule CompilerTest do
     end
   end
 
+  describe "weight tying" do
+    test "tied parameter uses source parameter value" do
+      # Both dense layers have same input/output size so kernels are compatible
+      model =
+        Axon.input("input", shape: {nil, 4})
+        |> Axon.dense(4, name: "dense_0", use_bias: false)
+        |> Axon.dense(4, name: "dense_1", use_bias: false)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.tensor([[1.0, 2.0, 3.0, 4.0]])
+
+      model_state = init_fn.(input, ModelState.empty())
+
+      # Set dense_0 kernel to identity matrix so we can trace the computation
+      identity = Nx.eye(4)
+      model_state = put_in(model_state.data["dense_0"]["kernel"], identity)
+      model_state = put_in(model_state.data["dense_1"]["kernel"], Nx.broadcast(0.0, {4, 4}))
+
+      # Without tying: input -> identity -> zeros = zeros
+      output_untied = predict_fn.(model_state, input)
+      assert_equal(output_untied, Nx.tensor([[0.0, 0.0, 0.0, 0.0]]))
+
+      # With tying: input -> identity -> identity = input
+      tied_state =
+        ModelState.tie(model_state, ["dense_1", "kernel"], ["dense_0", "kernel"])
+
+      output_tied = predict_fn.(tied_state, input)
+      assert_equal(output_tied, input)
+    end
+
+    test "tied parameter with transform applies transformation" do
+      model =
+        Axon.input("input", shape: {nil, 2})
+        |> Axon.dense(4, name: "dense_0", use_bias: false)
+        |> Axon.dense(2, name: "dense_1", use_bias: false)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.tensor([[1.0, 2.0]])
+
+      model_state = init_fn.(input, ModelState.empty())
+
+      # Set a known kernel value
+      kernel = Nx.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
+      model_state = put_in(model_state.data["dense_0"]["kernel"], kernel)
+
+      # Tie with transpose: dense_1 uses kernel^T which is {4, 2}
+      tied_state =
+        ModelState.tie(
+          model_state,
+          ["dense_1", "kernel"],
+          ["dense_0", "kernel"],
+          transform: &Nx.transpose/1
+        )
+
+      # input {1,2} @ kernel {2,4} = {1,4}, then @ kernel^T {4,2} = {1,2}
+      # [[1,2]] @ [[1,0,0,0],[0,1,0,0]] = [[1,2,0,0]]
+      # [[1,2,0,0]] @ [[1,0],[0,1],[0,0],[0,0]] = [[1,2]]
+      output = predict_fn.(tied_state, input)
+      assert_equal(output, input)
+    end
+
+    test "modifying source parameter affects tied layers" do
+      model =
+        Axon.input("input", shape: {nil, 2})
+        |> Axon.dense(2, name: "dense_0", use_bias: false)
+        |> Axon.dense(2, name: "dense_1", use_bias: false)
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.tensor([[1.0, 0.0]])
+
+      model_state = init_fn.(input, ModelState.empty())
+
+      tied_state =
+        ModelState.tie(model_state, ["dense_1", "kernel"], ["dense_0", "kernel"])
+
+      # Set source kernel to a specific value
+      kernel_v1 = Nx.tensor([[1.0, 0.0], [0.0, 1.0]])
+      tied_state = put_in(tied_state.data["dense_0"]["kernel"], kernel_v1)
+      output_v1 = predict_fn.(tied_state, input)
+
+      # Change source kernel - tied layer should see the change
+      kernel_v2 = Nx.tensor([[2.0, 0.0], [0.0, 2.0]])
+      tied_state = put_in(tied_state.data["dense_0"]["kernel"], kernel_v2)
+      output_v2 = predict_fn.(tied_state, input)
+
+      # Outputs should differ because the shared kernel changed
+      refute Nx.all(Nx.equal(output_v1, output_v2)) |> Nx.to_number() == 1
+
+      # Verify expected values: input @ kernel @ kernel
+      # v1: [1,0] @ I @ I = [1,0]
+      # v2: [1,0] @ 2I @ 2I = [4,0]
+      assert_equal(output_v1, Nx.tensor([[1.0, 0.0]]))
+      assert_equal(output_v2, Nx.tensor([[4.0, 0.0]]))
+    end
+
+    test "raises on non-existent shared parameter source" do
+      model =
+        Axon.input("input", shape: {nil, 2})
+        |> Axon.dense(4, name: "dense_0")
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.tensor([[1.0, 2.0]])
+
+      model_state = init_fn.(input, ModelState.empty())
+
+      tied_state =
+        ModelState.tie(model_state, ["dense_0", "kernel"], ["nonexistent", "kernel"])
+
+      assert_raise ArgumentError, ~r/shared parameter.*references non-existent/, fn ->
+        predict_fn.(tied_state, input)
+      end
+    end
+  end
+
   describe "instrumentation" do
     @describetag :capture_log
 
