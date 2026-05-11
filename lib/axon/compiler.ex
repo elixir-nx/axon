@@ -1197,7 +1197,7 @@ defmodule Axon.Compiler do
 
         %Axon.ModelState.SharedParameter{path: path, transform: transform} ->
           tensor =
-            if is_nil(get_in(params, path)) do
+            with nil <- get_in(params, path) do
               raise ArgumentError,
                     "shared parameter for #{inspect(param_name)} in layer:" <>
                       " #{inspect(layer_name)}, references non-existent parameter" <>
