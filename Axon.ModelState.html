@@ -14,7 +14,7 @@
 
     <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
     <script src="dist/handlebars.templates-K7URE6B4.js"></script>
-    <script src="dist/sidebar_items-0F952FCA.js"></script>
+    <script src="dist/sidebar_items-DCDBAA32.js"></script>
     <script src="docs_config.js"></script>
     <script async src="dist/html-YIPIRHGU.js"></script>
 
@@ -210,6 +210,16 @@ map.</p></div>
 
     <div class="summary-row">
       <div class="summary-signature">
+        <a href="#tie/4" data-no-tooltip translate="no">tie(model_state, destination, source, opts \\ [])</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Ties a parameter to another parameter, enabling weight sharing.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
         <a href="#trainable_parameters/1" data-no-tooltip translate="no">trainable_parameters(model_state)</a>
 
       </div>
@@ -309,10 +319,10 @@ using the given mask.</p></div>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be frozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="4833249028-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="4833249028-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4833249028-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="4833249028-3">(</span><span class="n">n</span><span class="p" data-group-id="4833249028-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="4245060387-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="4245060387-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4245060387-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="4245060387-3">(</span><span class="n">n</span><span class="p" data-group-id="4245060387-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="4833249028-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="4245060387-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 freezing the entire model.</p>
   </section>
 </section>
@@ -405,6 +415,52 @@ freezing the entire model.</p>
 map.</p>
   </section>
 </section>
+<section class="detail" id="tie/4">
+
+    <span id="tie/3"></span>
+
+  <div class="detail-header">
+    <a href="#tie/4" class="detail-link" data-no-tooltip title="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature" translate="no">tie(model_state, destination, source, opts \\ [])</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L218" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Ties a parameter to another parameter, enabling weight sharing.</p><p>The destination parameter will reference the source parameter's tensor,
+optionally applying a transformation. Both <code class="inline">destination</code> and <code class="inline">source</code>
+are access paths (lists of strings) into the model state data.</p><h2 id="tie/4-options" class="section-heading">
+  <a href="#tie/4-options" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Options</span>
+</h2>
+<ul><li><code class="inline">:transform</code> - a function to transform the source tensor before
+use at the destination. For example, <code class="inline">&amp;Nx.transpose/1</code> for tying
+an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" class="section-heading">
+  <a href="#tie/4-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Examples</span>
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="c1"># Tie output projection to embedding weights (transposed)</span><span class="w">
+</span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">tie</span><span class="p" data-group-id="5004089798-1">(</span><span class="w">
+  </span><span class="n">model_state</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="5004089798-2">[</span><span class="s">&quot;output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="5004089798-2">]</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="5004089798-3">[</span><span class="s">&quot;embed&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="5004089798-3">]</span><span class="p">,</span><span class="w">
+  </span><span class="ss">transform</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nc">Nx</span><span class="o">.</span><span class="n">transpose</span><span class="o">/</span><span class="mi">1</span><span class="w">
+</span><span class="p" data-group-id="5004089798-1">)</span></code></pre>
+  </section>
+</section>
 <section class="detail" id="trainable_parameters/1">
 
   <div class="detail-header">
@@ -474,10 +530,10 @@ map.</p>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be unfrozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="3265346230-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="3265346230-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="3265346230-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="3067471170-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="3067471170-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="3067471170-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="3265346230-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="3067471170-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 unfreezing the entire model.</p>
   </section>
 </section>
