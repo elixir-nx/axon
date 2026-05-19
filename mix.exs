@@ -43,7 +43,8 @@ defmodule Axon.MixProject do
     [
       {:nx, "~> 0.10", nx_opts()},
       {:exla, "~> 0.10", [only: :test] ++ exla_opts()},
-      {:torchx, "~> 0.10", [only: :test] ++ torchx_opts()},
+      # NOTE(temporary session): disabled torchx, revert before commit
+      # {:torchx, "~> 0.10", [only: :test] ++ torchx_opts()},
       {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
       {:kino, "~> 0.7", optional: true},

@@ -926,6 +926,190 @@ defmodule Axon do
   end
 
   @doc """
+  Defers construction of a subgraph until parent template shapes
+  are known at initialization time.
+
+  `Axon.deferred/2` is useful when the structure or sizing of one
+  part of the graph depends on the shape (and dtype) of another part
+  whose shape isn't statically derivable from the call site — for
+  example, decoders that mirror an encoder's input dim, projection
+  heads that match a backbone's hidden size, or adapter layers that
+  wrap an opaque inner model.
+
+  ## Single-parent form
+
+  When a single `%Axon{}` parent is passed, the factory is an arity-1
+  function receiving a `{parent, template}` tuple:
+
+      input = Axon.input("x", shape: {nil, 784})
+      encoder = Axon.dense(input, 64)
+
+      decoder =
+        Axon.deferred(encoder, fn {enc, t} ->
+          {_, in_dim} = Nx.shape(t)
+          Axon.dense(enc, in_dim)
+        end)
+
+  ## Multi-parent form
+
+  When a list of parents is passed, the factory takes one
+  `{parent, template}` tuple per parent, in the same order:
+
+      Axon.deferred([a, b], fn {a, ta}, {b, tb} ->
+        ...
+      end)
+
+  The factory's arity must equal the number of parents.
+
+  ## Semantics
+
+  The factory runs once, the first time `init_fn` is called, against
+  the resolved parent templates. The returned subgraph is then compiled
+  and reused for all subsequent `predict_fn`/`init_fn` calls within the
+  same `build/2` invocation. The factory must return an `%Axon{}` whose
+  graph is rooted at the `parent` values it received — that is how the
+  parent's runtime output is wired into the subgraph.
+
+  Like blocks, deferred subgraphs prefix their parameters with the
+  deferred layer's name and a dot.
+  """
+  @doc type: :special
+  def deferred(parent_or_parents, factory)
+
+  def deferred(%Axon{} = parent, factory) when is_function(factory, 1) do
+    layer(:deferred, [parent],
+      op_name: :deferred,
+      factory: factory,
+      num_parents: 1
+    )
+  end
+
+  def deferred([_ | _] = parents, factory) when is_function(factory) do
+    expected_arity = length(parents)
+    {:arity, actual_arity} = Function.info(factory, :arity)
+
+    if actual_arity != expected_arity do
+      raise ArgumentError,
+            "Axon.deferred factory must have arity equal to the number of parents " <>
+              "(#{expected_arity}), got arity #{actual_arity}"
+    end
+
+    Enum.each(parents, fn
+      %Axon{} -> :ok
+      other -> raise ArgumentError, "expected Axon graph parent, got: #{inspect(other)}"
+    end)
+
+    layer(:deferred, parents,
+      op_name: :deferred,
+      factory: factory,
+      num_parents: expected_arity
+    )
+  end
+
+  def deferred(parent_or_parents, factory) do
+    raise ArgumentError,
+          "Axon.deferred expects an %Axon{} or non-empty list of %Axon{} parents and a factory " <>
+            "function, got: #{inspect(parent_or_parents)} and #{inspect(factory)}"
+  end
+
+  @doc """
+  Wraps a subgraph construction in a name prefix.
+
+  Every layer built *inside* the given closure has its name prefixed
+  with `prefix <> "."`. Layers passed in from outer scope (including
+  inputs) are left untouched. Unlike `Axon.block/2`, `namespace`
+  introduces no extra graph node and performs no parameter sharing —
+  it only renames the leaves built within its boundary.
+
+  This is most useful for hoisting `name:` plumbing out of builder
+  functions: leaves use bare names like `"q_proj"` and the caller
+  decides at composition time where the prefix is applied.
+
+  ## Bare form
+
+  An arity-0 closure captures its inputs from lexical scope:
+
+      attention_output =
+        Axon.namespace("attention", fn ->
+          query
+          |> Axon.dense(q_size, name: "q_proj")
+          |> Axon.reshape({:batch, :auto, heads, head_size}, name: "q_heads")
+        end)
+
+  ## Pipe form
+
+  `namespace/3` accepts an input and an arity-1 closure for use
+  inside a pipeline:
+
+      hidden_state
+      |> Axon.namespace("attention", &self_attention(&1, opts))
+      |> Axon.add(residual)
+
+  ## Nesting
+
+  Namespaces stack. An inner namespace runs first, then the outer
+  one wraps its names again, producing `"outer.inner.leaf"`:
+
+      Axon.namespace("outer", fn ->
+        Axon.namespace("inner", fn ->
+          Axon.dense(input, 8, name: "proj")
+        end)
+      end)
+      # => "outer.inner.proj"
+
+  ## Inputs
+
+  An `Axon.input/2` defined *inside* the closure is renamed like any
+  other layer, which means the predict-step input map must use the
+  prefixed key. To avoid surprises, define inputs at the top level
+  and pass them in.
+  """
+  @doc type: :special
+  def namespace(prefix, fun) when is_binary(prefix) and is_function(fun, 0) do
+    boundary = System.unique_integer([:positive, :monotonic])
+
+    case fun.() do
+      %Axon{} = axon ->
+        rewrite_namespace_names(axon, prefix, boundary)
+
+      other ->
+        raise ArgumentError,
+              "Axon.namespace/2 expected the closure to return an %Axon{}, got: " <>
+                inspect(other)
+    end
+  end
+
+  @doc """
+  Pipe-friendly variant of `namespace/2`.
+
+  Calls `fun.(input)` inside a `namespace/2` boundary. Useful for
+  threading an input through a builder while applying a name prefix
+  to everything the builder constructs:
+
+      Axon.namespace(hidden_state, "ffn", &ffn(&1, opts))
+
+  """
+  @doc type: :special
+  def namespace(%Axon{} = input, prefix, fun)
+      when is_binary(prefix) and is_function(fun, 1) do
+    namespace(prefix, fn -> fun.(input) end)
+  end
+
+  defp rewrite_namespace_names(%Axon{} = axon, prefix, boundary) do
+    Axon.map_nodes(axon, fn
+      %Axon.Node{id: id, name: name_fn} = node when id > boundary ->
+        %{node | name: prepend_namespace(prefix, name_fn)}
+
+      node ->
+        node
+    end)
+  end
+
+  defp prepend_namespace(prefix, name_fn) do
+    fn op, op_counts -> prefix <> "." <> name_fn.(op, op_counts) end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
@@ -1219,7 +1403,8 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
-        channels: :last
+        channels: :last,
+        feature_group_size: 1
       ])
 
     kernel_size = opts[:kernel_size]
@@ -1227,8 +1412,11 @@ defmodule Axon do
     padding = opts[:padding]
     kernel_dilation = opts[:kernel_dilation]
     channels = opts[:channels]
+    feature_group_size = opts[:feature_group_size]
 
-    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
+    kernel_shape =
+      &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
+
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     {inputs, op} =
@@ -1247,6 +1435,7 @@ defmodule Axon do
         padding: padding,
         kernel_dilation: kernel_dilation,
         channels: channels,
+        feature_group_size: feature_group_size,
         op_name: :conv_transpose
       )
 
@@ -1645,6 +1834,7 @@ defmodule Axon do
     {:softmax, "Softmax", "a"},
     {:softplus, "Softplus", "a"},
     {:softsign, "Softsign", "a"},
+    {:swiglu, "Swish-gated linear unit", "a"},
     {:tanh, "Hyperbolic tangent", "a"}
   ]
 
@@ -2684,15 +2874,28 @@ defmodule Axon do
   the results with the given merge function.
 
   This is most commonly used with RNNs to capture the dependencies
-  of a sequence in both directions.
+  of a sequence in both directions. The function is invoked once on
+  the input and once on the input reversed along `:axis`. Per-step
+  outputs produced by the reversed run are un-reversed so they align
+  with the forward outputs before being passed to `merge_fun`.
+
+  When `forward_fun` returns a container of tensors with mixed rank
+  (e.g. an LSTM returns `{sequence, {cell, hidden}}`), only leaves
+  that share the input's rank and `:axis`-th dimension are treated as
+  per-step outputs and un-reversed. Aggregate leaves like an LSTM's
+  final state — whose `:axis`-th dimension is the hidden axis, not
+  time — are left alone, so the merged result is the final state of
+  each direction's run (matching Keras' `Bidirectional(LSTM(...))`
+  behaviour).
 
   ## Options
 
-    * `axis` - Axis to reverse.
+    * `axis` - Axis to reverse. Defaults to `1`.
   """
   def bidirectional(%Axon{} = input, forward_fun, merge_fun, opts \\ [])
       when is_function(forward_fun, 1) and is_function(merge_fun, 2) do
     opts = Keyword.validate!(opts, [:name, axis: 1])
+    axis = opts[:axis]
 
     fun =
       Axon.block(
@@ -2704,12 +2907,31 @@ defmodule Axon do
 
     forward_out = fun.(input)
 
-    backward_out =
+    fwd_on_reversed =
       input
-      |> Axon.nx(&Nx.reverse(&1, axes: [opts[:axis]]))
+      |> Axon.nx(&Nx.reverse(&1, axes: [axis]))
       |> fun.()
-      |> Axon.nx(fn x ->
-        deep_new(x, &Nx.reverse(&1, axes: [opts[:axis]]))
+
+    # Pair the reversed-input output with the original input so the
+    # un-reverse step below can compare each leaf's rank and `axis`-th
+    # dimension against the input at runtime. Leaves that align to the
+    # scanned axis are un-reversed; aggregate leaves (like LSTM state)
+    # are passed through untouched.
+    backward_out =
+      {fwd_on_reversed, input}
+      |> Axon.container()
+      |> Axon.nx(fn {x, inp} ->
+        input_rank = Nx.rank(inp)
+        norm_axis = Integer.mod(axis, input_rank)
+        time_dim = elem(Nx.shape(inp), norm_axis)
+
+        deep_new(x, fn leaf ->
+          if Nx.rank(leaf) == input_rank and elem(Nx.shape(leaf), norm_axis) == time_dim do
+            Nx.reverse(leaf, axes: [norm_axis])
+          else
+            leaf
+          end
+        end)
       end)
 
     {forward_out, backward_out}
@@ -3471,15 +3693,21 @@ defmodule Axon do
   This is commonly used as the `gamma` in residual blocks of modern
   Transformer architectures (CaiT, ConvNeXt, BEiT, EVA, etc.).
 
+  Initializing the scale to a small constant — typically
+  `Axon.Initializers.full(1.0e-6)` — dampens each block's
+  contribution at initialization and is sometimes called LayerScale.
+
   ## Options
 
     * `:name` - layer name.
 
     * `:scale_initializer` - initializer for the scale weights.
-      Defaults to `Axon.Initializers.full(1.0e-6)`.
+      Defaults to `:ones`. Pass `Axon.Initializers.full(1.0e-6)` (or
+      a similar small constant) for the LayerScale recipe.
 
     * `:channel_index` - input feature axis along which the scale is
       broadcast. Defaults to `-1`.
+
   """
   @doc type: :linear
   def scale(%Axon{} = x, opts \\ []) do
@@ -3487,7 +3715,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :meta,
-        scale_initializer: Axon.Initializers.full(1.0e-6),
+        scale_initializer: :ones,
         channel_index: -1
       ])
 
@@ -3713,6 +3941,163 @@ defmodule Axon do
     mode = opts[:mode]
 
     %{axon_node | hooks: [{on_event, mode, fun} | hooks]}
+  end
+
+  ## Attention
+
+  @doc """
+  Adds a scaled dot-product attention layer to the network.
+
+  `query`, `key`, and `value` must be Axon nodes. The kernel produces
+
+      output = softmax(Q · Kᵀ * scale + mask) · V
+
+  See `Axon.Layers.scaled_dot_product_attention/4` for the math and
+  for the full list of options.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:meta` - layer metadata.
+
+    * `:axes` - input layout, `:bshd` (default) or `:bhsd`.
+
+    * `:scale` - scalar multiplier applied to `Q · Kᵀ`. Defaults to
+      `1 / sqrt(head_dim)`.
+
+    * `:mask` - attention mask. May be a static spec (`nil`, `:causal`,
+      `{:causal, offset}`, `{:sliding_window, w}` or
+      `{:sliding_window, w, offset}` with non-negative integer
+      offsets/windows), or an `%Axon{}` node carrying a boolean or
+      float mask tensor. Tensor masks are wired in as an additional
+      layer input.
+
+    * `:dropout_rate` - attention-probability dropout, applied only in
+      `:train` mode. Defaults to `0.0`. When non-zero, a per-layer
+      PRNG key state parameter is added so the dropout is properly
+      threaded.
+
+    * `:seed` - seed for the dropout PRNG key. Defaults to
+      `:erlang.system_time/0`.
+
+    * `:return_attention_weights` - when `true`, the layer output is
+      `{output, weights}` instead of just `output`.
+
+  ## Examples
+
+      # Encoder self-attention
+      Axon.scaled_dot_product_attention(q, k, v)
+
+      # Decoder self-attention with cached KV during single-token decode
+      Axon.scaled_dot_product_attention(q, k, v, mask: {:causal, offset})
+
+      # Cross-attention with a runtime padding mask
+      Axon.scaled_dot_product_attention(q, k, v, mask: padding_mask_node)
+
+  """
+  @doc type: :attention
+  def scaled_dot_product_attention(query, key, value, opts \\ [])
+
+  def scaled_dot_product_attention(%Axon{} = query, %Axon{} = key, %Axon{} = value, opts) do
+    {mask, opts} = Keyword.pop(opts, :mask)
+
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :meta,
+        :scale,
+        :seed,
+        axes: :bshd,
+        dropout_rate: 0.0,
+        return_attention_weights: false
+      ])
+
+    validate_attention_axes!(opts[:axes])
+    validate_attention_static_mask!(mask)
+    validate_attention_dropout_rate!(opts[:dropout_rate])
+
+    {mask_inputs, mask_opt} =
+      case mask do
+        %Axon{} = m -> {[m], :tensor}
+        static -> {[], static}
+      end
+
+    dropout_inputs =
+      if opts[:dropout_rate] > 0 do
+        seed = opts[:seed] || :erlang.system_time()
+
+        key_state =
+          param("key", {2},
+            type: {:u, 32},
+            initializer: fn _, _ -> Nx.Random.key(seed) end,
+            kind: :state
+          )
+
+        [key_state]
+      else
+        []
+      end
+
+    inputs = [query, key, value] ++ mask_inputs ++ dropout_inputs
+
+    layer(:scaled_dot_product_attention, inputs,
+      name: opts[:name],
+      meta: opts[:meta],
+      axes: opts[:axes],
+      scale: opts[:scale],
+      mask: mask_opt,
+      dropout_rate: opts[:dropout_rate],
+      return_attention_weights: opts[:return_attention_weights],
+      op_name: :scaled_dot_product_attention
+    )
+  end
+
+  def scaled_dot_product_attention(query, key, value, _opts) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention/4 expects Axon node inputs," <>
+            " got query=#{inspect(query)}, key=#{inspect(key)}, value=#{inspect(value)}"
+  end
+
+  defp validate_attention_axes!(axes) when axes in [:bshd, :bhsd], do: :ok
+
+  defp validate_attention_axes!(axes) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: invalid :axes #{inspect(axes)}," <>
+            " expected one of :bshd or :bhsd"
+  end
+
+  defp validate_attention_static_mask!(nil), do: :ok
+  defp validate_attention_static_mask!(:causal), do: :ok
+  defp validate_attention_static_mask!(%Axon{}), do: :ok
+
+  defp validate_attention_static_mask!({:causal, offset})
+       when is_integer(offset) and offset >= 0,
+       do: :ok
+
+  defp validate_attention_static_mask!({:sliding_window, w})
+       when is_integer(w) and w > 0,
+       do: :ok
+
+  defp validate_attention_static_mask!({:sliding_window, w, offset})
+       when is_integer(w) and w > 0 and is_integer(offset) and offset >= 0,
+       do: :ok
+
+  defp validate_attention_static_mask!(mask) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: invalid :mask #{inspect(mask)}." <>
+            " Expected nil, :causal, {:causal, offset}, {:sliding_window, w}," <>
+            " {:sliding_window, w, offset}, or an Axon node carrying a mask tensor."
+  end
+
+  defp validate_attention_dropout_rate!(rate)
+       when is_number(rate) and rate >= 0 and rate < 1,
+       do: :ok
+
+  defp validate_attention_dropout_rate!(rate) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: :dropout_rate must be a number in" <>
+            " [0, 1), got #{inspect(rate)}"
   end
 
   ## Graph Manipulation and Utilities
