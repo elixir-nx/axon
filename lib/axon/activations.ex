@@ -803,14 +803,20 @@ defmodule Axon.Activations do
 
   @doc ~S"""
   Swish-gated linear unit activation.
+
   SwiGLU splits the input tensor along the given axis into two equal
   halves $a$ and $b$, then returns $silu(a) \odot b$. The dimension of
   the input along the given axis must be divisible by 2.
+
   $$f(x) = silu(a) \odot b \quad \text{where} \quad x = [a, b]$$
+
   ## Options
+
     * `:axis` - axis along which to split the input into the activation
       and gate halves. Defaults to `-1`.
+
   ## Examples
+      
       iex> Axon.Activations.swiglu(Nx.tensor([[-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0]], names: [:batch, :data]))
       #Nx.Tensor<
         f32[batch: 1][data: 4]
@@ -818,9 +824,12 @@ defmodule Axon.Activations do
           [-0.14227762818336487, -0.4768116772174835, -0.8068243265151978, 0.0]
         ]
       >
+
   ### Error cases
+
       iex> Axon.Activations.swiglu(Nx.tensor([1.0, 2.0, 3.0]))
       ** (ArgumentError) axis -1 of input to swiglu must have a dimension divisible by 2, got dimension of size 3
+
   ## References
     * [GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202)
   """
