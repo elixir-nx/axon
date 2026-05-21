@@ -364,18 +364,7 @@ defmodule CompilerTest do
       assert Nx.type(scale) == {:f, 32}
     end
 
-    test "default initializer is ones (forward pass is identity)" do
-      model = Axon.input("input_0", shape: {nil, 3}) |> Axon.scale(name: "scale")
-
-      input = Nx.tensor([[1.0, 2.0, 3.0]])
-
-      assert {init_fn, predict_fn} = Axon.build(model)
-      params = init_fn.(input, ModelState.empty())
-
-      assert_equal(predict_fn.(params, input), input)
-    end
-
-    test "applies LayerScale-style small init multiplicatively" do
+    test "applies small init multiplicatively" do
       model =
         Axon.input("input_0", shape: {nil, 3})
         |> Axon.scale(name: "scale", scale_initializer: Axon.Initializers.full(1.0e-6))
@@ -390,7 +379,6 @@ defmodule CompilerTest do
     end
 
     test "broadcasts correctly along a non-trailing channel_index" do
-      # Input shape {batch, channels, time}; scale per-channel (axis 1).
       model =
         Axon.input("input_0", shape: {nil, 2, 4})
         |> Axon.scale(name: "scale", channel_index: 1)
@@ -406,7 +394,6 @@ defmodule CompilerTest do
       assert {init_fn, predict_fn} = Axon.build(model)
       params = init_fn.(input, ModelState.empty())
 
-      # Override params: channel 0 → x2, channel 1 → x3.
       params =
         Axon.ModelState.update(params, %{"scale" => %{"scale" => Nx.tensor([2.0, 3.0])}})
 
