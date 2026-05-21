@@ -3426,6 +3426,47 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a learnable per-channel scale layer to the network.
+
+  A scale layer multiplies the input elementwise by a trainable
+  parameter aligned to the input's `:channel_index` axis.
+
+  This is commonly used as the `gamma` in residual blocks of modern
+  Transformer architectures (CaiT, ConvNeXt, BEiT, EVA, etc.).
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:scale_initializer` - initializer for the scale weights.
+      Defaults to `Axon.Initializers.full(1.0e-6)`.
+
+    * `:channel_index` - input feature axis along which the scale is
+      broadcast. Defaults to `-1`.
+  """
+  @doc type: :linear
+  def scale(%Axon{} = x, opts \\ []) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :meta,
+        scale_initializer: Axon.Initializers.full(1.0e-6),
+        channel_index: -1
+      ])
+
+    channel_index = opts[:channel_index]
+
+    scale = param("scale", [{:axis, channel_index}], initializer: opts[:scale_initializer])
+
+    layer(:scale, [x, scale],
+      name: opts[:name],
+      meta: opts[:meta],
+      channel_index: channel_index,
+      op_name: :scale
+    )
+  end
+
+  @doc """
   Adds a stack columns layer to the network.
 
   A stack columns layer is designed to be used with `Nx.LazyContainer`
