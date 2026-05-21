@@ -2243,7 +2243,7 @@ defmodule Axon.Layers do
   # to use when invoking activation layers.
   @activation_layers [:exp, :gelu, :hard_tanh, :linear, :log_sigmoid] ++
                        [:mish, :relu, :relu6, :sigmoid, :silu, :softplus] ++
-                       [:softsign, :tanh]
+                       [:softsign, :tanh, :swiglu]
 
   for activation <- @activation_layers do
     @doc false
