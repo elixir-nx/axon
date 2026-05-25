@@ -35,6 +35,15 @@ defmodule Axon.Block do
         ...
       end
 
+  Trailing `opts \\\\ default` parameters are supported and forwarded to the
+  block lambda as the last argument, so the body can call `keyword!/2`
+  normally:
+
+      defblock MyBlock, leaky_relu(x, opts \\\\ []) do
+        opts = keyword!(opts, alpha: 1.0e-2)
+        Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
+      end
+
   All layers and activations are implemented as `defblock`, namespaced under this
   module. Library users can use this to override default Axon implementations with
   their own custom kernels.
@@ -49,6 +58,7 @@ defmodule Axon.Block do
 
   defp build(env, prefix_ast, call, body) do
     {name, args} = parse_call(call, env)
+    vars = Enum.map(args, &arg_var/1)
     prefix = expand_prefix(prefix_ast, env)
 
     camelized = name |> Atom.to_string() |> Macro.camelize()
@@ -63,9 +73,9 @@ defmodule Axon.Block do
       defn unquote(name)(unquote_splicing(args)) do
         Nx.block(
           %unquote(struct_module){},
-          unquote(args),
+          [unquote_splicing(vars)],
           nil,
-          fn _struct, unquote_splicing(args) ->
+          fn _struct, unquote_splicing(vars) ->
             unquote(body)
           end
         )
@@ -89,6 +99,9 @@ defmodule Axon.Block do
       file: env.file,
       line: env.line
   end
+
+  defp arg_var({:\\, _meta, [var, _default]}), do: var
+  defp arg_var(var), do: var
 
   defp expand_prefix(prefix_ast, env) do
     case Macro.expand(prefix_ast, env) do

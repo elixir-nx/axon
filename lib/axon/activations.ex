@@ -44,6 +44,7 @@ defmodule Axon.Activations do
   """
 
   import Nx.Defn
+  import Axon.Block
   import Axon.Shared
 
   @doc ~S"""
@@ -83,7 +84,7 @@ defmodule Axon.Activations do
     * [Continuously Differentiable Exponential Linear Units](https://arxiv.org/pdf/1704.07483.pdf)
 
   """
-  defn celu(x, opts \\ []) do
+  defblock Axon.Block, celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     validate_celu_alpha!(opts[:alpha])
 
@@ -128,7 +129,7 @@ defmodule Axon.Activations do
     * [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
 
   """
-  defn elu(x, opts \\ []) do
+  defblock Axon.Block, elu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     x_hat = Nx.select(Nx.greater(x, 0), 0, x)
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x_hat))
@@ -157,7 +158,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn exp(x) do
+  defblock Axon.Block, exp(x) do
     Nx.exp(x)
   end
 
@@ -188,7 +189,7 @@ defmodule Axon.Activations do
     * [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
 
   """
-  defn gelu(x) do
+  defblock Axon.Block, gelu(x) do
     sqrt2 = Nx.sqrt(Nx.tensor(2, type: Nx.type(x)))
 
     x
@@ -220,7 +221,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn hard_sigmoid(x, opts \\ []) do
+  defblock Axon.Block, hard_sigmoid(x, opts \\ []) do
     opts = keyword!(opts, alpha: 0.2, beta: 0.2)
 
     x
@@ -255,7 +256,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn hard_silu(x, opts \\ []) do
+  defblock Axon.Block, hard_silu(x, opts \\ []) do
     x
     |> hard_sigmoid(opts)
     |> Nx.multiply(x)
@@ -284,7 +285,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn hard_tanh(x) do
+  defblock Axon.Block, hard_tanh(x) do
     Nx.select(
       Nx.greater(x, 1),
       1,
@@ -319,7 +320,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn leaky_relu(x, opts \\ []) do
+  defblock Axon.Block, leaky_relu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0e-2)
     Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
   end
@@ -347,7 +348,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn linear(x), do: x
+  defblock Axon.Block, linear(x), do: x
 
   @doc ~S"""
   Logsumexp activation.
@@ -372,7 +373,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn log_sumexp(x, opts \\ []) do
+  defblock Axon.Block, log_sumexp(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
@@ -430,7 +431,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn log_sigmoid(x), do: -softplus(-x)
+  defblock Axon.Block, log_sigmoid(x), do: -softplus(-x)
 
   @doc """
   Log-softmax activation.
@@ -454,7 +455,7 @@ defmodule Axon.Activations do
         ]
       >
   """
-  defn log_softmax(x, opts \\ []) do
+  defblock Axon.Block, log_softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
 
     shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
@@ -489,7 +490,7 @@ defmodule Axon.Activations do
         ]
       >
   """
-  defn mish(x) do
+  defblock Axon.Block, mish(x) do
     x * tanh(softplus(x))
   end
 
@@ -516,7 +517,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn relu(x) do
+  defblock Axon.Block, relu(x) do
     custom_grad(
       Nx.max(x, 0),
       [x],
@@ -551,7 +552,7 @@ defmodule Axon.Activations do
     * [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861v1)
 
   """
-  defn relu6(x) do
+  defblock Axon.Block, relu6(x) do
     x
     |> Nx.max(0)
     |> Nx.min(6)
@@ -585,7 +586,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn sigmoid(x) do
+  defblock Axon.Block, sigmoid(x) do
     # Cache logits so they are available in certain calculations,
     # e.g. binary_cross_entropy and categorical_cross_entropy
     cache_logits(x, Nx.sigmoid(x))
@@ -618,7 +619,7 @@ defmodule Axon.Activations do
     * [Sigmoid-Weighted Linear Units for Neural Network Function Approximation in Reinforcement Learning](https://arxiv.org/abs/1702.03118v3)
 
   """
-  defn silu(x) do
+  defblock Axon.Block, silu(x) do
     x
     |> Nx.sigmoid()
     |> Nx.multiply(x)
@@ -655,7 +656,7 @@ defmodule Axon.Activations do
     * [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515v5)
 
   """
-  defn selu(x, opts \\ []) do
+  defblock Axon.Block, selu(x, opts \\ []) do
     opts =
       keyword!(opts,
         alpha: 1.6732632423543772848170429916717,
@@ -700,7 +701,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn softmax(x, opts \\ []) do
+  defblock Axon.Block, softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
@@ -759,7 +760,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn softplus(x) do
+  defblock Axon.Block, softplus(x) do
     stable = Nx.max(0.0, x)
 
     x
@@ -793,7 +794,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn softsign(x) do
+  defblock Axon.Block, softsign(x) do
     x
     |> Nx.abs()
     |> Nx.add(1)
@@ -824,7 +825,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defn tanh(x), do: Nx.tanh(x)
+  defblock Axon.Block, tanh(x), do: Nx.tanh(x)
 
   ## Helpers
 
