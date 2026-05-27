@@ -423,7 +423,7 @@ defmodule Axon do
   Using a function:
 
       parameter("kernel", fn input ->
-        Nx.template({elem(Nx.shape(input), 1), 64}, Nx.type(input))
+        Nx.template({Kernel.elem(Nx.shape(input), 1), 64}, Nx.type(input))
       end)
 
   Using the shape DSL:
@@ -516,12 +516,12 @@ defmodule Axon do
         {:axis, n} ->
           shape = hd(shapes)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         {:axis, n, [input: k]} ->
           shape = Enum.at(shapes, k)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         n when is_integer(n) ->
           n
@@ -844,7 +844,7 @@ defmodule Axon do
   defp recur_restructure(structure, args_tuple) do
     Nx.Container.traverse(structure, :ok, fn value, :ok ->
       case value do
-        idx when is_integer(idx) -> {elem(args_tuple, idx), :ok}
+        idx when is_integer(idx) -> {Kernel.elem(args_tuple, idx), :ok}
         container -> recur_restructure(container, args_tuple)
       end
     end)
@@ -2256,6 +2256,83 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a layer that extracts the element at `index` from a tuple-valued
+  container layer.
+
+  This is the counterpart to `fetch/3` for tuples. It is sugar for
+  `Axon.nx(container, &elem(&1, index))` and is the recommended way to
+  pull a single output out of a multi-output model.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container({inp1, inp2}) |> Axon.elem(0)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def elem(%Axon{} = x, index, opts \\ []) when is_integer(index) and index >= 0 do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Kernel.elem(input, index) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :elem
+    )
+  end
+
+  @doc """
+  Adds a layer that fetches the value at `key` from a map-valued
+  container layer.
+
+  This is the counterpart to `elem/3` for maps. It is sugar for
+  `Axon.nx(container, &Map.fetch!(&1, key))`.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container(%{a: inp1, b: inp2}) |> Axon.fetch(:a)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def fetch(%Axon{} = x, key, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Map.fetch!(input, key) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :fetch
+    )
+  end
+
+  @doc """
   Adds a flatten layer to the network.
 
   This layer will flatten all but the batch dimensions
@@ -2917,19 +2994,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3151,13 +3228,13 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3334,19 +3411,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
