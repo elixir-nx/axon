@@ -807,6 +807,67 @@ defmodule AxonTest do
     end
   end
 
+  describe "elem" do
+    test "extracts a tuple element from a container output" do
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 2})
+
+      model = Axon.container({inp1, inp2}) |> Axon.elem(1)
+
+      inputs = %{
+        "input_0" => Nx.tensor([[1.0]]),
+        "input_1" => Nx.tensor([[3.0, 4.0]])
+      }
+
+      assert Axon.predict(model, Axon.ModelState.empty(), inputs) ==
+               Nx.tensor([[3.0, 4.0]])
+    end
+
+    test "tags the resulting layer with the :elem op_name" do
+      inp = Axon.input("input", shape: {nil, 1})
+
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.container({inp, inp}) |> Axon.elem(0)
+
+      assert %Axon.Node{op_name: :elem} = nodes[id]
+    end
+  end
+
+  describe "fetch" do
+    test "extracts a map value from a container output" do
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 2})
+
+      model = Axon.container(%{a: inp1, b: inp2}) |> Axon.fetch(:b)
+
+      inputs = %{
+        "input_0" => Nx.tensor([[1.0]]),
+        "input_1" => Nx.tensor([[3.0, 4.0]])
+      }
+
+      assert Axon.predict(model, Axon.ModelState.empty(), inputs) ==
+               Nx.tensor([[3.0, 4.0]])
+    end
+
+    test "tags the resulting layer with the :fetch op_name" do
+      inp = Axon.input("input", shape: {nil, 1})
+
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.container(%{a: inp}) |> Axon.fetch(:a)
+
+      assert %Axon.Node{op_name: :fetch} = nodes[id]
+    end
+
+    test "raises at predict time when key is missing" do
+      inp = Axon.input("input", shape: {nil, 1})
+      model = Axon.container(%{a: inp}) |> Axon.fetch(:missing)
+
+      assert_raise Axon.CompileError, fn ->
+        Axon.predict(model, Axon.ModelState.empty(), %{"input" => Nx.tensor([[1.0]])})
+      end
+    end
+  end
+
   describe "embedding" do
     test "works with defaults" do
       assert %Axon{output: id, nodes: nodes} =
