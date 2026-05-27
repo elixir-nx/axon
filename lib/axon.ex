@@ -2942,6 +2942,166 @@ defmodule Axon do
   end
 
   @doc """
+  Scans `body_fun` over the time axis of `input`.
+
+  This is the graph-level counterpart to `Axon.Layers.scan/5`. The
+  body is itself an Axon subgraph: at each step `body_fun.(carry, x_t)`
+  is invoked with `%Axon{}` graphs for the per-step carry and input
+  slice, and must return `{new_carry, y_t}` as `%Axon{}` graphs (or
+  containers of them). Any layers used inside the body — including
+  parameterized layers like `Axon.dense/3` — become part of the
+  scanned cell, with parameters initialized and trained once and
+  shared across every step.
+
+  `init_carry` is the initial carry. It may be a single `%Axon{}`
+  graph or an `Nx.Container` of `%Axon{}` graphs (a tuple, a map, or
+  a nested combination), and `new_carry` returned by `body_fun` must
+  mirror its structure exactly.
+
+  Returns `{ys, final_carry}`, where `ys` stacks the per-step outputs
+  of `y_t` along `:axis` and `final_carry` is the carry after the
+  last step. The sequence-first ordering matches `Axon.lstm/4` and
+  `Axon.gru/4`; note that `Axon.Layers.scan/5` returns the swapped
+  `{final_carry, ys}` order.
+
+  ## Examples
+
+      input = Axon.input("seq", shape: {nil, 10, 32})
+      init = Axon.input("h0", shape: {nil, 64})
+
+      {ys, final_carry} =
+        Axon.scan(input, init, fn carry, x_t ->
+          new = Axon.concatenate([carry, x_t]) |> Axon.dense(64) |> Axon.tanh()
+          {new, new}
+        end)
+
+  ## Options
+
+    * `:axis` - the time axis of `input` to scan over. Default `1`.
+
+    * `:unroll` - either `:dynamic` or `:static`. See
+      `Axon.Layers.scan/5`. Default `:dynamic`.
+
+    * `:name` - layer name.
+
+  """
+  @doc type: :recurrent
+  def scan(%Axon{} = input, init_carry, body_fun, opts \\ [])
+      when is_function(body_fun, 2) do
+    opts = Keyword.validate!(opts, [:name, :meta, axis: 1, unroll: :dynamic])
+
+    scan_id = System.unique_integer([:positive, :monotonic])
+
+    # Build the body subgraph eagerly here, where we have access to
+    # `init_carry`'s container structure. Each %Axon{} leaf is mirrored
+    # by an Axon.input placeholder; at runtime the compiler routes the
+    # actual carry tensors to these names by walking the container in
+    # the same Nx.Container traversal order used here.
+    init_carry_wrapped = wrap_carry(init_carry)
+    {carry_axon_template, _} = build_scan_carry_template(init_carry_wrapped, 0)
+    x_t_input = Axon.input("subgraph_x_t")
+
+    {new_carry_graph, y_t_graph} =
+      body_fun.(unwrap_carry(carry_axon_template, init_carry), x_t_input)
+
+    body_subgraph = Axon.container({wrap_carry_value(new_carry_graph, init_carry), y_t_graph})
+
+    init_carry_container = Axon.container(init_carry_wrapped)
+
+    output =
+      layer(:scan, [input, init_carry_container],
+        op_name: :scan,
+        name: opts[:name],
+        meta: opts[:meta],
+        body_subgraph: body_subgraph,
+        scan_id: scan_id,
+        axis: opts[:axis],
+        unroll: opts[:unroll]
+      )
+
+    ys_name = scan_subname(opts[:name], "output_sequence")
+
+    ys =
+      layer(fn x, _ -> elem(x, 0) end, [output],
+        name: ys_name,
+        op_name: :elem
+      )
+
+    carry_out_container =
+      layer(fn x, _ -> elem(x, 1) end, [output],
+        name: scan_subname(opts[:name], "final_carry"),
+        op_name: :elem
+      )
+
+    {ys, unwrap_final_carry(carry_out_container, init_carry, opts[:name])}
+  end
+
+  # Axon.container does not accept a bare %Axon{} — it expects a
+  # container. Wrap a single-carry init in a one-tuple here and undo
+  # the wrapping when reading the final carry back out below.
+  defp wrap_carry(%Axon{} = single), do: {single}
+  defp wrap_carry(container), do: container
+
+  defp wrap_carry_value(value, %Axon{}), do: {value}
+  defp wrap_carry_value(value, _container), do: value
+
+  defp unwrap_carry(template, %Axon{}), do: elem(template, 0)
+  defp unwrap_carry(template, _container), do: template
+
+  # Rebuild a container of %Axon{} graphs that mirrors `init_carry`'s
+  # shape — one accessor layer per leaf — so callers can pattern-match
+  # `{final_c, final_h}` and get real `%Axon{}` nodes back, matching
+  # the convention used by `Axon.lstm/4` and `Axon.gru/4`.
+  defp unwrap_final_carry(carry_out, init_carry, base_name) do
+    init_wrapped = wrap_carry(init_carry)
+    {accessors, _} = build_carry_accessors(init_wrapped, carry_out, base_name, [], 0)
+    unwrap_carry(accessors, init_carry)
+  end
+
+  defp build_carry_accessors(item, carry_out, base_name, path, idx) do
+    case item do
+      %Axon{} ->
+        accessor =
+          layer(
+            fn x, _ ->
+              Enum.reduce(path, x, fn i, acc -> elem(acc, i) end)
+            end,
+            [carry_out],
+            name: scan_subname(base_name, "final_carry_#{idx}"),
+            op_name: :elem
+          )
+
+        {accessor, idx + 1}
+
+      container ->
+        {rebuilt, {_, final_idx}} =
+          Nx.Container.traverse(container, {0, idx}, fn value, {child_pos, i} ->
+            {sub, new_i} =
+              build_carry_accessors(value, carry_out, base_name, path ++ [child_pos], i)
+
+            {sub, {child_pos + 1, new_i}}
+          end)
+
+        {rebuilt, final_idx}
+    end
+  end
+
+  defp build_scan_carry_template(item, idx) do
+    case item do
+      %Axon{} ->
+        {Axon.input("subgraph_carry_#{idx}"), idx + 1}
+
+      container ->
+        Nx.Container.traverse(container, idx, fn value, i ->
+          build_scan_carry_template(value, i)
+        end)
+    end
+  end
+
+  defp scan_subname(nil, suffix), do: "scan_{n}_#{suffix}"
+  defp scan_subname(base, suffix), do: "#{base}_#{suffix}"
+
+  @doc """
   See `lstm/3`.
   """
   @doc type: :recurrent
