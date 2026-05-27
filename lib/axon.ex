@@ -279,6 +279,7 @@ defmodule Axon do
   alias __MODULE__, as: Axon
   alias Axon.Parameter
 
+  import Kernel, except: [elem: 2]
   import Axon.Shared
 
   require Logger
