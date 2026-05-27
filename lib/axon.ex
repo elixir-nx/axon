@@ -2510,6 +2510,43 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a residual connection to the network.
+
+  Computes `fun.(x) + transform.(x)`. This is a convenience equivalent
+  for Axon.add(fun.(x), transform.(x)).
+
+  `fun` is the residual branch applied to `x`, typically a small
+  subnetwork. `transform` is applied to `x` along the skip path
+  before the addition and defaults to the identity, producing a
+  plain skip connection. Use `transform` to project the skip path
+  when `fun.(x)` and `x` have incompatible shapes (e.g. a 1x1
+  convolution, a dense projection, or a downsampling step).
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> x = Axon.input("input", shape: {nil, 64})
+      iex> Axon.residual(x, &Axon.dense(&1, 64))
+
+      iex> x = Axon.input("input", shape: {nil, 32})
+      iex> Axon.residual(x, &Axon.dense(&1, 64), &Axon.dense(&1, 64))
+  """
+  @doc type: :combinator
+  def residual(%Axon{} = x, fun, transform \\ &Function.identity/1, opts \\ [])
+      when is_function(fun, 1) and is_function(transform, 1) and is_list(opts) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(:add, [container({fun.(x), transform.(x)})],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :residual
+    )
+  end
+
+  @doc """
   Adds a conditional layer which conditionally executes
   `true_graph` or `false_graph` based on the condition `cond_fn`
   at runtime.
