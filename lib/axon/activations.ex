@@ -23,7 +23,7 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         f32[1][3]
         [
-          [0.09003057330846786, 0.2447284758090973, 0.6652409434318542]
+          [0.09003057, 0.24472848, 0.66524094]
         ]
       >
 
@@ -62,14 +62,14 @@ defmodule Axon.Activations do
       iex> Axon.Activations.celu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
       #Nx.Tensor<
         f32[7]
-        [-0.9502129554748535, -0.8646647334098816, -0.6321205496788025, 0.0, 1.0, 2.0, 3.0]
+        [-0.95021296, -0.86466473, -0.63212055, 0.0, 1.0, 2.0, 3.0]
       >
 
       iex> Axon.Activations.celu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}))
       #Nx.Tensor<
         bf16[2][3]
         [
-          [-0.62890625, -0.86328125, -0.94921875],
+          [-0.63, -0.863, -0.95],
           [1.0, 2.0, 3.0]
         ]
       >
@@ -84,7 +84,7 @@ defmodule Axon.Activations do
     * [Continuously Differentiable Exponential Linear Units](https://arxiv.org/pdf/1704.07483.pdf)
 
   """
-  defblock Axon.Block, celu(x, opts \\ []) do
+  defblock celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     validate_celu_alpha!(opts[:alpha])
 
@@ -112,14 +112,14 @@ defmodule Axon.Activations do
       iex> Axon.Activations.elu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]))
       #Nx.Tensor<
         f32[7]
-        [-0.9502129554748535, -0.8646647334098816, -0.6321205496788025, 0.0, 1.0, 2.0, 3.0]
+        [-0.95021296, -0.86466473, -0.63212055, 0.0, 1.0, 2.0, 3.0]
       >
 
       iex> Axon.Activations.elu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}))
       #Nx.Tensor<
         bf16[2][3]
         [
-          [-0.62890625, -0.86328125, -0.94921875],
+          [-0.63, -0.863, -0.95],
           [1.0, 2.0, 3.0]
         ]
       >
@@ -129,7 +129,7 @@ defmodule Axon.Activations do
     * [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
 
   """
-  defblock Axon.Block, elu(x, opts \\ []) do
+  defblock elu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     x_hat = Nx.select(Nx.greater(x, 0), 0, x)
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x_hat))
@@ -145,20 +145,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.exp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.049787066876888275, 0.1353352814912796, 0.3678794503211975, 1.0, 2.7182817459106445, 7.389056205749512, 20.08553695678711]
+        [0.049787067, 0.13533528, 0.36787945, 1.0, 2.7182817, 7.389056, 20.085537]
       >
 
       iex> Axon.Activations.exp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.3671875, 0.134765625, 0.049560546875],
-          [2.703125, 7.375, 20.0]
+          [0.367, 0.135, 0.0496],
+          [2.7, 7.38, 20.0]
         ]
       >
 
   """
-  defblock Axon.Block, exp(x) do
+  defblock exp(x) do
     Nx.exp(x)
   end
 
@@ -172,15 +172,15 @@ defmodule Axon.Activations do
       iex> Axon.Activations.gelu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.0040496885776519775, -0.04550027847290039, -0.15865525603294373, 0.0, 0.8413447141647339, 1.9544997215270996, 2.995950222015381]
+        [-0.0040496886, -0.04550028, -0.15865526, 0.0, 0.8413447, 1.9544997, 2.9959502]
       >
 
       iex> Axon.Activations.gelu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.16015625, -0.046875, -0.005859375],
-          [0.83984375, 1.953125, 2.984375]
+          [-0.16, -0.0469, -0.00586],
+          [0.84, 1.95, 2.98]
         ]
       >
 
@@ -189,7 +189,7 @@ defmodule Axon.Activations do
     * [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
 
   """
-  defblock Axon.Block, gelu(x) do
+  defblock gelu(x) do
     sqrt2 = Nx.sqrt(Nx.tensor(2, type: Nx.type(x)))
 
     x
@@ -208,20 +208,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.hard_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.0, 0.0, 0.0, 0.20000000298023224, 0.4000000059604645, 0.6000000238418579, 0.800000011920929]
+        [0.0, 0.0, 0.0, 0.2, 0.4, 0.6, 0.8]
       >
 
       iex> Axon.Activations.hard_sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.0, 0.0, 0.0],
-          [0.3984375, 0.59765625, 0.796875]
+          [7.8e-4, 0.0, 0.0],
+          [0.398, 0.598, 0.797]
         ]
       >
 
   """
-  defblock Axon.Block, hard_sigmoid(x, opts \\ []) do
+  defblock hard_sigmoid(x, opts \\ []) do
     opts = keyword!(opts, alpha: 0.2, beta: 0.2)
 
     x
@@ -243,20 +243,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.hard_silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.0, -0.0, -0.0, 0.0, 0.4000000059604645, 1.2000000476837158, 2.4000000953674316]
+        [-0.0, -0.0, -0.0, 0.0, 0.4, 1.2, 2.4]
       >
 
       iex> Axon.Activations.hard_silu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.0, -0.0, -0.0],
-          [0.3984375, 1.1953125, 2.390625]
+          [-7.8e-4, -0.0, -0.0],
+          [0.398, 1.195, 2.39]
         ]
       >
 
   """
-  defblock Axon.Block, hard_silu(x, opts \\ []) do
+  defblock hard_silu(x, opts \\ []) do
     x
     |> hard_sigmoid(opts)
     |> Nx.multiply(x)
@@ -285,7 +285,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock Axon.Block, hard_tanh(x) do
+  defblock hard_tanh(x) do
     Nx.select(
       Nx.greater(x, 1),
       1,
@@ -320,7 +320,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock Axon.Block, leaky_relu(x, opts \\ []) do
+  defblock leaky_relu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0e-2)
     Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
   end
@@ -348,7 +348,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock Axon.Block, linear(x), do: x
+  defblock linear(x), do: x
 
   @doc ~S"""
   Logsumexp activation.
@@ -360,52 +360,44 @@ defmodule Axon.Activations do
       iex> Axon.Activations.log_sumexp(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 1]
-        [3.4577627182006836]
+        [3.4577627]
       >
 
       iex> Axon.Activations.log_sumexp(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 1]
         [
-          [-0.59375],
-          [3.390625]
+          [-0.594],
+          [3.39]
         ]
       >
 
   """
-  defblock Axon.Block, log_sumexp(x, opts \\ []) do
+  defn log_sumexp(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
-    # This is a scaling term designed to prevent over/under flow when x is very
-    # large. Consider cases where the intermediate value e^x with large positive
-    # x, e^x tends towards infinity or 0. This poisons the rest of the
-    # calculation which would otherwise be normalized with the division by sum(e^x).
-    # Thus we can scale by the max value in the tensor which guarantees all values
-    # are smaller than 0.
-    #
-    # Given the expression is essentially:
-    #
-    # e^(x - C) / sum(e^(x - C))
-    #
-    # We are essentially treating the max value as a constant term, C. Thus there
-    # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
-    # for a note on performance.
+    # stop_grad must sit outside Nx.block/4 — see relu/1.
     max_val = Nx.reduce_max(x, axes: axes, keep_axes: true)
     max_val = stop_grad(Nx.select(Nx.is_infinity(max_val), 0, max_val))
+    log_sumexp_block(x, max_val, opts)
+  end
 
+  defblock LogSumexp, log_sumexp_block(x, max_val, opts \\ []) do
+    opts = keyword!(opts, axis: -1)
+    axes = wrap(opts[:axis])
+
+    # Scaling term to prevent over/underflow; max_val is treated as constant C.
+    # See also: https://github.com/google/jax/pull/2260
     stable_exp =
       x
       |> Nx.subtract(max_val)
       |> Nx.exp()
 
-    res =
-      stable_exp
-      |> Nx.sum(axes: axes, keep_axes: true)
-      |> Nx.log()
-      |> Nx.add(max_val)
-
-    res
+    stable_exp
+    |> Nx.sum(axes: axes, keep_axes: true)
+    |> Nx.log()
+    |> Nx.add(max_val)
   end
 
   @doc ~S"""
@@ -418,20 +410,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.log_sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-3.0485873222351074, -2.1269280910491943, -1.3132617473602295, -0.6931471824645996, -0.3132616877555847, -0.12692801654338837, -0.04858734831213951]
+        [-3.0485873, -2.126928, -1.3132617, -0.6931472, -0.3132617, -0.12692802, -0.04858735]
       >
 
       iex> Axon.Activations.log_sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-1.3125, -2.125, -3.046875],
-          [-0.3125, -0.1259765625, -0.04833984375]
+          [-1.31, -2.12, -3.05],
+          [-0.312, -0.126, -0.0483]
         ]
       >
 
   """
-  defblock Axon.Block, log_sigmoid(x), do: -softplus(-x)
+  defblock log_sigmoid(x), do: -softplus(-x)
 
   @doc """
   Log-softmax activation.
@@ -443,22 +435,29 @@ defmodule Axon.Activations do
       iex> Axon.Activations.log_softmax(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-6.457762718200684, -5.457762718200684, -4.457762718200684, -3.4577627182006836, -2.4577627182006836, -1.4577628374099731, -0.45776283740997314]
+        [-6.4577627, -5.4577627, -4.4577627, -3.4577627, -2.4577627, -1.4577628, -0.45776284]
       >
 
       iex> Axon.Activations.log_softmax(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.404296875, -1.3984375, -2.390625],
-          [-2.390625, -1.3984375, -0.404296875]
+          [-0.404, -1.4, -2.39],
+          [-2.39, -1.4, -0.404]
         ]
       >
   """
-  defblock Axon.Block, log_softmax(x, opts \\ []) do
+  defn log_softmax(x, opts \\ []) do
+    opts = keyword!(opts, axis: -1)
+    # stop_grad must sit outside Nx.block/4 — see relu/1.
+    max_val = stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+    log_softmax_block(x, max_val, opts)
+  end
+
+  defblock LogSoftmax, log_softmax_block(x, max_val, opts \\ []) do
     opts = keyword!(opts, axis: -1)
 
-    shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
+    shifted = x - max_val
 
     shifted
     |> Nx.exp()
@@ -478,19 +477,19 @@ defmodule Axon.Activations do
       iex> Axon.Activations.mish(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], type: {:f, 32}, names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.14564745128154755, -0.2525014877319336, -0.30340147018432617, 0.0, 0.8650984168052673, 1.9439589977264404, 2.98653507232666]
+        [-0.14564745, -0.2525015, -0.30340147, 0.0, 0.8650984, 1.943959, 2.986535]
       >
 
       iex> Axon.Activations.mish(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.30078125, -0.25, -0.1435546875],
-          [0.86328125, 1.9375, 2.96875]
+          [-0.3, -0.25, -0.144],
+          [0.863, 1.94, 2.97]
         ]
       >
   """
-  defblock Axon.Block, mish(x) do
+  defblock mish(x) do
     x * tanh(softplus(x))
   end
 
@@ -517,12 +516,18 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock Axon.Block, relu(x) do
+  defn relu(x) do
+    # custom_grad must sit outside Nx.block/4 — BinaryBackend.block re-runs the
+    # callback and Expr.metadata would otherwise leak into the result.
     custom_grad(
-      Nx.max(x, 0),
+      relu_block(x),
       [x],
       fn g -> [Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))] end
     )
+  end
+
+  defblock Relu, relu_block(x) do
+    Nx.max(x, 0)
   end
 
   @doc ~S"""
@@ -552,7 +557,7 @@ defmodule Axon.Activations do
     * [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861v1)
 
   """
-  defblock Axon.Block, relu6(x) do
+  defblock relu6(x) do
     x
     |> Nx.max(0)
     |> Nx.min(6)
@@ -573,23 +578,26 @@ defmodule Axon.Activations do
       iex> Axon.Activations.sigmoid(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.04742587357759476, 0.11920291930437088, 0.2689414322376251, 0.5, 0.7310585975646973, 0.8807970881462097, 0.9525741338729858]
+        [0.047425874, 0.11920292, 0.26894143, 0.5, 0.7310586, 0.8807971, 0.95257413]
       >
 
       iex> Axon.Activations.sigmoid(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.267578125, 0.119140625, 0.04736328125],
-          [0.73046875, 0.87890625, 0.94921875]
+          [0.268, 0.119, 0.0474],
+          [0.73, 0.88, 0.95]
         ]
       >
 
   """
-  defblock Axon.Block, sigmoid(x) do
-    # Cache logits so they are available in certain calculations,
-    # e.g. binary_cross_entropy and categorical_cross_entropy
-    cache_logits(x, Nx.sigmoid(x))
+  defn sigmoid(x) do
+    # Cache logits outside the block so metadata is not trapped inside Nx.block/4
+    cache_logits(x, sigmoid_block(x))
+  end
+
+  defblock Sigmoid, sigmoid_block(x) do
+    Nx.sigmoid(x)
   end
 
   @doc ~S"""
@@ -602,15 +610,15 @@ defmodule Axon.Activations do
       iex> Axon.Activations.silu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.14227762818336487, -0.23840583860874176, -0.2689414322376251, 0.0, 0.7310585975646973, 1.7615941762924194, 2.857722282409668]
+        [-0.14227763, -0.23840584, -0.26894143, 0.0, 0.7310586, 1.7615942, 2.8577223]
       >
 
       iex> Axon.Activations.silu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.267578125, -0.23828125, -0.1416015625],
-          [0.73046875, 1.7578125, 2.84375]
+          [-0.268, -0.238, -0.142],
+          [0.73, 1.76, 2.84]
         ]
       >
 
@@ -619,7 +627,7 @@ defmodule Axon.Activations do
     * [Sigmoid-Weighted Linear Units for Neural Network Function Approximation in Reinforcement Learning](https://arxiv.org/abs/1702.03118v3)
 
   """
-  defblock Axon.Block, silu(x) do
+  defblock silu(x) do
     x
     |> Nx.sigmoid()
     |> Nx.multiply(x)
@@ -639,15 +647,15 @@ defmodule Axon.Activations do
       iex> Axon.Activations.selu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-1.670568823814392, -1.5201665163040161, -1.1113307476043701, 0.0, 1.0507010221481323, 2.1014020442962646, 3.1521029472351074]
+        [-1.6705688, -1.5201665, -1.1113307, 0.0, 1.050701, 2.101402, 3.152103]
       >
 
       iex> Axon.Activations.selu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-1.09375, -1.5, -1.65625],
-          [1.046875, 2.09375, 3.140625]
+          [-1.09, -1.51, -1.664],
+          [1.05, 2.1, 3.14]
         ]
       >
 
@@ -656,7 +664,7 @@ defmodule Axon.Activations do
     * [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515v5)
 
   """
-  defblock Axon.Block, selu(x, opts \\ []) do
+  defblock SeLU, selu(x, opts \\ []) do
     opts =
       keyword!(opts,
         alpha: 1.6732632423543772848170429916717,
@@ -687,7 +695,7 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         f32[batch: 1][data: 7]
         [
-          [0.0015683004166930914, 0.004263082519173622, 0.011588259600102901, 0.03150015324354172, 0.08562629669904709, 0.23275642096996307, 0.6326975226402283]
+          [0.0015683004, 0.0042630825, 0.01158826, 0.031500153, 0.0856263, 0.23275642, 0.6326975]
         ]
       >
 
@@ -695,46 +703,36 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.6640625, 0.2431640625, 0.08935546875],
-          [0.08935546875, 0.2431640625, 0.6640625]
+          [0.664, 0.243, 0.0894],
+          [0.0894, 0.243, 0.664]
         ]
       >
 
   """
-  defblock Axon.Block, softmax(x, opts \\ []) do
+  defn softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
-    # This is a scaling term designed to prevent over/under flow when x is very
-    # large. Consider cases where the intermediate value e^x with large positive
-    # x, e^x tends towards infinity or 0. This poisons the rest of the
-    # calculation which would otherwise be normalized with the division by sum(e^x).
-    # Thus we can scale by the max value in the tensor which guarantees all values
-    # are smaller than 0.
-    #
-    # Given the expression is essentially:
-    #
-    # e^(x - C) / sum(e^(x - C))
-    #
-    # We are essentially treating the max value as a constant term, C. Thus there
-    # is no need to differentiate through the max. See also: https://github.com/google/jax/pull/2260
-    # for a note on performance.
+    # stop_grad / cache_logits must sit outside Nx.block/4 — see relu/1.
     max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
+    cache_logits(x, softmax_block(x, max_val, opts))
+  end
 
+  defblock Softmax, softmax_block(x, max_val, opts \\ []) do
+    opts = keyword!(opts, axis: -1)
+    axes = wrap(opts[:axis])
+
+    # Scaling term to prevent over/underflow; max_val is treated as constant C.
+    # See also: https://github.com/google/jax/pull/2260
     stable_exp =
       x
       |> Nx.subtract(max_val)
       |> Nx.exp()
 
-    res =
-      stable_exp
-      |> Nx.sum(axes: axes, keep_axes: true)
-      |> reciprocal()
-      |> Nx.multiply(stable_exp)
-
-    # Cache logits so they are available in certain calculations,
-    # e.g. binary_cross_entropy and categorical_cross_entropy
-    cache_logits(x, res)
+    stable_exp
+    |> Nx.sum(axes: axes, keep_axes: true)
+    |> reciprocal()
+    |> Nx.multiply(stable_exp)
   end
 
   @doc ~S"""
@@ -747,20 +745,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.softplus(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [0.04858734831213951, 0.12692801654338837, 0.3132616877555847, 0.6931471824645996, 1.3132617473602295, 2.1269280910491943, 3.0485873222351074]
+        [0.04858735, 0.12692802, 0.3132617, 0.6931472, 1.3132617, 2.126928, 3.0485873]
       >
 
       iex> Axon.Activations.softplus(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [0.3125, 0.1259765625, 0.04833984375],
-          [1.3125, 2.125, 3.046875]
+          [0.312, 0.126, 0.0483],
+          [1.31, 2.12, 3.05]
         ]
       >
 
   """
-  defblock Axon.Block, softplus(x) do
+  defblock softplus(x) do
     stable = Nx.max(0.0, x)
 
     x
@@ -781,20 +779,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.softsign(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.75, -0.6666666865348816, -0.5, 0.0, 0.5, 0.6666666865348816, 0.75]
+        [-0.75, -0.6666667, -0.5, 0.0, 0.5, 0.6666667, 0.75]
       >
 
       iex> Axon.Activations.softsign(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.5, -0.6640625, -0.75],
-          [0.5, 0.6640625, 0.75]
+          [-0.5, -0.664, -0.75],
+          [0.5, 0.664, 0.75]
         ]
       >
 
   """
-  defblock Axon.Block, softsign(x) do
+  defblock softsign(x) do
     x
     |> Nx.abs()
     |> Nx.add(1)
@@ -812,20 +810,20 @@ defmodule Axon.Activations do
       iex> Axon.Activations.tanh(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.9950547814369202, -0.9640275835990906, -0.7615941762924194, 0.0, 0.7615941762924194, 0.9640275835990906, 0.9950547814369202]
+        [-0.9950548, -0.9640276, -0.7615942, 0.0, 0.7615942, 0.9640276, 0.9950548]
       >
 
       iex> Axon.Activations.tanh(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.7578125, -0.9609375, -0.9921875],
-          [0.7578125, 0.9609375, 0.9921875]
+          [-0.758, -0.96, -0.992],
+          [0.758, 0.96, 0.992]
         ]
       >
 
   """
-  defblock Axon.Block, tanh(x), do: Nx.tanh(x)
+  defblock tanh(x), do: Nx.tanh(x)
 
   ## Helpers
 

@@ -1,14 +1,36 @@
 defmodule Axon.Block do
   @moduledoc """
-  Defines reusable `Nx.block/4` layers via the `defblock/2` macro.
+  Defines reusable `Nx.block/4` layers via the `defblock` macro.
 
-  `defblock prefix, name(args...) do body end` expands to two things:
+  `defblock` expands to two things:
 
-    * a struct module named `<prefix>.<CamelName>`, defined as `defstruct []`
-    * a `defn` named `name` whose body is wrapped in `Nx.block/4` tagged with
-      that struct
+    * a struct module under the **caller module**, used as the `Nx.block/4` tag
+    * a `defn` whose body is wrapped in `Nx.block/4` tagged with that struct
 
-  The struct serves as the dispatch tag for custom kernel implementations.
+  By default the struct module is `CallerModule.<CamelizedFunName>`:
+
+      defblock selu(x, opts \\\\ []) do
+        ...
+      end
+
+  defined in `Axon.Activations` yields `%Axon.Activations.Selu{}`.
+
+  Pass an optional single-segment alias when you need non-default casing:
+
+      defblock SeLU, selu(x, opts \\\\ []) do
+        ...
+      end
+
+  yields `%Axon.Activations.SeLU{}`.
+
+  Trailing keyword `opts \\\\ []` (or any list default) arguments are stored on the
+  block struct as `:opts` and are **not** passed in the `Nx.block/4` args list.
+  That matches current Nx: block args must be tensors (or containers of tensors);
+  static options live on the struct. The block lambda still receives `opts` by
+  pattern-matching the struct, so bodies can call `keyword!/2` unchanged.
+
+  The struct is the dispatch tag for custom kernel implementations
+  (for example `defimpl EXLA.CustomCall, for: Axon.Activations.Relu`).
 
   The module that calls `defblock` must `import Nx.Defn` so the generated
   `defn` is in scope.
@@ -19,68 +41,110 @@ defmodule Axon.Block do
         import Nx.Defn
         import Axon.Block
 
-        defblock MyBlock, dense(x, w, b) do
+        defblock dense(x, w, b) do
           x |> Nx.dot(w) |> Nx.add(b)
         end
       end
 
-  This defines `MyLayers.dense/3` and the struct `%MyBlock.Dense{}`. External
-  libraries can override the default `defn` implementation with a custom kernel:
+  This defines `MyLayers.dense/3` and the struct `%MyLayers.Dense{}`.
 
-      defimpl EXLA.CustomCall, for: MyBlock.Dense do
-        ...
-      end
-
-      defimpl EMLX.Fast, for: MyBlock.Dense do
-        ...
-      end
-
-  Trailing `opts \\\\ default` parameters are supported and forwarded to the
-  block lambda as the last argument, so the body can call `keyword!/2`
-  normally:
-
-      defblock MyBlock, leaky_relu(x, opts \\\\ []) do
+      defblock leaky_relu(x, opts \\\\ []) do
         opts = keyword!(opts, alpha: 1.0e-2)
         Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
       end
-
-  All layers and activations are implemented as `defblock`, namespaced under this
-  module. Library users can use this to override default Axon implementations with
-  their own custom kernels.
   """
 
   @doc """
-  Defines a block under the given module `prefix`.
+  Defines a block under the caller module, camelizing the function name.
   """
-  defmacro defblock(prefix, call, do: body) do
-    build(__CALLER__, prefix, call, body)
+  defmacro defblock(call, do: body) do
+    build(__CALLER__, nil, call, body)
   end
 
-  defp build(env, prefix_ast, call, body) do
-    {name, args} = parse_call(call, env)
-    vars = Enum.map(args, &arg_var/1)
-    prefix = expand_prefix(prefix_ast, env)
+  @doc """
+  Defines a block under the caller module with an explicit module suffix.
 
-    camelized = name |> Atom.to_string() |> Macro.camelize()
-    struct_module = Module.concat(prefix, camelized)
+  `suffix` must be a single-segment alias (for example `SeLU`), not a nested
+  module path.
+  """
+  defmacro defblock(suffix, call, do: body) do
+    build(__CALLER__, suffix, call, body)
+  end
+
+  defp build(env, suffix_ast, call, body) do
+    {name, args} = parse_call(call, env)
+    {tensor_args, opts_args} = split_opts_args(args)
+    tensor_vars = Enum.map(tensor_args, &arg_var/1)
+    struct_module = Module.concat(env.module, suffix_name(suffix_ast, name, env))
+
+    {struct_def, block_struct, fun_struct} =
+      case opts_args do
+        [] ->
+          {
+            quote(do: defstruct([])),
+            quote(do: %unquote(struct_module){}),
+            quote(do: %unquote(struct_module){})
+          }
+
+        [opts_arg] ->
+          opts_var = arg_var(opts_arg)
+
+          {
+            quote(do: defstruct(opts: [])),
+            quote(do: %unquote(struct_module){opts: unquote(opts_var)}),
+            quote(do: %unquote(struct_module){opts: unquote(opts_var)})
+          }
+
+        other ->
+          raise CompileError,
+            description:
+              "defblock supports at most one trailing opts argument, got: " <>
+                Macro.to_string(other),
+            file: env.file,
+            line: env.line
+      end
 
     quote do
       defmodule unquote(struct_module) do
         @moduledoc false
-        defstruct []
+        unquote(struct_def)
       end
 
       defn unquote(name)(unquote_splicing(args)) do
         Nx.block(
-          %unquote(struct_module){},
-          [unquote_splicing(vars)],
+          unquote(block_struct),
+          [unquote_splicing(tensor_vars)],
           nil,
-          fn _struct, unquote_splicing(vars) ->
+          fn unquote(fun_struct), unquote_splicing(tensor_vars) ->
             unquote(body)
           end
         )
       end
     end
+  end
+
+  defp split_opts_args(args) do
+    Enum.split_with(args, fn arg -> not opts_arg?(arg) end)
+  end
+
+  defp opts_arg?({:\\, _meta, [_var, default]}), do: is_list(default)
+  defp opts_arg?(_), do: false
+
+  defp suffix_name(nil, name, _env) do
+    name |> Atom.to_string() |> Macro.camelize()
+  end
+
+  defp suffix_name({:__aliases__, _meta, [segment]}, _name, _env) when is_atom(segment) do
+    Atom.to_string(segment)
+  end
+
+  defp suffix_name(other, _name, env) do
+    raise CompileError,
+      description:
+        "defblock optional name must be a single-segment alias like `SeLU`, got: " <>
+          Macro.to_string(other),
+      file: env.file,
+      line: env.line
   end
 
   defp parse_call({name, _meta, args}, _env) when is_atom(name) and is_list(args) do
@@ -102,18 +166,4 @@ defmodule Axon.Block do
 
   defp arg_var({:\\, _meta, [var, _default]}), do: var
   defp arg_var(var), do: var
-
-  defp expand_prefix(prefix_ast, env) do
-    case Macro.expand(prefix_ast, env) do
-      mod when is_atom(mod) ->
-        mod
-
-      other ->
-        raise CompileError,
-          description:
-            "defblock expects a module prefix, got: " <> Macro.to_string(other),
-          file: env.file,
-          line: env.line
-    end
-  end
 end
