@@ -2001,6 +2001,32 @@ defmodule Axon.Layers do
     input + bias
   end
 
+  @doc ~S"""
+  Functional implementation of a learnable scale layer.
+
+  Multiplies the input elementwise by `scale` broadcast along the
+  `:channel_index` axis:
+
+  $$y = x * \gamma$$
+
+  where $\gamma$ is the scale parameter with one element per
+  position along `:channel_index`.
+
+  ## Options
+
+    * `:channel_index` - input axis along which the scale is
+      applied. Defaults to `-1`.
+  """
+  defn scale(input, scale, opts \\ []) do
+    opts = keyword!(opts, channel_index: -1, mode: :train)
+
+    num_channels = Nx.axis_size(input, opts[:channel_index])
+    parameter_shape = norm_parameter_reshape(input, num_channels, opts[:channel_index])
+
+    scale = Nx.reshape(scale, parameter_shape)
+    Nx.multiply(input, scale)
+  end
+
   @doc """
   Resizes a batch of tensors to the given shape using one of a
   number of sampling methods.

@@ -347,6 +347,70 @@ defmodule CompilerTest do
     end
   end
 
+  describe "scale" do
+    test "initializes in default case" do
+      model = Axon.input("input_0", shape: {nil, 3}) |> Axon.scale(name: "scale")
+
+      input = random({1, 3})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+
+      assert %ModelState{
+               data: %{"scale" => %{"scale" => scale}},
+               parameters: %{"scale" => ["scale"]}
+             } = init_fn.(input, ModelState.empty())
+
+      assert Nx.shape(scale) == {3}
+      assert Nx.type(scale) == {:f, 32}
+    end
+
+    test "applies small init multiplicatively" do
+      model =
+        Axon.input("input_0", shape: {nil, 3})
+        |> Axon.scale(name: "scale", scale_initializer: Axon.Initializers.full(1.0e-6))
+
+      input = Nx.tensor([[1.0, 2.0, 3.0]])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(input, ModelState.empty())
+
+      out = predict_fn.(params, input)
+      assert_all_close(out, Nx.tensor([[1.0e-6, 2.0e-6, 3.0e-6]]), atol: 1.0e-12)
+    end
+
+    test "broadcasts correctly along a non-trailing channel_index" do
+      model =
+        Axon.input("input_0", shape: {nil, 2, 4})
+        |> Axon.scale(name: "scale", channel_index: 1)
+
+      input =
+        Nx.tensor([
+          [
+            [1.0, 1.0, 1.0, 1.0],
+            [1.0, 1.0, 1.0, 1.0]
+          ]
+        ])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(input, ModelState.empty())
+
+      params =
+        Axon.ModelState.update(params, %{"scale" => %{"scale" => Nx.tensor([2.0, 3.0])}})
+
+      out = predict_fn.(params, input)
+
+      expected =
+        Nx.tensor([
+          [
+            [2.0, 2.0, 2.0, 2.0],
+            [3.0, 3.0, 3.0, 3.0]
+          ]
+        ])
+
+      assert_equal(out, expected)
+    end
+  end
+
   describe "dense" do
     test "initializes in default case" do
       model = Axon.input("input_0", shape: {nil, 1}) |> Axon.dense(1, name: "dense")

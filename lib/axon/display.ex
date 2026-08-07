@@ -186,6 +186,9 @@ defmodule Axon.Display do
         %Parameter{shape: {:tuple, shapes}}, acc ->
           Enum.reduce(shapes, acc, &(Nx.size(apply(&1, input_shapes)) + &2))
 
+        %Parameter{template: %Nx.Tensor{} = template}, acc ->
+          acc + Nx.size(template)
+
         %Parameter{template: shape_fn}, acc when is_function(shape_fn) ->
           acc + Nx.size(apply(shape_fn, input_shapes))
       end)
@@ -252,6 +255,11 @@ defmodule Axon.Display do
           |> List.to_tuple()
 
         "#{name}: tuple#{inspect(shapes)}"
+
+      %Parameter{name: name, template: %Nx.Tensor{} = template} ->
+        type = Nx.type(template)
+        shape = Nx.shape(template)
+        "#{name}: #{type_str(type)}#{shape_string(shape)}"
 
       %Parameter{name: name, template: shape_fn} when is_function(shape_fn) ->
         shape = Nx.shape(apply(shape_fn, input_shapes))
