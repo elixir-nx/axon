@@ -41,9 +41,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nx, "~> 0.10", nx_opts()},
-      {:exla, "~> 0.10", [only: :test] ++ exla_opts()},
-      {:torchx, "~> 0.10", [only: :test] ++ torchx_opts()},
+      nx_dep(),
+      exla_dep(),
+      torchx_dep(),
       {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
       {:kino, "~> 0.7", optional: true},
@@ -62,27 +62,35 @@ defmodule Axon.MixProject do
     ]
   end
 
-  defp nx_opts do
-    if path = System.get_env("AXON_NX_PATH") do
-      [path: path, override: true]
-    else
-      []
+  # Nx.block/4 requires Nx >= 0.12. Prefer local path overrides for development;
+  # otherwise pin the elixir-nx monorepo until Hex catches up.
+  defp nx_dep do
+    cond do
+      path = System.get_env("AXON_NX_PATH") ->
+        {:nx, path: path, override: true}
+
+      true ->
+        {:nx, github: "elixir-nx/nx", sparse: "nx", branch: "main", override: true}
     end
   end
 
-  defp exla_opts do
-    if path = System.get_env("AXON_EXLA_PATH") do
-      [path: path]
-    else
-      []
+  defp exla_dep do
+    cond do
+      path = System.get_env("AXON_EXLA_PATH") ->
+        {:exla, path: path, only: :test}
+
+      true ->
+        {:exla, github: "elixir-nx/nx", sparse: "exla", branch: "main", only: :test}
     end
   end
 
-  defp torchx_opts do
-    if path = System.get_env("AXON_TORCHX_PATH") do
-      [path: path]
-    else
-      []
+  defp torchx_dep do
+    cond do
+      path = System.get_env("AXON_TORCHX_PATH") ->
+        {:torchx, path: path, only: :test}
+
+      true ->
+        {:torchx, github: "elixir-nx/nx", sparse: "torchx", branch: "main", only: :test}
     end
   end
 

@@ -84,7 +84,7 @@ defmodule Axon.Activations do
     * [Continuously Differentiable Exponential Linear Units](https://arxiv.org/pdf/1704.07483.pdf)
 
   """
-  defblock celu(x, opts \\ []) do
+  defblock CELU, celu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     validate_celu_alpha!(opts[:alpha])
 
@@ -129,7 +129,7 @@ defmodule Axon.Activations do
     * [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
 
   """
-  defblock elu(x, opts \\ []) do
+  defblock ELU, elu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0)
     x_hat = Nx.select(Nx.greater(x, 0), 0, x)
     Nx.select(Nx.greater(x, 0), x, opts[:alpha] * Nx.expm1(x_hat))
@@ -189,7 +189,7 @@ defmodule Axon.Activations do
     * [Gaussian Error Linear Units (GELUs)](https://arxiv.org/abs/1606.08415)
 
   """
-  defblock gelu(x) do
+  defblock GeLU, gelu(x) do
     sqrt2 = Nx.sqrt(Nx.tensor(2, type: Nx.type(x)))
 
     x
@@ -215,7 +215,7 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [7.8e-4, 0.0, 0.0],
+          [0.0, 0.0, 0.0],
           [0.398, 0.598, 0.797]
         ]
       >
@@ -250,13 +250,13 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-7.8e-4, -0.0, -0.0],
+          [-0.0, -0.0, -0.0],
           [0.398, 1.195, 2.39]
         ]
       >
 
   """
-  defblock hard_silu(x, opts \\ []) do
+  defblock HardSiLU, hard_silu(x, opts \\ []) do
     x
     |> hard_sigmoid(opts)
     |> Nx.multiply(x)
@@ -320,7 +320,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock leaky_relu(x, opts \\ []) do
+  defblock LeakyReLU, leaky_relu(x, opts \\ []) do
     opts = keyword!(opts, alpha: 1.0e-2)
     Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
   end
@@ -373,22 +373,15 @@ defmodule Axon.Activations do
       >
 
   """
-  defn log_sumexp(x, opts \\ []) do
+  defblock LogSumExp, log_sumexp(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
-    # stop_grad must sit outside Nx.block/4 — see relu/1.
+    # Scaling term to prevent over/underflow; max treated as constant C.
+    # See also: https://github.com/google/jax/pull/2260
     max_val = Nx.reduce_max(x, axes: axes, keep_axes: true)
     max_val = stop_grad(Nx.select(Nx.is_infinity(max_val), 0, max_val))
-    log_sumexp_block(x, max_val, opts)
-  end
 
-  defblock LogSumexp, log_sumexp_block(x, max_val, opts \\ []) do
-    opts = keyword!(opts, axis: -1)
-    axes = wrap(opts[:axis])
-
-    # Scaling term to prevent over/underflow; max_val is treated as constant C.
-    # See also: https://github.com/google/jax/pull/2260
     stable_exp =
       x
       |> Nx.subtract(max_val)
@@ -447,17 +440,10 @@ defmodule Axon.Activations do
         ]
       >
   """
-  defn log_softmax(x, opts \\ []) do
-    opts = keyword!(opts, axis: -1)
-    # stop_grad must sit outside Nx.block/4 — see relu/1.
-    max_val = stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
-    log_softmax_block(x, max_val, opts)
-  end
-
-  defblock LogSoftmax, log_softmax_block(x, max_val, opts \\ []) do
+  defblock LogSoftMax, log_softmax(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
 
-    shifted = x - max_val
+    shifted = x - stop_grad(Nx.reduce_max(x, axes: [opts[:axis]], keep_axes: true))
 
     shifted
     |> Nx.exp()
@@ -516,18 +502,12 @@ defmodule Axon.Activations do
       >
 
   """
-  defn relu(x) do
-    # custom_grad must sit outside Nx.block/4 — BinaryBackend.block re-runs the
-    # callback and Expr.metadata would otherwise leak into the result.
+  defblock ReLU, relu(x) do
     custom_grad(
-      relu_block(x),
+      Nx.max(x, 0),
       [x],
       fn g -> [Nx.select(Nx.greater(x, 0), g, Nx.broadcast(0, g))] end
     )
-  end
-
-  defblock Relu, relu_block(x) do
-    Nx.max(x, 0)
   end
 
   @doc ~S"""
@@ -557,7 +537,7 @@ defmodule Axon.Activations do
     * [MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861v1)
 
   """
-  defblock relu6(x) do
+  defblock ReLU6, relu6(x) do
     x
     |> Nx.max(0)
     |> Nx.min(6)
@@ -592,7 +572,8 @@ defmodule Axon.Activations do
 
   """
   defn sigmoid(x) do
-    # Cache logits outside the block so metadata is not trapped inside Nx.block/4
+    # Logits metadata must wrap the block result (not sit inside it) so
+    # losses can pattern-match `%{logits: _}` on the returned tensor.
     cache_logits(x, sigmoid_block(x))
   end
 
@@ -627,7 +608,7 @@ defmodule Axon.Activations do
     * [Sigmoid-Weighted Linear Units for Neural Network Function Approximation in Reinforcement Learning](https://arxiv.org/abs/1702.03118v3)
 
   """
-  defblock silu(x) do
+  defblock SiLU, silu(x) do
     x
     |> Nx.sigmoid()
     |> Nx.multiply(x)
@@ -654,7 +635,7 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-1.09, -1.51, -1.664],
+          [-1.09, -1.5, -1.66],
           [1.05, 2.1, 3.14]
         ]
       >
@@ -710,20 +691,19 @@ defmodule Axon.Activations do
 
   """
   defn softmax(x, opts \\ []) do
-    opts = keyword!(opts, axis: -1)
-    axes = wrap(opts[:axis])
-
-    # stop_grad / cache_logits must sit outside Nx.block/4 — see relu/1.
-    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
-    cache_logits(x, softmax_block(x, max_val, opts))
+    # Logits metadata must wrap the block result (not sit inside it) so
+    # losses can pattern-match `%{logits: _}` on the returned tensor.
+    cache_logits(x, softmax_block(x, opts))
   end
 
-  defblock Softmax, softmax_block(x, max_val, opts \\ []) do
+  defblock SoftMax, softmax_block(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 
-    # Scaling term to prevent over/underflow; max_val is treated as constant C.
+    # Scaling term to prevent over/underflow; max treated as constant C.
     # See also: https://github.com/google/jax/pull/2260
+    max_val = stop_grad(Nx.reduce_max(x, axes: axes, keep_axes: true))
+
     stable_exp =
       x
       |> Nx.subtract(max_val)
@@ -758,7 +738,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock softplus(x) do
+  defblock SoftPlus, softplus(x) do
     stable = Nx.max(0.0, x)
 
     x
@@ -792,7 +772,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock softsign(x) do
+  defblock SoftSign, softsign(x) do
     x
     |> Nx.abs()
     |> Nx.add(1)

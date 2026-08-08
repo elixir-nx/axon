@@ -2,10 +2,16 @@ defmodule Axon.Block do
   @moduledoc """
   Defines reusable `Nx.block/4` layers via the `defblock` macro.
 
-  `defblock` expands to two things:
+  `defblock` expands to:
 
     * a struct module under the **caller module**, used as the `Nx.block/4` tag
-    * a `defn` whose body is wrapped in `Nx.block/4` tagged with that struct
+    * a private `defnp` with the layer body
+    * a public `deftransform` that wraps that body in `Nx.block/4`
+
+  The body lives in `defnp` so `BinaryBackend.block/4` re-running the default
+  callback does not invoke `stop_grad`/`custom_grad` as raw Kernel calls on
+  concrete tensors. The callback instead calls the `defnp`, which JIT-compiles
+  normally and returns concrete results.
 
   By default the struct module is `CallerModule.<CamelizedFunName>`:
 
@@ -26,14 +32,15 @@ defmodule Axon.Block do
   Trailing keyword `opts \\\\ []` (or any list default) arguments are stored on the
   block struct as `:opts` and are **not** passed in the `Nx.block/4` args list.
   That matches current Nx: block args must be tensors (or containers of tensors);
-  static options live on the struct. The block lambda still receives `opts` by
-  pattern-matching the struct, so bodies can call `keyword!/2` unchanged.
+  static options live on the struct. The block lambda restores `opts` from the
+  struct before calling the private `defnp`, so bodies can call `keyword!/2`
+  unchanged.
 
   The struct is the dispatch tag for custom kernel implementations
-  (for example `defimpl EXLA.CustomCall, for: Axon.Activations.Relu`).
+  (for example `defimpl EXLA.CustomCall, for: Axon.Activations.ReLU`).
 
   The module that calls `defblock` must `import Nx.Defn` so the generated
-  `defn` is in scope.
+  definitions are in scope.
 
   ## Examples
 
@@ -48,7 +55,7 @@ defmodule Axon.Block do
 
   This defines `MyLayers.dense/3` and the struct `%MyLayers.Dense{}`.
 
-      defblock leaky_relu(x, opts \\\\ []) do
+      defblock LeakyReLU, leaky_relu(x, opts \\\\ []) do
         opts = keyword!(opts, alpha: 1.0e-2)
         Nx.select(Nx.greater(x, 0), x, x * opts[:alpha])
       end
@@ -75,14 +82,15 @@ defmodule Axon.Block do
     {name, args} = parse_call(call, env)
     {tensor_args, opts_args} = split_opts_args(args)
     tensor_vars = Enum.map(tensor_args, &arg_var/1)
+    defn_args = Enum.map(args, &arg_var/1)
     struct_module = Module.concat(env.module, suffix_name(suffix_ast, name, env))
+    defn_name = :"__block__#{name}__"
 
-    {struct_def, block_struct, fun_struct} =
+    {struct_def, struct} =
       case opts_args do
         [] ->
           {
             quote(do: defstruct([])),
-            quote(do: %unquote(struct_module){}),
             quote(do: %unquote(struct_module){})
           }
 
@@ -91,7 +99,6 @@ defmodule Axon.Block do
 
           {
             quote(do: defstruct(opts: [])),
-            quote(do: %unquote(struct_module){opts: unquote(opts_var)}),
             quote(do: %unquote(struct_module){opts: unquote(opts_var)})
           }
 
@@ -110,21 +117,26 @@ defmodule Axon.Block do
         unquote(struct_def)
       end
 
-      defn unquote(name)(unquote_splicing(args)) do
+      # Public transform first so a preceding @doc attaches here, not to defnp.
+      deftransform unquote(name)(unquote_splicing(args)) do
         Nx.block(
-          unquote(block_struct),
+          unquote(struct),
           [unquote_splicing(tensor_vars)],
           nil,
-          fn unquote(fun_struct), unquote_splicing(tensor_vars) ->
-            unquote(body)
+          fn unquote(struct), unquote_splicing(tensor_vars) ->
+            unquote(defn_name)(unquote_splicing(defn_args))
           end
         )
+      end
+
+      defnp unquote(defn_name)(unquote_splicing(args)) do
+        unquote(body)
       end
     end
   end
 
   defp split_opts_args(args) do
-    Enum.split_with(args, fn arg -> not opts_arg?(arg) end)
+    Enum.split_while(args, fn arg -> not opts_arg?(arg) end)
   end
 
   defp opts_arg?({:\\, _meta, [_var, default]}), do: is_list(default)
