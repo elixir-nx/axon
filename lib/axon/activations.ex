@@ -577,7 +577,7 @@ defmodule Axon.Activations do
     cache_logits(x, sigmoid_block(x))
   end
 
-  defblock Sigmoid, sigmoid_block(x) do
+  defblockp Sigmoid, sigmoid_block(x) do
     Nx.sigmoid(x)
   end
 
@@ -696,7 +696,7 @@ defmodule Axon.Activations do
     cache_logits(x, softmax_block(x, opts))
   end
 
-  defblock SoftMax, softmax_block(x, opts \\ []) do
+  defblockp SoftMax, softmax_block(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     axes = wrap(opts[:axis])
 

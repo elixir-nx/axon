@@ -1,17 +1,22 @@
 defmodule Axon.Block do
   @moduledoc """
-  Defines reusable `Nx.block/4` layers via the `defblock` macro.
+  Defines reusable `Nx.block/4` layers via the `defblock` / `defblockp` macros.
 
-  `defblock` expands to:
+  Both macros expand to:
 
     * a struct module under the **caller module**, used as the `Nx.block/4` tag
     * a private `defnp` with the layer body
-    * a public `deftransform` that wraps that body in `Nx.block/4`
+    * a `deftransform` (`defblock`) or `deftransformp` (`defblockp`) that wraps
+      that body in `Nx.block/4`
 
   The body lives in `defnp` so `BinaryBackend.block/4` re-running the default
   callback does not invoke `stop_grad`/`custom_grad` as raw Kernel calls on
   concrete tensors. The callback instead calls the `defnp`, which JIT-compiles
   normally and returns concrete results.
+
+  Use `defblockp` when the block is an implementation detail of a public
+  function (for example `softmax` wrapping `softmax_block`) so the module does
+  not advertise the block entry point.
 
   By default the struct module is `CallerModule.<CamelizedFunName>`:
 
@@ -38,9 +43,10 @@ defmodule Axon.Block do
 
   The struct is the dispatch tag for custom kernel implementations
   (for example `defimpl EXLA.CustomCall, for: Axon.Activations.ReLU`).
+  It remains defined even when using `defblockp`.
 
-  The module that calls `defblock` must `import Nx.Defn` so the generated
-  definitions are in scope.
+  The module that calls `defblock`/`defblockp` must `import Nx.Defn` so the
+  generated definitions are in scope.
 
   ## Examples
 
@@ -62,23 +68,37 @@ defmodule Axon.Block do
   """
 
   @doc """
-  Defines a block under the caller module, camelizing the function name.
+  Defines a public block under the caller module, camelizing the function name.
   """
   defmacro defblock(call, do: body) do
-    build(__CALLER__, nil, call, body)
+    build(__CALLER__, nil, call, body, :deftransform)
   end
 
   @doc """
-  Defines a block under the caller module with an explicit module suffix.
+  Defines a public block under the caller module with an explicit module suffix.
 
   `suffix` must be a single-segment alias (for example `SeLU`), not a nested
   module path.
   """
   defmacro defblock(suffix, call, do: body) do
-    build(__CALLER__, suffix, call, body)
+    build(__CALLER__, suffix, call, body, :deftransform)
   end
 
-  defp build(env, suffix_ast, call, body) do
+  @doc """
+  Like `defblock/1`, but the wrapper is a private `deftransformp`.
+  """
+  defmacro defblockp(call, do: body) do
+    build(__CALLER__, nil, call, body, :deftransformp)
+  end
+
+  @doc """
+  Like `defblock/2`, but the wrapper is a private `deftransformp`.
+  """
+  defmacro defblockp(suffix, call, do: body) do
+    build(__CALLER__, suffix, call, body, :deftransformp)
+  end
+
+  defp build(env, suffix_ast, call, body, kind) do
     {name, args} = parse_call(call, env)
     {tensor_args, opts_args} = split_opts_args(args)
     tensor_vars = Enum.map(tensor_args, &arg_var/1)
@@ -105,7 +125,7 @@ defmodule Axon.Block do
         other ->
           raise CompileError,
             description:
-              "defblock supports at most one trailing opts argument, got: " <>
+              "defblock/defblockp supports at most one trailing opts argument, got: " <>
                 Macro.to_string(other),
             file: env.file,
             line: env.line
@@ -117,8 +137,8 @@ defmodule Axon.Block do
         unquote(struct_def)
       end
 
-      # Public transform first so a preceding @doc attaches here, not to defnp.
-      deftransform unquote(name)(unquote_splicing(args)) do
+      # Transform first so a preceding @doc attaches here, not to defnp.
+      unquote(kind)(unquote(name)(unquote_splicing(args))) do
         Nx.block(
           unquote(struct),
           [unquote_splicing(tensor_vars)],
@@ -153,7 +173,7 @@ defmodule Axon.Block do
   defp suffix_name(other, _name, env) do
     raise CompileError,
       description:
-        "defblock optional name must be a single-segment alias like `SeLU`, got: " <>
+        "defblock/defblockp optional name must be a single-segment alias like `SeLU`, got: " <>
           Macro.to_string(other),
       file: env.file,
       line: env.line
@@ -170,7 +190,7 @@ defmodule Axon.Block do
   defp parse_call(other, env) do
     raise CompileError,
       description:
-        "defblock expects a function head like `name(args...)`, got: " <>
+        "defblock/defblockp expects a function head like `name(args...)`, got: " <>
           Macro.to_string(other),
       file: env.file,
       line: env.line
