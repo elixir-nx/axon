@@ -22,16 +22,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - otp: "28.1"
+            elixir: "1.20.1"
+            lint: true
+          - otp: "28.1"
+            elixir: "1.20.1"
+            test_command_prepend: "USE_EXLA=true"
+          - otp: "28.1"
+            elixir: "1.20.1"
+            test_command_prepend: "USE_TORCHX=true"
           - otp: "27.1"
             elixir: "1.19.0"
-            lint: true
-          - otp: "26.1.1"
-            elixir: "1.15.6"
-          - otp: "26.1.1"
-            elixir: "1.15.6"
+          - otp: "27.1"
+            elixir: "1.19.0"
             test_command_prepend: "USE_EXLA=true"
-          - otp: "26.1.1"
-            elixir: "1.15.6"
+          - otp: "27.1"
+            elixir: "1.19.0"
             test_command_prepend: "USE_TORCHX=true"
     steps:
       - uses: actions/checkout@v3

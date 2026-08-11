@@ -209,7 +209,6 @@ defmodule Axon.Loop do
       |> Axon.Loop.from_state(state)
       |> Axon.Loop.run(data)
   """
-  require Polaris.Updates
   require Logger
 
   alias __MODULE__, as: Loop
@@ -1133,7 +1132,7 @@ defmodule Axon.Loop do
 
         {:continue, %{state | handler_metadata: updated_handler_meta}}
 
-      not improved? and not over_patience? ->
+      not over_patience? ->
         default = %{monitor => prev_criteria_value, :since_last_improvement => 0}
 
         updated_handler_meta =

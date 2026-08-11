@@ -46,13 +46,13 @@ defmodule Axon.Metrics do
       iex> Axon.Metrics.accuracy(Nx.tensor([[1], [0], [0]]), Nx.tensor([[1], [1], [1]]))
       #Nx.Tensor<
         f32
-        0.3333333432674408
+        0.33333334
       >
 
       iex> Axon.Metrics.accuracy(Nx.tensor([[0, 1], [1, 0], [1, 0]]), Nx.tensor([[0, 1], [1, 0], [0, 1]]))
       #Nx.Tensor<
         f32
-        0.6666666865348816
+        0.6666667
       >
 
       iex> Axon.Metrics.accuracy(Nx.tensor([[0, 1, 0], [1, 0, 0]]), Nx.tensor([[0, 1, 0], [0, 1, 0]]))
@@ -109,7 +109,7 @@ defmodule Axon.Metrics do
       iex> Axon.Metrics.precision(Nx.tensor([0, 1, 1, 1]), Nx.tensor([1, 0, 1, 1]))
       #Nx.Tensor<
         f32
-        0.6666666865348816
+        0.6666667
       >
 
   """
@@ -140,7 +140,7 @@ defmodule Axon.Metrics do
       iex> Axon.Metrics.recall(Nx.tensor([0, 1, 1, 1]), Nx.tensor([1, 0, 1, 1]))
       #Nx.Tensor<
         f32
-        0.6666666865348816
+        0.6666667
       >
 
   """
@@ -298,7 +298,7 @@ defmodule Axon.Metrics do
       iex> Axon.Metrics.sensitivity(Nx.tensor([0, 1, 1, 1]), Nx.tensor([1, 0, 1, 1]))
       #Nx.Tensor<
         f32
-        0.6666666865348816
+        0.6666667
       >
 
   """

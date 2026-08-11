@@ -156,15 +156,19 @@ defmodule Axon.LoopTest do
 
     test "trainer/3 raises on bad inputs" do
       assert_raise ArgumentError, ~r/Invalid/, fn ->
-        Axon.Loop.trainer(:foo, :mean_squared_error, :adam)
+        apply(Axon.Loop, :trainer, [:foo, :mean_squared_error, :adam])
       end
 
       assert_raise ArgumentError, ~r/Invalid/, fn ->
-        Axon.Loop.trainer(Axon.input("input", shape: {nil, 1}), :foo, :adam)
+        apply(Axon.Loop, :trainer, [Axon.input("input", shape: {nil, 1}), :foo, :adam])
       end
 
       assert_raise ArgumentError, ~r/Invalid/, fn ->
-        Axon.Loop.trainer(Axon.input("input", shape: {nil, 1}), :mean_squared_error, :foo)
+        apply(Axon.Loop, :trainer, [
+          Axon.input("input", shape: {nil, 1}),
+          :mean_squared_error,
+          :foo
+        ])
       end
     end
 

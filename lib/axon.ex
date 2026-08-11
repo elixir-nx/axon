@@ -281,8 +281,6 @@ defmodule Axon do
 
   import Axon.Shared
 
-  require Logger
-
   @type t :: %__MODULE__{}
 
   defstruct [
@@ -4032,11 +4030,11 @@ defmodule Axon do
       %{op_name: :container, parent: parents, op: fun} = popped ->
         {popped, apply(fun, Enum.map(parents, &%Axon{nodes: nodes, output: &1}) ++ [[]])}
 
-      %{parent: [_ | _] = parents} = popped ->
-        {popped, Enum.map(parents, &%Axon{nodes: nodes, output: &1})}
-
       %{parent: [parent_id]} = popped ->
         {popped, %Axon{nodes: nodes, output: parent_id}}
+
+      %{parent: [_ | _] = parents} = popped ->
+        {popped, Enum.map(parents, &%Axon{nodes: nodes, output: &1})}
     end
   end
 

@@ -251,21 +251,7 @@ defmodule Axon.ModelState do
     Enum.map(list, &transform_to_parameters/1)
   end
 
-  defp transform_to_parameters(value) do
-    case value do
-      map when is_map(map) ->
-        keys = Map.keys(map)
-
-        if Enum.all?(keys, &(is_map(map[&1]) or match?(%Nx.Tensor{}, map[&1]))) do
-          keys
-        else
-          transform_to_parameters(map)
-        end
-
-      _ ->
-        value
-    end
-  end
+  defp transform_to_parameters(value), do: value
 
   # Helpers
 
