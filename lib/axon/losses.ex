@@ -195,18 +195,13 @@ defmodule Axon.Losses do
   end
 
   deftransformp get_weights(y_true, pos, neg) do
-    case {y_true, pos, neg} do
-      {_, nil, nil} ->
+    case {pos, neg} do
+      {nil, nil} ->
         nil
 
-      {y_true, pos, nil} ->
-        Nx.take(Nx.tensor([1.0, pos], backend: Nx.Defn.Expr), y_true)
-
-      {y_true, nil, neg} ->
-        Nx.take(Nx.tensor([neg, 1.0], backend: Nx.Defn.Expr), y_true)
-
-      {y_true, pos, neg} ->
-        Nx.take(Nx.tensor([neg, pos], backend: Nx.Defn.Expr), y_true)
+      {pos, neg} ->
+        mask = Nx.equal(y_true, 0)
+        Nx.select(mask, neg || 1.0, pos || 1.0)
     end
   end
 
