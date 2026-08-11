@@ -1,5 +1,25 @@
 defmodule AxonTestUtil do
   import Nx.Defn
+  import Nx, only: [is_tensor: 1]
+  import ExUnit.Assertions, only: [assert_raise: 2]
+  import Nx.Testing, only: [assert_equal: 2]
+
+  @doc """
+  Like `Nx.Testing.assert_all_close/3`, but also recurses into tuples,
+  maps, and `Nx.Container` structs (e.g. the `{output, {h, c}}` carry
+  tuples returned by recurrent layers). `Nx.Testing.assert_all_close/3`
+  only accepts tensors, so leaf comparisons are delegated to it.
+  """
+  def assert_all_close(left, right, opts \\ [])
+
+  def assert_all_close(left, right, opts) when not is_tensor(left) or not is_tensor(right) do
+    Nx.Defn.Composite.compatible?(left, right, fn l, r ->
+      Nx.Testing.assert_all_close(l, r, opts)
+      true
+    end)
+  end
+
+  def assert_all_close(left, right, opts), do: Nx.Testing.assert_all_close(left, right, opts)
 
   def test_compiler do
     use_exla? = System.get_env("USE_EXLA")
@@ -19,110 +39,26 @@ defmodule AxonTestUtil do
     check_optimizer_run!(optimizer, loss, x0, num_steps)
   end
 
-  def assert_all_close(lhs, rhs, opts \\ [])
-
-  def assert_all_close(lhs, rhs, opts) when is_tuple(lhs) and is_tuple(rhs) do
-    lhs
-    |> Tuple.to_list()
-    |> Enum.zip_with(Tuple.to_list(rhs), &assert_all_close(&1, &2, opts))
+  @doc """
+  Asserts that `lhs` and `rhs` are not equal, built on top of `Nx.Testing.assert_equal/2`
+  so vectorized tensors (and composites) are handled the same way.
+  """
+  def assert_not_equal(lhs, rhs) do
+    assert_raise ExUnit.AssertionError, fn -> assert_equal(lhs, rhs) end
   end
 
-  def assert_all_close(%Nx.Tensor{} = lhs, %Nx.Tensor{} = rhs, opts) do
-    res = Nx.all_close(lhs, rhs, opts) |> Nx.backend_transfer(Nx.BinaryBackend)
-
-    unless Nx.to_number(res) == 1 do
-      raise """
-      expected
-
-      #{inspect(Nx.backend_transfer(lhs, Nx.BinaryBackend))}
-
-      to be within tolerance of
-
-      #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
-      """
-    end
-  end
-
-  def assert_all_close(lhs, rhs, opts) when is_map(lhs) and is_map(rhs) do
-    lhs
-    |> Map.values()
-    |> Enum.zip_with(Map.values(rhs), &assert_all_close(&1, &2, opts))
-  end
-
-  def assert_equal(lhs, rhs) when is_tuple(lhs) and is_tuple(rhs) do
-    lhs
-    |> Tuple.to_list()
-    |> Enum.zip_with(Tuple.to_list(rhs), &assert_equal/2)
-  end
-
-  def assert_equal(%Nx.Tensor{} = lhs, %Nx.Tensor{} = rhs) do
-    res = Nx.equal(lhs, rhs) |> Nx.all() |> Nx.backend_transfer(Nx.BinaryBackend)
-
-    unless Nx.to_number(res) == 1 do
-      raise """
-      expected
-
-      #{inspect(Nx.backend_transfer(lhs, Nx.BinaryBackend))}
-
-      to be equal to
-
-      #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
-      """
-    end
-  end
-
-  def assert_equal(%Axon.ModelState{data: lhs}, %Axon.ModelState{data: rhs}) do
-    assert_equal(lhs, rhs)
-  end
-
-  def assert_equal(lhs, rhs) when is_map(lhs) and is_map(rhs) do
-    lhs
-    |> Map.values()
-    |> Enum.zip_with(Map.values(rhs), &assert_equal/2)
-  end
-
-  def assert_not_equal(lhs, rhs) when is_tuple(lhs) and is_tuple(rhs) do
-    lhs
-    |> Tuple.to_list()
-    |> Enum.zip_with(Tuple.to_list(rhs), &assert_not_equal/2)
-  end
-
-  def assert_not_equal(%Nx.Tensor{} = lhs, %Nx.Tensor{} = rhs) do
-    res = Nx.equal(lhs, rhs) |> Nx.all() |> Nx.backend_transfer(Nx.BinaryBackend)
-
-    unless Nx.to_number(res) == 0 do
-      raise """
-      expected
-
-      #{inspect(Nx.backend_transfer(lhs, Nx.BinaryBackend))}
-
-      to be not equal to
-
-      #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
-      """
-    end
-  end
-
-  def assert_not_equal(lhs, rhs) when is_map(lhs) and is_map(rhs) do
-    rhs
-    |> Map.values()
-    |> Enum.zip_with(Map.values(rhs), &assert_not_equal/2)
-  end
-
+  @doc """
+  Asserts that every element of `lhs` is greater than or equal to the
+  corresponding element of `rhs`. Devectorizes before reducing so
+  vectorized tensors are checked across every instance, then delegates
+  to `Nx.Testing.assert_equal/2` for the actual assertion.
+  """
   def assert_greater_equal(lhs, rhs) do
-    res = Nx.greater_equal(lhs, rhs) |> Nx.all() |> Nx.backend_transfer(Nx.BinaryBackend)
-
-    unless Nx.to_number(res) == 1 do
-      raise """
-      expected
-
-      #{inspect(Nx.backend_transfer(lhs, Nx.BinaryBackend))}
-
-      to be greater than or equal to
-
-      #{inspect(Nx.backend_transfer(rhs, Nx.BinaryBackend))}
-      """
-    end
+    lhs
+    |> Nx.greater_equal(rhs)
+    |> Nx.devectorize()
+    |> Nx.all()
+    |> assert_equal(1)
   end
 
   def zeros(shape) do

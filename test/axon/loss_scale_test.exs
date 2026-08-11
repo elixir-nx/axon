@@ -1,6 +1,6 @@
 defmodule Axon.LossScaleTest do
   use ExUnit.Case
-  import AxonTestUtil
+  import Nx.Testing
 
   import Axon.LossScale
 
