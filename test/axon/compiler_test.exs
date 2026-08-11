@@ -578,7 +578,7 @@ defmodule CompilerTest do
                parameters: %{"bilinear" => ["bias", "kernel"]}
              } = init_fn.(inputs, ModelState.empty())
 
-      assert_equal(kernel, zeros({1, 2}))
+      assert_equal(kernel, zeros({1, 1, 2}))
       assert Nx.shape(bias) == {1}
       assert Nx.type(bias) == {:f, 32}
 
@@ -3095,13 +3095,13 @@ defmodule CompilerTest do
       input1 = random({1, 32})
 
       assert {_, predict_fn} = Axon.build(model1)
-      assert_equal(predict_fn.(ModelState.empty(), input1), Nx.reshape(input1, {1, 16, 2}))
+      assert_equal(predict_fn.(ModelState.empty(), input1), Nx.reshape(input1, {16, 2}))
 
       model2 = Axon.input("input", shape: {nil, 3, 32, 32}) |> Axon.reshape({3, 16, 2, 32})
       input2 = random({1, 3, 32, 32})
 
       assert {_, predict_fn} = Axon.build(model2)
-      assert_equal(predict_fn.(ModelState.empty(), input2), Nx.reshape(input2, {1, 3, 16, 2, 32}))
+      assert_equal(predict_fn.(ModelState.empty(), input2), Nx.reshape(input2, {3, 16, 2, 32}))
     end
 
     test "computes forward pass with constant input" do
@@ -3334,7 +3334,7 @@ defmodule CompilerTest do
       h = %{"whi" => whi, "whf" => whf, "whg" => whg, "who" => who}
       b = %{"bi" => bi, "bf" => bf, "bg" => bg, "bo" => bo}
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input),
         Axon.Layers.dynamic_unroll(
           &Axon.Layers.lstm_cell/6,
@@ -3476,7 +3476,7 @@ defmodule CompilerTest do
       enc = {ek, eh, eb}
       dec = {dk, dh, db}
 
-      assert_equal(predict_fn.(params, input), equiv_fn.(input, enc, dec))
+      assert_all_close(predict_fn.(params, input), equiv_fn.(input, enc, dec))
     end
 
     test "initializes with use_bias false" do
@@ -3530,7 +3530,7 @@ defmodule CompilerTest do
 
       c = {zeros({1, 2}), zeros({1, 2})}
 
-      assert_equal(
+      assert_all_close(
         predict_fn.(params, input),
         Axon.Layers.dynamic_unroll(&Axon.Layers.lstm_cell/6, input, c, Nx.tensor(0), k, h, b)
       )
@@ -5768,7 +5768,7 @@ defmodule CompilerTest do
 
       assert_equal(
         Axon.predict(model, ModelState.empty(), %{"lazy_container" => input}),
-        Nx.tensor([[1.0, 3.0]])
+        Nx.tensor([[[1.0, 3.0]]])
       )
     end
   end

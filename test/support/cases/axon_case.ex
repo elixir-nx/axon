@@ -4,6 +4,9 @@ defmodule Axon.Case do
   using do
     quote do
       import Nx.Defn
+      # `assert_all_close/3` comes from `AxonTestUtil`, not `Nx.Testing`, since
+      # it also recurses into tuples/maps (e.g. recurrent layer carry state).
+      import Nx.Testing, only: [assert_equal: 2]
       import AxonTestUtil
     end
   end
