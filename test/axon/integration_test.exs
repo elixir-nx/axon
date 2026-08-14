@@ -432,6 +432,8 @@ defmodule Axon.IntegrationTest do
     @scales [:identity, :dynamic, :static]
 
     for {name, policy} <- @policies, scale <- @scales do
+      params_policy = policy.params || {:f, 32}
+
       test "trains simple model with policy #{name}, scale #{inspect(scale)}" do
         {train, _test} = get_test_data(100, 0, 10, {10}, 2, 1337)
 
@@ -476,8 +478,8 @@ defmodule Axon.IntegrationTest do
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
 
-          params_policy = unquote(Macro.escape(policy)).params || {:f, 32}
-          assert Nx.type(model_state.data["dense_0"]["kernel"]) == params_policy
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) ==
+                   unquote(Macro.escape(params_policy))
         end)
       end
 
@@ -529,8 +531,8 @@ defmodule Axon.IntegrationTest do
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
           assert Nx.shape(Axon.predict(model, model_state, x_test)) == {10, 2}
 
-          params_policy = unquote(Macro.escape(policy)).params || {:f, 32}
-          assert Nx.type(model_state.data["dense_0"]["kernel"]) == params_policy
+          assert Nx.type(model_state.data["dense_0"]["kernel"]) ==
+                   unquote(Macro.escape(params_policy))
         end)
       end
     end

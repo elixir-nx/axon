@@ -41,9 +41,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      nx_dep(),
-      exla_dep(),
-      torchx_dep(),
+      {:nx, "~> 0.13.1", nx_opts()},
+      {:exla, "~> 0.13", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.13", [only: :test] ++ torchx_opts()},
       {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
       {:kino, "~> 0.7", optional: true},
