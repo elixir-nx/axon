@@ -348,7 +348,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock linear(x), do: x
+  defblock(linear(x), do: x)
 
   @doc ~S"""
   Logsumexp activation.
@@ -416,7 +416,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock log_sigmoid(x), do: -softplus(-x)
+  defblock(log_sigmoid(x), do: -softplus(-x))
 
   @doc """
   Log-softmax activation.
@@ -803,7 +803,7 @@ defmodule Axon.Activations do
       >
 
   """
-  defblock tanh(x), do: Nx.tanh(x)
+  defblock(tanh(x), do: Nx.tanh(x))
 
   ## Helpers
 
