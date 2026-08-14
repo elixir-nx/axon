@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.34.2">
+    <meta name="project" content="Axon v0.8.1">
+
+
+    <title>Axon.Block — Axon v0.8.1</title>
+    <link rel="stylesheet" href="dist/html-elixir-F2VRIOKR.css" />
+
+
+    <script src="dist/handlebars.runtime-NWIB6V2M.js"></script>
+    <script src="dist/handlebars.templates-K7URE6B4.js"></script>
+    <script src="dist/sidebar_items-B9AC84D3.js"></script>
+    <script src="docs_config.js"></script>
+    <script async src="dist/html-YIPIRHGU.js"></script>
+
+  </head>
+  <body data-type="modules" class="page-module">
+    <script>
+
+      try {
+        var settings = JSON.parse(localStorage.getItem('ex_doc:settings') || '{}');
+
+        if (settings.theme === 'dark' ||
+           ((settings.theme === 'system' || settings.theme == null) &&
+             window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ) {
+          document.body.classList.add('dark')
+        }
+      } catch (error) { }
+    </script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+        <a href="Axon.html" class="sidebar-projectImage">
+          <img src="assets/logo.png" alt="Axon" />
+        </a>
+
+      <div>
+        <a href="Axon.html" class="sidebar-projectName" translate="no">
+Axon
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.8.1
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-listNav" class="sidebar-listNav" role="tablist">
+      <li>
+        <button id="extras-list-tab-button" role="tab" data-type="extras" aria-controls="extras-tab-panel" aria-selected="true" tabindex="0">
+Pages
+        </button>
+      </li>
+
+        <li>
+          <button id="modules-list-tab-button" role="tab" data-type="modules" aria-controls="modules-tab-panel" aria-selected="false" tabindex="-1">
+            Modules
+          </button>
+        </li>
+
+
+    </ul>
+  </div>
+
+  <div id="extras-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="extras-list-tab-button">
+    <ul id="extras-full-list" class="full-list"></ul>
+  </div>
+
+    <div id="modules-tab-panel" class="sidebar-tabpanel" role="tabpanel" aria-labelledby="modules-list-tab-button" hidden>
+      <ul id="modules-full-list" class="full-list"></ul>
+    </div>
+
+
+</nav>
+
+<main class="content">
+  <output role="status" id="toast"></output>
+
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of Axon</span>
+            <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+          </label>
+          <button type="submit" class="search-button" aria-label="Submit Search">
+            <i class="ri-search-2-line ri-lg" aria-hidden="true" title="Submit search"></i>
+          </button>
+          <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+            <i class="ri-close-line ri-lg" title="Cancel search"></i>
+          </button>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/block.ex#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+    <span translate="no">Axon.Block</span> 
+    <small class="app-vsn" translate="no">(Axon v0.8.1)</small>
+
+  </h1>
+
+
+    <section id="moduledoc">
+<p>Defines reusable <a href="https://hexdocs.pm/nx/0.13.1/Nx.html#block/4"><code class="inline">Nx.block/4</code></a> layers via the <code class="inline">defblock</code> / <code class="inline">defblockp</code> macros.</p><p>Both macros expand to:</p><ul><li>a struct module under the <strong>caller module</strong>, used as the <a href="https://hexdocs.pm/nx/0.13.1/Nx.html#block/4"><code class="inline">Nx.block/4</code></a> tag</li><li>a private <code class="inline">defnp</code> with the layer body</li><li>a <code class="inline">deftransform</code> (<code class="inline">defblock</code>) or <code class="inline">deftransformp</code> (<code class="inline">defblockp</code>) that wraps
+that body in <a href="https://hexdocs.pm/nx/0.13.1/Nx.html#block/4"><code class="inline">Nx.block/4</code></a></li></ul><p>The body lives in <code class="inline">defnp</code> so <code class="inline">BinaryBackend.block/4</code> re-running the default
+callback does not invoke <code class="inline">stop_grad</code>/<code class="inline">custom_grad</code> as raw Kernel calls on
+concrete tensors. The callback instead calls the <code class="inline">defnp</code>, which JIT-compiles
+normally and returns concrete results.</p><p>Use <code class="inline">defblockp</code> when the block is an implementation detail of a public
+function (for example <code class="inline">softmax</code> wrapping <code class="inline">softmax_block</code>) so the module does
+not advertise the block entry point.</p><p>By default the struct module is <code class="inline">CallerModule.&lt;CamelizedFunName&gt;</code>:</p><pre><code class="makeup elixir" translate="no"><span class="n">defblock</span><span class="w"> </span><span class="n">selu</span><span class="p" data-group-id="9146865881-1">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="9146865881-2">[</span><span class="p" data-group-id="9146865881-2">]</span><span class="p" data-group-id="9146865881-1">)</span><span class="w"> </span><span class="k" data-group-id="9146865881-3">do</span><span class="w">
+  </span><span class="n">...</span><span class="w">
+</span><span class="k" data-group-id="9146865881-3">end</span></code></pre><p>defined in <a href="Axon.Activations.html"><code class="inline">Axon.Activations</code></a> yields <code class="inline">%Axon.Activations.Selu{}</code>.</p><p>Pass an optional single-segment alias when you need non-default casing:</p><pre><code class="makeup elixir" translate="no"><span class="n">defblock</span><span class="w"> </span><span class="nc">SeLU</span><span class="p">,</span><span class="w"> </span><span class="n">selu</span><span class="p" data-group-id="4249225564-1">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="4249225564-2">[</span><span class="p" data-group-id="4249225564-2">]</span><span class="p" data-group-id="4249225564-1">)</span><span class="w"> </span><span class="k" data-group-id="4249225564-3">do</span><span class="w">
+  </span><span class="n">...</span><span class="w">
+</span><span class="k" data-group-id="4249225564-3">end</span></code></pre><p>yields <code class="inline">%Axon.Activations.SeLU{}</code>.</p><p>Trailing keyword <code class="inline">opts \\ []</code> (or any list default) arguments are stored on the
+block struct as <code class="inline">:opts</code> and are <strong>not</strong> passed in the <a href="https://hexdocs.pm/nx/0.13.1/Nx.html#block/4"><code class="inline">Nx.block/4</code></a> args list.
+That matches current Nx: block args must be tensors (or containers of tensors);
+static options live on the struct. The block lambda restores <code class="inline">opts</code> from the
+struct before calling the private <code class="inline">defnp</code>, so bodies can call <code class="inline">keyword!/2</code>
+unchanged.</p><p>The struct is the dispatch tag for custom kernel implementations
+(for example <code class="inline">defimpl EXLA.CustomCall, for: Axon.Activations.ReLU</code>).
+It remains defined even when using <code class="inline">defblockp</code>.</p><p>The module that calls <code class="inline">defblock</code>/<code class="inline">defblockp</code> must <code class="inline">import Nx.Defn</code> so the
+generated definitions are in scope.</p><h2 id="module-examples" class="section-heading">
+  <a href="#module-examples" class="hover-link">
+    <i class="ri-link-m" aria-hidden="true"></i>
+  </a>
+  <span class="text">Examples</span>
+</h2>
+<pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyLayers</span><span class="w"> </span><span class="k" data-group-id="0337154498-1">do</span><span class="w">
+  </span><span class="kn">import</span><span class="w"> </span><span class="nc">Nx.Defn</span><span class="w">
+  </span><span class="kn">import</span><span class="w"> </span><span class="nc">Axon.Block</span><span class="w">
+
+  </span><span class="n">defblock</span><span class="w"> </span><span class="n">dense</span><span class="p" data-group-id="0337154498-2">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p" data-group-id="0337154498-2">)</span><span class="w"> </span><span class="k" data-group-id="0337154498-3">do</span><span class="w">
+    </span><span class="n">x</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">dot</span><span class="p" data-group-id="0337154498-4">(</span><span class="n">w</span><span class="p" data-group-id="0337154498-4">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Nx</span><span class="o">.</span><span class="n">add</span><span class="p" data-group-id="0337154498-5">(</span><span class="n">b</span><span class="p" data-group-id="0337154498-5">)</span><span class="w">
+  </span><span class="k" data-group-id="0337154498-3">end</span><span class="w">
+</span><span class="k" data-group-id="0337154498-1">end</span></code></pre><p>This defines <code class="inline">MyLayers.dense/3</code> and the struct <code class="inline">%MyLayers.Dense{}</code>.</p><pre><code class="makeup elixir" translate="no"><span class="n">defblock</span><span class="w"> </span><span class="nc">LeakyReLU</span><span class="p">,</span><span class="w"> </span><span class="n">leaky_relu</span><span class="p" data-group-id="3558691073-1">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">\\</span><span class="w"> </span><span class="p" data-group-id="3558691073-2">[</span><span class="p" data-group-id="3558691073-2">]</span><span class="p" data-group-id="3558691073-1">)</span><span class="w"> </span><span class="k" data-group-id="3558691073-3">do</span><span class="w">
+  </span><span class="n">opts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">keyword!</span><span class="p" data-group-id="3558691073-4">(</span><span class="n">opts</span><span class="p">,</span><span class="w"> </span><span class="ss">alpha</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0e-2</span><span class="p" data-group-id="3558691073-4">)</span><span class="w">
+  </span><span class="nc">Nx</span><span class="o">.</span><span class="n">select</span><span class="p" data-group-id="3558691073-5">(</span><span class="nc">Nx</span><span class="o">.</span><span class="n">greater</span><span class="p" data-group-id="3558691073-6">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="3558691073-6">)</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">opts</span><span class="p" data-group-id="3558691073-7">[</span><span class="ss">:alpha</span><span class="p" data-group-id="3558691073-7">]</span><span class="p" data-group-id="3558691073-5">)</span><span class="w">
+</span><span class="k" data-group-id="3558691073-3">end</span></code></pre>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h1>
+<div class="summary-functions summary">
+  <h2>
+    <a href="#functions">Functions</a>
+  </h2>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#defblock/2" data-no-tooltip translate="no">defblock(call, list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Defines a public block under the caller module, camelizing the function name.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#defblock/3" data-no-tooltip translate="no">defblock(suffix, call, list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Defines a public block under the caller module with an explicit module suffix.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#defblockp/2" data-no-tooltip translate="no">defblockp(call, list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Like <code class="inline">defblock/1</code>, but the wrapper is a private <code class="inline">deftransformp</code>.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#defblockp/3" data-no-tooltip translate="no">defblockp(suffix, call, list)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Like <a href="#defblock/2"><code class="inline">defblock/2</code></a>, but the wrapper is a private <code class="inline">deftransformp</code>.</p></div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h1>
+    <div class="functions-list">
+<section class="detail" id="defblock/2">
+
+  <div class="detail-header">
+    <a href="#defblock/2" class="detail-link" data-no-tooltip title="Link to this macro">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature" translate="no">defblock(call, list)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/block.ex#L73" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Defines a public block under the caller module, camelizing the function name.</p>
+  </section>
+</section>
+<section class="detail" id="defblock/3">
+
+  <div class="detail-header">
+    <a href="#defblock/3" class="detail-link" data-no-tooltip title="Link to this macro">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature" translate="no">defblock(suffix, call, list)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/block.ex#L83" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Defines a public block under the caller module with an explicit module suffix.</p><p><code class="inline">suffix</code> must be a single-segment alias (for example <code class="inline">SeLU</code>), not a nested
+module path.</p>
+  </section>
+</section>
+<section class="detail" id="defblockp/2">
+
+  <div class="detail-header">
+    <a href="#defblockp/2" class="detail-link" data-no-tooltip title="Link to this macro">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature" translate="no">defblockp(call, list)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/block.ex#L90" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Like <code class="inline">defblock/1</code>, but the wrapper is a private <code class="inline">deftransformp</code>.</p>
+  </section>
+</section>
+<section class="detail" id="defblockp/3">
+
+  <div class="detail-header">
+    <a href="#defblockp/3" class="detail-link" data-no-tooltip title="Link to this macro">
+      <i class="ri-link-m" aria-hidden="true"></i>
+      <span class="sr-only">Link to this macro</span>
+    </a>
+    <h1 class="signature" translate="no">defblockp(suffix, call, list)</h1>
+
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/block.ex#L97" class="icon-action" rel="help" title="View Source">
+       <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+       <span class="sr-only">View Source</span>
+     </a>
+
+
+      <span class="note">(macro)</span>
+
+  </div>
+
+  <section class="docstring">
+
+<p>Like <a href="#defblock/2"><code class="inline">defblock/2</code></a>, but the wrapper is a private <code class="inline">deftransformp</code>.</p>
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+      <p>
+
+          <span class="line">
+            <a href="https://hex.pm/packages/axon/0.8.1" class="footer-hex-package">Hex Package</a>
+
+            <a href="https://preview.hex.pm/preview/axon/0.8.1">Hex Preview</a>
+
+          </span>
+
+        <span class="line">
+          <button class="a-main footer-button display-quick-switch" title="Search HexDocs packages">
+            Search HexDocs
+          </button>
+
+            <a href="Axon.epub" title="ePub version">
+              Download ePub version
+            </a>
+
+        </span>
+      </p>
+
+      <p class="built-using">
+        Built using
+        <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.34.2) for the
+
+          <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+      </p>
+
+    </footer>
+  </div>
+</main>
+</div>
+<!-- Render math with KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.css" integrity="sha384-t5CR+zwDAROtph0PXGte6ia8heboACF9R5l/DiY+WZ3P2lxNgvJkQk5n7GPvLMYw" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/katex.min.js" integrity="sha384-FaFLTlohFghEIZkw6VGwmf9ISTubWAVYW8tG8+w2LAIftJEULZABrF9PPFv+tVkH" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.0/dist/contrib/auto-render.min.js" integrity="sha384-bHBqxz8fokvgoJ/sc17HODNxa42TlaEhB+w8ZJXTc2nZf1VgEaFZeZvT4Mznfz0v" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+      ]
+    });
+  });
+</script>
+
+<!-- Render diagrams with Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@8.13.3/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    mermaid.initialize({ startOnLoad: false });
+    let id = 0;
+    for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+      const preEl = codeEl.parentElement;
+      const graphDefinition = codeEl.textContent;
+      const graphEl = document.createElement("div");
+      const graphId = "mermaid-graph-" + id++;
+      mermaid.render(graphId, graphDefinition, function (svgSource, bindListeners) {
+        graphEl.innerHTML = svgSource;
+        bindListeners && bindListeners(graphEl);
+        preEl.insertAdjacentElement("afterend", graphEl);
+        preEl.remove();
+      });
+    }
+  });
+</script>
+
+  </body>
+</html>

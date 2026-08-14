@@ -26,6 +26,7 @@
 /home/runner/work/axon/axon/doc/your_first_training_loop.livemd
 404.html
 Axon.Activations.html
+Axon.Block.html
 Axon.CompileError.html
 Axon.Display.html
 Axon.Initializers.html
@@ -68,8 +69,8 @@ dist/lato-latin-ext-300-normal-VPGGJKJL.woff2
 dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/remixicon-NKANDIL5.woff2
-dist/search_data-301A1956.js
-dist/sidebar_items-134265A3.js
+dist/search_data-4F0F2C4B.js
+dist/sidebar_items-B9AC84D3.js
 fashionmnist_autoencoder.html
 fashionmnist_vae.html
 guides.html
