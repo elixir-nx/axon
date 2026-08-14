@@ -800,7 +800,7 @@ defmodule Axon.Activations do
       #Nx.Tensor<
         f32[batch: 1][data: 4]
         [
-          [-0.14227762818336487, -0.4768116772174835, -0.8068243265151978, 0.0]
+          [-0.14227763, -0.47681168, -0.8068243, 0.0]
         ]
       >
 
@@ -812,7 +812,7 @@ defmodule Axon.Activations do
   ## References
     * [GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202)
   """
-  defn swiglu(x, opts \\ []) do
+  defblock SwiGLU, swiglu(x, opts \\ []) do
     opts = keyword!(opts, axis: -1)
     {a, b} = split_halves(x, opts[:axis])
     silu(a) * b
