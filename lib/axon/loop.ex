@@ -339,7 +339,10 @@ defmodule Axon.Loop do
         optimizer_state = init_optimizer_fn.(trainable_parameters)
         loss_scale_state = init_loss_scale.()
 
-        # TODO: is this expensive? Will it compute the entire forward?
+        # This traces the forward pass to learn the shape and type of the
+        # prediction, it does not compute it. zeros_like/1 reads only the
+        # shape and type off the traced tensors, so the forward expression
+        # is never referenced by the returned state and never lowered.
         %{prediction: output} = forward_model_fn.(model_state, inp)
 
         %{
@@ -476,7 +479,8 @@ defmodule Axon.Loop do
 
     init_fn = fn
       {inp, tar}, state ->
-        # TODO: Is this expensive
+        # Traces the forward pass for its shape and type only, see the
+        # equivalent call in train_step/3
         output = forward_model_fn.(state, inp)
 
         %{
