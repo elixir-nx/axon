@@ -1021,6 +1021,103 @@ defmodule Axon do
   end
 
   @doc """
+  Wraps a subgraph construction in a name prefix.
+
+  Every layer built *inside* the given closure has its name prefixed
+  with `prefix <> "."`. Layers passed in from outer scope (including
+  inputs) are left untouched. Unlike `Axon.block/2`, `namespace`
+  introduces no extra graph node and performs no parameter sharing —
+  it only renames the leaves built within its boundary.
+
+  This is most useful for hoisting `name:` plumbing out of builder
+  functions: leaves use bare names like `"q_proj"` and the caller
+  decides at composition time where the prefix is applied.
+
+  ## Bare form
+
+  An arity-0 closure captures its inputs from lexical scope:
+
+      attention_output =
+        Axon.namespace("attention", fn ->
+          query
+          |> Axon.dense(q_size, name: "q_proj")
+          |> Axon.reshape({:batch, :auto, heads, head_size}, name: "q_heads")
+        end)
+
+  ## Pipe form
+
+  `namespace/3` accepts an input and an arity-1 closure for use
+  inside a pipeline:
+
+      hidden_state
+      |> Axon.namespace("attention", &self_attention(&1, opts))
+      |> Axon.add(residual)
+
+  ## Nesting
+
+  Namespaces stack. An inner namespace runs first, then the outer
+  one wraps its names again, producing `"outer.inner.leaf"`:
+
+      Axon.namespace("outer", fn ->
+        Axon.namespace("inner", fn ->
+          Axon.dense(input, 8, name: "proj")
+        end)
+      end)
+      # => "outer.inner.proj"
+
+  ## Inputs
+
+  An `Axon.input/2` defined *inside* the closure is renamed like any
+  other layer, which means the predict-step input map must use the
+  prefixed key. To avoid surprises, define inputs at the top level
+  and pass them in.
+  """
+  @doc type: :special
+  def namespace(prefix, fun) when is_binary(prefix) and is_function(fun, 0) do
+    boundary = System.unique_integer([:positive, :monotonic])
+
+    case fun.() do
+      %Axon{} = axon ->
+        rewrite_namespace_names(axon, prefix, boundary)
+
+      other ->
+        raise ArgumentError,
+              "Axon.namespace/2 expected the closure to return an %Axon{}, got: " <>
+                inspect(other)
+    end
+  end
+
+  @doc """
+  Pipe-friendly variant of `namespace/2`.
+
+  Calls `fun.(input)` inside a `namespace/2` boundary. Useful for
+  threading an input through a builder while applying a name prefix
+  to everything the builder constructs:
+
+      Axon.namespace(hidden_state, "ffn", &ffn(&1, opts))
+
+  """
+  @doc type: :special
+  def namespace(%Axon{} = input, prefix, fun)
+      when is_binary(prefix) and is_function(fun, 1) do
+    namespace(prefix, fn -> fun.(input) end)
+  end
+
+  defp rewrite_namespace_names(%Axon{} = axon, prefix, boundary) do
+    Axon.map_nodes(axon, fn
+      %Axon.Node{id: id, name: name_fn} = node when id > boundary ->
+        %{node | name: prepend_namespace(prefix, name_fn)}
+
+      node ->
+        node
+    end)
+  end
+
+  defp prepend_namespace(prefix, name_fn) do
+    fn op, op_counts -> prefix <> "." <> name_fn.(op, op_counts) end
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
