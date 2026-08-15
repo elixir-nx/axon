@@ -5868,14 +5868,61 @@ defmodule CompilerTest do
 
       input = Nx.broadcast(1, {1, 10})
 
+      # Each direction carries its own copy of the wrapped layer's
+      # parameters — they are not tied to one another.
       assert %ModelState{
                data: %{
-                 "bidirectional" => %{"lstm" => _}
+                 "bidirectional_forward" => %{"lstm" => _},
+                 "bidirectional_backward" => %{"lstm" => _}
                }
              } = params = init_fn.(input, ModelState.empty())
 
+      refute get_in(params.data, ["bidirectional_forward", "lstm", "input_kernel", "wii"]) ==
+               get_in(params.data, ["bidirectional_backward", "lstm", "input_kernel", "wii"])
+
       out = predict_fn.(params, input)
       assert Nx.shape(out) == {1, 20, 32}
+    end
+
+    test "passes LSTM state through un-reversed (Keras-equivalent)" do
+      # For LSTM-shaped output `{seq, {cell, hidden}}` the per-step
+      # outputs are un-reversed so they align with the forward run, but
+      # the state is left alone — so the merged hidden is the final
+      # state of each direction's run.
+      input = Axon.input("input", shape: {nil, 5, 3})
+
+      bidi =
+        input
+        |> Axon.bidirectional(
+          &Axon.lstm(&1, 4, name: "lstm", recurrent_initializer: :zeros),
+          &Nx.concatenate([&1, &2], axis: -1),
+          name: "bidirectional"
+        )
+
+      state_model = Axon.nx(bidi, fn {_seq, {_c, h}} -> h end)
+      seq_model = Axon.nx(bidi, &elem(&1, 0))
+
+      x = Nx.iota({2, 5, 3}, type: :f32) |> Nx.divide(10.0)
+
+      {state_init, state_predict} = Axon.build(state_model)
+      params = state_init.(x, ModelState.empty())
+
+      state_out = state_predict.(params, x)
+      assert Nx.shape(state_out) == {2, 8}
+
+      {_seq_init, seq_predict} = Axon.build(seq_model)
+      seq_out = seq_predict.(params, x)
+      assert Nx.shape(seq_out) == {2, 5, 8}
+
+      # Forward direction: the merged state's first half is the merged
+      # sequence's LAST timestep, first half (both are `fwd_h_T`).
+      assert_all_close(state_out[[.., 0..3]], seq_out[[.., -1, 0..3]])
+
+      # Backward direction: after un-reversal, position 0 of the merged
+      # sequence corresponds to the final step of the reversed-input
+      # run, so the merged state's second half is the merged sequence's
+      # FIRST timestep, second half.
+      assert_all_close(state_out[[.., 4..7]], seq_out[[.., 0, 4..7]])
     end
   end
 

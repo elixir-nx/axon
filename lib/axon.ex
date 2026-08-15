@@ -2682,32 +2682,71 @@ defmodule Axon do
   the results with the given merge function.
 
   This is most commonly used with RNNs to capture the dependencies
-  of a sequence in both directions.
+  of a sequence in both directions. The function is invoked once on
+  the input and once on the input reversed along `:axis`. Per-step
+  outputs produced by the reversed run are un-reversed so they align
+  with the forward outputs before being passed to `merge_fun`.
+
+  When `forward_fun` returns a container of tensors with mixed rank
+  (e.g. an LSTM returns `{sequence, {cell, hidden}}`), only leaves
+  that share the input's rank and `:axis`-th dimension are treated as
+  per-step outputs and un-reversed. Aggregate leaves like an LSTM's
+  final state — whose `:axis`-th dimension is the hidden axis, not
+  time — are left alone, so the merged result is the final state of
+  each direction's run (matching Keras' `Bidirectional(LSTM(...))`
+  behaviour).
+
+  Each direction is built as its own block and so carries its own
+  parameters — the two directions are trained independently rather
+  than sharing one set of weights. When `:name` is given, they are
+  named `"<name>_forward"` and `"<name>_backward"`.
 
   ## Options
 
-    * `axis` - Axis to reverse.
+    * `name` - layer name. Used to name each direction's block.
+
+    * `axis` - Axis to reverse. Defaults to `1`.
   """
   def bidirectional(%Axon{} = input, forward_fun, merge_fun, opts \\ [])
       when is_function(forward_fun, 1) and is_function(merge_fun, 2) do
     opts = Keyword.validate!(opts, [:name, axis: 1])
+    axis = opts[:axis]
 
-    fun =
-      Axon.block(
-        fn x ->
-          Axon.container(forward_fun.(x))
-        end,
-        name: opts[:name]
-      )
+    # Each direction gets its own block, and therefore its own
+    # parameters. A single block shared between the two calls would tie
+    # the forward and backward weights together, halving the layer's
+    # capacity (Keras' `Bidirectional` likewise gives each direction an
+    # independent copy of the wrapped layer).
+    forward_fun_block = bidirectional_block(forward_fun, opts[:name], "forward")
+    backward_fun_block = bidirectional_block(forward_fun, opts[:name], "backward")
 
-    forward_out = fun.(input)
+    forward_out = forward_fun_block.(input)
 
-    backward_out =
+    fwd_on_reversed =
       input
-      |> Axon.nx(&Nx.reverse(&1, axes: [opts[:axis]]))
-      |> fun.()
-      |> Axon.nx(fn x ->
-        deep_new(x, &Nx.reverse(&1, axes: [opts[:axis]]))
+      |> Axon.nx(&Nx.reverse(&1, axes: [axis]))
+      |> backward_fun_block.()
+
+    # Pair the reversed-input output with the original input so the
+    # un-reverse step below can compare each leaf's rank and `axis`-th
+    # dimension against the input at runtime. Leaves that align to the
+    # scanned axis are un-reversed; aggregate leaves (like LSTM state)
+    # are passed through untouched.
+    backward_out =
+      {fwd_on_reversed, input}
+      |> Axon.container()
+      |> Axon.nx(fn {x, inp} ->
+        input_rank = Nx.rank(inp)
+        norm_axis = Integer.mod(axis, input_rank)
+        time_dim = elem(Nx.shape(inp), norm_axis)
+
+        deep_new(x, fn leaf ->
+          if Nx.rank(leaf) == input_rank and elem(Nx.shape(leaf), norm_axis) == time_dim do
+            Nx.reverse(leaf, axes: [norm_axis])
+          else
+            leaf
+          end
+        end)
       end)
 
     {forward_out, backward_out}
@@ -2715,6 +2754,14 @@ defmodule Axon do
     |> Axon.nx(fn {forward, backward} ->
       deep_merge(forward, backward, merge_fun)
     end)
+  end
+
+  defp bidirectional_block(forward_fun, nil, _direction) do
+    Axon.block(fn x -> Axon.container(forward_fun.(x)) end)
+  end
+
+  defp bidirectional_block(forward_fun, name, direction) when is_binary(name) do
+    Axon.block(fn x -> Axon.container(forward_fun.(x)) end, name: "#{name}_#{direction}")
   end
 
   @doc """
