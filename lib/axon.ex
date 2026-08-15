@@ -3469,12 +3469,17 @@ defmodule Axon do
   This is commonly used as the `gamma` in residual blocks of modern
   Transformer architectures (CaiT, ConvNeXt, BEiT, EVA, etc.).
 
+  Initializing the scale to a small constant — typically
+  `Axon.Initializers.full(1.0e-6)` — dampens each block's contribution
+  at initialization and is sometimes called LayerScale.
+
   ## Options
 
     * `:name` - layer name.
 
     * `:scale_initializer` - initializer for the scale weights.
-      Defaults to `Axon.Initializers.full(1.0e-6)`.
+      Defaults to `:ones`. Pass `Axon.Initializers.full(1.0e-6)` (or a
+      similar small constant) for the LayerScale recipe.
 
     * `:channel_index` - input feature axis along which the scale is
       broadcast. Defaults to `-1`.
@@ -3485,7 +3490,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :meta,
-        scale_initializer: Axon.Initializers.full(1.0e-6),
+        scale_initializer: :ones,
         channel_index: -1
       ])
 

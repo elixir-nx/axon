@@ -364,6 +364,20 @@ defmodule CompilerTest do
       assert Nx.type(scale) == {:f, 32}
     end
 
+    test "default initializer is ones (forward pass is identity)" do
+      model = Axon.input("input_0", shape: {nil, 3}) |> Axon.scale(name: "scale")
+
+      input = Nx.tensor([[1.0, 2.0, 3.0]])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"scale" => %{"scale" => scale}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(scale, Nx.tensor([1.0, 1.0, 1.0]))
+      assert_equal(predict_fn.(params, input), input)
+    end
+
     test "applies small init multiplicatively" do
       model =
         Axon.input("input_0", shape: {nil, 3})

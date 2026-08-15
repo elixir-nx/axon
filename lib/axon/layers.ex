@@ -2002,7 +2002,8 @@ defmodule Axon.Layers do
   end
 
   @doc ~S"""
-  Functional implementation of a learnable scale layer.
+  Functional implementation of a learnable scale layer (sometimes
+  called LayerScale).
 
   Multiplies the input elementwise by `scale` broadcast along the
   `:channel_index` axis:
