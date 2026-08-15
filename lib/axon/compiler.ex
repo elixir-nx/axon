@@ -1151,11 +1151,11 @@ defmodule Axon.Compiler do
       if event? and mode? do
         if on_event == :backward do
           Nx.Defn.Kernel.custom_grad(expr, [expr], fn g ->
-            hooked_g = Nx.Defn.Kernel.hook(g, String.to_atom(layer_name), hook_fn)
+            hooked_g = Nx.Defn.Kernel.io_call(g, String.to_atom(layer_name), hook_fn)
             [hooked_g]
           end)
         else
-          Nx.Defn.Kernel.hook(expr, String.to_atom(layer_name), hook_fn)
+          Nx.Defn.Kernel.io_call(expr, String.to_atom(layer_name), hook_fn)
         end
       else
         expr

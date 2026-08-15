@@ -1010,6 +1010,188 @@ defmodule Axon.LoopTest do
     end
   end
 
+  describe "buffer donation" do
+    defp donation_model,
+      do: Axon.input("input", shape: {nil, 4}) |> Axon.dense(8) |> Axon.dense(1)
+
+    defp donation_data do
+      for i <- 1..4 do
+        xs = Nx.iota({2, 4}, type: :f32) |> Nx.add(i)
+        {xs, Nx.sum(xs, axes: [1], keep_axes: true)}
+      end
+    end
+
+    defp donation_init_state(model, data) do
+      {init_fn, _} = Axon.build(model)
+      [{xs, _} | _] = data
+      Nx.Defn.jit_apply(init_fn, [xs, Axon.ModelState.empty()])
+    end
+
+    # Runs every tensor in `container` through `fun`, returning the results.
+    defp map_leaves(container, fun) do
+      {_, acc} =
+        Nx.Defn.Composite.traverse(container, [], fn tensor, acc ->
+          {tensor, [fun.(tensor) | acc]}
+        end)
+
+      acc
+    end
+
+    test "donating state does not change the parameters a loop converges to" do
+      model = donation_model()
+      data = donation_data()
+      init_state = donation_init_state(model, data)
+
+      run = fn donate? ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          result =
+            model
+            |> Axon.Loop.trainer(
+              :mean_squared_error,
+              Polaris.Optimizers.adam(learning_rate: 0.01)
+            )
+            |> Axon.Loop.run(data, Nx.backend_copy(init_state),
+              epochs: 3,
+              donate_state?: donate?
+            )
+
+          send(self(), {:result, result})
+        end)
+
+        assert_receive {:result, result}
+        result
+      end
+
+      assert_equal(run.(true), run.(false))
+    end
+
+    test "donating state works when the loop is not JIT compiled" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert %Axon.ModelState{} =
+                 model
+                 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+                 |> Axon.Loop.run(data, Axon.ModelState.empty(),
+                   epochs: 2,
+                   donate_state?: true,
+                   jit_compile?: false
+                 )
+      end)
+    end
+
+    test "donating state works with frozen parameters and stateful layers" do
+      model =
+        Axon.input("input", shape: {nil, 4})
+        |> Axon.dense(8)
+        |> Axon.batch_norm()
+        |> Axon.dense(1)
+
+      data = donation_data()
+
+      frozen_state =
+        model
+        |> donation_init_state(data)
+        |> Axon.ModelState.freeze(fn [layer | _] -> layer == "dense_0" end)
+
+      run = fn donate? ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          result =
+            model
+            |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+            |> Axon.Loop.run(data, Nx.backend_copy(frozen_state),
+              epochs: 2,
+              donate_state?: donate?
+            )
+
+          send(self(), {:result, result})
+        end)
+
+        assert_receive {:result, result}
+        result
+      end
+
+      # Frozen parameters are read but never updated, so they can only be
+      # donated to an output which is the argument itself, and the running
+      # statistics of a stateful layer are updated outside the optimizer.
+      assert_equal(run.(true), run.(false))
+    end
+
+    test "donating state does not affect loops run from event handlers" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+        |> Axon.Loop.metric(:mean_absolute_error)
+        |> Axon.Loop.validate(model, data)
+        |> Axon.Loop.handle_event(:epoch_completed, fn %{metrics: metrics} = state ->
+          assert Map.has_key?(metrics, "validation_mean_absolute_error")
+          {:continue, state}
+        end)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2, donate_state?: true)
+      end)
+    end
+
+    @tag :exla_only
+    test "donated model state and optimizer state buffers are consumed by the next step" do
+      model = donation_model()
+      data = donation_data()
+
+      # Capture the state produced by the first iteration, then check whether
+      # the buffers behind it survive the iterations that follow.
+      {:ok, captured} = Agent.start_link(fn -> nil end)
+
+      capture = fn %State{iteration: iteration, step_state: step_state} = state ->
+        if iteration == 0 do
+          Agent.update(captured, fn nil ->
+            Map.take(step_state, [:model_state, :optimizer_state])
+          end)
+        end
+
+        {:continue, state}
+      end
+
+      run = fn donate? ->
+        Agent.update(captured, fn _ -> nil end)
+
+        ExUnit.CaptureIO.capture_io(fn ->
+          model
+          |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adam(learning_rate: 0.01))
+          |> Axon.Loop.handle_event(:iteration_completed, capture)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 1, donate_state?: donate?)
+        end)
+
+        captured
+        |> Agent.get(& &1)
+        |> map_leaves(&Nx.backend_deallocate/1)
+        |> Enum.uniq()
+      end
+
+      assert run.(true) == [:already_deallocated]
+      assert run.(false) == [:ok]
+    end
+
+    @tag :exla_only
+    test "donating state does not consume the state the loop was given" do
+      model = donation_model()
+      data = donation_data()
+      init_state = donation_init_state(model, data)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+        |> Axon.Loop.run(data, init_state, epochs: 1, donate_state?: true)
+      end)
+
+      # `init_fn` copies the state it is given into the step state, so the
+      # tensors the caller passed in are not the ones being donated.
+      assert map_leaves(init_state, &Nx.backend_deallocate/1) |> Enum.uniq() == [:ok]
+    end
+  end
+
   describe "early_stop" do
     test "adds correct handler metadata to loop state" do
       model = Axon.input("input") |> Axon.dense(1)
