@@ -19,17 +19,18 @@
 #     python prepare_imdb.py --out /tmp/imdb
 #     IMDB_DIR=/tmp/imdb elixir examples/text/bidirectional_lstm_imdb.exs
 #
-# Known deviations from the Keras example, none of which are
-# configurable through Axon's public API today:
-#
-#   * Keras initializes the recurrent kernel orthogonally; Axon uses
-#     one `:kernel_initializer` (glorot uniform) for both the input and
-#     recurrent kernels.
-#   * Keras' `unit_forget_bias=True` initializes the forget gate bias
-#     to one; Axon initializes all four gate biases to zero.
+# Keras initializes its LSTM differently than Axon does, in ways that
+# `Axon.lstm/3` cannot currently express. `KerasLSTMInit` below rewrites
+# the initialized parameters to match it before training starts.
 #
 # Both this example and the Keras one shuffle the training set, so the
-# numbers move by a few thousandths between runs.
+# numbers move by a few thousandths between runs. A representative run:
+#
+#             accuracy   loss   val_accuracy   val_loss
+#     epoch 1   0.8237  0.3914       0.8701      0.3093
+#     epoch 2   0.9201  0.3012       0.8644      0.3436
+#
+# against Keras' published 0.9151 / 0.2263 / 0.8428 / 0.3650.
 
 Mix.install([
   {:axon, path: Path.expand("../..", __DIR__)},
@@ -37,6 +38,90 @@ Mix.install([
 ])
 
 Nx.global_default_backend(EXLA.Backend)
+
+defmodule KerasLSTMInit do
+  @moduledoc """
+  Rewrites Axon's LSTM parameters to match `keras.layers.LSTM`'s
+  initialization.
+
+  Keras keeps the input and recurrent kernels as single
+  `{input_dim, 4 * units}` and `{units, 4 * units}` matrices and slices
+  them per gate, so its initializer always sees the full width. Axon
+  stores one tensor per gate and initializes each on its own, which
+  changes both the glorot fan-in/fan-out and — more importantly — means
+  the four recurrent blocks are never orthogonal to one another. Here
+  the wide matrix is drawn once and then sliced, exactly as Keras does.
+
+  Three differences are corrected:
+
+    * the recurrent kernel is orthogonal rather than glorot uniform;
+    * the input kernel's glorot limit is computed over the full
+      `4 * units` width rather than per gate;
+    * `unit_forget_bias` — the forget gate's bias starts at one rather
+      than zero, so the gate begins open and gradients can travel
+      through time from the first step.
+
+  Keras' gate order within those matrices is input, forget, cell,
+  output, which lines up with Axon's `i`, `f`, `g`, `o` names.
+  """
+
+  @gates ~w(i f g o)
+
+  def apply_to(%Axon.ModelState{data: data} = model_state, key) do
+    {updates, _key} = walk(data, key)
+    Axon.ModelState.update(model_state, updates)
+  end
+
+  defp walk(%{"input_kernel" => input_kernel, "hidden_kernel" => hidden_kernel} = layer, key) do
+    units = Nx.axis_size(hidden_kernel["whi"], 1)
+    input_dim = Nx.axis_size(input_kernel["wii"], 0)
+
+    {input_kernel, key} =
+      draw(Axon.Initializers.glorot_uniform(), {input_dim, 4 * units}, units, "wi", key)
+
+    {hidden_kernel, key} =
+      draw(Axon.Initializers.orthogonal(), {units, 4 * units}, units, "wh", key)
+
+    updates = %{"input_kernel" => input_kernel, "hidden_kernel" => hidden_kernel}
+
+    updates =
+      if Map.has_key?(layer, "bias") do
+        Map.put(updates, "bias", %{"bf" => Nx.broadcast(1.0, {units})})
+      else
+        updates
+      end
+
+    {updates, key}
+  end
+
+  defp walk(map, key) when is_map(map) and not is_struct(map) do
+    Enum.reduce(map, {%{}, key}, fn {name, value}, {acc, key} ->
+      {updates, key} = walk(value, key)
+
+      if map_size(updates) == 0 do
+        {acc, key}
+      else
+        {Map.put(acc, name, updates), key}
+      end
+    end)
+  end
+
+  defp walk(_other, key), do: {%{}, key}
+
+  defp draw(initializer, shape, units, prefix, key) do
+    keys = Nx.Random.split(key)
+    matrix = initializer.(shape, {:f, 32}, keys[0])
+
+    gates =
+      @gates
+      |> Enum.with_index()
+      |> Map.new(fn {gate, index} ->
+        {"#{prefix}#{gate}", Nx.slice_along_axis(matrix, index * units, units, axis: 1)}
+      end)
+
+    {gates, keys[1]}
+  end
+end
 
 data_dir = System.get_env("IMDB_DIR", "/tmp/imdb")
 epochs = String.to_integer(System.get_env("EPOCHS", "2"))
@@ -127,11 +212,15 @@ model =
   |> Axon.dense(1)
   |> Axon.sigmoid()
 
+{init_fn, _predict_fn} = Axon.build(model)
+
+initial_state =
+  Nx.template({batch_size, maxlen}, :s32)
+  |> init_fn.(Axon.ModelState.empty())
+  |> KerasLSTMInit.apply_to(Nx.Random.key(System.system_time()))
+
 trainable_count =
-  model
-  |> Axon.build()
-  |> elem(0)
-  |> then(& &1.(Nx.template({batch_size, maxlen}, :s32), Axon.ModelState.empty()))
+  initial_state
   |> Axon.ModelState.trainable_parameters()
   |> then(&Nx.Defn.Composite.flatten_list([&1]))
   |> Enum.map(&Nx.size/1)
@@ -165,7 +254,7 @@ model
 |> Axon.Loop.metric(:accuracy, "accuracy")
 |> Axon.Loop.validate(model, val_data)
 |> Axon.Loop.handle_event(:epoch_completed, report)
-|> Axon.Loop.run(train_data, Axon.ModelState.empty(),
+|> Axon.Loop.run(train_data, initial_state,
   epochs: epochs,
   compiler: EXLA
 )
