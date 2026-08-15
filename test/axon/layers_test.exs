@@ -1592,12 +1592,9 @@ defmodule Axon.LayersTest do
       )
     end
 
-    # The recurrent kernel is the case where the two unrolls used to
-    # disagree: Nx's reverse-mode rule for `while` chains the per-step
-    # Jacobians in forward time order, which is only equivalent to
-    # reverse-mode when they commute. They do not for an RNN cell, so
-    # the dynamically unrolled gradient came out wrong while the
-    # statically unrolled one was correct.
+    # Recurrent-kernel grads used to disagree: older Nx chained while
+    # body VJPs in forward time order. Nx #1785 applies them last-to-first,
+    # so a plain while is enough. These tests lock that in.
     defn grad_static_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
       grad(hidden_kernel, fn x ->
         {output, _} =
