@@ -2456,132 +2456,448 @@ defmodule Axon.Layers do
   end
 
   @doc """
-  Dynamically unrolls an RNN.
+  Scans `body_fn` over the leading time axis of `xs`.
 
-  Unrolls implement a `scan` operation which applies a
-  transformation on the leading axis of `input_sequence` carrying
-  some state. In this instance `cell_fn` is an RNN cell function
-  such as `lstm_cell` or `gru_cell`.
+  This is a `jax.lax.scan`-style primitive that powers the RNN layers
+  in Axon. `body_fn` is invoked as `body_fn.(carry, x_t, params)` at
+  each step and must return `{new_carry, y_t}`. Returns
+  `{final_carry, ys}`, where `ys` stacks the per-step outputs along
+  the scan axis.
 
-  This function will make use of an `defn` while-loop such and thus
-  may be more efficient for long sequences.
+  `init`, `xs`, `params`, and the outputs may be any `Nx.Container`
+  of tensors (a single tensor, a tuple, a map, or a nested
+  combination of these). The leading axis size of every tensor leaf
+  of `xs` must match.
+
+  ## Options
+
+    * `:unroll` - either `:static` or `:dynamic`. `:static` inlines
+      the loop into the compilation graph and is appropriate for
+      short, fixed-length sequences. `:dynamic` compiles to an Nx
+      `while` and is appropriate for longer sequences. Default is
+      `:dynamic`.
+
+    * `:axis` - the axis of every leaf of `xs` to scan over.
+      Default is `0`.
+
+  ## Reverse-mode gradients
+
+  The `:dynamic` variant installs a custom gradient that runs a
+  reverse-time `while` loop and computes a per-step VJP. This is
+  required because Nx's built-in reverse-mode rule for `while`
+  multiplies per-step Jacobians in forward time order, which differs
+  from the correct reverse-mode order whenever those Jacobians do
+  not commute (as is the case for RNN cells).
   """
-  defn dynamic_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
-    time_steps = Nx.axis_size(input_sequence, 1)
-    feature_dims = list_duplicate(0, Nx.rank(input_sequence) - 2)
-    mask = get_mask(mask, input_sequence)
+  defn scan(body_fn, init, xs, params, opts \\ []) do
+    opts = keyword!(opts, unroll: :dynamic, axis: 0)
+    scan_dispatch(body_fn, init, xs, params, opts)
+  end
 
-    initial_shape =
-      unroll_initial_shape_transform(
-        cell_fn,
-        input_sequence,
-        carry,
-        mask,
-        input_kernel,
-        recurrent_kernel,
-        bias
-      )
+  deftransformp scan_dispatch(body_fn, init, xs, params, opts) do
+    axis = opts[:axis]
 
-    init_sequence = Nx.broadcast(0.0, initial_shape)
-    t = Nx.tensor(0)
+    case opts[:unroll] do
+      :static -> static_scan(body_fn, init, xs, params, axis)
+      :dynamic -> dynamic_scan(body_fn, init, xs, params, axis)
+      other -> raise ArgumentError, "unknown :unroll option #{inspect(other)}"
+    end
+  end
 
-    {_, output, carry, _, _, _, _, _} =
-      while {t, init_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel, bias},
+  deftransformp static_scan(body_fn, init, xs, params, axis) do
+    # See the same note in `dynamic_scan/5` — lift any concrete tensors
+    # to defn Expr so the inlined body never has to mix backends.
+    init = lift_composite(init)
+    xs = lift_composite(xs)
+    params = lift_composite(params)
+
+    time_steps = scan_axis_size(xs, axis)
+
+    {final_carry, ys_rev} =
+      Enum.reduce(0..(time_steps - 1), {init, []}, fn t, {carry, ys_acc} ->
+        x_t = scan_slice(xs, t, axis)
+        {new_carry, y_t} = body_fn.(carry, x_t, params)
+        {new_carry, [y_t | ys_acc]}
+      end)
+
+    ys = scan_stack(Enum.reverse(ys_rev), axis)
+    {final_carry, ys}
+  end
+
+  deftransformp dynamic_scan(body_fn, init, xs, params, axis) do
+    # Lift any concrete (backend-allocated) tensors to defn Expr at the
+    # boundary. Without this, when `scan/5` is reached from a deftransform
+    # caller (as happens via Axon's layer dispatch) with concrete inputs
+    # — e.g. `Axon.constant(0)` used as an RNN mask — those tensors flow
+    # into the `while` and `custom_grad` we build below as backend tensors.
+    # The grad walker rejects non-Expr args, and Nx ops refuse to mix
+    # backend tensors with Exprs.
+    init = lift_composite(init)
+    xs = lift_composite(xs)
+    params = lift_composite(params)
+
+    # Peek the body once to allocate the output buffer. The cell_fn is
+    # required to be shape-stable across steps, so the first step's
+    # output shape applies to every step.
+    x_0 = scan_slice(xs, 0, axis)
+    {_carry_peek, y_peek} = body_fn.(init, x_0, params)
+
+    ys_buffer = scan_zero_buf(y_peek, scan_axis_size(xs, axis), axis)
+    carry_buffer = scan_zero_buf(init, scan_axis_size(xs, axis), axis)
+
+    {final_carry, ys, saved_carries} =
+      dynamic_scan_forward(body_fn, init, xs, params, ys_buffer, carry_buffer, axis)
+
+    # Inputs that need gradients (flat list of tensors, in a known order)
+    init_leaves = composite_flatten(init)
+    xs_leaves = composite_flatten(xs)
+    params_leaves = composite_flatten(params)
+    custom_inputs = init_leaves ++ xs_leaves ++ params_leaves
+
+    # Flatten the output so custom_grad sees a flat tuple regardless of
+    # how `final_carry`/`ys` are nested. We reassemble after.
+    fc_leaves = composite_flatten(final_carry)
+    ys_leaves = composite_flatten(ys)
+    output_tuple = List.to_tuple(fc_leaves ++ ys_leaves)
+    n_fc = length(fc_leaves)
+
+    backward_fn = fn g_tuple ->
+      g_leaves = Tuple.to_list(g_tuple)
+      {g_fc_leaves, g_ys_leaves} = Enum.split(g_leaves, n_fc)
+
+      g_final_carry = composite_unflatten(init, g_fc_leaves)
+      g_ys = composite_unflatten(ys_buffer, g_ys_leaves)
+
+      {g_init, g_xs_out, g_params_out} =
+        dynamic_scan_backward(
+          body_fn,
+          init,
+          ys_buffer,
+          saved_carries,
+          xs,
+          params,
+          g_final_carry,
+          g_ys,
+          axis
+        )
+
+      composite_flatten(g_init) ++ composite_flatten(g_xs_out) ++ composite_flatten(g_params_out)
+    end
+
+    flat_with_grad = Nx.Defn.Kernel.custom_grad(output_tuple, custom_inputs, backward_fn)
+    flat_list = Tuple.to_list(flat_with_grad)
+
+    {final_fc_leaves, final_ys_leaves} = Enum.split(flat_list, n_fc)
+    {composite_unflatten(final_carry, final_fc_leaves), composite_unflatten(ys, final_ys_leaves)}
+  end
+
+  defn dynamic_scan_forward(body_fn, init, xs, params, ys_buffer, carry_buffer, axis) do
+    time_steps = scan_axis_size(xs, axis)
+
+    {_t, final_carry, ys, saved_carries, _xs, _params} =
+      while {t = 0, carry = init, ys = ys_buffer, carries = carry_buffer, xs, params},
             Nx.less(t, time_steps) do
-        input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
-        input = Nx.squeeze(input, axes: [1])
-        mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
-        mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
-
-        {output, carry} =
-          cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
-
-        indices = compute_indices(t, feature_dims)
-
-        output = Nx.new_axis(output, 1)
-        update_sequence = Nx.put_slice(init_sequence, indices, output)
-
-        {t + 1, update_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel,
-         bias}
+        x_t = scan_slice(xs, t, axis)
+        carries_new = scan_put_step(carries, t, carry, axis)
+        {new_carry, y_t} = body_fn.(carry, x_t, params)
+        ys_new = scan_put_step(ys, t, y_t, axis)
+        {t + 1, new_carry, ys_new, carries_new, xs, params}
       end
 
-    {output, carry}
+    {final_carry, ys, saved_carries}
   end
 
-  deftransformp compute_indices(i, feature_dims) do
-    [0, i] ++ feature_dims
+  defn dynamic_scan_backward(
+         body_fn,
+         init,
+         ys_template,
+         saved_carries,
+         xs,
+         params,
+         g_final_carry,
+         g_ys,
+         axis
+       ) do
+    time_steps = scan_axis_size(xs, axis)
+
+    # Cotangents for unused outputs come back as scalar 0.0 — broadcast
+    # them up so the while loop state has consistent shapes. Gradient
+    # accumulators are always allocated with a floating-point dtype,
+    # since per-step VJPs always produce floats even for integer inputs
+    # (e.g. an integer RNN mask).
+    g_c0 = composite_broadcast(g_final_carry, init)
+    g_ys_full = composite_broadcast(g_ys, ys_template)
+    g_xs0 = composite_grad_zeros(xs)
+    g_params0 = composite_grad_zeros(params)
+
+    {_t, g_carry, g_xs, g_params, _, _, _, _} =
+      while {t = time_steps, g_c = g_c0, g_xs = g_xs0, g_p = g_params0, saved_carries, xs, params,
+             g_ys = g_ys_full},
+            Nx.greater(t, 0) do
+        t1 = t - 1
+
+        c_t = scan_slice(saved_carries, t1, axis)
+        x_t = scan_slice(xs, t1, axis)
+        g_y_t = scan_slice(g_ys, t1, axis)
+
+        {g_c_new, g_x_t, g_p_step} =
+          grad({c_t, x_t, params}, fn {c, x, p} ->
+            {nc, y} = body_fn.(c, x, p)
+            composite_dot(nc, stop_grad(g_c)) + composite_dot(y, stop_grad(g_y_t))
+          end)
+
+        g_xs_new = scan_put_step(g_xs, t1, g_x_t, axis)
+        g_p_new = composite_add(g_p, g_p_step)
+
+        {t1, g_c_new, g_xs_new, g_p_new, saved_carries, xs, params, g_ys}
+      end
+
+    {g_carry, g_xs, g_params}
   end
 
-  deftransformp unroll_initial_shape_transform(
-                  cell_fn,
-                  inp,
-                  carry,
-                  mask,
-                  inp_kernel,
-                  hid_kernel,
-                  bias
-                ) do
-    seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
-    seq = Nx.squeeze(seq, axes: [1])
-    mask_token = Nx.slice_along_axis(mask, 0, 1, axis: 1)
-    mask_token = Nx.reshape(mask_token, {Nx.axis_size(seq, 0), 1})
-    {seq, _} = cell_fn.(seq, carry, mask_token, inp_kernel, hid_kernel, bias)
-    Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+  # --- composite helpers used by `scan/5` ---
+
+  deftransformp composite_traverse(container, acc, fun) do
+    cond do
+      is_struct(container, Nx.Tensor) or is_number(container) ->
+        fun.(container, acc)
+
+      true ->
+        Nx.Container.traverse(container, acc, fn child, a ->
+          composite_traverse(child, a, fun)
+        end)
+    end
+  end
+
+  # Recursively replace any concrete (backend-allocated) tensor leaves
+  # with defn Expr equivalents. Idempotent on already-Expr inputs.
+  deftransformp lift_composite(container) do
+    {result, nil} =
+      composite_traverse(container, nil, fn t, _ ->
+        {lift_tensor(t), nil}
+      end)
+
+    result
+  end
+
+  deftransformp lift_tensor(t) do
+    case t do
+      %Nx.Tensor{data: %Nx.Defn.Expr{}} ->
+        t
+
+      %Nx.Tensor{data: %Nx.BinaryBackend{}} ->
+        Nx.Defn.Expr.tensor(t)
+
+      %Nx.Tensor{} ->
+        # Any other backend (EXLA, Torchx, etc.). Nx.Defn.Expr.tensor/1
+        # refuses these directly and asks for Nx.backend_copy/1 to first
+        # bring the value into a binary backend so it can be inlined.
+        t |> Nx.backend_copy(Nx.BinaryBackend) |> Nx.Defn.Expr.tensor()
+
+      n when is_number(n) ->
+        Nx.Defn.Expr.tensor(Nx.tensor(n))
+    end
+  end
+
+  deftransformp composite_flatten(container) do
+    {_, acc} = composite_traverse(container, [], fn t, acc -> {t, [t | acc]} end)
+    Enum.reverse(acc)
+  end
+
+  deftransformp composite_unflatten(template, leaves) do
+    {result, []} =
+      composite_traverse(template, leaves, fn _t, [next | rest] -> {next, rest} end)
+
+    result
+  end
+
+  deftransformp composite_zeros_like(container) do
+    {result, nil} =
+      composite_traverse(container, nil, fn t, _ ->
+        {Nx.broadcast(Nx.tensor(0, type: Nx.type(t)), Nx.shape(t)), nil}
+      end)
+
+    result
+  end
+
+  # Like `composite_zeros_like/1` but promotes non-floating-point leaves
+  # to f32 — used to allocate gradient accumulator buffers, since
+  # gradient values flowing in are always floating-point.
+  deftransformp composite_grad_zeros(container) do
+    {result, nil} =
+      composite_traverse(container, nil, fn t, _ ->
+        grad_type =
+          case Nx.type(t) do
+            {:f, _} = ft -> ft
+            {:bf, _} = ft -> ft
+            {:c, _} = ct -> ct
+            _ -> {:f, 32}
+          end
+
+        {Nx.broadcast(Nx.tensor(0, type: grad_type), Nx.shape(t)), nil}
+      end)
+
+    result
+  end
+
+  deftransformp composite_broadcast(g, template) do
+    g_leaves = composite_flatten(g)
+
+    {result, []} =
+      composite_traverse(template, g_leaves, fn t, [gl | rest] ->
+        {Nx.broadcast(gl, t), rest}
+      end)
+
+    result
+  end
+
+  deftransformp composite_add(a, b) do
+    bs = composite_flatten(b)
+
+    {result, []} =
+      composite_traverse(a, bs, fn ta, [tb | rest] -> {Nx.add(ta, tb), rest} end)
+
+    result
+  end
+
+  deftransformp composite_dot(a, b) do
+    a_leaves = composite_flatten(a)
+    b_leaves = composite_flatten(b)
+
+    a_leaves
+    |> Enum.zip(b_leaves)
+    |> Enum.reduce(Nx.tensor(0.0), fn {ta, tb}, acc ->
+      Nx.add(acc, Nx.sum(Nx.multiply(ta, tb)))
+    end)
+  end
+
+  deftransformp scan_axis_size(container, axis) do
+    [first | _] = composite_flatten(container)
+    Nx.axis_size(first, axis)
+  end
+
+  deftransformp scan_slice(container, t, axis) do
+    {result, nil} =
+      composite_traverse(container, nil, fn leaf, _ ->
+        sliced = Nx.slice_along_axis(leaf, t, 1, axis: axis)
+        {Nx.squeeze(sliced, axes: [axis]), nil}
+      end)
+
+    result
+  end
+
+  deftransformp scan_zero_buf(template, time_steps, axis) do
+    {result, nil} =
+      composite_traverse(template, nil, fn leaf, _ ->
+        shape = Tuple.insert_at(Nx.shape(leaf), axis, time_steps)
+        {Nx.broadcast(Nx.tensor(0, type: Nx.type(leaf)), shape), nil}
+      end)
+
+    result
+  end
+
+  deftransformp scan_put_step(buffer, t, value, axis) do
+    values = composite_flatten(value)
+
+    {result, []} =
+      composite_traverse(buffer, values, fn buf, [val | rest] ->
+        expanded = Nx.new_axis(val, axis)
+        indices = scan_put_indices(Nx.rank(buf), t, axis)
+        {Nx.put_slice(buf, indices, expanded), rest}
+      end)
+
+    result
+  end
+
+  deftransformp scan_put_indices(rank, t, axis) do
+    for i <- 0..(rank - 1), do: if(i == axis, do: t, else: 0)
+  end
+
+  deftransformp scan_stack(list_of_containers, axis) do
+    # Stack a list of equally-shaped composites into one composite of
+    # tensors with a new leading-axis dimension at `axis`.
+    case list_of_containers do
+      [first | _] ->
+        leaves_lists = Enum.map(list_of_containers, &composite_flatten/1)
+        transposed = Enum.zip_with(leaves_lists, & &1)
+        stacked = Enum.map(transposed, fn ts -> Nx.stack(ts, axis: axis) end)
+        composite_unflatten(first, stacked)
+    end
   end
 
   @doc """
-  Statically unrolls an RNN.
+  Dynamically unrolls an RNN over the time axis of `input_sequence`.
 
-  Unrolls implement a `scan` operation which applies a
-  transformation on the leading axis of `input_sequence` carrying
-  some state. In this instance `cell_fn` is an RNN cell function
-  such as `lstm_cell` or `gru_cell`.
-
-  This function inlines the unrolling of the sequence such that
-  the entire operation appears as a part of the compilation graph.
-  This makes it suitable for shorter sequences.
+  This is a backwards-compatible wrapper around `scan/5` with
+  `unroll: :dynamic` and `axis: 1` that adapts the RNN cell signature
+  `cell_fn.(input, carry, mask, ik, hk, b) -> {output, carry}`. New
+  code should prefer `scan/5` directly.
   """
-  defn static_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
-    static_unroll_loop(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias)
+  deftransform dynamic_unroll(
+                 cell_fn,
+                 input_sequence,
+                 carry,
+                 mask,
+                 input_kernel,
+                 recurrent_kernel,
+                 bias
+               ) do
+    rnn_unroll(
+      :dynamic,
+      cell_fn,
+      input_sequence,
+      carry,
+      mask,
+      input_kernel,
+      recurrent_kernel,
+      bias
+    )
   end
 
-  deftransformp static_unroll_loop(
-                  cell_fn,
-                  input_sequence,
-                  carry,
-                  mask,
-                  input_kernel,
-                  recurrent_kernel,
-                  bias
-                ) do
-    time_steps = elem(Nx.shape(input_sequence), 1)
-    mask = get_mask(mask, input_sequence)
+  @doc """
+  Statically unrolls an RNN over the time axis of `input_sequence`.
 
-    {carry, outputs} =
-      for t <- 0..(time_steps - 1), reduce: {carry, []} do
-        {carry, outputs} ->
-          input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
-          input = Nx.squeeze(input, axes: [1])
-          mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
-          mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
-
-          {output, carry} =
-            cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
-
-          {carry, [output | outputs]}
-      end
-
-    {Nx.stack(Enum.reverse(outputs), axis: 1), carry}
+  Backwards-compatible wrapper around `scan/5` with `unroll: :static`
+  and `axis: 1`. New code should prefer `scan/5` directly.
+  """
+  deftransform static_unroll(
+                 cell_fn,
+                 input_sequence,
+                 carry,
+                 mask,
+                 input_kernel,
+                 recurrent_kernel,
+                 bias
+               ) do
+    rnn_unroll(
+      :static,
+      cell_fn,
+      input_sequence,
+      carry,
+      mask,
+      input_kernel,
+      recurrent_kernel,
+      bias
+    )
   end
 
-  deftransformp get_mask(mask, sequence) do
-    case Nx.shape(mask) do
-      {} ->
-        Nx.broadcast(mask, {Nx.axis_size(sequence, 0), 1})
-
-      _ ->
-        mask
+  deftransformp rnn_unroll(unroll, cell_fn, input, carry, mask, ik, hk, bias) do
+    scan_body = fn c, {input_t, mask_t}, {ik2, hk2, b2} ->
+      {out, new_c} = cell_fn.(input_t, c, mask_t, ik2, hk2, b2)
+      {new_c, out}
     end
+
+    {fc, ys} =
+      Axon.Layers.scan(
+        scan_body,
+        carry,
+        {input, rnn_mask_for_scan(mask, input)},
+        {ik, hk, bias},
+        unroll: unroll,
+        axis: 1
+      )
+
+    {ys, fc}
   end
 
   @recurrent_layers [
@@ -2618,29 +2934,43 @@ defmodule Axon.Layers do
 
       cell_fn = get_cell_fn(unquote(rnn_op), opts[:activation], opts[:gate], opts[:conv_opts])
 
-      case opts[:unroll] do
-        :static ->
-          Axon.Layers.static_unroll(
-            cell_fn,
-            input,
-            hidden_state,
-            mask,
-            input_kernel,
-            hidden_kernel,
-            bias
-          )
+      rnn_unroll(
+        opts[:unroll],
+        cell_fn,
+        input,
+        hidden_state,
+        mask,
+        input_kernel,
+        hidden_kernel,
+        bias
+      )
+    end
+  end
 
-        :dynamic ->
-          Axon.Layers.dynamic_unroll(
-            cell_fn,
-            input,
-            hidden_state,
-            mask,
-            input_kernel,
-            hidden_kernel,
-            bias
-          )
-      end
+  # Normalize any of the accepted mask shapes (scalar, `{batch, 1}`,
+  # `{batch, time}`, `{batch, time, 1}`) to the `{batch, time, 1}` shape
+  # that `scan/5` expects when scanning over axis 1.
+  defp rnn_mask_for_scan(mask, input) do
+    batch = Nx.axis_size(input, 0)
+    time = Nx.axis_size(input, 1)
+
+    case Nx.shape(mask) do
+      {} ->
+        Nx.broadcast(mask, {batch, time, 1})
+
+      {_b, 1} ->
+        Nx.broadcast(mask, {batch, time, 1})
+
+      {_b, ^time} ->
+        Nx.new_axis(mask, -1)
+
+      {_b, ^time, 1} ->
+        mask
+
+      other ->
+        raise ArgumentError,
+              "unsupported RNN mask shape #{inspect(other)}; expected scalar, " <>
+                "{batch, 1}, {batch, time}, or {batch, time, 1}"
     end
   end
 

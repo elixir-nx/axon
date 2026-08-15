@@ -1593,6 +1593,145 @@ defmodule Axon.LayersTest do
     end
   end
 
+  describe "scan" do
+    # A non-trivial RNN-like body whose step Jacobians do NOT commute,
+    # so dynamic vs. static gradients will diverge if the reverse-mode
+    # rule for `while` is wrong. This is the regression test for the
+    # Nx while-grad bug that `dynamic_scan` works around via custom_grad.
+    defn scan_body_simple(carry, x_t, params) do
+      new_carry = Nx.tanh(Nx.dot(params, carry) + x_t)
+      {new_carry, new_carry}
+    end
+
+    defn scan_static_loss_simple(init, xs, params) do
+      {_, ys} =
+        Axon.Layers.scan(&scan_body_simple/3, init, xs, params, unroll: :static, axis: 0)
+
+      Nx.sum(ys)
+    end
+
+    defn scan_dynamic_loss_simple(init, xs, params) do
+      {_, ys} =
+        Axon.Layers.scan(&scan_body_simple/3, init, xs, params, unroll: :dynamic, axis: 0)
+
+      Nx.sum(ys)
+    end
+
+    defn scan_grads_simple(init, xs, params, loss_fn) do
+      grad({init, xs, params}, fn {i, x, p} -> loss_fn.(i, x, p) end)
+    end
+
+    test "dynamic unroll gradients match static unroll on a non-commuting body" do
+      w =
+        Nx.tensor([
+          [0.4, 0.1, 0.2],
+          [-0.3, 0.5, 0.1],
+          [0.2, -0.4, 0.3]
+        ])
+
+      init = Nx.tensor([0.5, -0.3, 0.1])
+
+      xs =
+        Nx.tensor([
+          [0.1, 0.2, -0.1],
+          [-0.2, 0.0, 0.3],
+          [0.05, -0.15, 0.2],
+          [0.1, 0.1, 0.1]
+        ])
+
+      {gi_s, gxs_s, gw_s} =
+        scan_grads_simple(init, xs, w, &scan_static_loss_simple/3)
+
+      {gi_d, gxs_d, gw_d} =
+        scan_grads_simple(init, xs, w, &scan_dynamic_loss_simple/3)
+
+      assert_all_close(gi_s, gi_d, atol: 1.0e-5)
+      assert_all_close(gxs_s, gxs_d, atol: 1.0e-5)
+      assert_all_close(gw_s, gw_d, atol: 1.0e-5)
+    end
+
+    # A body with composite (LSTM-style) carry and composite xs.
+    defn scan_body_composite(carry, x_t, params) do
+      {cell, hidden} = carry
+      {input, mask} = x_t
+      {w_ic, w_ih, w_hc, w_hh, b} = params
+
+      pre = Nx.dot(input, w_ic) + Nx.dot(hidden, w_ih) + b
+      new_cell = mask * cell + (1.0 - mask) * Nx.tanh(pre)
+
+      pre_h = Nx.dot(input, w_hc) + Nx.dot(hidden, w_hh)
+      new_hidden = mask * hidden + (1.0 - mask) * Nx.tanh(pre_h + new_cell)
+
+      {{new_cell, new_hidden}, new_hidden}
+    end
+
+    defn scan_static_loss_composite(init, xs, params) do
+      {_, ys} =
+        Axon.Layers.scan(&scan_body_composite/3, init, xs, params,
+          unroll: :static,
+          axis: 0
+        )
+
+      Nx.sum(ys)
+    end
+
+    defn scan_dynamic_loss_composite(init, xs, params) do
+      {_, ys} =
+        Axon.Layers.scan(&scan_body_composite/3, init, xs, params,
+          unroll: :dynamic,
+          axis: 0
+        )
+
+      Nx.sum(ys)
+    end
+
+    test "handles composite carry and composite xs with matching gradients" do
+      key = Nx.Random.key(42)
+
+      {init_cell, key} = Nx.Random.normal(key, shape: {2, 4})
+      {init_hidden, key} = Nx.Random.normal(key, shape: {2, 4})
+      init = {init_cell, init_hidden}
+
+      {input_seq, key} = Nx.Random.normal(key, shape: {5, 2, 3})
+      mask_seq = Nx.broadcast(Nx.tensor(0.0), {5, 2, 1})
+      xs = {input_seq, mask_seq}
+
+      {w_ic, key} = Nx.Random.normal(key, shape: {3, 4})
+      {w_ih, key} = Nx.Random.normal(key, shape: {4, 4})
+      {w_hc, key} = Nx.Random.normal(key, shape: {3, 4})
+      {w_hh, key} = Nx.Random.normal(key, shape: {4, 4})
+      {b, _} = Nx.Random.normal(key, shape: {4})
+      params = {w_ic, w_ih, w_hc, w_hh, b}
+
+      {g_init_s, g_xs_s, g_params_s} =
+        scan_grads_simple(init, xs, params, &scan_static_loss_composite/3)
+
+      {g_init_d, g_xs_d, g_params_d} =
+        scan_grads_simple(init, xs, params, &scan_dynamic_loss_composite/3)
+
+      assert_all_close(g_init_s, g_init_d, atol: 1.0e-5)
+      assert_all_close(g_xs_s, g_xs_d, atol: 1.0e-5)
+      assert_all_close(g_params_s, g_params_d, atol: 1.0e-5)
+    end
+
+    test "forward result matches between static and dynamic" do
+      w =
+        Nx.tensor([
+          [0.4, 0.1, 0.2],
+          [-0.3, 0.5, 0.1],
+          [0.2, -0.4, 0.3]
+        ])
+
+      init = Nx.tensor([0.5, -0.3, 0.1])
+      xs = Nx.tensor([[0.1, 0.2, -0.1], [-0.2, 0.0, 0.3], [0.05, -0.15, 0.2]])
+
+      s = scan_static_loss_simple(init, xs, w)
+      d = scan_dynamic_loss_simple(init, xs, w)
+
+      assert_all_close(s, d, atol: 1.0e-6)
+    end
+  end
+
   describe "group_norm" do
     test "matches pytorch" do
       a =
