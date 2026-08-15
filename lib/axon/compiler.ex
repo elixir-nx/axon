@@ -690,6 +690,122 @@ defmodule Axon.Compiler do
   defp recur_model_funs(
          %Axon.Node{
            id: id,
+           op: :scan,
+           parent: parents,
+           opts: scan_opts,
+           name: name_fn
+         },
+         nodes,
+         cache_and_counts,
+         config
+       ) do
+    %{body_subgraph: body_subgraph, scan_id: scan_id, axis: scan_axis, unroll: unroll} =
+      Map.new(scan_opts)
+
+    {parent_ids, {cache, op_counts, block_cache, model_state_meta}} =
+      Enum.map_reduce(parents, cache_and_counts, &to_model_funs(&1, nodes, &2, config))
+
+    [input_parent_id, carry_parent_id] = parent_ids
+
+    {{body_init_fun, body_predict_fun}, scan_name, block_cache, op_counts} =
+      case block_cache do
+        %{^scan_id => {funs, name}} = block_cache ->
+          {funs, name, block_cache, op_counts}
+
+        %{} ->
+          funs = build(body_subgraph, debug?: config.debug?)
+          name = name_fn.(:scan, op_counts)
+          op_counts = Map.update(op_counts, :scan, 1, fn x -> x + 1 end)
+          {funs, name, Map.put(block_cache, scan_id, {funs, name}), op_counts}
+      end
+
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
+      {xs, {state, result_cache}} =
+        call_predict_cache(
+          input_parent_id,
+          params,
+          inputs,
+          state,
+          cache,
+          result_cache,
+          fn_stacktrace
+        )
+
+      {init_carry, {state, result_cache}} =
+        call_predict_cache(
+          carry_parent_id,
+          params,
+          inputs,
+          state,
+          cache,
+          result_cache,
+          fn_stacktrace
+        )
+
+      scan_params = params[scan_name] || %{}
+
+      body_fn = fn carry, x_t, step_params ->
+        body_inputs = build_subgraph_inputs(carry, x_t)
+        result = apply(body_predict_fun, [Axon.ModelState.new(step_params), body_inputs])
+
+        case result do
+          %{prediction: pred} -> pred
+          pred -> pred
+        end
+      end
+
+      {final_carry, ys} =
+        Axon.Layers.scan(body_fn, init_carry, xs, scan_params,
+          unroll: unroll,
+          axis: scan_axis
+        )
+
+      {{ys, final_carry}, {state, result_cache}}
+    end
+
+    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
+      {xs_template, {parent_params, result_cache}} =
+        call_init_cache(
+          input_parent_id,
+          template,
+          %{},
+          cache,
+          result_cache,
+          fn_stacktrace,
+          keys
+        )
+
+      {init_carry_template, {parent_params, result_cache}} =
+        call_init_cache(
+          carry_parent_id,
+          template,
+          parent_params,
+          cache,
+          result_cache,
+          fn_stacktrace,
+          keys
+        )
+
+      body_input_templates =
+        build_subgraph_input_templates(init_carry_template, xs_template, scan_axis)
+
+      body_params = apply(body_init_fun, [body_input_templates, Axon.ModelState.empty()])
+
+      params = Map.put(parent_params, scan_name, body_params)
+
+      {pred_expr, {_, result_cache}} =
+        predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
+
+      {Nx.to_template(pred_expr), {params, result_cache}}
+    end
+
+    model_funs = %{predict: predict_fun, init: init_fun}
+    {id, model_funs, cache, op_counts, block_cache, model_state_meta}
+  end
+
+  defp recur_model_funs(
+         %Axon.Node{
+           id: id,
            name: name_fn,
            op: op,
            parent: inputs,
@@ -985,6 +1101,35 @@ defmodule Axon.Compiler do
 
       {out, {state, result_cache}}
     end
+  end
+
+  defp build_subgraph_inputs(carry, x_t) do
+    {_, carry_inputs} = flatten_carry_to_inputs(carry, 0, %{})
+    Map.put(carry_inputs, "subgraph_x_t", x_t)
+  end
+
+  defp flatten_carry_to_inputs(item, idx, acc) do
+    case item do
+      %Nx.Tensor{} = t ->
+        {idx + 1, Map.put(acc, "subgraph_carry_#{idx}", t)}
+
+      container ->
+        Nx.Container.reduce(container, {idx, acc}, fn value, {i, a} ->
+          flatten_carry_to_inputs(value, i, a)
+        end)
+    end
+  end
+
+  defp build_subgraph_input_templates(init_carry_template, xs_template, axis) do
+    {_, carry_inputs} = flatten_carry_to_inputs(init_carry_template, 0, %{})
+
+    carry_inputs =
+      Map.new(carry_inputs, fn {name, t} -> {name, Nx.broadcast(0.0, t)} end)
+
+    x_t_shape = Tuple.delete_at(Nx.shape(xs_template), axis)
+    x_t_template = Nx.broadcast(0.0, x_t_shape)
+
+    Map.put(carry_inputs, "subgraph_x_t", x_t_template)
   end
 
   defp apply_layer(name, op, args, layer_stacktrace, fn_stacktrace, op_name) do

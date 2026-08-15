@@ -5879,6 +5879,207 @@ defmodule CompilerTest do
     end
   end
 
+  describe "scan" do
+    test "single Axon carry, no body params, matches Axon.Layers.scan" do
+      input = Axon.input("seq", shape: {nil, 5, 4})
+      init = Axon.input("h0", shape: {nil, 4})
+
+      {ys, final_carry} =
+        Axon.scan(
+          input,
+          init,
+          fn carry, x_t ->
+            new = Axon.add(carry, x_t)
+            {new, new}
+          end,
+          axis: 1
+        )
+
+      model = Axon.container({ys, final_carry})
+
+      xs = random({2, 5, 4})
+      h0 = random({2, 4})
+      inputs = %{"seq" => xs, "h0" => h0}
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(inputs, ModelState.empty())
+      {ys_v, fc_v} = predict_fn.(params, inputs)
+
+      # Reference: scan over time, accumulating with Nx.add.
+      ref_body = fn carry, x_t, _ -> {Nx.add(carry, x_t), Nx.add(carry, x_t)} end
+      {fc_ref, ys_ref} = Axon.Layers.scan(ref_body, h0, xs, {}, unroll: :dynamic, axis: 1)
+
+      assert_all_close(ys_v, ys_ref)
+      assert_all_close(fc_v, fc_ref)
+    end
+
+    test "body parameters are initialized and shared across steps" do
+      input = Axon.input("seq", shape: {nil, 5, 4})
+      init = Axon.input("h0", shape: {nil, 8})
+
+      {ys, final_carry} =
+        Axon.scan(
+          input,
+          init,
+          fn carry, x_t ->
+            combined = Axon.concatenate([carry, x_t], axis: -1)
+            new = combined |> Axon.dense(8, name: "cell") |> Axon.tanh()
+            {new, new}
+          end,
+          axis: 1,
+          name: "scan"
+        )
+
+      model = Axon.container({ys, final_carry})
+
+      xs = random({2, 5, 4})
+      h0 = zeros({2, 8})
+      inputs = %{"seq" => xs, "h0" => h0}
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(inputs, ModelState.empty())
+
+      assert %ModelState{
+               data: %{"scan" => %{"cell" => %{"kernel" => k, "bias" => b}}}
+             } = params
+
+      assert Nx.shape(k) == {12, 8}
+      assert Nx.shape(b) == {8}
+
+      {ys_v, _} = predict_fn.(params, inputs)
+      assert Nx.shape(ys_v) == {2, 5, 8}
+
+      # Sanity check: re-running with same params is deterministic.
+      {ys_v2, _} = predict_fn.(params, inputs)
+      assert_equal(ys_v, ys_v2)
+    end
+
+    test "tuple carry (LSTM-style {c, h}) preserves structure" do
+      input = Axon.input("seq", shape: {nil, 5, 4})
+      c0 = Axon.input("c0", shape: {nil, 8})
+      h0 = Axon.input("h0", shape: {nil, 8})
+
+      {ys, final_carry} =
+        Axon.scan(
+          input,
+          {c0, h0},
+          fn {c, h}, x_t ->
+            gate = Axon.concatenate([h, x_t], axis: -1) |> Axon.dense(8) |> Axon.sigmoid()
+            new_c = Axon.multiply(gate, c)
+            new_h = Axon.tanh(new_c)
+            {{new_c, new_h}, new_h}
+          end,
+          axis: 1
+        )
+
+      assert {%Axon{}, %Axon{}} = final_carry
+
+      model = Axon.container({ys, final_carry})
+
+      xs = random({2, 5, 4})
+      c = random({2, 8})
+      h = random({2, 8})
+      inputs = %{"seq" => xs, "c0" => c, "h0" => h}
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(inputs, ModelState.empty())
+      {ys_v, {fc_c, fc_h}} = predict_fn.(params, inputs)
+
+      assert Nx.shape(ys_v) == {2, 5, 8}
+      assert Nx.shape(fc_c) == {2, 8}
+      assert Nx.shape(fc_h) == {2, 8}
+    end
+
+    test ":static and :dynamic unroll produce equal outputs" do
+      build = fn unroll, name ->
+        input = Axon.input("seq", shape: {nil, 4, 3})
+        init = Axon.input("h0", shape: {nil, 5})
+
+        {ys, _} =
+          Axon.scan(
+            input,
+            init,
+            fn carry, x_t ->
+              new =
+                Axon.concatenate([carry, x_t], axis: -1)
+                |> Axon.dense(5, name: "cell")
+                |> Axon.tanh()
+
+              {new, new}
+            end,
+            axis: 1,
+            unroll: unroll,
+            name: name
+          )
+
+        ys
+      end
+
+      ys_s = build.(:static, "scan_s")
+      ys_d = build.(:dynamic, "scan_d")
+      model = Axon.container({ys_s, ys_d})
+
+      xs = random({2, 4, 3})
+      h0 = zeros({2, 5})
+      inputs = %{"seq" => xs, "h0" => h0}
+
+      {init_fn, predict_fn} = Axon.build(model)
+      params = init_fn.(inputs, ModelState.empty())
+
+      # Share the dense kernel/bias across both scans so we're comparing
+      # equal cells under different unroll strategies.
+      shared = params.data["scan_s"]
+      params = %{params | data: Map.put(params.data, "scan_d", shared)}
+
+      {ys_s_v, ys_d_v} = predict_fn.(params, inputs)
+      assert_all_close(ys_s_v, ys_d_v, atol: 1.0e-5)
+    end
+
+    test "gradients flow into body parameters" do
+      input = Axon.input("seq", shape: {nil, 4, 3})
+      init = Axon.input("h0", shape: {nil, 5})
+
+      {ys, _} =
+        Axon.scan(
+          input,
+          init,
+          fn carry, x_t ->
+            new =
+              Axon.concatenate([carry, x_t], axis: -1)
+              |> Axon.dense(5, name: "cell")
+              |> Axon.tanh()
+
+            {new, new}
+          end,
+          axis: 1,
+          name: "scan"
+        )
+
+      {init_fn, predict_fn} = Axon.build(ys, mode: :train)
+
+      xs = random({2, 4, 3})
+      h0 = zeros({2, 5})
+      inputs = %{"seq" => xs, "h0" => h0}
+      params = init_fn.(inputs, ModelState.empty())
+
+      grad_fn =
+        Nx.Defn.jit(fn p ->
+          Nx.Defn.grad(p, fn p ->
+            %{prediction: ys} = predict_fn.(p, inputs)
+            Nx.sum(ys)
+          end)
+        end)
+
+      grads = grad_fn.(params)
+      k_grad = grads.data["scan"]["cell"]["kernel"]
+      b_grad = grads.data["scan"]["cell"]["bias"]
+
+      assert Nx.shape(k_grad) == {8, 5}
+      assert Nx.shape(b_grad) == {5}
+      assert Nx.to_number(Nx.sum(Nx.abs(k_grad))) > 0.0
+    end
+  end
+
   describe "inspect values" do
     test "prints intermediate layer values to the screen" do
       model =
