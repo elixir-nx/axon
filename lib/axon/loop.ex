@@ -200,6 +200,29 @@ defmodule Axon.Loop do
 
       Axon.Loop.run(loop, data, epochs: 10)
 
+  ## Streaming loops
+
+  `Axon.Loop.run/4` reduces the entire loop to a single output. If instead you
+  want to observe or act on the loop between epochs, `Axon.Loop.stream/4`
+  returns a lazy stream which emits the accumulated `%Axon.Loop.State{}` at the
+  end of every epoch:
+
+      loop
+      |> Axon.Loop.stream(data)
+      |> Stream.each(fn state -> IO.inspect({state.epoch, state.metrics}) end)
+      |> Enum.take(10)
+
+  The stream is infinite by default and epochs only run as they are demanded,
+  so instead of declaring an epoch count up front you decide how long to train
+  with the usual `Enum` and `Stream` functions:
+
+      loop
+      |> Axon.Loop.stream(data)
+      |> Stream.take_while(&improving?/1)
+      |> Enum.reduce(nil, fn state, _ -> state end)
+
+  `Axon.Loop.run/4` is itself implemented in terms of `Axon.Loop.stream/4`.
+
   ## Resuming loops
 
   At times you may want to resume a loop from some previous state. You can accomplish this
@@ -1529,20 +1552,7 @@ defmodule Axon.Loop do
     struct!(Axon.Loop.State, state_map)
   end
 
-  @doc """
-  Runs the given loop on data with the given options.
-
-  `loop` must be a valid Axon.Loop struct built from one of the
-  loop factories provided in this module.
-
-  `data` must be an Enumerable or Stream which yields batches of
-  data on each iteration.
-
-  ## Options
-
-    * `:epochs` - max epochs to run loop for. Must be non-negative integer.
-      Defaults to `1`.
-
+  @shared_opts_doc """
     * `:iterations` - max iterations to run each epoch. Must be non-negative
       integer. Defaults to `-1` or no max iterations.
 
@@ -1568,8 +1578,126 @@ defmodule Axon.Loop do
   options are set, the default options set with `Nx.Defn.default_options` are
   used.
   """
+
+  @doc """
+  Returns a stream which lazily runs the given loop on data, emitting the
+  accumulated `%Axon.Loop.State{}` at the end of every completed epoch.
+
+  `loop` must be a valid Axon.Loop struct built from one of the
+  loop factories provided in this module.
+
+  `data` must be an Enumerable or Stream which yields batches of
+  data on each iteration.
+
+  The stream is lazy: no initialization or training work happens until the
+  stream is enumerated, and each epoch only runs when the next element is
+  demanded.
+
+  By default the stream is **infinite** - it keeps training epoch after epoch
+  for as long as elements are demanded. You control how long the loop runs with
+  the usual `Enum` and `Stream` functions, rather than by declaring an epoch
+  count up front:
+
+      # train for 10 epochs
+      loop |> Axon.Loop.stream(train_data) |> Enum.take(10)
+
+      # train until the model stops improving
+      loop |> Axon.Loop.stream(train_data) |> Enum.reduce_while(...)
+
+  Pass `:epochs` if you do want a bounded stream, in which case it emits at
+  most that many elements. Note an infinite stream will run forever under
+  `Enum.to_list/1` or `Stream.run/1`, so it must be bounded by the consumer, by
+  `:epochs`, or by a handler which halts the loop.
+
+  Each emitted element is the full loop state at the end of that epoch, where
+  `:epoch` is the epoch which just ran, `:metrics` are the metrics accumulated
+  during that epoch alone, and `:step_state` is the state accumulated so far.
+  Note the loop's `:output_transform` is **not** applied to emitted states, so
+  you always have access to the entire state. You can apply it yourself with
+  `loop.output_transform.(state)`.
+
+  This is useful for performing per-epoch logic without attaching an event
+  handler with `handle_event/4`:
+
+      loop
+      |> Axon.Loop.stream(train_data)
+      |> Stream.map(fn state ->
+        %{model_state: model_state} = state.step_state
+        {state.epoch, evaluate(model_state), state.metrics}
+      end)
+      |> Enum.take(10)
+
+  Epochs which are halted early via `:halt_epoch` do not emit an element. If
+  the loop is halted entirely via `:halt_loop`, the stream ends.
+
+  Because streams are re-enumerable, enumerating the returned stream more than
+  once re-initializes and re-runs the entire loop.
+
+  ## Options
+
+    * `:epochs` - max epochs to run loop for. Must be a non-negative integer
+      or `:infinity`. Defaults to `:infinity`.
+
+  #{@shared_opts_doc}
+  """
+  def stream(loop, data, init_state \\ %{}, opts \\ []) do
+    loop
+    |> loop_stream(data, init_state, opts, :infinity)
+    |> Stream.flat_map(fn
+      {:epoch, state} -> [state]
+      {:done, _state} -> []
+    end)
+  end
+
+  @doc """
+  Runs the given loop on data with the given options.
+
+  `loop` must be a valid Axon.Loop struct built from one of the
+  loop factories provided in this module.
+
+  `data` must be an Enumerable or Stream which yields batches of
+  data on each iteration.
+
+  This is equivalent to running the loop to completion with
+  `Axon.Loop.stream/4` and returning the loop's `:output_transform` applied
+  to the final accumulated state.
+
+  ## Options
+
+    * `:epochs` - max epochs to run loop for. Must be a non-negative integer
+      or `:infinity`. Defaults to `1`. Unlike `Axon.Loop.stream/4`, an
+      `:infinity` loop only terminates if a handler halts it.
+
+  #{@shared_opts_doc}
+  """
   def run(loop, data, init_state \\ %{}, opts \\ []) do
-    {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
+    %Loop{output_transform: output_transform} = loop
+
+    final_state =
+      loop
+      |> loop_stream(data, init_state, opts, 1)
+      |> Enum.reduce(nil, fn
+        {:epoch, _state}, acc -> acc
+        {:done, state}, _acc -> state
+      end)
+
+    output_transform.(final_state)
+  end
+
+  ## Helpers
+
+  # The core of both run/4 and stream/4. Returns a stream of tagged elements:
+  #
+  #   * `{:epoch, state}` - emitted once per completed epoch
+  #   * `{:done, state}` - emitted exactly once, at the end of the loop, with
+  #     the final state. `:metrics` is the epoch => metrics map and `:status`
+  #     is `:completed` or `:halted`
+  #
+  # The loop is driven one epoch at a time by the resource's next function, so
+  # nothing runs until the stream is enumerated and epochs are only executed on
+  # demand.
+  defp loop_stream(loop, data, init_state, opts, default_epochs) do
+    {max_epochs, opts} = Keyword.pop(opts, :epochs, default_epochs)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
     {strict?, opts} = Keyword.pop(opts, :strict?, true)
@@ -1580,14 +1708,46 @@ defmodule Axon.Loop do
       Logger.debug("Forwarding options: #{inspect(jit_opts)} to JIT compiler")
     end
 
+    config = %{
+      data: data,
+      init_state: init_state,
+      max_epochs: max_epochs,
+      max_iterations: max_iterations,
+      jit_compile?: jit_compile?,
+      strict?: strict?,
+      jit_opts: jit_opts,
+      force_garbage_collection?: force_garbage_collection?,
+      debug?: debug?
+    }
+
+    Stream.resource(
+      fn -> init_loop_stream(loop, config) end,
+      &next_epoch/1,
+      fn _acc -> :ok end
+    )
+  end
+
+  # Initializes loop state and fires the :started event, returning the
+  # accumulator threaded through next_epoch/1.
+  defp init_loop_stream(%Loop{} = loop, config) do
     %Loop{
       init: init_fn,
       step: step_fn,
       handlers: handler_fns,
       metrics: metric_fns,
-      attached_state: attached_state,
-      output_transform: output_transform
+      attached_state: attached_state
     } = loop
+
+    %{
+      data: data,
+      init_state: init_state,
+      max_epochs: max_epochs,
+      max_iterations: max_iterations,
+      jit_compile?: jit_compile?,
+      strict?: strict?,
+      jit_opts: jit_opts,
+      debug?: debug?
+    } = config
 
     sample_data =
       case Enum.take(data, 1) do
@@ -1596,7 +1756,7 @@ defmodule Axon.Loop do
 
         [] ->
           raise ArgumentError,
-                "Axon.Loop.run received empty dataset, this can happen" <>
+                "Axon.Loop received empty dataset, this can happen" <>
                   " if you've built a stream and accidentally filtered" <>
                   " out every value, your dataset must have at least one" <>
                   " entry"
@@ -1621,7 +1781,12 @@ defmodule Axon.Loop do
       end)
 
     epoch_start = loop_state.epoch
-    epoch_end = max_epochs + epoch_start - 1
+
+    epoch_end =
+      case max_epochs do
+        :infinity -> :infinity
+        max_epochs -> max_epochs + epoch_start - 1
+      end
 
     if debug? do
       Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
@@ -1632,99 +1797,167 @@ defmodule Axon.Loop do
     final_metrics_map = loop_state.metrics
     loop_state = %{loop_state | metrics: zero_metrics}
 
-    {status, final_metrics_map, %State{} = state} =
-      case fire_event(:started, handler_fns, loop_state, debug?) do
-        {:halt_epoch, state} ->
-          {:halted, final_metrics_map, state}
+    acc = %{
+      handler_fns: handler_fns,
+      data: data,
+      debug?: debug?,
+      force_garbage_collection?: config.force_garbage_collection?,
+      zero_metrics: zero_metrics,
+      final_metrics_map: final_metrics_map,
+      epoch: epoch_start,
+      epoch_end: epoch_end,
+      state: loop_state,
+      batch_fn:
+        {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts},
+      phase: :run
+    }
 
-        {:halt_loop, state} ->
-          {:halted, final_metrics_map, state}
-
-        {:continue, state} ->
-          batch_fn =
-            {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
-
-          Enum.reduce_while(
-            epoch_start..epoch_end//1,
-            {batch_fn, final_metrics_map, state},
-            fn epoch, {batch_fn, final_metrics_map, %State{} = loop_state} ->
-              case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
-                {:halt_epoch, state} ->
-                  halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                {:halt_loop, state} ->
-                  {:halt, {final_metrics_map, state}}
-
-                {:continue, state} ->
-                  if debug? do
-                    Logger.debug("Axon.Loop started running epoch #{epoch}")
-                  end
-
-                  {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
-                      batch_fn,
-                      handler_fns,
-                      state,
-                      data,
-                      debug?,
-                      force_garbage_collection?
-                    ])
-
-                  if debug? do
-                    Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
-                  end
-
-                  case status_batch_fn_and_state do
-                    {:halt_epoch, batch_fn, state} ->
-                      halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                    {:halt_loop, _, state} ->
-                      {:halt, {final_metrics_map, state}}
-
-                    {:continue, batch_fn, state} ->
-                      new_loop_state = put_in(state.times[epoch], time)
-
-                      case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
-                        {:halt_epoch, state} ->
-                          halt_epoch(handler_fns, batch_fn, final_metrics_map, state, debug?)
-
-                        {:halt_loop, state} ->
-                          {:halt, {final_metrics_map, state}}
-
-                        {:continue, %State{} = state} ->
-                          {:cont,
-                           {batch_fn, Map.put(final_metrics_map, epoch, state.metrics),
-                            %State{
-                              state
-                              | epoch: epoch + 1,
-                                metrics: zero_metrics,
-                                iteration: 0,
-                                max_iteration: state.max_iteration
-                            }}}
-                      end
-                  end
-              end
-            end
-          )
-          |> case do
-            {final_metrics_map, state} -> {:halted, final_metrics_map, state}
-            {_batch_fn, final_metrics_map, state} -> {:completed, final_metrics_map, state}
-          end
-      end
-
-    # Fill in epochs in case it was halted. It is a no-op otherwise.
-    final_metrics_map =
-      Enum.reduce(
-        state.epoch..epoch_end//1,
-        final_metrics_map,
-        &Map.put(&2, &1, zero_metrics)
-      )
-
-    state = %State{state | metrics: final_metrics_map, status: status}
-    output_transform.(state)
+    case fire_event(:started, handler_fns, loop_state, debug?) do
+      {:continue, state} -> %{acc | state: state}
+      {status, state} when status in [:halt_epoch, :halt_loop] -> finish(acc, state)
+    end
   end
 
-  ## Helpers
+  # Runs at most one epoch per call. Returns `{[], acc}` for epochs which were
+  # halted early so that they do not show up in the stream.
+  defp next_epoch(%{phase: :stop} = acc) do
+    {:halt, acc}
+  end
+
+  defp next_epoch(%{phase: {:finish, status}} = acc) do
+    %{
+      state: %State{} = state,
+      final_metrics_map: final_metrics_map,
+      zero_metrics: zero_metrics,
+      epoch_end: epoch_end
+    } = acc
+
+    # Fill in epochs in case it was halted. It is a no-op otherwise. An
+    # unbounded loop has no remaining epochs to fill in.
+    final_metrics_map =
+      case epoch_end do
+        :infinity ->
+          final_metrics_map
+
+        epoch_end ->
+          Enum.reduce(
+            state.epoch..epoch_end//1,
+            final_metrics_map,
+            &Map.put(&2, &1, zero_metrics)
+          )
+      end
+
+    state = %State{state | metrics: final_metrics_map, status: status}
+    {[{:done, state}], %{acc | phase: :stop, state: state}}
+  end
+
+  defp next_epoch(%{phase: :run, epoch: epoch, epoch_end: epoch_end} = acc)
+       when is_integer(epoch_end) and epoch > epoch_end do
+    next_epoch(%{acc | phase: {:finish, :completed}})
+  end
+
+  defp next_epoch(%{phase: :run} = acc) do
+    %{
+      epoch: epoch,
+      state: loop_state,
+      handler_fns: handler_fns,
+      batch_fn: batch_fn,
+      data: data,
+      debug?: debug?,
+      force_garbage_collection?: force_garbage_collection?,
+      zero_metrics: zero_metrics
+    } = acc
+
+    case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
+      {:halt_epoch, state} ->
+        halt_epoch(acc, state)
+
+      {:halt_loop, state} ->
+        next_epoch(finish(acc, state))
+
+      {:continue, state} ->
+        if debug? do
+          Logger.debug("Axon.Loop started running epoch #{epoch}")
+        end
+
+        {time, status_batch_fn_and_state} =
+          :timer.tc(&run_epoch/6, [
+            batch_fn,
+            handler_fns,
+            state,
+            data,
+            debug?,
+            force_garbage_collection?
+          ])
+
+        if debug? do
+          Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
+        end
+
+        case status_batch_fn_and_state do
+          {:halt_epoch, batch_fn, state} ->
+            halt_epoch(%{acc | batch_fn: batch_fn}, state)
+
+          {:halt_loop, _batch_fn, state} ->
+            next_epoch(finish(acc, state))
+
+          {:continue, batch_fn, state} ->
+            new_loop_state = put_in(state.times[epoch], time)
+
+            case fire_event(:epoch_completed, handler_fns, new_loop_state, debug?) do
+              {:halt_epoch, state} ->
+                halt_epoch(%{acc | batch_fn: batch_fn}, state)
+
+              {:halt_loop, state} ->
+                next_epoch(finish(%{acc | batch_fn: batch_fn}, state))
+
+              {:continue, %State{} = state} ->
+                acc = %{
+                  acc
+                  | batch_fn: batch_fn,
+                    epoch: epoch + 1,
+                    final_metrics_map: Map.put(acc.final_metrics_map, epoch, state.metrics),
+                    state: %State{
+                      state
+                      | epoch: epoch + 1,
+                        metrics: zero_metrics,
+                        iteration: 0,
+                        max_iteration: state.max_iteration
+                    }
+                }
+
+                {[{:epoch, state}], acc}
+            end
+        end
+    end
+  end
+
+  defp finish(acc, %State{} = state) do
+    %{acc | state: state, phase: {:finish, :halted}}
+  end
+
+  # Halts an epoch during looping
+  defp halt_epoch(acc, loop_state) do
+    %{handler_fns: handler_fns, debug?: debug?} = acc
+
+    case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
+      {:halt_epoch, %State{epoch: epoch, metrics: metrics} = state} ->
+        acc = %{
+          acc
+          | final_metrics_map: Map.put(acc.final_metrics_map, epoch, metrics),
+            epoch: acc.epoch + 1,
+            state: %State{state | epoch: epoch + 1, iteration: 0}
+        }
+
+        {[], acc}
+
+      {:halt_loop, state} ->
+        next_epoch(finish(acc, state))
+
+      {:continue, state} ->
+        {[], %{acc | epoch: acc.epoch + 1, state: state}}
+    end
+  end
 
   defp init_loop_state(
          init_fn,
@@ -1737,6 +1970,9 @@ defmodule Axon.Loop do
          jit_opts
        ) do
     case attached_state do
+      %State{} = state when max_epochs == :infinity ->
+        %{state | max_epoch: :infinity}
+
       %State{} = state ->
         %{state | max_epoch: max_epochs + state.epoch}
 
@@ -1919,21 +2155,6 @@ defmodule Axon.Loop do
 
   defp update_counts(%State{event_counts: event_counts} = state, event) do
     %{state | event_counts: Map.update(event_counts, event, 1, fn x -> x + 1 end)}
-  end
-
-  # Halts an epoch during looping
-  defp halt_epoch(handler_fns, batch_fn, final_metrics_map, loop_state, debug?) do
-    case fire_event(:epoch_halted, handler_fns, loop_state, debug?) do
-      {:halt_epoch, %State{epoch: epoch, metrics: metrics} = state} ->
-        final_metrics_map = Map.put(final_metrics_map, epoch, metrics)
-        {:cont, {batch_fn, final_metrics_map, %State{state | epoch: epoch + 1, iteration: 0}}}
-
-      {:halt_loop, state} ->
-        {:halt, {final_metrics_map, state}}
-
-      {:continue, state} ->
-        {:cont, {batch_fn, final_metrics_map, state}}
-    end
   end
 
   # Builds the overall batch step function from the given
