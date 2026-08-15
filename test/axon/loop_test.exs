@@ -1037,6 +1037,26 @@ defmodule Axon.LoopTest do
       acc
     end
 
+    test "the state a donating loop returns is not itself donatable" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        result =
+          model
+          |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adam(learning_rate: 0.01))
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2, donate_state?: true)
+
+        send(self(), {:result, result})
+      end)
+
+      assert_receive {:result, result}
+
+      # Otherwise the mark would follow the caller out of the loop and donate
+      # buffers they never offered on their next `Nx.Defn.jit` call.
+      assert map_leaves(result, &Nx.donatable?/1) |> Enum.uniq() == [false]
+    end
+
     test "donating state does not change the parameters a loop converges to" do
       model = donation_model()
       data = donation_data()

@@ -1859,10 +1859,6 @@ defmodule Axon.Loop do
           end
 
           batch_fn = {:compiled, batch_fn}
-
-          {new_step_state, new_metrics} =
-            clear_donations({new_step_state, new_metrics}, donate_state?)
-
           state = %{state | step_state: new_step_state, metrics: new_metrics}
 
           case fire_event(:iteration_completed, handler_fns, state, debug?) do
@@ -1907,22 +1903,6 @@ defmodule Axon.Loop do
   end
 
   defp maybe_donate_step_state(step_state, true), do: step_state
-
-  # A donatable mark propagates from an argument onto every result derived from
-  # it, so the tensors a donating step returns come back marked even though
-  # their buffers are freshly written. Leaving the mark on would donate results
-  # the loop still needs, such as the metrics threaded into the next iteration,
-  # and would follow the caller out of the loop into whatever they do with the
-  # trained model state. The loop decides what to donate on each iteration, so
-  # it clears the marks and reapplies them itself.
-  defp clear_donations(container, false), do: container
-
-  defp clear_donations(container, true) do
-    Nx.Defn.Composite.traverse(container, fn
-      %Nx.Tensor{donatable?: true} = tensor -> %{tensor | donatable?: false}
-      tensor -> tensor
-    end)
-  end
 
   defp max_iterations_reached?(max_iters, iters) do
     iters >= max_iters - 1 and max_iters > 0
