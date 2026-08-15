@@ -2465,68 +2465,273 @@ defmodule Axon.Layers do
 
   This function will make use of an `defn` while-loop such and thus
   may be more efficient for long sequences.
+
+  ## Gradients
+
+  The loop installs a custom gradient which walks the sequence in
+  reverse, taking a vector-Jacobian product per step. This is
+  required for correctness: Nx's built-in reverse-mode rule for
+  `while` accumulates the per-step Jacobians in forward time order,
+  which only agrees with reverse-mode when those Jacobians commute.
+  RNN cell Jacobians do not commute, so without this the dynamically
+  unrolled gradient silently disagrees with the statically unrolled
+  one and the layer trains on wrong gradients.
   """
   defn dynamic_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
-    time_steps = Nx.axis_size(input_sequence, 1)
-    feature_dims = list_duplicate(0, Nx.rank(input_sequence) - 2)
-    mask = get_mask(mask, input_sequence)
+    dynamic_unroll_transform(
+      cell_fn,
+      input_sequence,
+      carry,
+      mask,
+      input_kernel,
+      recurrent_kernel,
+      bias
+    )
+  end
 
-    initial_shape =
-      unroll_initial_shape_transform(
+  deftransformp dynamic_unroll_transform(
+                  cell_fn,
+                  input_sequence,
+                  carry,
+                  mask,
+                  input_kernel,
+                  recurrent_kernel,
+                  bias
+                ) do
+    mask = get_mask(mask, input_sequence)
+    params = {input_kernel, recurrent_kernel, bias}
+    time_steps = Nx.axis_size(input_sequence, 1)
+
+    # Peek the first step to size the per-step output buffer. RNN cells
+    # are shape-stable across steps, so step 0's output shape holds for
+    # every step.
+    {y_template, _} = unroll_peek(cell_fn, input_sequence, carry, mask, params)
+
+    ys_buffer = unroll_time_zeros(y_template, time_steps)
+    carries_buffer = unroll_time_zeros(carry, time_steps)
+
+    {ys, final_carry, saved_carries} =
+      dynamic_unroll_forward(
         cell_fn,
         input_sequence,
         carry,
         mask,
-        input_kernel,
-        recurrent_kernel,
-        bias
+        params,
+        ys_buffer,
+        carries_buffer
       )
 
-    init_sequence = Nx.broadcast(0.0, initial_shape)
-    t = Nx.tensor(0)
+    grad_inputs = [input_sequence | Nx.Defn.Composite.flatten_list([carry, params])]
+    outputs = List.to_tuple([ys | Nx.Defn.Composite.flatten_list([final_carry])])
 
-    {_, output, carry, _, _, _, _, _} =
-      while {t, init_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel, bias},
+    backward_fun = fn g ->
+      [g_ys | g_carry_leaves] = Tuple.to_list(g)
+
+      {g_input, g_carry, g_params} =
+        dynamic_unroll_backward(
+          cell_fn,
+          input_sequence,
+          saved_carries,
+          mask,
+          params,
+          g_ys,
+          unroll_unflatten(carry, g_carry_leaves),
+          ys_buffer,
+          carry
+        )
+
+      [g_input | Nx.Defn.Composite.flatten_list([g_carry, g_params])]
+    end
+
+    [ys | carry_leaves] =
+      outputs
+      |> Nx.Defn.Kernel.custom_grad(grad_inputs, backward_fun)
+      |> Tuple.to_list()
+
+    {ys, unroll_unflatten(final_carry, carry_leaves)}
+  end
+
+  defnp dynamic_unroll_forward(
+          cell_fn,
+          input_sequence,
+          carry,
+          mask,
+          params,
+          ys_buffer,
+          carries_buffer
+        ) do
+    time_steps = Nx.axis_size(input_sequence, 1)
+
+    {_, ys, final_carry, saved_carries, _, _, _} =
+      while {t = Nx.tensor(0), ys = ys_buffer, carry, carries = carries_buffer, input_sequence,
+             mask, params},
             Nx.less(t, time_steps) do
-        input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
-        input = Nx.squeeze(input, axes: [1])
-        mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
-        mask_token = Nx.reshape(mask_token, {Nx.axis_size(input, 0), 1})
+        input = unroll_slice_time(input_sequence, t)
+        mask_token = unroll_slice_mask(mask, t, input_sequence)
 
-        {output, carry} =
-          cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
+        # Save the carry *entering* this step — the backward pass
+        # replays each step from it.
+        carries = unroll_put_time(carries, t, carry)
 
-        indices = compute_indices(t, feature_dims)
+        {output, new_carry} = unroll_apply_cell(cell_fn, input, carry, mask_token, params)
 
-        output = Nx.new_axis(output, 1)
-        update_sequence = Nx.put_slice(init_sequence, indices, output)
-
-        {t + 1, update_sequence, carry, input_sequence, mask, input_kernel, recurrent_kernel,
-         bias}
+        {t + 1, unroll_put_time(ys, t, output), new_carry, carries, input_sequence, mask, params}
       end
 
-    {output, carry}
+    {ys, final_carry, saved_carries}
   end
 
-  deftransformp compute_indices(i, feature_dims) do
-    [0, i] ++ feature_dims
+  defnp dynamic_unroll_backward(
+          cell_fn,
+          input_sequence,
+          saved_carries,
+          mask,
+          params,
+          g_ys,
+          g_final_carry,
+          ys_template,
+          carry_template
+        ) do
+    time_steps = Nx.axis_size(input_sequence, 1)
+
+    # Cotangents for unused outputs come back as scalar 0.0 — broadcast
+    # them up so the loop state has consistent shapes.
+    g_c0 = unroll_broadcast_like(g_final_carry, carry_template)
+    g_ys_full = Nx.broadcast(g_ys, ys_template)
+
+    {_, g_carry, g_input, g_params, _, _, _, _, _} =
+      while {t = time_steps, g_c = g_c0, g_x = unroll_grad_zeros(input_sequence),
+             g_p = unroll_grad_zeros(params), saved_carries, input_sequence, mask, params,
+             g_ys = g_ys_full},
+            Nx.greater(t, 0) do
+        t1 = t - 1
+
+        c_t = unroll_slice_time(saved_carries, t1)
+        x_t = unroll_slice_time(input_sequence, t1)
+        mask_token = unroll_slice_mask(mask, t1, input_sequence)
+        g_y_t = unroll_slice_time(g_ys, t1)
+
+        {g_c_step, g_x_t, g_p_step} =
+          grad({c_t, x_t, params}, fn {c, x, p} ->
+            {y, new_c} = unroll_apply_cell(cell_fn, x, c, mask_token, p)
+            unroll_dot(new_c, stop_grad(g_c)) + unroll_dot(y, stop_grad(g_y_t))
+          end)
+
+        {t1, g_c_step, unroll_put_time(g_x, t1, g_x_t), unroll_add(g_p, g_p_step), saved_carries,
+         input_sequence, mask, params, g_ys}
+      end
+
+    {g_input, g_carry, g_params}
   end
 
-  deftransformp unroll_initial_shape_transform(
-                  cell_fn,
-                  inp,
-                  carry,
-                  mask,
-                  inp_kernel,
-                  hid_kernel,
-                  bias
-                ) do
-    seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
-    seq = Nx.squeeze(seq, axes: [1])
-    mask_token = Nx.slice_along_axis(mask, 0, 1, axis: 1)
-    mask_token = Nx.reshape(mask_token, {Nx.axis_size(seq, 0), 1})
-    {seq, _} = cell_fn.(seq, carry, mask_token, inp_kernel, hid_kernel, bias)
-    Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+  deftransformp unroll_apply_cell(cell_fn, input, carry, mask_token, {ik, hk, bias}) do
+    cell_fn.(input, carry, mask_token, ik, hk, bias)
+  end
+
+  deftransformp unroll_peek(cell_fn, input_sequence, carry, mask, params) do
+    input = unroll_slice_time(input_sequence, 0)
+    mask_token = unroll_slice_mask(mask, 0, input_sequence)
+    unroll_apply_cell(cell_fn, input, carry, mask_token, params)
+  end
+
+  deftransformp unroll_slice_mask(mask, t, input_sequence) do
+    mask_token = Nx.slice_along_axis(mask, t, 1, axis: 1)
+    Nx.reshape(mask_token, {Nx.axis_size(input_sequence, 0), 1})
+  end
+
+  # Slice step `t` out of the time axis of every leaf of `container`.
+  deftransformp unroll_slice_time(container, t) do
+    {result, nil} =
+      Nx.Defn.Composite.traverse(container, nil, fn leaf, _ ->
+        sliced = Nx.slice_along_axis(leaf, t, 1, axis: 1)
+        {Nx.squeeze(sliced, axes: [1]), nil}
+      end)
+
+    result
+  end
+
+  deftransformp unroll_put_time(buffer, t, value) do
+    values = Nx.Defn.Composite.flatten_list([value])
+
+    {result, []} =
+      Nx.Defn.Composite.traverse(buffer, values, fn buf, [val | rest] ->
+        indices = [0, t] ++ List.duplicate(0, Nx.rank(buf) - 2)
+        {Nx.put_slice(buf, indices, Nx.new_axis(val, 1)), rest}
+      end)
+
+    result
+  end
+
+  # Allocate a zero buffer per leaf with a time axis inserted at axis 1.
+  # The zero takes the leaf's own type, so f64 models stay f64.
+  deftransformp unroll_time_zeros(template, time_steps) do
+    {result, nil} =
+      Nx.Defn.Composite.traverse(template, nil, fn leaf, _ ->
+        shape = Tuple.insert_at(Nx.shape(leaf), 1, time_steps)
+        {Nx.broadcast(Nx.tensor(0, type: Nx.type(leaf)), shape), nil}
+      end)
+
+    result
+  end
+
+  # Gradient accumulators are always floating-point, even when the
+  # value they accumulate for is not.
+  deftransformp unroll_grad_zeros(container) do
+    {result, nil} =
+      Nx.Defn.Composite.traverse(container, nil, fn leaf, _ ->
+        type =
+          case Nx.type(leaf) do
+            {:f, _} = t -> t
+            {:bf, _} = t -> t
+            {:c, _} = t -> t
+            _ -> {:f, 32}
+          end
+
+        {Nx.broadcast(Nx.tensor(0, type: type), Nx.shape(leaf)), nil}
+      end)
+
+    result
+  end
+
+  deftransformp unroll_broadcast_like(container, template) do
+    leaves = Nx.Defn.Composite.flatten_list([container])
+
+    {result, []} =
+      Nx.Defn.Composite.traverse(template, leaves, fn leaf, [g | rest] ->
+        {Nx.broadcast(g, leaf), rest}
+      end)
+
+    result
+  end
+
+  deftransformp unroll_add(a, b) do
+    leaves = Nx.Defn.Composite.flatten_list([b])
+
+    {result, []} =
+      Nx.Defn.Composite.traverse(a, leaves, fn leaf, [other | rest] ->
+        {Nx.add(leaf, other), rest}
+      end)
+
+    result
+  end
+
+  # <a, b> summed over every leaf — used to build the per-step VJP.
+  deftransformp unroll_dot(a, b) do
+    a_leaves = Nx.Defn.Composite.flatten_list([a])
+    b_leaves = Nx.Defn.Composite.flatten_list([b])
+
+    a_leaves
+    |> Enum.zip(b_leaves)
+    |> Enum.reduce(Nx.tensor(0.0), fn {x, y}, acc ->
+      Nx.add(acc, Nx.sum(Nx.multiply(x, y)))
+    end)
+  end
+
+  deftransformp unroll_unflatten(template, leaves) do
+    {result, []} =
+      Nx.Defn.Composite.traverse(template, leaves, fn _leaf, [next | rest] -> {next, rest} end)
+
+    result
   end
 
   @doc """
