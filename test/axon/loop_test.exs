@@ -233,6 +233,63 @@ defmodule Axon.LoopTest do
       assert %{y_true: _, y_pred: _} = apply(Nx.Defn.jit(step_fn), [{inp, tar}, pstate])
     end
 
+    test "eval_step/1 evaluates models which output a container" do
+      inp = Nx.tensor([[1.0]])
+      tar = Nx.tensor([[2.0]])
+
+      dense = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
+
+      model =
+        Axon.container(%{
+          logits: dense,
+          maybe: Axon.input("optional", shape: {nil, 1}, optional: true) |> Axon.optional()
+        })
+
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(%{"input" => inp}, Axon.ModelState.empty())
+
+      {eval_init_fn, eval_step_fn} = Axon.Loop.eval_step(model)
+
+      assert %{y_pred: %{logits: logits, maybe: %Axon.None{}}} =
+               pstate = apply(Nx.Defn.jit(eval_init_fn), [{%{"input" => inp}, tar}, model_state])
+
+      assert_equal(logits, Nx.tensor([[0.0]]))
+
+      assert %{y_pred: %{logits: logits, maybe: %Axon.None{}}} =
+               apply(Nx.Defn.jit(eval_step_fn), [{%{"input" => inp}, tar}, pstate])
+
+      assert_equal(logits, Axon.predict(model, model_state, %{"input" => inp}).logits)
+    end
+
+    test "validate/4 works with models which output a container" do
+      inp = Nx.tensor([[1.0]])
+      tar = Nx.tensor([[2.0]])
+      data = List.duplicate({inp, tar}, 2)
+
+      model =
+        Axon.input("input", shape: {nil, 1})
+        |> Axon.dense(1)
+        |> then(&Axon.container(%{logits: &1}))
+
+      loss = fn y_true, %{logits: logits} ->
+        Axon.Losses.mean_squared_error(y_true, logits, reduction: :mean)
+      end
+
+      metric = fn y_true, %{logits: logits} ->
+        Axon.Metrics.mean_absolute_error(y_true, logits)
+      end
+
+      loop =
+        model
+        |> Axon.Loop.trainer(loss, :sgd)
+        |> Axon.Loop.metric(metric, "mae")
+        |> Axon.Loop.validate(model, data)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert %Axon.ModelState{} = Axon.Loop.run(loop, data, Axon.ModelState.empty(), epochs: 1)
+      end)
+    end
+
     test "train_step/3 updates stateful layers after single step" do
       val = Nx.broadcast(1, {1, 8})
 

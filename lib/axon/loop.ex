@@ -478,14 +478,11 @@ defmodule Axon.Loop do
       {inp, tar}, state ->
         # TODO: Is this expensive
         output = forward_model_fn.(state, inp)
-        output_type = Nx.type(output)
-        output_shape = Nx.shape(output)
-        y_pred = Nx.broadcast(Nx.tensor(0, type: output_type), output_shape)
 
         %{
           model_state: state,
           y_true: zeros_like(tar),
-          y_pred: y_pred
+          y_pred: zeros_like(output)
         }
 
       data, state ->
