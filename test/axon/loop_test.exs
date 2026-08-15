@@ -430,6 +430,154 @@ defmodule Axon.LoopTest do
     end
   end
 
+  describe "streaming" do
+    defp counting_loop do
+      Loop.loop(fn _, state -> Nx.add(state, 1) end)
+    end
+
+    test "emits the accumulated state at the end of every epoch" do
+      states =
+        counting_loop()
+        |> Loop.stream([Nx.tensor(1), Nx.tensor(1)], Nx.tensor(0), epochs: 3)
+        |> Enum.to_list()
+
+      assert [%State{} = s0, %State{} = s1, %State{} = s2] = states
+
+      assert [0, 1, 2] == Enum.map(states, & &1.epoch)
+      # each epoch runs two iterations
+      assert [2, 2, 2] == Enum.map(states, & &1.iteration)
+
+      assert_equal(s0.step_state, Nx.tensor(2))
+      assert_equal(s1.step_state, Nx.tensor(4))
+      assert_equal(s2.step_state, Nx.tensor(6))
+
+      assert [0] == Map.keys(s0.times)
+      assert [0, 1, 2] == Map.keys(s2.times)
+    end
+
+    test "emits nothing with epochs 0" do
+      assert [] ==
+               counting_loop()
+               |> Loop.stream([Nx.tensor(1)], Nx.tensor(0), epochs: 0)
+               |> Enum.to_list()
+    end
+
+    test "runs indefinitely without epochs, bounded only by the consumer" do
+      stream = Loop.stream(counting_loop(), [Nx.tensor(1)], Nx.tensor(0))
+
+      assert [0, 1, 2, 3, 4] == stream |> Enum.take(5) |> Enum.map(& &1.epoch)
+
+      # the same stream can be driven for as many epochs as are demanded
+      assert 25 ==
+               stream
+               |> Stream.drop(24)
+               |> Enum.at(0)
+               |> Map.fetch!(:step_state)
+               |> Nx.to_number()
+
+      # and can be bounded by state instead of by count
+      last =
+        stream
+        |> Enum.reduce_while(nil, fn state, _ ->
+          if Nx.to_number(state.step_state) < 7, do: {:cont, state}, else: {:halt, state}
+        end)
+
+      assert 7 == Nx.to_number(last.step_state)
+    end
+
+    test "is lazy and only runs the epochs which are demanded" do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      data =
+        Stream.map([Nx.tensor(1)], fn batch ->
+          Agent.update(agent, &(&1 + 1))
+          batch
+        end)
+
+      stream = Loop.stream(counting_loop(), data, Nx.tensor(0))
+
+      # building the stream does not init or run anything
+      assert 0 == Agent.get(agent, & &1)
+
+      assert [%State{}, %State{}] = Enum.take(stream, 2)
+
+      # one batch for the sample data used to init, plus one per demanded epoch
+      assert 3 == Agent.get(agent, & &1)
+    end
+
+    test "is re-enumerable" do
+      stream = Loop.stream(counting_loop(), [Nx.tensor(1)], Nx.tensor(0), epochs: 2)
+
+      first = Enum.map(Enum.to_list(stream), & &1.step_state)
+      second = Enum.map(Enum.to_list(stream), & &1.step_state)
+
+      assert [_, _] = first
+
+      for {run, rerun, expected} <- Enum.zip([first, second, [Nx.tensor(1), Nx.tensor(2)]]) do
+        assert_equal(run, expected)
+        assert_equal(rerun, expected)
+      end
+    end
+
+    test "ends an unbounded stream when a handler halts the loop" do
+      states =
+        counting_loop()
+        |> Loop.handle_event(:epoch_completed, fn %State{epoch: epoch} = state ->
+          if epoch == 1, do: {:halt_loop, state}, else: {:continue, state}
+        end)
+        |> Loop.stream([Nx.tensor(1)], Nx.tensor(0))
+        |> Enum.to_list()
+
+      assert [%State{epoch: 0}] = states
+    end
+
+    test "does not emit epochs which were halted" do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      states =
+        counting_loop()
+        |> Loop.handle_event(:epoch_started, fn state ->
+          case Agent.get_and_update(agent, &{&1, &1 + 1}) do
+            0 -> {:halt_epoch, state}
+            _ -> {:continue, state}
+          end
+        end)
+        |> Loop.stream([Nx.tensor(1)], Nx.tensor(0), epochs: 3)
+        |> Enum.to_list()
+
+      assert [%State{}, %State{}] = states
+    end
+
+    test "emits per-epoch metrics" do
+      states =
+        counting_loop()
+        |> Loop.metric(& &1, "count", :running_average, &[&1])
+        |> Loop.stream([Nx.tensor(1), Nx.tensor(1)], Nx.tensor(0), epochs: 2)
+        |> Enum.to_list()
+
+      # metrics are per-epoch, not the epoch => metrics map returned by run/4
+      assert [%State{metrics: first}, %State{metrics: second}] = states
+      assert_equal(first["count"], Nx.tensor(1.5))
+      assert_equal(second["count"], Nx.tensor(3.5))
+    end
+
+    test "run/4 matches the final state of the stream" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
+      data = [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}]
+      loop = Loop.trainer(model, :mean_squared_error, :sgd, log: 0, seed: 0)
+
+      model_state = Loop.run(loop, data, Axon.ModelState.empty(), epochs: 3)
+
+      states =
+        loop
+        |> Loop.stream(data, Axon.ModelState.empty(), epochs: 3)
+        |> Enum.to_list()
+
+      assert [_, _, %State{step_state: %{model_state: last_model_state}}] = states
+      assert_equal(model_state, last_model_state)
+    end
+  end
+
   describe "trainer" do
     test "returns clear error on bad inputs" do
       model = Axon.input("input")

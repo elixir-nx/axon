@@ -6,7 +6,7 @@ defmodule Axon.Loop.State do
 
       %State{
         epoch: integer(),
-        max_epoch: integer(),
+        max_epoch: integer() | :infinity,
         iteration: integer(),
         max_iteration: integer(),
         metrics: map(string(), container()),
@@ -19,7 +19,8 @@ defmodule Axon.Loop.State do
   Defaults to 0.
 
   `max_epoch` is the maximum number of epochs the loop should run
-  for. Defaults to 1.
+  for. Defaults to 1. It is `:infinity` for unbounded loops, such as
+  those created with `Axon.Loop.stream/4`.
 
   `iteration` is the current iteration of the inner loop. In supervised
   settings, this will be the current batch. Defaults to 0.
