@@ -938,6 +938,51 @@ defmodule AxonTest do
       refute Map.has_key?(props, "output")
     end
 
+    test "captures multi-output models with :to before or after the head split" do
+      shared =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.dense(8, name: "trunk")
+        |> Axon.relu(name: "shared")
+
+      model =
+        Axon.container(%{
+          a: Axon.dense(shared, 2, name: "head_a"),
+          b: Axon.dense(shared, 3, name: "head_b")
+        })
+
+      template = %{"y" => Nx.template({1, 4}, :f32)}
+      new_input = Axon.input("y", shape: {nil, 4})
+
+      # Capture shared trunk: single tensor, both heads and container dropped
+      to_shared = Axon.capture(model, to: "shared").(new_input)
+      shared_props = Axon.properties(to_shared)
+      assert Map.has_key?(shared_props, "shared")
+      assert Map.has_key?(shared_props, "trunk")
+      refute Map.has_key?(shared_props, "head_a")
+      refute Map.has_key?(shared_props, "head_b")
+      refute Map.has_key?(shared_props, "container_0")
+      assert %Nx.Tensor{shape: {1, 8}} = Axon.get_output_shape(to_shared, template)
+
+      # Capture one head after the split: sibling head and container dropped
+      to_head = Axon.capture(model, to: "head_a").(new_input)
+      head_props = Axon.properties(to_head)
+      assert Map.has_key?(head_props, "head_a")
+      assert Map.has_key?(head_props, "shared")
+      refute Map.has_key?(head_props, "head_b")
+      refute Map.has_key?(head_props, "container_0")
+      assert %Nx.Tensor{shape: {1, 2}} = Axon.get_output_shape(to_head, template)
+
+      # No :to keeps the multi-output container
+      full = Axon.capture(model).(new_input)
+      full_props = Axon.properties(full)
+      assert Map.has_key?(full_props, "head_a")
+      assert Map.has_key?(full_props, "head_b")
+      assert Map.has_key?(full_props, "container_0")
+
+      assert %{a: %Nx.Tensor{shape: {1, 2}}, b: %Nx.Tensor{shape: {1, 3}}} =
+               Axon.get_output_shape(full, template)
+    end
+
     test "works with multiple inputs using map" do
       input1 = Axon.input("image", shape: {nil, 784})
       input2 = Axon.input("text", shape: {nil, 128})

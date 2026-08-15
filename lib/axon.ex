@@ -4060,9 +4060,10 @@ defmodule Axon do
       features = backbone.(new_input)
 
       # Add your own head
-      my_model = features
-      |> Axon.dense(256, activation: :relu)
-      |> Axon.dense(num_classes)
+      my_model =
+        features
+        |> Axon.dense(256, activation: :relu)
+        |> Axon.dense(num_classes)
 
   For models with multiple inputs, pass a map:
 
@@ -4074,14 +4075,51 @@ defmodule Axon do
       encoder = Axon.capture(encoder_model)
       encoded = encoder.(my_input)
 
+  `:to` cuts the graph so the named layer becomes the new output.
+  Layers after that point are dropped from the captured model:
+
+      model =
+        Axon.input("features", shape: {nil, 10})
+        |> Axon.dense(32, name: "hidden1")
+        |> Axon.relu(name: "relu1")
+        |> Axon.dense(16, name: "hidden2")
+        |> Axon.dense(2, name: "output")
+
+      backbone = Axon.capture(model, to: "hidden2")
+      new_model = backbone.(Axon.input("x", shape: {nil, 10}))
+      # new_model ends at "hidden2"; "output" is not present
+
+  On multi-output models the same rule applies from the named layer.
+  Capturing a shared trunk layer before the head split returns that
+  single tensor (both heads and the container are cut off). Capturing
+  one head after the split returns only that branch as a single output;
+  sibling heads are not included:
+
+      shared =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.dense(8, name: "trunk")
+        |> Axon.relu(name: "shared")
+
+      model =
+        Axon.container(%{
+          a: Axon.dense(shared, 2, name: "head_a"),
+          b: Axon.dense(shared, 3, name: "head_b")
+        })
+
+      # Single-tensor backbone up to the shared layer
+      Axon.capture(model, to: "shared")
+
+      # Only head_a; head_b and the container are gone
+      Axon.capture(model, to: "head_a")
+
   Layer names can be discovered using `Axon.properties/1`:
 
       Axon.properties(model) |> Map.keys()
 
   ## Options
 
-    * `:to` - the name of the layer to capture as the output. If not
-      provided, captures the entire model.
+    * `:to` - name of the layer that should become the captured model's
+      output. Defaults to the model's original output (entire graph).
 
   """
   @doc type: :graph
@@ -4167,7 +4205,7 @@ defmodule Axon do
                     "with keys: #{inspect(Map.keys(input_name_to_id))}"
           end
 
-          [{input_name, _}] = Map.to_list(input_name_to_id)
+          {input_name, _} = Enum.fetch!(input_name_to_id, 0)
           %{input_name => single_input}
 
         %{} = inputs_map ->
@@ -4180,18 +4218,18 @@ defmodule Axon do
       end
 
     # Validate all expected inputs are provided
-    expected_names = Map.keys(input_name_to_id) |> MapSet.new()
-    provided_names = Map.keys(new_inputs_map) |> MapSet.new()
+    expected_names = Map.keys(input_name_to_id)
+    provided_names = Map.keys(new_inputs_map)
 
-    missing = MapSet.difference(expected_names, provided_names)
-    extra = MapSet.difference(provided_names, expected_names)
+    missing = expected_names -- provided_names
+    extra = provided_names -- expected_names
 
-    if MapSet.size(missing) > 0 do
-      raise ArgumentError, "missing inputs: #{inspect(MapSet.to_list(missing))}"
+    if missing != [] do
+      raise ArgumentError, "missing inputs: #{inspect(missing)}"
     end
 
-    if MapSet.size(extra) > 0 do
-      raise ArgumentError, "unexpected inputs: #{inspect(MapSet.to_list(extra))}"
+    if extra != [] do
+      raise ArgumentError, "unexpected inputs: #{inspect(extra)}"
     end
 
     id_mapping =
@@ -4200,7 +4238,7 @@ defmodule Axon do
       end)
 
     merged_nodes =
-      Enum.reduce(Map.values(new_inputs_map), nodes, fn %Axon{nodes: new_nodes}, acc_nodes ->
+      Enum.reduce(new_inputs_map, nodes, fn {_k, %Axon{nodes: new_nodes}}, acc_nodes ->
         Map.merge(new_nodes, acc_nodes)
       end)
 
