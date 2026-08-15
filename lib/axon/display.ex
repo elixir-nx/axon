@@ -237,8 +237,7 @@ defmodule Axon.Display do
     rendered =
       shapes
       |> Enum.sort()
-      |> Enum.map(&render_output_entry/1)
-      |> Enum.join(", ")
+      |> Enum.map_join(", ", &render_output_entry/1)
 
     "%{#{rendered}}"
   end
