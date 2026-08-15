@@ -924,6 +924,93 @@ defmodule Axon do
   end
 
   @doc """
+  Defers construction of a subgraph until parent template shapes
+  are known at initialization time.
+
+  `Axon.deferred/2` is useful when the structure or sizing of one
+  part of the graph depends on the shape (and dtype) of another part
+  whose shape isn't statically derivable from the call site — for
+  example, decoders that mirror an encoder's input dim, projection
+  heads that match a backbone's hidden size, or adapter layers that
+  wrap an opaque inner model.
+
+  ## Single-parent form
+
+  When a single `%Axon{}` parent is passed, the factory is an arity-1
+  function receiving a `{parent, template}` tuple:
+
+      input = Axon.input("x", shape: {nil, 784})
+      encoder = Axon.dense(input, 64)
+
+      decoder =
+        Axon.deferred(encoder, fn {enc, t} ->
+          {_, in_dim} = Nx.shape(t)
+          Axon.dense(enc, in_dim)
+        end)
+
+  ## Multi-parent form
+
+  When a list of parents is passed, the factory takes one
+  `{parent, template}` tuple per parent, in the same order:
+
+      Axon.deferred([a, b], fn {a, ta}, {b, tb} ->
+        ...
+      end)
+
+  The factory's arity must equal the number of parents.
+
+  ## Semantics
+
+  The factory runs once, the first time `init_fn` is called, against
+  the resolved parent templates. The returned subgraph is then compiled
+  and reused for all subsequent `predict_fn`/`init_fn` calls within the
+  same `build/2` invocation. The factory must return an `%Axon{}` whose
+  graph is rooted at the `parent` values it received — that is how the
+  parent's runtime output is wired into the subgraph.
+
+  Like blocks, deferred subgraphs prefix their parameters with the
+  deferred layer's name and a dot.
+  """
+  @doc type: :special
+  def deferred(parent_or_parents, factory)
+
+  def deferred(%Axon{} = parent, factory) when is_function(factory, 1) do
+    layer(:deferred, [parent],
+      op_name: :deferred,
+      factory: factory,
+      num_parents: 1
+    )
+  end
+
+  def deferred([_ | _] = parents, factory) when is_function(factory) do
+    expected_arity = length(parents)
+    {:arity, actual_arity} = Function.info(factory, :arity)
+
+    if actual_arity != expected_arity do
+      raise ArgumentError,
+            "Axon.deferred factory must have arity equal to the number of parents " <>
+              "(#{expected_arity}), got arity #{actual_arity}"
+    end
+
+    Enum.each(parents, fn
+      %Axon{} -> :ok
+      other -> raise ArgumentError, "expected Axon graph parent, got: #{inspect(other)}"
+    end)
+
+    layer(:deferred, parents,
+      op_name: :deferred,
+      factory: factory,
+      num_parents: expected_arity
+    )
+  end
+
+  def deferred(parent_or_parents, factory) do
+    raise ArgumentError,
+          "Axon.deferred expects an %Axon{} or non-empty list of %Axon{} parents and a factory " <>
+            "function, got: #{inspect(parent_or_parents)} and #{inspect(factory)}"
+  end
+
+  @doc """
   Adds a dense layer to the network.
 
   The dense layer implements:
