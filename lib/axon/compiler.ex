@@ -709,38 +709,33 @@ defmodule Axon.Compiler do
     name = name_fn.(:deferred, op_counts)
     op_counts = Map.update(op_counts, :deferred, 1, fn x -> x + 1 end)
 
-    deferred_cache = :ets.new(:axon_deferred, [:public, :set])
-
+    # The subgraph can only be constructed once the parent templates are
+    # known, which is inside the init/predict closures rather than during
+    # graph traversal. Rather than memoizing the result across those
+    # closures, we rebuild it from the templates in both. The factory is a
+    # pure function of its templates, so both paths agree, and because
+    # `Axon.build/2` wraps init and predict in `Nx.Defn.jit/2` this runs
+    # once per trace rather than once per call.
     materialize_funs = fn parent_templates ->
-      case :ets.lookup(deferred_cache, :funs) do
-        [{:funs, init_fn, predict_fn}] ->
-          {init_fn, predict_fn}
+      placeholders =
+        Enum.map(0..(length(parent_templates) - 1), fn i ->
+          Axon.input("subgraph#{i}")
+        end)
 
-        [] ->
-          placeholders =
-            Enum.map(0..(length(parent_templates) - 1), fn i ->
-              Axon.input("subgraph#{i}")
-            end)
+      factory_args =
+        placeholders
+        |> Enum.zip(parent_templates)
+        |> Enum.map(fn {p, t} -> {p, t} end)
 
-          factory_args =
-            placeholders
-            |> Enum.zip(parent_templates)
-            |> Enum.map(fn {p, t} -> {p, t} end)
+      subgraph = apply(factory, factory_args)
 
-          subgraph = apply(factory, factory_args)
-
-          unless match?(%Axon{}, subgraph) do
-            raise ArgumentError,
-                  "Axon.deferred factory must return an %Axon{} struct, got: " <>
-                    inspect(subgraph)
-          end
-
-          {sub_init_fn, sub_predict_fn} =
-            build(subgraph, debug?: config.debug?, mode: config.mode)
-
-          :ets.insert(deferred_cache, {:funs, sub_init_fn, sub_predict_fn})
-          {sub_init_fn, sub_predict_fn}
+      unless match?(%Axon{}, subgraph) do
+        raise ArgumentError,
+              "Axon.deferred factory must return an %Axon{} struct, got: " <>
+                inspect(subgraph)
       end
+
+      build(subgraph, debug?: config.debug?, mode: config.mode)
     end
 
     predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
@@ -768,16 +763,8 @@ defmodule Axon.Compiler do
       if none? do
         {%Axon.None{}, {state, result_cache}}
       else
-        sub_predict_fn =
-          case :ets.lookup(deferred_cache, :funs) do
-            [{:funs, _, predict_fn}] ->
-              predict_fn
-
-            [] ->
-              raise RuntimeError,
-                    "Axon.deferred node #{inspect(name)} has not been materialized; " <>
-                      "call the init function returned from Axon.build/2 before predict"
-          end
+        parent_templates = Enum.map(layer_inputs, &Nx.to_template/1)
+        {_sub_init_fn, sub_predict_fn} = materialize_funs.(parent_templates)
 
         sub_params = params[name] || %{}
 

@@ -961,12 +961,22 @@ defmodule Axon do
 
   ## Semantics
 
-  The factory runs once, the first time `init_fn` is called, against
-  the resolved parent templates. The returned subgraph is then compiled
-  and reused for all subsequent `predict_fn`/`init_fn` calls within the
-  same `build/2` invocation. The factory must return an `%Axon{}` whose
-  graph is rooted at the `parent` values it received — that is how the
-  parent's runtime output is wired into the subgraph.
+  The factory is invoked against the resolved parent templates when the
+  graph is traced, and must return an `%Axon{}` rooted at the `parent`
+  values it received — that is how the parent's runtime output is wired
+  into the subgraph.
+
+  The factory must be a pure function of the templates it is given: it
+  is re-invoked every time the graph is traced — by `init_fn` and by
+  `predict_fn` alike — and every invocation must agree on the subgraph
+  for parameters to line up. Do not rely on it running a fixed number
+  of times, and do not give it side effects.
+
+  How often tracing happens depends on the `Nx.Defn` compiler. Under a
+  caching compiler such as EXLA, or under `Axon.compile/4`, the graph
+  is traced once per distinct input signature. Under the default
+  evaluator it is traced on every call, so a large deferred subgraph is
+  rebuilt on every call as well.
 
   Like blocks, deferred subgraphs prefix their parameters with the
   deferred layer's name and a dot.

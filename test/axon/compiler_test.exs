@@ -6113,7 +6113,7 @@ defmodule CompilerTest do
       assert Nx.shape(out) == {3, 10}
     end
 
-    test "factory runs once and is reused across init/predict" do
+    test "factory is re-invoked per trace and yields a stable subgraph" do
       counter = :counters.new(1, [])
 
       model =
@@ -6127,10 +6127,43 @@ defmodule CompilerTest do
 
       input = random({2, 4}, type: {:f, 32})
       state = init_fn.(input, ModelState.empty())
-      _ = init_fn.(input, ModelState.empty())
-      _ = predict_fn.(state, input)
 
-      assert :counters.get(counter, 1) == 1
+      # The subgraph is materialized while tracing, so the factory has run.
+      # How many times is up to the Nx.Defn compiler - a caching compiler
+      # traces once per input signature, the evaluator traces per call - so
+      # only the fact that it ran is asserted here.
+      assert :counters.get(counter, 1) >= 1
+
+      # Whatever the trace count, every invocation must agree on the
+      # subgraph, so repeated predicts line up with the same parameters and
+      # produce the same result.
+      out1 = predict_fn.(state, input)
+      out2 = predict_fn.(state, input)
+
+      assert Nx.shape(out1) == {2, 4}
+      assert_equal(out1, out2)
+    end
+
+    test "init and predict agree on the subgraph built from templates" do
+      model =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.deferred(fn {p, t} ->
+          {_, features} = Nx.shape(t)
+          Axon.dense(p, features * 3, name: "inner")
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      input = random({2, 4}, type: {:f, 32})
+      state = init_fn.(input, ModelState.empty())
+
+      assert %ModelState{data: %{"deferred_0" => %{"inner" => %{"kernel" => kernel}}}} = state
+      assert Nx.shape(kernel) == {4, 12}
+
+      # Predict rebuilds the subgraph from its own templates; if the two
+      # disagreed the parameters would not line up here.
+      out = predict_fn.(state, input)
+      assert Nx.shape(out) == {2, 12}
     end
 
     test "raises when factory arity does not match parent count" do
