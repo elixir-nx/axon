@@ -893,4 +893,262 @@ defmodule AxonTest do
       assert %Axon.None{} = Axon.get_output_shape(model, %{"values" => Nx.template({1, 1}, :f32)})
     end
   end
+
+  describe "scaled_dot_product_attention" do
+    defp attention_inputs(shape \\ {1, 4, 2, 8}) do
+      %{
+        "query" => Nx.iota(shape, type: :f32) |> Nx.divide(10),
+        "key" => Nx.iota(shape, type: :f32) |> Nx.divide(10),
+        "value" => Nx.iota(shape, type: :f32) |> Nx.divide(10)
+      }
+    end
+
+    defp attention_templates(shape \\ {1, 4, 2, 8}) do
+      %{
+        "query" => Nx.template(shape, :f32),
+        "key" => Nx.template(shape, :f32),
+        "value" => Nx.template(shape, :f32)
+      }
+    end
+
+    test "builds a single attention node with the default opts" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      %Axon{output: id, nodes: nodes} = Axon.scaled_dot_product_attention(q, k, v)
+
+      assert %Axon.Node{op: :scaled_dot_product_attention, opts: opts, parent: parents} =
+               nodes[id]
+
+      assert opts[:axes] == :bshd
+      assert opts[:mask] == nil
+      assert opts[:dropout_rate] == 0.0
+      assert opts[:return_attention_weights] == false
+      # Three Axon parents (q, k, v), no extra mask/dropout inputs.
+      assert length(parents) == 3
+    end
+
+    test "predict matches Axon.Layers.scaled_dot_product_attention" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      model = Axon.scaled_dot_product_attention(q, k, v, axes: :bshd)
+      {init_fn, predict_fn} = Axon.build(model)
+      state = init_fn.(attention_templates(), Axon.ModelState.empty())
+
+      inputs = attention_inputs()
+      out = predict_fn.(state, inputs)
+
+      ref =
+        Axon.Layers.scaled_dot_product_attention(
+          inputs["query"],
+          inputs["key"],
+          inputs["value"]
+        )
+
+      assert_all_close(out, ref)
+    end
+
+    test "static :causal mask flows through opts" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      %Axon{output: id, nodes: nodes} =
+        Axon.scaled_dot_product_attention(q, k, v, mask: :causal)
+
+      assert nodes[id].opts[:mask] == :causal
+      assert length(nodes[id].parent) == 3
+    end
+
+    test "tensor mask is wired in as an additional input" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+      mask = Axon.input("mask", shape: {nil, 1, 4, 4})
+
+      %Axon{output: id, nodes: nodes} =
+        Axon.scaled_dot_product_attention(q, k, v, mask: mask)
+
+      assert nodes[id].opts[:mask] == :tensor
+      assert length(nodes[id].parent) == 4
+
+      model = %Axon{output: id, nodes: nodes}
+      {init_fn, predict_fn} = Axon.build(model)
+
+      templates =
+        attention_templates()
+        |> Map.put("mask", Nx.template({1, 1, 4, 4}, :f32))
+
+      state = init_fn.(templates, Axon.ModelState.empty())
+
+      inputs =
+        attention_inputs()
+        |> Map.put("mask", Nx.broadcast(Nx.tensor(0.0), {1, 1, 4, 4}))
+
+      out = predict_fn.(state, inputs)
+
+      ref =
+        Axon.Layers.scaled_dot_product_attention(
+          inputs["query"],
+          inputs["key"],
+          inputs["value"]
+        )
+
+      assert_all_close(out, ref)
+    end
+
+    test "dropout_rate > 0 adds a state key parameter that updates in :train" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      model = Axon.scaled_dot_product_attention(q, k, v, dropout_rate: 0.3, seed: 42)
+      {init_fn, predict_fn} = Axon.build(model, mode: :train)
+      state = init_fn.(attention_templates(), Axon.ModelState.empty())
+
+      %{data: %{"scaled_dot_product_attention_0" => %{"key" => key_before}}} = state
+
+      result = predict_fn.(state, attention_inputs())
+      assert is_map(result)
+      assert %{prediction: prediction, state: new_state} = result
+      assert Nx.shape(prediction) == {1, 4, 2, 8}
+      key_after = new_state["scaled_dot_product_attention_0"]["key"]
+      refute Nx.to_flat_list(key_before) == Nx.to_flat_list(key_after)
+    end
+
+    test "dropout_rate > 0 in :inference leaves the result unchanged" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      with_dropout = Axon.scaled_dot_product_attention(q, k, v, dropout_rate: 0.5, seed: 1)
+      without_dropout = Axon.scaled_dot_product_attention(q, k, v)
+
+      {init_w, predict_w} = Axon.build(with_dropout)
+      {init_b, predict_b} = Axon.build(without_dropout)
+
+      state_w = init_w.(attention_templates(), Axon.ModelState.empty())
+      state_b = init_b.(attention_templates(), Axon.ModelState.empty())
+      inputs = attention_inputs()
+
+      assert_all_close(predict_w.(state_w, inputs), predict_b.(state_b, inputs))
+    end
+
+    test "a tensor mask and dropout can be wired in together" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+      mask = Axon.input("mask", shape: {nil, 1, 4, 4})
+
+      model =
+        Axon.scaled_dot_product_attention(q, k, v,
+          mask: mask,
+          dropout_rate: 0.3,
+          seed: 7
+        )
+
+      %Axon{output: id, nodes: nodes} = model
+      assert nodes[id].opts[:mask] == :tensor
+      # q, k, v, mask tensor, and the dropout key state parameter
+      assert length(nodes[id].parent) == 4
+
+      {init_fn, predict_fn} = Axon.build(model, mode: :train)
+
+      templates =
+        attention_templates()
+        |> Map.put("mask", Nx.template({1, 1, 4, 4}, :f32))
+
+      state = init_fn.(templates, Axon.ModelState.empty())
+
+      %{data: %{"scaled_dot_product_attention_0" => %{"key" => key_before}}} = state
+
+      inputs =
+        attention_inputs()
+        |> Map.put("mask", Nx.broadcast(Nx.tensor(0.0), {1, 1, 4, 4}))
+
+      assert %{prediction: prediction, state: new_state} = predict_fn.(state, inputs)
+      assert Nx.shape(prediction) == {1, 4, 2, 8}
+
+      key_after = new_state["scaled_dot_product_attention_0"]["key"]
+      refute Nx.to_flat_list(key_before) == Nx.to_flat_list(key_after)
+    end
+
+    test "return_attention_weights yields a tuple from the graph" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      model = Axon.scaled_dot_product_attention(q, k, v, return_attention_weights: true)
+      {init_fn, predict_fn} = Axon.build(model)
+      state = init_fn.(attention_templates(), Axon.ModelState.empty())
+
+      {out, weights} = predict_fn.(state, attention_inputs())
+      assert Nx.shape(out) == {1, 4, 2, 8}
+      assert Nx.shape(weights) == {1, 2, 4, 4}
+    end
+
+    test "raises when query, key, or value is not an Axon node" do
+      q = Axon.input("query", shape: {nil, 4, 2, 8})
+
+      assert_raise ArgumentError, ~r/expects Axon node inputs/, fn ->
+        Axon.scaled_dot_product_attention(q, Nx.tensor([1.0]), q)
+      end
+    end
+
+    test "raises on invalid :axes" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      assert_raise ArgumentError, ~r/invalid :axes :other/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, axes: :other)
+      end
+    end
+
+    test "raises on invalid static :mask" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      assert_raise ArgumentError, ~r/invalid :mask/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, mask: :nope)
+      end
+
+      assert_raise ArgumentError, ~r/invalid :mask/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, mask: {:causal, -1})
+      end
+
+      assert_raise ArgumentError, ~r/invalid :mask/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, mask: {:sliding_window, 0})
+      end
+    end
+
+    test "raises on out-of-range :dropout_rate" do
+      shape = {nil, 4, 2, 8}
+      q = Axon.input("query", shape: shape)
+      k = Axon.input("key", shape: shape)
+      v = Axon.input("value", shape: shape)
+
+      assert_raise ArgumentError, ~r/dropout_rate/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, dropout_rate: 1.0)
+      end
+
+      assert_raise ArgumentError, ~r/dropout_rate/, fn ->
+        Axon.scaled_dot_product_attention(q, k, v, dropout_rate: -0.1)
+      end
+    end
+  end
 end

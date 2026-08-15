@@ -3713,6 +3713,163 @@ defmodule Axon do
     %{axon_node | hooks: [{on_event, mode, fun} | hooks]}
   end
 
+  ## Attention
+
+  @doc """
+  Adds a scaled dot-product attention layer to the network.
+
+  `query`, `key`, and `value` must be Axon nodes. The kernel produces
+
+      output = softmax(Q · Kᵀ * scale + mask) · V
+
+  See `Axon.Layers.scaled_dot_product_attention/4` for the math and
+  for the full list of options.
+
+  ## Options
+
+    * `:name` - layer name.
+
+    * `:meta` - layer metadata.
+
+    * `:axes` - input layout, `:bshd` (default) or `:bhsd`.
+
+    * `:scale` - scalar multiplier applied to `Q · Kᵀ`. Defaults to
+      `1 / sqrt(head_dim)`.
+
+    * `:mask` - attention mask. May be a static spec (`nil`, `:causal`,
+      `{:causal, offset}`, `{:sliding_window, w}` or
+      `{:sliding_window, w, offset}` with non-negative integer
+      offsets/windows), or an `%Axon{}` node carrying a boolean or
+      float mask tensor. Tensor masks are wired in as an additional
+      layer input.
+
+    * `:dropout_rate` - attention-probability dropout, applied only in
+      `:train` mode. Defaults to `0.0`. When non-zero, a per-layer
+      PRNG key state parameter is added so the dropout is properly
+      threaded.
+
+    * `:seed` - seed for the dropout PRNG key. Defaults to
+      `:erlang.system_time/0`.
+
+    * `:return_attention_weights` - when `true`, the layer output is
+      `{output, weights}` instead of just `output`.
+
+  ## Examples
+
+      # Encoder self-attention
+      Axon.scaled_dot_product_attention(q, k, v)
+
+      # Decoder self-attention with cached KV during single-token decode
+      Axon.scaled_dot_product_attention(q, k, v, mask: {:causal, offset})
+
+      # Cross-attention with a runtime padding mask
+      Axon.scaled_dot_product_attention(q, k, v, mask: padding_mask_node)
+
+  """
+  @doc type: :attention_layer
+  def scaled_dot_product_attention(query, key, value, opts \\ [])
+
+  def scaled_dot_product_attention(%Axon{} = query, %Axon{} = key, %Axon{} = value, opts) do
+    {mask, opts} = Keyword.pop(opts, :mask)
+
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :meta,
+        :scale,
+        :seed,
+        axes: :bshd,
+        dropout_rate: 0.0,
+        return_attention_weights: false
+      ])
+
+    validate_attention_axes!(opts[:axes])
+    validate_attention_static_mask!(mask)
+    validate_attention_dropout_rate!(opts[:dropout_rate])
+
+    {mask_inputs, mask_opt} =
+      case mask do
+        %Axon{} = m -> {[m], :tensor}
+        static -> {[], static}
+      end
+
+    dropout_inputs =
+      if opts[:dropout_rate] > 0 do
+        seed = opts[:seed] || :erlang.system_time()
+
+        key_state =
+          param("key", {2},
+            type: {:u, 32},
+            initializer: fn _, _ -> Nx.Random.key(seed) end,
+            kind: :state
+          )
+
+        [key_state]
+      else
+        []
+      end
+
+    inputs = [query, key, value] ++ mask_inputs ++ dropout_inputs
+
+    layer(:scaled_dot_product_attention, inputs,
+      name: opts[:name],
+      meta: opts[:meta],
+      axes: opts[:axes],
+      scale: opts[:scale],
+      mask: mask_opt,
+      dropout_rate: opts[:dropout_rate],
+      return_attention_weights: opts[:return_attention_weights],
+      op_name: :scaled_dot_product_attention
+    )
+  end
+
+  def scaled_dot_product_attention(query, key, value, _opts) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention/4 expects Axon node inputs," <>
+            " got query=#{inspect(query)}, key=#{inspect(key)}, value=#{inspect(value)}"
+  end
+
+  defp validate_attention_axes!(axes) when axes in [:bshd, :bhsd], do: :ok
+
+  defp validate_attention_axes!(axes) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: invalid :axes #{inspect(axes)}," <>
+            " expected one of :bshd or :bhsd"
+  end
+
+  defp validate_attention_static_mask!(nil), do: :ok
+  defp validate_attention_static_mask!(:causal), do: :ok
+  defp validate_attention_static_mask!(%Axon{}), do: :ok
+
+  defp validate_attention_static_mask!({:causal, offset})
+       when is_integer(offset) and offset >= 0,
+       do: :ok
+
+  defp validate_attention_static_mask!({:sliding_window, w})
+       when is_integer(w) and w > 0,
+       do: :ok
+
+  defp validate_attention_static_mask!({:sliding_window, w, offset})
+       when is_integer(w) and w > 0 and is_integer(offset) and offset >= 0,
+       do: :ok
+
+  defp validate_attention_static_mask!(mask) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: invalid :mask #{inspect(mask)}." <>
+            " Expected nil, :causal, {:causal, offset}, {:sliding_window, w}," <>
+            " {:sliding_window, w, offset}, or an Axon node carrying a mask tensor."
+  end
+
+  defp validate_attention_dropout_rate!(rate)
+       when is_number(rate) and rate >= 0 and rate < 1,
+       do: :ok
+
+  defp validate_attention_dropout_rate!(rate) do
+    raise ArgumentError,
+          "Axon.scaled_dot_product_attention: :dropout_rate must be a number in" <>
+            " [0, 1), got #{inspect(rate)}"
+  end
+
   ## Graph Manipulation and Utilities
 
   # TODO: Revisit later with new decoupled structs

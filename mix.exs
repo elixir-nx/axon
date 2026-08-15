@@ -141,6 +141,7 @@ defmodule Axon.MixProject do
         # Axon
         "Layers: Special": &(&1[:type] == :special),
         "Layers: Activation": &(&1[:type] == :activation),
+        "Layers: Attention": &(&1[:type] == :attention_layer),
         "Layers: Linear": &(&1[:type] == :linear),
         "Layers: Convolution": &(&1[:type] == :convolution),
         "Layers: Dropout": &(&1[:type] == :dropout),
