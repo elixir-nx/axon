@@ -1900,6 +1900,57 @@ defmodule CompilerTest do
       )
     end
 
+    test "initializes with feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 2)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               init_fn.(input, ModelState.empty())
+
+      # input channels are divided by the feature group size
+      assert Nx.shape(kernel) == {2, 2, 3, 8}
+      assert Nx.shape(bias) == {8}
+    end
+
+    test "raises when input channels are not divisible by the feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 4)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert_raise ArgumentError,
+                   ~r/input channels must be evenly divisible by feature group size/,
+                   fn -> init_fn.(input, ModelState.empty()) end
+    end
+
+    test "computes forward pass with feature group size" do
+      opts = [feature_group_size: 2, strides: 2]
+
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, [name: "conv", kernel_size: 2] ++ opts)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(params, input),
+        Axon.Layers.conv_transpose(input, kernel, bias, opts)
+      )
+    end
+
     test "initializes with parameter policy" do
       model = Axon.input("input", shape: {nil, 1, 2}) |> Axon.conv_transpose(1, name: "conv")
       policy = AMP.create_policy(params: {:bf, 16})
