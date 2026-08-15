@@ -411,6 +411,10 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:feature_group_size` - feature group size for the convolution.
+      Splits the input channels into that many groups, each convolved
+      with its own slice of the kernel. Defaults to `1`.
+
     * `:channels ` - channel configuration. One of `:first` or `:last`.
       Defaults to `:last`.
 
@@ -468,6 +472,7 @@ defmodule Axon.Layers do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
+        feature_group_size: 1,
         channels: :last,
         mode: :inference
       )
@@ -490,6 +495,7 @@ defmodule Axon.Layers do
       padding: padding,
       input_dilation: strides,
       kernel_dilation: opts[:kernel_dilation],
+      feature_group_size: opts[:feature_group_size],
       channels: opts[:channels]
     )
   end
@@ -2002,7 +2008,8 @@ defmodule Axon.Layers do
   end
 
   @doc ~S"""
-  Functional implementation of a learnable scale layer.
+  Functional implementation of a learnable scale layer (sometimes
+  called LayerScale).
 
   Multiplies the input elementwise by `scale` broadcast along the
   `:channel_index` axis:

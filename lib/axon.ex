@@ -1199,6 +1199,9 @@ defmodule Axon do
 
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
+    * `:feature_group_size` - feature group size for convolution. Defaults
+      to `1`.
+
     * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:last`.
 
@@ -1217,6 +1220,7 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
+        feature_group_size: 1,
         channels: :last
       ])
 
@@ -1224,9 +1228,10 @@ defmodule Axon do
     strides = opts[:strides]
     padding = opts[:padding]
     kernel_dilation = opts[:kernel_dilation]
+    feature_group_size = opts[:feature_group_size]
     channels = opts[:channels]
 
-    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
+    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     {inputs, op} =
@@ -1244,6 +1249,7 @@ defmodule Axon do
         strides: strides,
         padding: padding,
         kernel_dilation: kernel_dilation,
+        feature_group_size: feature_group_size,
         channels: channels,
         op_name: :conv_transpose
       )
@@ -3516,12 +3522,17 @@ defmodule Axon do
   This is commonly used as the `gamma` in residual blocks of modern
   Transformer architectures (CaiT, ConvNeXt, BEiT, EVA, etc.).
 
+  Initializing the scale to a small constant — typically
+  `Axon.Initializers.full(1.0e-6)` — dampens each block's contribution
+  at initialization and is sometimes called LayerScale.
+
   ## Options
 
     * `:name` - layer name.
 
     * `:scale_initializer` - initializer for the scale weights.
-      Defaults to `Axon.Initializers.full(1.0e-6)`.
+      Defaults to `:ones`. Pass `Axon.Initializers.full(1.0e-6)` (or a
+      similar small constant) for the LayerScale recipe.
 
     * `:channel_index` - input feature axis along which the scale is
       broadcast. Defaults to `-1`.
@@ -3532,7 +3543,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :meta,
-        scale_initializer: Axon.Initializers.full(1.0e-6),
+        scale_initializer: :ones,
         channel_index: -1
       ])
 

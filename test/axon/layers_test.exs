@@ -427,6 +427,115 @@ defmodule Axon.LayersTest do
       )
     end
 
+    test "grouped matches independent transposed convolutions per group" do
+      # 4 input channels, 6 output channels, 2 groups. Each group convolves
+      # 2 input channels with its own {3, 2, 2, 2} slice of the kernel.
+      input = random({1, 4, 8, 8})
+      kernel = random({6, 2, 3, 3})
+      bias = Nx.tensor(0.0)
+
+      actual =
+        Axon.Layers.conv_transpose(input, kernel, bias,
+          channels: :first,
+          feature_group_size: 2
+        )
+
+      expected =
+        [0, 1]
+        |> Enum.map(fn group ->
+          group_input = Nx.slice_along_axis(input, group * 2, 2, axis: 1)
+          group_kernel = Nx.slice_along_axis(kernel, group * 3, 3, axis: 0)
+
+          Axon.Layers.conv_transpose(group_input, group_kernel, bias, channels: :first)
+        end)
+        |> Nx.concatenate(axis: 1)
+
+      assert_all_close(actual, expected)
+    end
+
+    test "grouped with strides and padding matches independent transposed convolutions" do
+      input = random({1, 4, 6, 6})
+      kernel = random({4, 2, 2, 2})
+      bias = Nx.tensor(0.0)
+
+      opts = [channels: :first, strides: [2, 1], padding: :same]
+
+      actual =
+        Axon.Layers.conv_transpose(input, kernel, bias, [feature_group_size: 2] ++ opts)
+
+      expected =
+        [0, 1]
+        |> Enum.map(fn group ->
+          group_input = Nx.slice_along_axis(input, group * 2, 2, axis: 1)
+          group_kernel = Nx.slice_along_axis(kernel, group * 2, 2, axis: 0)
+
+          Axon.Layers.conv_transpose(group_input, group_kernel, bias, opts)
+        end)
+        |> Nx.concatenate(axis: 1)
+
+      assert_all_close(actual, expected)
+    end
+
+    test "feature_group_size equal to input channels is a depthwise transposed conv" do
+      input = random({1, 3, 5, 5})
+      kernel = random({3, 1, 2, 2})
+      bias = Nx.tensor(0.0)
+
+      actual =
+        Axon.Layers.conv_transpose(input, kernel, bias,
+          channels: :first,
+          feature_group_size: 3
+        )
+
+      expected =
+        [0, 1, 2]
+        |> Enum.map(fn channel ->
+          group_input = Nx.slice_along_axis(input, channel, 1, axis: 1)
+          group_kernel = Nx.slice_along_axis(kernel, channel, 1, axis: 0)
+
+          Axon.Layers.conv_transpose(group_input, group_kernel, bias, channels: :first)
+        end)
+        |> Nx.concatenate(axis: 1)
+
+      assert_all_close(actual, expected)
+    end
+
+    test "grouped channels first same as channels last" do
+      input = random({1, 4, 8, 8})
+      t_input = Nx.transpose(input, axes: [0, 2, 3, 1])
+      kernel = random({6, 2, 3, 3})
+      t_kernel = Nx.transpose(kernel, axes: [2, 3, 1, 0])
+      bias = Nx.tensor(0.0)
+
+      first =
+        Axon.Layers.conv_transpose(input, kernel, bias,
+          channels: :first,
+          feature_group_size: 2
+        )
+
+      last =
+        Axon.Layers.conv_transpose(t_input, t_kernel, bias,
+          channels: :last,
+          feature_group_size: 2
+        )
+
+      assert_all_close(first, Nx.transpose(last, axes: [0, 3, 1, 2]))
+    end
+
+    test "feature_group_size of 1 matches the default" do
+      input = random({1, 2, 6, 6})
+      kernel = random({4, 2, 3, 3})
+      bias = Nx.tensor(0.0)
+
+      assert_equal(
+        Axon.Layers.conv_transpose(input, kernel, bias, channels: :first),
+        Axon.Layers.conv_transpose(input, kernel, bias,
+          channels: :first,
+          feature_group_size: 1
+        )
+      )
+    end
+
     test "raises on input rank less than 3" do
       inp = Nx.iota({1, 1})
       kernel = Nx.iota({2, 1, 1})

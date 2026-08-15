@@ -364,6 +364,20 @@ defmodule CompilerTest do
       assert Nx.type(scale) == {:f, 32}
     end
 
+    test "default initializer is ones (forward pass is identity)" do
+      model = Axon.input("input_0", shape: {nil, 3}) |> Axon.scale(name: "scale")
+
+      input = Nx.tensor([[1.0, 2.0, 3.0]])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"scale" => %{"scale" => scale}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(scale, Nx.tensor([1.0, 1.0, 1.0]))
+      assert_equal(predict_fn.(params, input), input)
+    end
+
     test "applies small init multiplicatively" do
       model =
         Axon.input("input_0", shape: {nil, 3})
@@ -1883,6 +1897,57 @@ defmodule CompilerTest do
       assert_equal(
         predict_fn.(params, input3),
         Axon.Layers.conv_transpose(input3, kernel, bias, opts3)
+      )
+    end
+
+    test "initializes with feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 2)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               init_fn.(input, ModelState.empty())
+
+      # input channels are divided by the feature group size
+      assert Nx.shape(kernel) == {2, 2, 3, 8}
+      assert Nx.shape(bias) == {8}
+    end
+
+    test "raises when input channels are not divisible by the feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 4)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert_raise ArgumentError,
+                   ~r/input channels must be evenly divisible by feature group size/,
+                   fn -> init_fn.(input, ModelState.empty()) end
+    end
+
+    test "computes forward pass with feature group size" do
+      opts = [feature_group_size: 2, strides: 2]
+
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, [name: "conv", kernel_size: 2] ++ opts)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(params, input),
+        Axon.Layers.conv_transpose(input, kernel, bias, opts)
       )
     end
 
