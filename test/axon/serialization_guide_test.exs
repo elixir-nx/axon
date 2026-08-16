@@ -41,7 +41,7 @@ defmodule Axon.SerializationGuideTest do
         end)
 
       # Train
-      trained_model_state =
+      %Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
         Axon.Loop.run(loop, train_data, Axon.ModelState.empty(), epochs: 2, iterations: 50)
 
       # Extract and save params (as in guide)
@@ -137,7 +137,7 @@ defmodule Axon.SerializationGuideTest do
       # Resume - should complete without error
       result = Axon.Loop.run(resumed_loop, train_data, Axon.ModelState.empty(), epochs: 2)
 
-      assert %Axon.ModelState{} = result
+      assert %Axon.Loop.State{step_state: %{model_state: %Axon.ModelState{}}} = result
     end
   end
 end

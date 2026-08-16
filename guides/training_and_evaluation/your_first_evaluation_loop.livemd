@@ -40,7 +40,8 @@ data =
     {xs, ys}
   end)
 
-trained_model_state = Axon.Loop.run(train_loop, data, %{}, iterations: 1000)
+%Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+  Axon.Loop.run(train_loop, data, %{}, iterations: 1000)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -102,7 +103,7 @@ Epoch: 0, Batch: 950, loss: 0.1285532
 }
 ```
 
-Running loops with `Axon.Loop.trainer/3` returns a trained model state which you can use to evaluate your model. To construct an evaluation loop, you just call `Axon.Loop.evaluator/1` with your pre-trained model:
+Running loops with `Axon.Loop.trainer/3` returns the final loop state, and the trained model state lives in `step_state.model_state`. You can use it to evaluate your model. To construct an evaluation loop, you just call `Axon.Loop.evaluator/1` with your pre-trained model:
 
 ```elixir
 test_loop = Axon.Loop.evaluator(model)
@@ -161,10 +162,13 @@ test_loop = test_loop |> Axon.Loop.metric(:mean_absolute_error)
 >
 ```
 
-Finally, you can run your loop on test data. Because you want to test your trained model, you need to provide your model's initial state to the test loop:
+Finally, you can run your loop on test data. Because you want to test your trained model, you need to provide your model's initial state to the test loop. The loop returns the final `%Axon.Loop.State{}`, and the aggregated metrics are in its `:metrics` field, keyed by epoch:
 
 ```elixir
-Axon.Loop.run(test_loop, data, trained_model_state, iterations: 1000)
+%Axon.Loop.State{metrics: metrics} =
+  Axon.Loop.run(test_loop, data, trained_model_state, iterations: 1000)
+
+metrics
 ```
 
 <!-- livebook:{"output":true} -->

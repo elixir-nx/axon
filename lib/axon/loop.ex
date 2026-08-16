@@ -66,13 +66,12 @@ defmodule Axon.Loop do
   state. For machine learning tasks, the initialization function will return things like
   initial model parameters and optimizer state.
 
-  Typically, the final output of the loop is the accumulated final state; however, you
-  may optionally apply an output transform to extract specific values at the end of the
-  loop. For example, `Axon.Loop.trainer/4` by default extracts trained model state:
+  The final output of the loop is the accumulated final state. If you are only interested
+  in specific values, you can extract them from the returned state. For example, loops
+  built with `Axon.Loop.trainer/4` keep the trained model state in the step state:
 
-      output_transform = fn state ->
-        state.step_state[:model_state]
-      end
+      %Axon.Loop.State{step_state: %{model_state: model_state}} =
+        Axon.Loop.run(loop, data)
 
   ## Initialize and Step
 
@@ -131,7 +130,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.metric("Accuracy", :accuracy, fn %{y_true: y_, y_pred: y} -> [y_, y] end)
       |> Axon.Loop.run(data)
 
-  Because metrics work directly on `step_state`, you typically need to provide an output
+  Because metrics work directly on `step_state`, you typically need to provide a
   transform to indicate which values should be passed to your metric function. By default,
   Axon assumes a supervised training task with the fields `:y_true` and `:y_pred` present
   in the step state. See `Axon.Loop.metric/4` for more information.
@@ -186,8 +185,8 @@ defmodule Axon.Loop do
   Axon loops are typically created from one of the factory functions provided in this
   module:
 
-    * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
-      functions and output transform functions.
+    * `Axon.Loop.loop/2` - Creates a loop from step function and an optional
+      initialization function.
 
     * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
@@ -196,9 +195,10 @@ defmodule Axon.Loop do
 
   ## Running loops
 
-  In order to execute a loop, you should use `Axon.Loop.run/3`:
+  In order to execute a loop, you should use `Axon.Loop.run/4`, which returns the
+  final `%Axon.Loop.State{}`:
 
-      Axon.Loop.run(loop, data, epochs: 10)
+      Axon.Loop.run(loop, data, %{}, epochs: 10)
 
   ## Resuming loops
 
@@ -273,7 +273,6 @@ defmodule Axon.Loop do
     :init,
     :step,
     :attached_state,
-    :output_transform,
     metrics: %{},
     handlers: @default_handlers
   ]
@@ -515,8 +514,7 @@ defmodule Axon.Loop do
   ## Loop Factories
 
   @doc """
-  Creates a loop from `step_fn`, an optional `init_fn`, and an
-  optional `output_transform`.
+  Creates a loop from `step_fn` and an optional `init_fn`.
 
   `step_fn` is an arity-2 function which takes a batch and state
   and returns an updated step state:
@@ -541,18 +539,12 @@ defmodule Axon.Loop do
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
-
-  `output_transform/1` applies a transformation on the final accumulated loop state.
-  This is useful for extracting specific fields from a loop and piping them into
-  additional functions.
   """
-  def loop(step_fn, init_fn \\ &default_init/2, output_transform \\ & &1)
-      when is_function(step_fn, 2) and is_function(init_fn, 2) and
-             is_function(output_transform, 1) do
+  def loop(step_fn, init_fn \\ &default_init/2)
+      when is_function(step_fn, 2) and is_function(init_fn, 2) do
     %Loop{
       init: init_fn,
-      step: step_fn,
-      output_transform: output_transform
+      step: step_fn
     }
   end
 
@@ -601,6 +593,14 @@ defmodule Axon.Loop do
         model_state: container(tensor()), # Model parameters and state
         optimizer_state: container(tensor()) # Optimizer state associated with each parameter
       }
+
+  `Axon.Loop.run/4` returns the final `%Axon.Loop.State{}`, so you can extract the
+  trained model state from the loop's step state:
+
+      %Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
+        |> Axon.Loop.run(data)
 
   ## Examples
 
@@ -659,11 +659,10 @@ defmodule Axon.Loop do
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
-    output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
       step_fn
-      |> loop(init_fn, output_transform)
+      |> loop(init_fn)
       |> metric(loss_fn, "loss")
 
     if log_interval > 0 do
@@ -748,14 +747,18 @@ defmodule Axon.Loop do
       |> Axon.Loop.evaluator()
       |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
 
-  This function applies an output transform which returns the map of metrics accumulated
-  over the given loop.
+  `Axon.Loop.run/4` returns the final `%Axon.Loop.State{}`. The accumulated metrics
+  are available in the `:metrics` field, keyed by epoch:
+
+      %Axon.Loop.State{metrics: %{0 => metrics}} =
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
-    output_transform = fn state -> state.metrics end
 
-    loop(step_fn, init_fn, output_transform)
+    loop(step_fn, init_fn)
     |> log(&supervised_log_message_fn(&1, false), event: :iteration_completed)
   end
 
@@ -771,15 +774,15 @@ defmodule Axon.Loop do
 
   By default, metrics assume a supervised learning task and extract the fields
   `[:y_true, :y_pred]` from the step state. If you wish to work on a different
-  value, you can use an output transform. An output transform is a list of keys
-  to extract from the output state, or a function which returns a flattened list
-  of values to pass to the given metric function. Values received from output
-  transforms are passed to the given metric using:
+  value, you can use a transform. A transform is a list of keys to extract from
+  the step state, or a function which returns a flattened list of values to pass
+  to the given metric function. Values received from transforms are passed to the
+  given metric using:
 
-      value = output_transform.(step_state)
+      value = transform.(step_state)
       apply(metric, value)
 
-  Thus, even if you want your metric to work on a container, your output transform
+  Thus, even if you want your metric to work on a container, your transform
   must return a list.
 
   `metric` must be an atom which matches the name of a metric in `Axon.Metrics`, or
@@ -1017,10 +1020,12 @@ defmodule Axon.Loop do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
-      metrics =
+      %State{metrics: %{0 => validation_metrics}} =
         Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
         |> run(validation_data, model_state)
-        |> Access.get(0)
+
+      metrics =
+        validation_metrics
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)
@@ -1538,6 +1543,12 @@ defmodule Axon.Loop do
   `data` must be an Enumerable or Stream which yields batches of
   data on each iteration.
 
+  It returns the final `%Axon.Loop.State{}`. Values of interest, such as
+  the trained model state, can be extracted from the returned state:
+
+      %Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+        Axon.Loop.run(loop, data)
+
   ## Options
 
     * `:epochs` - max epochs to run loop for. Must be non-negative integer.
@@ -1627,8 +1638,7 @@ defmodule Axon.Loop do
       step: step_fn,
       handlers: handler_fns,
       metrics: metric_fns,
-      attached_state: attached_state,
-      output_transform: output_transform
+      attached_state: attached_state
     } = loop
 
     sample_data =
@@ -1763,8 +1773,9 @@ defmodule Axon.Loop do
         &Map.put(&2, &1, zero_metrics)
       )
 
-    state = %State{state | metrics: final_metrics_map, status: status}
-    output_transform.(state)
+    step_state = maybe_clear_donatable_marks(state.step_state, donate_state?)
+
+    %State{state | step_state: step_state, metrics: final_metrics_map, status: status}
   end
 
   ## Helpers
@@ -1904,6 +1915,19 @@ defmodule Axon.Loop do
   end
 
   defp maybe_donate_step_state(step_state, true), do: step_state
+
+  # A donated argument the step function returns as-is keeps its mark, so the
+  # final state must be swept before it is handed to the caller. Otherwise the
+  # mark would follow the caller out of the loop and donate buffers they never
+  # offered on their next `Nx.Defn.jit` call.
+  defp maybe_clear_donatable_marks(step_state, false), do: step_state
+
+  defp maybe_clear_donatable_marks(step_state, true) do
+    Nx.Defn.Composite.traverse(step_state, fn
+      %Nx.Tensor{donatable?: true} = tensor -> %{tensor | donatable?: false}
+      tensor -> tensor
+    end)
+  end
 
   defp max_iterations_reached?(max_iters, iters) do
     iters >= max_iters - 1 and max_iters > 0
@@ -2159,13 +2183,13 @@ defmodule Axon.Loop do
             " for more information"
   end
 
-  # Builds a metric function from an atom or function and an output transform.
+  # Builds a metric function from an atom or function and a transform.
   # A valid metric is an atom which matches the name of a function in
   # Axon.Metrics or a function which takes an arbitrary number of parameters
-  # and returns an output of arbitrary shape/type. Output transforms are field(s)
+  # and returns an output of arbitrary shape/type. Transforms are field(s)
   # to extract from the step state, or a function which transforms the step
   # state before it is passed to the metric function.
-  # TODO(seanmor5): Reconsider the form of output transform
+  # TODO(seanmor5): Reconsider the form of the metric transform
   defp build_metric_fn(metric, accumulator, transform_or_fields) do
     transform_fn =
       case transform_or_fields do
@@ -2186,7 +2210,7 @@ defmodule Axon.Loop do
 
         invalid ->
           raise ArgumentError,
-                "Invalid output transform #{inspect(invalid)}, a valid output" <>
+                "Invalid metric transform #{inspect(invalid)}, a valid" <>
                   " transform is an atom or list of atoms specifying field(s)" <>
                   " to extract from the step state, or an arity-1 function" <>
                   " applied to the step state"

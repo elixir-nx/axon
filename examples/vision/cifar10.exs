@@ -47,10 +47,13 @@ defmodule Cifar do
   end
 
   defp train_model(model, train_images, train_labels, epochs) do
-    model
-    |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
-    |> Axon.Loop.metric(:accuracy, "Accuracy")
-    |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs, compiler: EXLA)
+    %Axon.Loop.State{step_state: %{model_state: model_state}} =
+      model
+      |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
+      |> Axon.Loop.metric(:accuracy, "Accuracy")
+      |> Axon.Loop.run(Stream.zip(train_images, train_labels), %{}, epochs: epochs, compiler: EXLA)
+
+    model_state
   end
 
   defp test_model(model, model_state, test_images, test_labels) do

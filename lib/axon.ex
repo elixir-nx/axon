@@ -207,10 +207,10 @@ defmodule Axon do
 
       IO.inspect model
 
-      model_state =
+      %Axon.Loop.State{step_state: %{model_state: model_state}} =
         model
         |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(learning_rate: 0.005))
-        |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
+        |> Axon.Loop.run(train_data, %{}, epochs: 10, compiler: EXLA)
 
   See `Polaris.Updates` and `Axon.Loop` for a more in-depth treatment of
   model optimization and model training.

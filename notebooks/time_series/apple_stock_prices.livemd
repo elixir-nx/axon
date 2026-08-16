@@ -237,7 +237,8 @@ We are ready to create our training loop and run it. Since our network is simple
 optimizer = Polaris.Optimizers.sgd(learning_rate: 0.04)
 loop = Axon.Loop.trainer(model, :mean_squared_error, optimizer)
 
-trained_model_state = Axon.Loop.run(loop, train_data, %{}, epochs: 100)
+%Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+  Axon.Loop.run(loop, train_data, %{}, epochs: 100)
 ```
 
 Finally, we make predictions over the train and test sets so we can evaluate our model.

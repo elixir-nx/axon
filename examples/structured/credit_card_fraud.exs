@@ -118,9 +118,12 @@ defmodule CreditCardFraud do
   end
 
   defp train_model(model, loss, optimizer, train_data) do
-    model
-    |> Axon.Loop.trainer(loss, optimizer)
-    |> Axon.Loop.run(train_data, %{}, epochs: 30, compiler: EXLA)
+    %Axon.Loop.State{step_state: %{model_state: model_state}} =
+      model
+      |> Axon.Loop.trainer(loss, optimizer)
+      |> Axon.Loop.run(train_data, %{}, epochs: 30, compiler: EXLA)
+
+    model_state
   end
 
   def run() do

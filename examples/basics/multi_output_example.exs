@@ -60,7 +60,7 @@ defmodule Power do
     # as you are trying to optimize for 2 things at once and optimal solutions for each
     # might not lie on a clean "manifold" - e.g. what's good for one output might not
     # be good for another output
-    params =
+    %Axon.Loop.State{step_state: %{model_state: params}} =
       model
       |> Axon.Loop.trainer([mean_squared_error: 0.5, mean_squared_error: 0.5], :adam)
       |> Axon.Loop.run(data, %{}, iterations: 250, epochs: 5, compiler: EXLA)
