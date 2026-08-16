@@ -893,4 +893,177 @@ defmodule AxonTest do
       assert %Axon.None{} = Axon.get_output_shape(model, %{"values" => Nx.template({1, 1}, :f32)})
     end
   end
+
+  describe "capture" do
+    test "captures entire model with single input" do
+      model =
+        Axon.input("features", shape: {nil, 10})
+        |> Axon.dense(32, name: "dense1")
+        |> Axon.dense(16, name: "dense2")
+
+      captured = Axon.capture(model)
+      assert is_function(captured, 1)
+
+      # Use with new input
+      new_input = Axon.input("my_input", shape: {nil, 10})
+      new_model = captured.(new_input)
+
+      # Verify new model has the new input
+      assert %{"my_input" => _} = Axon.get_inputs(new_model)
+      refute Map.has_key?(Axon.get_inputs(new_model), "features")
+
+      # Verify layers are preserved
+      props = Axon.properties(new_model)
+      assert Map.has_key?(props, "dense1")
+      assert Map.has_key?(props, "dense2")
+    end
+
+    test "captures up to specific layer with :to option" do
+      model =
+        Axon.input("features", shape: {nil, 10})
+        |> Axon.dense(32, name: "hidden1")
+        |> Axon.relu(name: "relu1")
+        |> Axon.dense(16, name: "hidden2")
+        |> Axon.dense(2, name: "output")
+
+      captured = Axon.capture(model, to: "hidden2")
+
+      new_input = Axon.input("x", shape: {nil, 10})
+      new_model = captured.(new_input)
+
+      props = Axon.properties(new_model)
+      assert Map.has_key?(props, "hidden1")
+      assert Map.has_key?(props, "relu1")
+      assert Map.has_key?(props, "hidden2")
+      refute Map.has_key?(props, "output")
+    end
+
+    test "captures multi-output models with :to before or after the head split" do
+      shared =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.dense(8, name: "trunk")
+        |> Axon.relu(name: "shared")
+
+      model =
+        Axon.container(%{
+          a: Axon.dense(shared, 2, name: "head_a"),
+          b: Axon.dense(shared, 3, name: "head_b")
+        })
+
+      template = %{"y" => Nx.template({1, 4}, :f32)}
+      new_input = Axon.input("y", shape: {nil, 4})
+
+      # Capture shared trunk: single tensor, both heads and container dropped
+      to_shared = Axon.capture(model, to: "shared").(new_input)
+      shared_props = Axon.properties(to_shared)
+      assert Map.has_key?(shared_props, "shared")
+      assert Map.has_key?(shared_props, "trunk")
+      refute Map.has_key?(shared_props, "head_a")
+      refute Map.has_key?(shared_props, "head_b")
+      refute Map.has_key?(shared_props, "container_0")
+      assert %Nx.Tensor{shape: {1, 8}} = Axon.get_output_shape(to_shared, template)
+
+      # Capture one head after the split: sibling head and container dropped
+      to_head = Axon.capture(model, to: "head_a").(new_input)
+      head_props = Axon.properties(to_head)
+      assert Map.has_key?(head_props, "head_a")
+      assert Map.has_key?(head_props, "shared")
+      refute Map.has_key?(head_props, "head_b")
+      refute Map.has_key?(head_props, "container_0")
+      assert %Nx.Tensor{shape: {1, 2}} = Axon.get_output_shape(to_head, template)
+
+      # No :to keeps the multi-output container
+      full = Axon.capture(model).(new_input)
+      full_props = Axon.properties(full)
+      assert Map.has_key?(full_props, "head_a")
+      assert Map.has_key?(full_props, "head_b")
+      assert Map.has_key?(full_props, "container_0")
+
+      assert %{a: %Nx.Tensor{shape: {1, 2}}, b: %Nx.Tensor{shape: {1, 3}}} =
+               Axon.get_output_shape(full, template)
+    end
+
+    test "works with multiple inputs using map" do
+      input1 = Axon.input("image", shape: {nil, 784})
+      input2 = Axon.input("text", shape: {nil, 128})
+
+      model =
+        Axon.concatenate(input1, input2)
+        |> Axon.dense(64, name: "combined")
+
+      captured = Axon.capture(model)
+
+      new_image = Axon.input("my_image", shape: {nil, 784})
+      new_text = Axon.input("my_text", shape: {nil, 128})
+
+      new_model = captured.(%{"image" => new_image, "text" => new_text})
+
+      inputs = Axon.get_inputs(new_model)
+      assert Map.has_key?(inputs, "my_image")
+      assert Map.has_key?(inputs, "my_text")
+      refute Map.has_key?(inputs, "image")
+      refute Map.has_key?(inputs, "text")
+    end
+
+    test "raises on invalid layer name" do
+      model =
+        Axon.input("features", shape: {nil, 10})
+        |> Axon.dense(32, name: "dense1")
+
+      assert_raise ArgumentError, ~r/layer "nonexistent" not found/, fn ->
+        Axon.capture(model, to: "nonexistent")
+      end
+    end
+
+    test "raises on missing inputs for multi-input model" do
+      input1 = Axon.input("a", shape: {nil, 10})
+      input2 = Axon.input("b", shape: {nil, 10})
+
+      model = Axon.add(input1, input2) |> Axon.dense(5)
+      captured = Axon.capture(model)
+
+      new_a = Axon.input("new_a", shape: {nil, 10})
+
+      assert_raise ArgumentError, ~r/missing inputs/, fn ->
+        captured.(%{"a" => new_a})
+      end
+    end
+
+    test "raises when single input passed to multi-input model" do
+      input1 = Axon.input("a", shape: {nil, 10})
+      input2 = Axon.input("b", shape: {nil, 10})
+
+      model = Axon.add(input1, input2)
+      captured = Axon.capture(model)
+
+      single_input = Axon.input("x", shape: {nil, 10})
+
+      assert_raise ArgumentError, ~r/model has 2 inputs/, fn ->
+        captured.(single_input)
+      end
+    end
+
+    test "captured model can be executed" do
+      model =
+        Axon.input("features", shape: {nil, 2})
+        |> Axon.dense(4, name: "dense1", kernel_initializer: :ones, bias_initializer: :zeros)
+        |> Axon.relu(name: "relu")
+        |> Axon.dense(2, name: "dense2", kernel_initializer: :ones, bias_initializer: :zeros)
+
+      # Capture up to relu
+      captured = Axon.capture(model, to: "relu")
+      new_input = Axon.input("x", shape: {nil, 2})
+      new_model = captured.(new_input)
+
+      # Build and run
+      {init_fn, predict_fn} = Axon.build(new_model)
+      params = init_fn.(Nx.template({1, 2}, :f32), Axon.ModelState.empty())
+
+      input = Nx.tensor([[1.0, 2.0]])
+      result = predict_fn.(params, input)
+
+      # With ones kernel: [1,2] dot ones(2,4) = [3,3,3,3], relu keeps it positive
+      assert Nx.shape(result) == {1, 4}
+    end
+  end
 end
