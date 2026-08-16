@@ -212,6 +212,7 @@ defmodule Axon.Loop do
   require Logger
 
   alias __MODULE__, as: Loop
+  alias Axon.Loop.Fused
   alias Axon.Loop.State
 
   import Axon.Shared
@@ -1557,6 +1558,10 @@ defmodule Axon.Loop do
       is set, the loop will raise on any cache miss during the training loop. Defaults
       to true.
 
+    * `:fuse` - whether or not to fuse consecutive iterations into a single
+      computation. Either a boolean or the positive integer number of batches to
+      fuse at a time. Defaults to `false`. See the section on fused loops below.
+
     * `:force_garbage_collection?` - whether or not to force garbage collection after each
       iteration. This may help avoid OOMs when training large models, but it will slow
       training down.
@@ -1567,14 +1572,67 @@ defmodule Axon.Loop do
   Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
   options are set, the default options set with `Nx.Defn.default_options` are
   used.
+
+  ## Fused loops
+
+  By default, the loop dispatches one computation per batch. Every iteration
+  crosses the boundary between the BEAM and the compiler's runtime, and the step
+  state crosses back with it. For small models that dispatch costs more than the
+  training step itself.
+
+  Passing `fuse: true` compiles many iterations into a single computation. A
+  chunk of batches is moved to the device at once and stepped through in a
+  device-side `while` loop which carries the step state and the metrics, so the
+  loop synchronizes with the host once per chunk instead of once per batch:
+
+      model
+      |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
+      |> Axon.Loop.run(data, %{}, epochs: 10, compiler: EXLA, fuse: true)
+
+  `:fuse` also accepts a positive integer to control how many batches are fused
+  into each computation, which is a memory/overhead tradeoff: a chunk holds that
+  many batches on the device at once, and amortizes one dispatch across them.
+  It defaults to `32`.
+
+      Axon.Loop.run(loop, data, %{}, compiler: EXLA, fuse: 8)
+
+  Fusing changes how the loop interacts with event handlers:
+
+    * Handlers attached to `:started`, `:epoch_started`, `:epoch_completed`,
+      `:epoch_halted`, `:halted`, and `:completed` are unaffected. They run on
+      the host between epochs, with a complete loop state.
+
+    * Handlers attached to `:iteration_started` and `:iteration_completed` fire
+      on the host once the chunk containing their iteration is done, in the same
+      order the unfused loop fires them. They receive real counters, the metrics
+      as of their iteration, and handler metadata, but `step_state` is `nil`,
+      because it only exists on the device while a chunk runs. Metrics and
+      handler metadata a handler returns are kept, but a returned `step_state`
+      is discarded.
+
+    * Halting from an iteration handler takes effect at the end of the chunk it
+      was requested in, so the loop may step through the rest of the chunk
+      first. Use `fuse: 1` for a loop which must halt on an exact iteration,
+      or halt from `:epoch_completed`, which is always exact.
+
+  Fusing requires every batch in `data` to have the same shape and type, since a
+  chunk is stacked into a single tensor, and it requires `jit_compile?` to be
+  true.
   """
   def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
     {strict?, opts} = Keyword.pop(opts, :strict?, true)
+    {fuse, opts} = Keyword.pop(opts, :fuse, false)
     {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
+
+    if fuse != false and not jit_compile? do
+      raise ArgumentError,
+            "cannot fuse a loop with jit_compile?: false, fusing iterations into" <>
+              " a single computation requires compiling it"
+    end
 
     if jit_opts != [] do
       Logger.debug("Forwarding options: #{inspect(jit_opts)} to JIT compiler")
@@ -1632,6 +1690,17 @@ defmodule Axon.Loop do
     final_metrics_map = loop_state.metrics
     loop_state = %{loop_state | metrics: zero_metrics}
 
+    {epoch_runner, epoch_cache} =
+      build_epoch_runner(
+        fuse,
+        build_batch_fn(step_fn, metric_fns),
+        handler_fns,
+        data,
+        {jit_compile?, strict?, jit_opts},
+        debug?,
+        force_garbage_collection?
+      )
+
     {status, final_metrics_map, %State{} = state} =
       case fire_event(:started, handler_fns, loop_state, debug?) do
         {:halt_epoch, state} ->
@@ -1641,12 +1710,9 @@ defmodule Axon.Loop do
           {:halted, final_metrics_map, state}
 
         {:continue, state} ->
-          batch_fn =
-            {:non_compiled, build_batch_fn(step_fn, metric_fns), jit_compile?, strict?, jit_opts}
-
           Enum.reduce_while(
             epoch_start..epoch_end//1,
-            {batch_fn, final_metrics_map, state},
+            {epoch_cache, final_metrics_map, state},
             fn epoch, {batch_fn, final_metrics_map, %State{} = loop_state} ->
               case fire_event(:epoch_started, handler_fns, loop_state, debug?) do
                 {:halt_epoch, state} ->
@@ -1661,14 +1727,7 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
-                      batch_fn,
-                      handler_fns,
-                      state,
-                      data,
-                      debug?,
-                      force_garbage_collection?
-                    ])
+                    :timer.tc(fn -> epoch_runner.(batch_fn, state) end)
 
                   if debug? do
                     Logger.debug("Axon.Loop finished running epoch in #{us_to_ms(time)} ms")
@@ -1753,6 +1812,67 @@ defmodule Axon.Loop do
           times: %{}
         }
     end
+  end
+
+  # Builds the function which runs a single epoch along with the initial value
+  # of the loop's compilation cache. Fused and unfused runners share a contract:
+  # given the cache and the loop state, they return `{status, cache, state}`.
+  defp build_epoch_runner(false, batch_fn, handler_fns, data, compile_opts, debug?, gc?) do
+    {jit_compile?, strict?, jit_opts} = compile_opts
+
+    runner = fn batch_fn, state ->
+      run_epoch(batch_fn, handler_fns, state, data, debug?, gc?)
+    end
+
+    {runner, {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts}}
+  end
+
+  defp build_epoch_runner(fuse, batch_fn, handler_fns, data, compile_opts, debug?, gc?) do
+    {_jit_compile?, strict?, jit_opts} = compile_opts
+
+    iteration_events? =
+      handler_fns[:iteration_started] != [] or handler_fns[:iteration_completed] != []
+
+    ctx = %{
+      chunk: Fused.chunk_size!(fuse),
+      events?: iteration_events?,
+      gc?: gc?,
+      fire_fn: fn event, state -> fire_event(event, handler_fns, state, debug?) end
+    }
+
+    runner = fn chunk_fn, state ->
+      start_iteration = state.iteration
+      {status, chunk_fn, state} = Fused.run_epoch(chunk_fn, state, data, debug?, ctx)
+
+      state =
+        if iteration_events? do
+          state
+        else
+          # Nothing fired the iteration events, so their counts, which handler
+          # filters read, are caught up here instead.
+          bump_iteration_counts(state, state.iteration - start_iteration)
+        end
+
+      {status, chunk_fn, state}
+    end
+
+    {runner,
+     {:non_compiled, Fused.build_chunk_fn(batch_fn, iteration_events?), strict?, jit_opts}}
+  end
+
+  defp bump_iteration_counts(%State{event_counts: event_counts} = state, iterations) do
+    initial = %{total: iterations, epoch: iterations}
+
+    bump = fn %{total: total, epoch: epoch} ->
+      %{total: total + iterations, epoch: epoch + iterations}
+    end
+
+    event_counts =
+      event_counts
+      |> Map.update(:iteration_started, initial, bump)
+      |> Map.update(:iteration_completed, initial, bump)
+
+    %{state | event_counts: event_counts}
   end
 
   defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
