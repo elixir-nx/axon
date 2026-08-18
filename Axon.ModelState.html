@@ -129,7 +129,8 @@ Pages
 
     <section id="moduledoc">
 <p>Model State Data Structure.</p><p>This data structure represents all the state needed for
-a model to perform inference.</p>
+a model to perform inference.</p><p>Most functions in this module are defined as transforms, which
+means they can be called from within <code class="inline">defn</code>.</p>
     </section>
 
 </div>
@@ -281,7 +282,7 @@ using the given mask.</p></div>
     </a>
     <h1 class="signature" translate="no">empty()</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L173" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L183" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -305,7 +306,7 @@ using the given mask.</p></div>
     </a>
     <h1 class="signature" translate="no">freeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L68" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L74" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -319,10 +320,10 @@ using the given mask.</p></div>
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be frozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="7675343204-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="7675343204-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7675343204-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="7675343204-3">(</span><span class="n">n</span><span class="p" data-group-id="7675343204-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="7841174100-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="7841174100-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7841174100-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nc">String</span><span class="o">.</span><span class="n">to_integer</span><span class="p" data-group-id="7841174100-3">(</span><span class="n">n</span><span class="p" data-group-id="7841174100-3">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="7675343204-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="7841174100-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 freezing the entire model.</p>
   </section>
 </section>
@@ -335,7 +336,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">frozen_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L146" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L152" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -357,7 +358,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">frozen_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L164" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L170" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -379,7 +380,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">merge(lhs, model_state, fun)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L43" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L48" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -401,7 +402,7 @@ freezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">new(data)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L181" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L191" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -426,7 +427,7 @@ map.</p>
     </a>
     <h1 class="signature" translate="no">tie(model_state, destination, source, opts \\ [])</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L218" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L228" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -453,12 +454,12 @@ an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" cla
   <span class="text">Examples</span>
 </h2>
 <pre><code class="makeup elixir" translate="no"><span class="c1"># Tie output projection to embedding weights (transposed)</span><span class="w">
-</span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">tie</span><span class="p" data-group-id="4636745696-1">(</span><span class="w">
+</span><span class="n">model_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Axon.ModelState</span><span class="o">.</span><span class="n">tie</span><span class="p" data-group-id="7702299185-1">(</span><span class="w">
   </span><span class="n">model_state</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="4636745696-2">[</span><span class="s">&quot;output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4636745696-2">]</span><span class="p">,</span><span class="w">
-  </span><span class="p" data-group-id="4636745696-3">[</span><span class="s">&quot;embed&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="4636745696-3">]</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="7702299185-2">[</span><span class="s">&quot;output&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7702299185-2">]</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="7702299185-3">[</span><span class="s">&quot;embed&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7702299185-3">]</span><span class="p">,</span><span class="w">
   </span><span class="ss">transform</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nc">Nx</span><span class="o">.</span><span class="n">transpose</span><span class="o">/</span><span class="mi">1</span><span class="w">
-</span><span class="p" data-group-id="4636745696-1">)</span></code></pre>
+</span><span class="p" data-group-id="7702299185-1">)</span></code></pre>
   </section>
 </section>
 <section class="detail" id="trainable_parameters/1">
@@ -470,7 +471,7 @@ an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" cla
     </a>
     <h1 class="signature" translate="no">trainable_parameters(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L133" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L139" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -492,7 +493,7 @@ an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" cla
     </a>
     <h1 class="signature" translate="no">trainable_state(model_state)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L155" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L161" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -516,7 +517,7 @@ an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" cla
     </a>
     <h1 class="signature" translate="no">unfreeze(model_state, mask \\ fn _ -&gt; true end)</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L106" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L112" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
@@ -530,10 +531,10 @@ an embedding layer to an output projection.</li></ul><h2 id="tie/4-examples" cla
 using the given mask.</p><p>The mask is an arity 1 function which takes the access path to the
 leaf parameter and returns <code class="inline">true</code> if the parameter should be unfrozen
 or <code class="inline">false</code> otherwise. With this, you can construct flexible masking
-policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="6103850931-1">fn</span><span class="w">
-  </span><span class="p" data-group-id="6103850931-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="6103850931-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
+policies:</p><pre><code class="makeup elixir" translate="no"><span class="k" data-group-id="7419185847-1">fn</span><span class="w">
+  </span><span class="p" data-group-id="7419185847-2">[</span><span class="s">&quot;dense_&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;kernel&quot;</span><span class="p" data-group-id="7419185847-2">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="w">
   </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="no">false</span><span class="w">
-</span><span class="k" data-group-id="6103850931-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
+</span><span class="k" data-group-id="7419185847-1">end</span></code></pre><p>The default mask returns <code class="inline">true</code> for all paths, and is equivalent to
 unfreezing the entire model.</p>
   </section>
 </section>
@@ -548,7 +549,7 @@ unfreezing the entire model.</p>
     </a>
     <h1 class="signature" translate="no">update(model_state, updated_parameters, updated_state \\ %{})</h1>
 
-      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L19" class="icon-action" rel="help" title="View Source">
+      <a href="https://github.com/elixir-nx/axon/blob/v0.8.1/lib/axon/model_state.ex#L24" class="icon-action" rel="help" title="View Source">
        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
        <span class="sr-only">View Source</span>
      </a>
