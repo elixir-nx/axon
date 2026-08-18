@@ -690,6 +690,161 @@ defmodule Axon.Compiler do
   defp recur_model_funs(
          %Axon.Node{
            id: id,
+           op: :deferred,
+           parent: parents,
+           opts: [factory: factory, num_parents: _num_parents],
+           name: name_fn
+         },
+         nodes,
+         cache_and_counts,
+         config
+       ) do
+    {parent_ids, {cache, op_counts, block_cache, model_state_meta}} =
+      Enum.map_reduce(
+        parents,
+        cache_and_counts,
+        &to_model_funs(&1, nodes, &2, config)
+      )
+
+    name = name_fn.(:deferred, op_counts)
+    op_counts = Map.update(op_counts, :deferred, 1, fn x -> x + 1 end)
+
+    # The subgraph can only be constructed once the parent templates are
+    # known, which is inside the init/predict closures rather than during
+    # graph traversal. Rather than memoizing the result across those
+    # closures, we rebuild it from the templates in both. The factory is a
+    # pure function of its templates, so both paths agree, and because
+    # `Axon.build/2` wraps init and predict in `Nx.Defn.jit/2` this runs
+    # once per trace rather than once per call.
+    materialize_funs = fn parent_templates ->
+      placeholders =
+        Enum.map(0..(length(parent_templates) - 1), fn i ->
+          Axon.input("subgraph#{i}")
+        end)
+
+      factory_args =
+        placeholders
+        |> Enum.zip(parent_templates)
+        |> Enum.map(fn {p, t} -> {p, t} end)
+
+      subgraph = apply(factory, factory_args)
+
+      unless match?(%Axon{}, subgraph) do
+        raise ArgumentError,
+              "Axon.deferred factory must return an %Axon{} struct, got: " <>
+                inspect(subgraph)
+      end
+
+      build(subgraph, debug?: config.debug?, mode: config.mode)
+    end
+
+    predict_fun = fn params, inputs, state, cache, result_cache, fn_stacktrace ->
+      {layer_inputs, {state, result_cache, none?}} =
+        Enum.map_reduce(
+          parent_ids,
+          {state, result_cache, false},
+          fn parent_id, {state, result_cache, none?} ->
+            {layer_input, {state, result_cache}} =
+              call_predict_cache(
+                parent_id,
+                params,
+                inputs,
+                state,
+                cache,
+                result_cache,
+                fn_stacktrace
+              )
+
+            none? = none? or propagating_none?(layer_input)
+            {layer_input, {state, result_cache, none?}}
+          end
+        )
+
+      if none? do
+        {%Axon.None{}, {state, result_cache}}
+      else
+        parent_templates = Enum.map(layer_inputs, &Nx.to_template/1)
+        {_sub_init_fn, sub_predict_fn} = materialize_funs.(parent_templates)
+
+        sub_params = params[name] || %{}
+
+        sub_inputs =
+          layer_inputs
+          |> Enum.with_index()
+          |> Map.new(fn {input, i} -> {"subgraph#{i}", input} end)
+
+        result = apply(sub_predict_fn, [Axon.ModelState.new(sub_params), sub_inputs])
+
+        {out_result, out_state} =
+          case result do
+            %Axon.None{} -> {%Axon.None{}, %{}}
+            %{prediction: pred_expr, state: state_expr} -> {pred_expr, state_expr}
+            result -> {result, %{}}
+          end
+
+        state =
+          if map_size(out_state) == 0 do
+            state
+          else
+            Map.put(state, name, out_state)
+          end
+
+        {out_result, {state, result_cache}}
+      end
+    end
+
+    init_fun = fn template, cache, result_cache, fn_stacktrace, keys ->
+      {parent_templates, {parent_params, result_cache, none?}} =
+        Enum.map_reduce(parent_ids, {%{}, result_cache, false}, fn
+          parent_id, {params, result_cache, none?} ->
+            {parent_template, {params, result_cache}} =
+              call_init_cache(
+                parent_id,
+                template,
+                params,
+                cache,
+                result_cache,
+                fn_stacktrace,
+                keys
+              )
+
+            none? = none? or propagating_none?(parent_template)
+            {parent_template, {params, result_cache, none?}}
+        end)
+
+      if none? do
+        {%Axon.None{}, {parent_params, result_cache}}
+      else
+        {sub_init_fn, _sub_predict_fn} = materialize_funs.(parent_templates)
+
+        sub_input_templates =
+          parent_templates
+          |> Enum.with_index()
+          |> Map.new(fn {t, i} -> {"subgraph#{i}", Nx.broadcast(0.0, t)} end)
+
+        sub_model_state = sub_init_fn.(sub_input_templates, Axon.ModelState.empty())
+
+        params =
+          if sub_model_state.data == %{} do
+            parent_params
+          else
+            Map.put(parent_params, name, sub_model_state.data)
+          end
+
+        {pred_expr, {_, result_cache}} =
+          predict_fun.(params, template, %{}, cache, result_cache, fn_stacktrace)
+
+        {Nx.to_template(pred_expr), {params, result_cache}}
+      end
+    end
+
+    model_funs = %{predict: predict_fun, init: init_fun}
+    {id, model_funs, cache, op_counts, block_cache, model_state_meta}
+  end
+
+  defp recur_model_funs(
+         %Axon.Node{
+           id: id,
            name: name_fn,
            op: op,
            parent: inputs,
