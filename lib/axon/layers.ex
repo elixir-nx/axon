@@ -2696,4 +2696,308 @@ defmodule Axon.Layers do
     |> Enum.reverse()
     |> Nx.stack(axis: -1)
   end
+
+  ## Attention
+
+  @doc """
+  Functional implementation of scaled dot-product attention.
+
+  Computes attention as
+
+      output = softmax(Q · Kᵀ * scale + mask) · V
+
+  where `Q`, `K`, `V` are 4-D tensors with a batch axis, a heads axis,
+  a sequence axis and a depth axis. The order of those axes is selected
+  by `:axes`.
+
+  ## Options
+
+    * `:axes` - input layout. One of:
+      * `:bshd` (default) - `{batch, sequence, heads, depth}`
+      * `:bhsd` - `{batch, heads, sequence, depth}`
+
+    * `:scale` - multiplier applied to `Q · Kᵀ`. Defaults to
+      `1 / sqrt(head_dim)`. Pass `1.0` to disable scaling.
+
+    * `:mask` - additive attention mask. One of:
+      * `nil` (default) - no mask.
+      * `:causal` - lower-triangular causal mask.
+      * `{:causal, offset}` - causal mask where query position `0`
+        corresponds to absolute position `offset`. Useful for cached
+        decoding where the query is a single token but the key/value
+        cache covers the full prefix. `offset` must be a non-negative
+        integer.
+      * `{:sliding_window, window}` - causal mask restricted to the
+        most recent `window` keys.
+      * `{:sliding_window, window, offset}` - sliding-window causal
+        mask combined with a decode offset.
+      * A boolean tensor broadcastable to `{batch, heads, q_len, k_len}`
+        (in the internal `BHSD` layout). `true` keeps a position,
+        `false` masks it as `-inf`.
+      * A float tensor broadcastable to `{batch, heads, q_len, k_len}`.
+        Added directly to the pre-softmax scores so callers can pass
+        ALiBi-style biases or precomputed masks.
+
+    * `:dropout_rate` - attention-probability dropout. Only applied
+      when `:mode` is `:train`. Defaults to `0.0`.
+
+    * `:return_attention_weights` - when `true`, returns
+      `{output, weights}`. Defaults to `false`.
+
+  Pass an additional positional `mask_tensor` and/or `key` argument
+  to attach a runtime mask tensor or a dropout PRNG key. These
+  five-arg and six-arg heads are used by `Axon.scaled_dot_product_attention/4`
+  when wiring tensor masks or dropout into the graph.
+
+  ## Grouped-query / multi-query attention
+
+  When `key` / `value` have fewer heads than `query`, they are
+  repeated along the head axis to match. The number of query heads
+  must be a multiple of the number of key/value heads.
+
+  ## References
+
+    * [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+    * [GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints](https://arxiv.org/abs/2305.13245)
+
+  """
+  @doc type: :attention
+  defn scaled_dot_product_attention(query, key, value, opts \\ []) do
+    attention_kernel(query, key, value, nil, nil, opts)
+  end
+
+  @doc false
+  defn scaled_dot_product_attention(query, key, value, extra, opts) do
+    {mask_tensor, dropout_key} = split_extra_attention_input(extra, opts)
+    attention_kernel(query, key, value, mask_tensor, dropout_key, opts)
+  end
+
+  @doc false
+  defn scaled_dot_product_attention(query, key, value, mask_tensor, dropout_key, opts) do
+    attention_kernel(query, key, value, mask_tensor, dropout_key, opts)
+  end
+
+  deftransformp split_extra_attention_input(extra, opts) do
+    case Keyword.get(opts, :mask) do
+      :tensor -> {extra, nil}
+      _ -> {nil, extra}
+    end
+  end
+
+  defnp attention_kernel(query, key, value, mask_tensor, dropout_key, opts) do
+    opts =
+      keyword!(opts,
+        axes: :bshd,
+        scale: nil,
+        mask: nil,
+        dropout_rate: 0.0,
+        return_attention_weights: false,
+        mode: :inference
+      )
+
+    validate_attention_inputs!(query, key, value)
+
+    {query, key, value} = to_bhsd(query, key, value, opts[:axes])
+    key = maybe_repeat_kv(key, query)
+    value = maybe_repeat_kv(value, query)
+
+    scale = resolve_attention_scale(query, opts[:scale])
+
+    scores = Nx.dot(query, [3], [0, 1], key, [3], [0, 1]) * scale
+    scores = apply_attention_mask(scores, opts[:mask], mask_tensor)
+
+    weights = Axon.Activations.softmax(scores, axis: -1)
+
+    {weights, new_dropout_key} =
+      maybe_attention_dropout(weights, dropout_key, opts[:dropout_rate], opts[:mode])
+
+    output = Nx.dot(weights, [3], [0, 1], value, [2], [0, 1])
+    output = from_bhsd(output, opts[:axes])
+
+    finalize_attention_output(
+      output,
+      weights,
+      new_dropout_key,
+      opts[:return_attention_weights]
+    )
+  end
+
+  deftransformp validate_attention_inputs!(query, key, value) do
+    for {name, tensor} <- [{"query", query}, {"key", key}, {"value", value}] do
+      rank = Nx.rank(tensor)
+
+      unless rank == 4 do
+        raise ArgumentError,
+              "Axon.Layers.scaled_dot_product_attention: expected #{name} to" <>
+                " have rank 4, got rank #{rank}"
+      end
+    end
+
+    :ok
+  end
+
+  deftransformp to_bhsd(query, key, value, :bhsd), do: {query, key, value}
+
+  deftransformp to_bhsd(query, key, value, :bshd) do
+    perm = [0, 2, 1, 3]
+
+    {Nx.transpose(query, axes: perm), Nx.transpose(key, axes: perm),
+     Nx.transpose(value, axes: perm)}
+  end
+
+  deftransformp to_bhsd(_query, _key, _value, axes) do
+    raise ArgumentError,
+          "Axon.Layers.scaled_dot_product_attention: invalid :axes #{inspect(axes)}," <>
+            " expected one of :bshd or :bhsd"
+  end
+
+  deftransformp from_bhsd(output, :bhsd), do: output
+
+  deftransformp from_bhsd(output, :bshd) do
+    Nx.transpose(output, axes: [0, 2, 1, 3])
+  end
+
+  deftransformp resolve_attention_scale(_query, scale) when is_number(scale), do: scale
+
+  deftransformp resolve_attention_scale(query, nil) do
+    depth = elem(Nx.shape(query), 3)
+    1.0 / :math.sqrt(depth)
+  end
+
+  deftransformp maybe_repeat_kv(kv, query) do
+    q_heads = elem(Nx.shape(query), 1)
+    kv_heads = elem(Nx.shape(kv), 1)
+
+    cond do
+      q_heads == kv_heads ->
+        kv
+
+      rem(q_heads, kv_heads) != 0 ->
+        raise ArgumentError,
+              "Axon.Layers.scaled_dot_product_attention: query has #{q_heads} heads" <>
+                " but key/value has #{kv_heads} heads; the number of query heads" <>
+                " must be a multiple of the number of key/value heads"
+
+      true ->
+        factor = div(q_heads, kv_heads)
+        {batch, _, seq, depth} = Nx.shape(kv)
+
+        kv
+        |> Nx.new_axis(2)
+        |> Nx.broadcast({batch, kv_heads, factor, seq, depth})
+        |> Nx.reshape({batch, kv_heads * factor, seq, depth})
+    end
+  end
+
+  deftransformp apply_attention_mask(scores, nil, _mask_tensor), do: scores
+
+  deftransformp apply_attention_mask(scores, :causal, _mask_tensor) do
+    build_causal_mask(scores, 0, nil)
+  end
+
+  deftransformp apply_attention_mask(scores, {:causal, offset}, _mask_tensor)
+                when is_integer(offset) and offset >= 0 do
+    build_causal_mask(scores, offset, nil)
+  end
+
+  deftransformp apply_attention_mask(scores, {:sliding_window, window}, _mask_tensor)
+                when is_integer(window) and window > 0 do
+    build_causal_mask(scores, 0, window)
+  end
+
+  deftransformp apply_attention_mask(
+                  scores,
+                  {:sliding_window, window, offset},
+                  _mask_tensor
+                )
+                when is_integer(window) and window > 0 and is_integer(offset) and offset >= 0 do
+    build_causal_mask(scores, offset, window)
+  end
+
+  deftransformp apply_attention_mask(scores, :tensor, mask_tensor) do
+    apply_tensor_mask(scores, mask_tensor)
+  end
+
+  deftransformp apply_attention_mask(_scores, mask, _mask_tensor) do
+    raise ArgumentError,
+          "Axon.Layers.scaled_dot_product_attention: invalid :mask #{inspect(mask)}"
+  end
+
+  defp build_causal_mask(scores, offset, window) do
+    shape = Nx.shape(scores)
+    s_q = elem(shape, 2)
+    s_k = elem(shape, 3)
+    type = Nx.type(scores)
+
+    q_idx = Nx.iota({1, 1, s_q, 1}, axis: 2) |> Nx.add(offset)
+    k_idx = Nx.iota({1, 1, 1, s_k}, axis: 3)
+
+    keep = Nx.less_equal(k_idx, q_idx)
+
+    keep =
+      case window do
+        nil ->
+          keep
+
+        w ->
+          Nx.logical_and(keep, Nx.greater(k_idx, Nx.subtract(q_idx, w)))
+      end
+
+    Nx.add(scores, keep_to_additive_mask(keep, type))
+  end
+
+  defp apply_tensor_mask(scores, mask_tensor) do
+    case Nx.type(mask_tensor) do
+      {:f, _} ->
+        Nx.add(scores, mask_tensor)
+
+      {:bf, _} ->
+        Nx.add(scores, mask_tensor)
+
+      _ ->
+        Nx.add(scores, keep_to_additive_mask(mask_tensor, Nx.type(scores)))
+    end
+  end
+
+  defp keep_to_additive_mask(keep, type) do
+    Nx.select(
+      keep,
+      Nx.tensor(0, type: type),
+      Nx.Constants.neg_infinity(type)
+    )
+  end
+
+  deftransformp maybe_attention_dropout(weights, nil, _rate, _mode), do: {weights, nil}
+
+  deftransformp maybe_attention_dropout(weights, _key, rate, _mode) when rate == 0,
+    do: {weights, nil}
+
+  deftransformp maybe_attention_dropout(weights, _key, _rate, :inference), do: {weights, nil}
+
+  deftransformp maybe_attention_dropout(weights, key, rate, :train) do
+    type = Nx.type(weights)
+    keep_prob = Nx.subtract(Nx.tensor(1, type: type), Nx.as_type(rate, type))
+    {rand, new_key} = Nx.Random.uniform(key, 0, 1, shape: Nx.shape(weights), type: type)
+
+    out =
+      Nx.select(
+        Nx.less(rand, keep_prob),
+        Nx.divide(weights, keep_prob),
+        Nx.tensor(0, type: type)
+      )
+
+    {out, new_key}
+  end
+
+  deftransformp finalize_attention_output(output, _weights, nil, false), do: output
+
+  deftransformp finalize_attention_output(output, weights, nil, true), do: {output, weights}
+
+  deftransformp finalize_attention_output(output, _weights, new_key, false) do
+    %Axon.StatefulOutput{output: output, state: %{"key" => new_key}}
+  end
+
+  deftransformp finalize_attention_output(output, weights, new_key, true) do
+    %Axon.StatefulOutput{output: {output, weights}, state: %{"key" => new_key}}
+  end
 end

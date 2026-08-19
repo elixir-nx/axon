@@ -1937,4 +1937,281 @@ defmodule Axon.LayersTest do
       assert_all_close(expected, actual, atol: 1.0e-3)
     end
   end
+
+  describe "scaled_dot_product_attention" do
+    # Reference shape for BHSD layout: {batch, heads, seq, depth}.
+    # The hand-computed expectations below were derived by running
+    # the equivalent torch.nn.functional.scaled_dot_product_attention
+    # call with the same inputs.
+
+    defp ref_qkv do
+      q = Nx.tensor([[[[1.0, 0.0], [0.0, 1.0]]]])
+      k = Nx.tensor([[[[1.0, 0.0], [0.0, 1.0]]]])
+      v = Nx.tensor([[[[10.0, 20.0], [30.0, 40.0]]]])
+      {q, k, v}
+    end
+
+    test "BHSD layout matches PyTorch reference" do
+      {q, k, v} = ref_qkv()
+
+      expected = Nx.tensor([[[[16.605, 26.605], [23.395, 33.395]]]])
+
+      actual = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd)
+      assert_all_close(expected, actual, atol: 1.0e-3)
+    end
+
+    test "BSHD layout equals BHSD after axis swap" do
+      {q_bhsd, k_bhsd, v_bhsd} = ref_qkv()
+
+      perm = [0, 2, 1, 3]
+      q_bshd = Nx.transpose(q_bhsd, axes: perm)
+      k_bshd = Nx.transpose(k_bhsd, axes: perm)
+      v_bshd = Nx.transpose(v_bhsd, axes: perm)
+
+      out_bhsd = Axon.Layers.scaled_dot_product_attention(q_bhsd, k_bhsd, v_bhsd, axes: :bhsd)
+      out_bshd = Axon.Layers.scaled_dot_product_attention(q_bshd, k_bshd, v_bshd, axes: :bshd)
+
+      assert_all_close(out_bhsd, Nx.transpose(out_bshd, axes: perm))
+    end
+
+    test "scale: 1.0 disables the 1/sqrt(d) scaling" do
+      {q, k, v} = ref_qkv()
+
+      # With scale=1.0 the un-scaled logits are [1, 0] / [0, 1] which gives
+      # softmax weights ≈ [0.7311, 0.2689] / [0.2689, 0.7311].
+      expected =
+        Nx.tensor([[[[15.378, 25.378], [24.622, 34.622]]]])
+
+      actual = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, scale: 1.0)
+      assert_all_close(expected, actual, atol: 1.0e-3)
+    end
+
+    test "custom numeric scale is applied" do
+      {q, k, v} = ref_qkv()
+
+      with_scale_one =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, scale: 1.0)
+
+      with_scale_quarter =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, scale: 0.25)
+
+      refute Nx.equal(with_scale_one, with_scale_quarter)
+             |> Nx.all()
+             |> Nx.to_number() == 1
+    end
+
+    test ":causal mask makes position 0 attend only to itself" do
+      {q, k, v} = ref_qkv()
+
+      out = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, mask: :causal)
+      # output[0] should be v[0] = [10, 20]
+      first = out |> Nx.slice([0, 0, 0, 0], [1, 1, 1, 2]) |> Nx.reshape({2})
+      assert_all_close(first, Nx.tensor([10.0, 20.0]))
+    end
+
+    test "{:causal, offset >= s_q} degenerates to full attention" do
+      {q, k, v} = ref_qkv()
+
+      out_full = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd)
+
+      out_offset =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, mask: {:causal, 5})
+
+      assert_all_close(out_full, out_offset)
+    end
+
+    test "{:sliding_window, 1} restricts each position to itself" do
+      {q, k, v} = ref_qkv()
+
+      out =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, mask: {:sliding_window, 1})
+
+      # Each position attends only to itself, so output = value.
+      assert_all_close(out, v)
+    end
+
+    test "{:sliding_window, w, offset} combines the window with a decode offset" do
+      {q, k, v} = ref_qkv()
+
+      # offset = 1 places query row 0 at absolute position 1, query row 1 at
+      # position 2. window = 1 keeps only k_idx in (q_idx - 1, q_idx], so:
+      #   row 0 -> only k_idx == 1 visible -> output = v[1] = [30, 40]
+      #   row 1 -> only k_idx == 2 visible -> ALL KEYS BEYOND s_k=2 ARE MISSING,
+      # so row 1 has all -inf scores. Limit the test to row 0.
+      out =
+        Axon.Layers.scaled_dot_product_attention(q, k, v,
+          axes: :bhsd,
+          mask: {:sliding_window, 1, 1}
+        )
+
+      row0 = out |> Nx.slice([0, 0, 0, 0], [1, 1, 1, 2]) |> Nx.reshape({2})
+      assert_all_close(row0, Nx.tensor([30.0, 40.0]))
+    end
+
+    test "boolean tensor mask blocks positions marked false" do
+      {q, k, v} = ref_qkv()
+
+      mask = Nx.tensor([[[[true, false], [true, true]]]])
+
+      out =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, mask,
+          axes: :bhsd,
+          mask: :tensor
+        )
+
+      # Position 0 only sees key 0, so output[0] = v[0] = [10, 20].
+      row0 = out |> Nx.slice([0, 0, 0, 0], [1, 1, 1, 2]) |> Nx.reshape({2})
+      assert_all_close(row0, Nx.tensor([10.0, 20.0]))
+    end
+
+    test "float tensor mask is added to pre-softmax scores" do
+      {q, k, v} = ref_qkv()
+
+      # Zero mask leaves the result unchanged.
+      zero_mask = Nx.broadcast(Nx.tensor(0.0), {1, 1, 2, 2})
+
+      out_no_mask = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd)
+
+      out_zero_mask =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, zero_mask,
+          axes: :bhsd,
+          mask: :tensor
+        )
+
+      assert_all_close(out_no_mask, out_zero_mask)
+
+      # A mask of -inf on the second key drops it entirely.
+      neg_inf_mask = Nx.tensor([[[[0.0, -1.0e9], [0.0, -1.0e9]]]])
+
+      out_dropped =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, neg_inf_mask,
+          axes: :bhsd,
+          mask: :tensor
+        )
+
+      # Every query row should now produce v[0] = [10, 20].
+      expected =
+        Nx.tensor([[[[10.0, 20.0], [10.0, 20.0]]]])
+
+      assert_all_close(expected, out_dropped, atol: 1.0e-3)
+    end
+
+    test "GQA repeats key/value heads to match the query" do
+      # q has 4 heads, k/v have 2 heads (factor=2). The result should equal
+      # running attention on a manually repeated k/v.
+      q = Nx.broadcast(Nx.tensor(0.0), {1, 4, 3, 4})
+      k = Nx.iota({1, 2, 3, 4}, type: :f32) |> Nx.divide(10)
+      v = Nx.iota({1, 2, 3, 4}, type: :f32) |> Nx.divide(10)
+
+      out = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd)
+      assert Nx.shape(out) == {1, 4, 3, 4}
+
+      # Manually repeat heads and compare.
+      k_repeat =
+        k
+        |> Nx.new_axis(2)
+        |> Nx.broadcast({1, 2, 2, 3, 4})
+        |> Nx.reshape({1, 4, 3, 4})
+
+      v_repeat =
+        v
+        |> Nx.new_axis(2)
+        |> Nx.broadcast({1, 2, 2, 3, 4})
+        |> Nx.reshape({1, 4, 3, 4})
+
+      reference = Axon.Layers.scaled_dot_product_attention(q, k_repeat, v_repeat, axes: :bhsd)
+      assert_all_close(out, reference)
+    end
+
+    test "return_attention_weights: true returns a tuple with row-sums equal to 1" do
+      {q, k, v} = ref_qkv()
+
+      {out, weights} =
+        Axon.Layers.scaled_dot_product_attention(q, k, v,
+          axes: :bhsd,
+          return_attention_weights: true
+        )
+
+      assert Nx.shape(out) == {1, 1, 2, 2}
+      assert Nx.shape(weights) == {1, 1, 2, 2}
+
+      sums = Nx.sum(weights, axes: [-1])
+      assert_all_close(sums, Nx.broadcast(Nx.tensor(1.0), {1, 1, 2}))
+    end
+
+    test "dropout in :inference mode is a no-op even when a key is provided" do
+      {q, k, v} = ref_qkv()
+      key = Nx.Random.key(0)
+
+      out_default = Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd)
+
+      out_inf =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, key,
+          axes: :bhsd,
+          dropout_rate: 0.5,
+          mode: :inference
+        )
+
+      assert_all_close(out_default, out_inf)
+    end
+
+    test "dropout in :train mode returns a StatefulOutput with a fresh key" do
+      {q, k, v} = ref_qkv()
+      key = Nx.Random.key(0)
+
+      result =
+        Axon.Layers.scaled_dot_product_attention(q, k, v, key,
+          axes: :bhsd,
+          dropout_rate: 0.5,
+          mode: :train
+        )
+
+      assert %Axon.StatefulOutput{output: out, state: %{"key" => new_key}} = result
+      assert Nx.shape(out) == {1, 1, 2, 2}
+      assert Nx.shape(new_key) == {2}
+      refute Nx.to_flat_list(new_key) == Nx.to_flat_list(key)
+    end
+
+    test "raises when query, key, or value is not rank 4" do
+      bad = Nx.iota({2, 3, 4}, type: :f32)
+      ok = Nx.iota({1, 1, 2, 2}, type: :f32)
+
+      assert_raise ArgumentError, ~r/expected query to have rank 4/, fn ->
+        Axon.Layers.scaled_dot_product_attention(bad, ok, ok)
+      end
+
+      assert_raise ArgumentError, ~r/expected key to have rank 4/, fn ->
+        Axon.Layers.scaled_dot_product_attention(ok, bad, ok)
+      end
+
+      assert_raise ArgumentError, ~r/expected value to have rank 4/, fn ->
+        Axon.Layers.scaled_dot_product_attention(ok, ok, bad)
+      end
+    end
+
+    test "raises on invalid :axes" do
+      {q, k, v} = ref_qkv()
+
+      assert_raise ArgumentError, ~r/invalid :axes :other/, fn ->
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :other)
+      end
+    end
+
+    test "raises on invalid :mask spec" do
+      {q, k, v} = ref_qkv()
+
+      assert_raise ArgumentError, ~r/invalid :mask/, fn ->
+        Axon.Layers.scaled_dot_product_attention(q, k, v, axes: :bhsd, mask: :nope)
+      end
+    end
+
+    test "raises on GQA mismatch when q_heads is not a multiple of kv_heads" do
+      q = Nx.iota({1, 3, 2, 4}, type: :f32)
+      k = Nx.iota({1, 2, 2, 4}, type: :f32)
+
+      assert_raise ArgumentError, ~r/must be a multiple/, fn ->
+        Axon.Layers.scaled_dot_product_attention(q, k, k, axes: :bhsd)
+      end
+    end
+  end
 end
