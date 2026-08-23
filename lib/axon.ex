@@ -106,7 +106,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model1)
 
-      params1 = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params1 = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       # Inputs are referenced by name
       predict_fn.(params1, %{"input_0" => x, "input_1" => y})
 
@@ -175,7 +175,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       predict_fn.(params, inputs)
 
   You may either set the default JIT compiler or backend globally, or
@@ -185,7 +185,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model, compiler: EXLA, mode: :train)
 
-      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       predict_fn.(params, inputs)
 
   `predict_fn` by default runs in inference mode, which performs certain
