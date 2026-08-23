@@ -38,9 +38,12 @@
 #
 # against Keras' published 0.9151 / 0.2263 / 0.8428 / 0.3650.
 
+# Axon currently tracks Nx main (see mix.exs), so EXLA must come from
+# the same checkout — a hex EXLA would pull hex Nx and diverge.
 Mix.install([
   {:axon, path: Path.expand("../..", __DIR__)},
-  {:exla, "~> 0.13"}
+  {:nx, github: "elixir-nx/nx", sparse: "nx", override: true},
+  {:exla, github: "elixir-nx/nx", sparse: "exla", override: true}
 ])
 
 Nx.global_default_backend(EXLA.Backend)
@@ -243,7 +246,10 @@ optimizer = Polaris.Optimizers.adam(learning_rate: 1.0e-3, eps: 1.0e-7)
 # iterations, so nothing prints them. Register a reporter after the
 # validation handler — handlers run in registration order — to print
 # the epoch summary Keras shows at the end of each epoch.
-report = fn %Axon.Loop.State{epoch: epoch, metrics: metrics} = state ->
+# A bare map pattern rather than %Axon.Loop.State{}: struct patterns
+# expand while the script is being compiled, before `Mix.install`
+# has fetched Axon, so naming the struct here breaks the script.
+report = fn %{epoch: epoch, metrics: metrics} = state ->
   summary =
     metrics
     |> Enum.sort()
