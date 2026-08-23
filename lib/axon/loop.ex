@@ -311,6 +311,10 @@ defmodule Axon.Loop do
   the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
   See `Polaris.Updates` for more information on building optimizers.
 
+  Parameter constraints declared with the `:constraint` option of `Axon.param/3`
+  or attached with `Axon.ModelState.constrain/3` are applied after every
+  optimizer update via `Axon.ModelState.apply_constraints/1`.
+
   ## Options
 
     * `:seed` - seed to use when constructing models. Seed controls random initialization
@@ -407,7 +411,10 @@ defmodule Axon.Loop do
           |> Nx.add(batch_loss)
           |> Nx.divide(Nx.add(i, 1))
 
-        new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
+        new_model_state =
+          model_state
+          |> Axon.ModelState.update(updated_parameters, updated_state)
+          |> Axon.ModelState.apply_constraints()
 
         %{
           state
@@ -636,6 +643,26 @@ defmodule Axon.Loop do
       model
       |> Axon.Loop.trainer(loss_weights, :sgd)
       |> Axon.Loop.run(data)
+
+  ### Parameter constraints
+
+  Constraints declared with the `:constraint` option of `Axon.param/3`, or
+  attached to the initial model state with `Axon.ModelState.constrain/3`, are
+  applied after every optimizer update:
+
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(template, Axon.ModelState.empty())
+
+      model_state =
+        Axon.ModelState.constrain(
+          model_state,
+          &match?([_, "kernel"], &1),
+          Axon.Constraints.max_norm(max: 2.0)
+        )
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+      |> Axon.Loop.run(data, model_state)
 
   ## Options
 

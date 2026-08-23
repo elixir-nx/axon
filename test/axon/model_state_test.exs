@@ -37,6 +37,106 @@ defmodule Axon.ModelStateTest do
 
     defn tie(model_state, destination, source),
       do: Axon.ModelState.tie(model_state, destination, source)
+
+    defn constrain(model_state, mask, constraint),
+      do: Axon.ModelState.constrain(model_state, mask, constraint)
+
+    defn apply_constraints(model_state), do: Axon.ModelState.apply_constraints(model_state)
+  end
+
+  describe "constrain/3 and apply_constraints/1" do
+    setup do
+      model =
+        Axon.input("input", shape: {nil, 2})
+        |> Axon.dense(4, name: "dense_0")
+        |> Axon.dense(4, name: "dense_1")
+
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(Nx.template({1, 2}, :f32), ModelState.empty())
+
+      negative = Nx.broadcast(Nx.tensor(-1.0), {2, 4})
+
+      model_state =
+        model_state
+        |> put_in([Access.key!(:data), "dense_0", "kernel"], negative)
+        |> put_in([Access.key!(:data), "dense_1", "kernel"], negative)
+
+      %{model_state: model_state, negative: negative}
+    end
+
+    test "new/1 and empty/0 have no constraints" do
+      assert %ModelState{constraints: %{}} = ModelState.empty()
+      assert %ModelState{constraints: %{}} = ModelState.new(%{"a" => %{"b" => Nx.tensor(1)}})
+    end
+
+    test "constrain/3 puts the constraint at the masked paths", %{model_state: model_state} do
+      constraint = Axon.Constraints.non_neg()
+      mask = &match?([_, "kernel"], &1)
+
+      assert %ModelState{constraints: constraints} =
+               constrained = ModelState.constrain(model_state, mask, constraint)
+
+      assert constraints == %{
+               "dense_0" => %{"kernel" => constraint},
+               "dense_1" => %{"kernel" => constraint}
+             }
+
+      assert InDefn.constrain(model_state, mask, constraint).constraints == constraints
+
+      # data is left untouched until constraints are applied
+      assert_equal(constrained.data["dense_0"]["kernel"], model_state.data["dense_0"]["kernel"])
+    end
+
+    test "constrain/3 composes with existing constraints", %{model_state: model_state} do
+      non_neg = Axon.Constraints.non_neg()
+      unit_norm = Axon.Constraints.unit_norm()
+
+      constraints =
+        model_state
+        |> ModelState.constrain(&match?(["dense_0", "kernel"], &1), non_neg)
+        |> ModelState.constrain(&match?(["dense_0", "bias"], &1), unit_norm)
+        |> Map.fetch!(:constraints)
+
+      assert constraints == %{"dense_0" => %{"kernel" => non_neg, "bias" => unit_norm}}
+    end
+
+    test "apply_constraints/1 projects constrained parameters only",
+         %{model_state: model_state, negative: negative} do
+      constrained =
+        ModelState.constrain(
+          model_state,
+          &match?(["dense_0", "kernel"], &1),
+          Axon.Constraints.non_neg()
+        )
+
+      applied = ModelState.apply_constraints(constrained)
+
+      assert_equal(applied.data["dense_0"]["kernel"], Nx.broadcast(0.0, {2, 4}))
+      assert_equal(applied.data["dense_0"]["bias"], model_state.data["dense_0"]["bias"])
+      assert_equal(applied.data["dense_1"]["kernel"], negative)
+      assert applied.constraints == constrained.constraints
+
+      assert_equal(
+        InDefn.apply_constraints(constrained).data["dense_0"]["kernel"],
+        Nx.broadcast(0.0, {2, 4})
+      )
+    end
+
+    test "apply_constraints/1 skips frozen parameters",
+         %{model_state: model_state, negative: negative} do
+      applied =
+        model_state
+        |> ModelState.constrain(&match?([_, "kernel"], &1), Axon.Constraints.non_neg())
+        |> ModelState.freeze(&match?(["dense_0" | _], &1))
+        |> ModelState.apply_constraints()
+
+      assert_equal(applied.data["dense_0"]["kernel"], negative)
+      assert_equal(applied.data["dense_1"]["kernel"], Nx.broadcast(0.0, {2, 4}))
+    end
+
+    test "apply_constraints/1 is a no-op without constraints", %{model_state: model_state} do
+      assert_equal(ModelState.apply_constraints(model_state), model_state)
+    end
   end
 
   describe "tie/4" do
