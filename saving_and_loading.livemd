@@ -20,7 +20,7 @@ The model itself is just code, you define it once and reuse it. Only the learned
 
 ## Saving a Model After Training
 
-When you run a training loop, it returns the trained model state by default. Extract the parameters and serialize them:
+When you run a training loop, it returns the final loop state, which holds the trained model state in its step state. Extract the parameters and serialize them:
 
 ```elixir
 model =
@@ -39,10 +39,11 @@ train_data =
     {xs, Nx.sin(xs)}
   end)
 
-trained_model_state = Axon.Loop.run(loop, train_data, Axon.ModelState.empty(), epochs: 2, iterations: 100)
+%Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+  Axon.Loop.run(loop, train_data, Axon.ModelState.empty(), epochs: 2, iterations: 100)
 ```
 
-The training loop returns `model_state` by default (from `Axon.Loop.trainer/3`). For inference, we need the parameters—extract the `data` field from `ModelState`:
+The training loop returns the final `%Axon.Loop.State{}`, and loops built with `Axon.Loop.trainer/4` keep the trained model state under `step_state.model_state`. For inference, we need the parameters—extract the `data` field from `ModelState`:
 
 ```elixir
 # Extract parameters - trained_model_state.data contains the nested map of weights

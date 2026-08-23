@@ -155,7 +155,7 @@ Epoch: 0, Batch: 950, loss: 0.0681635 my weird metric: -5.2842808
 }
 ```
 
-While the metric defaults are designed with supervised training loops in mind, they can be used for much more flexible purposes. By default, metrics look for the fields `:y_true` and `:y_pred` in the given loop's step state. They then apply the given metric function on those inputs. You can also define metrics which work on other fields. For example you can track the running average of a given parameter with a metric just by defining a custom output transform:
+While the metric defaults are designed with supervised training loops in mind, they can be used for much more flexible purposes. By default, metrics look for the fields `:y_true` and `:y_pred` in the given loop's step state. They then apply the given metric function on those inputs. You can also define metrics which work on other fields. For example you can track the running average of a given parameter with a metric just by defining a custom transform:
 
 ```elixir
 model =
@@ -166,15 +166,15 @@ model =
   |> Axon.relu()
   |> Axon.dense(1)
 
-output_transform = fn %{model_state: model_state} ->
+transform = fn %{model_state: model_state} ->
   [model_state["dense_0"]["kernel"]]
 end
 
 loop =
   model
   |> Axon.Loop.trainer(:mean_squared_error, :sgd)
-  |> Axon.Loop.metric(&Nx.mean/1, "dense_0_kernel_mean", :running_average, output_transform)
-  |> Axon.Loop.metric(&Nx.variance/1, "dense_0_kernel_var", :running_average, output_transform)
+  |> Axon.Loop.metric(&Nx.mean/1, "dense_0_kernel_mean", :running_average, transform)
+  |> Axon.Loop.metric(&Nx.variance/1, "dense_0_kernel_var", :running_average, transform)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -209,7 +209,7 @@ loop =
 >
 ```
 
-Axon will apply your custom output transform to the loop's step state and forward the result to your custom metric function:
+Axon will apply your custom transform to the loop's step state and forward the result to your custom metric function:
 
 ```elixir
 train_data =
@@ -315,7 +315,7 @@ model =
   |> Axon.relu()
   |> Axon.dense(1)
 
-output_transform = fn %{model_state: model_state} ->
+transform = fn %{model_state: model_state} ->
   [model_state["dense_0"]["kernel"]]
 end
 
@@ -326,7 +326,7 @@ loop =
     &Nx.mean/1,
     "dense_0_kernel_ema_mean",
     &CustomAccumulator.running_ema/3,
-    output_transform
+    transform
   )
 ```
 
