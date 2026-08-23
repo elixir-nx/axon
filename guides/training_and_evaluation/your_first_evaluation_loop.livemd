@@ -47,7 +47,7 @@ data =
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 950, loss: 0.1285532
+Epoch: 0, Iteration: 950, loss: 0.1285532
 ```
 
 <!-- livebook:{"output":true} -->
@@ -174,7 +174,7 @@ metrics
 <!-- livebook:{"output":true} -->
 
 ```
-Batch: 999, mean_absolute_error: 0.0856894
+Iteration: 999, mean_absolute_error: 0.0856894
 ```
 
 <!-- livebook:{"output":true} -->

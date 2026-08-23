@@ -189,7 +189,7 @@ defmodule Axon.LoopTest do
       assert ExUnit.CaptureIO.capture_io(fn ->
                assert %State{metrics: %{0 => %{"mean_absolute_error" => _}}} =
                         Loop.run(loop, data, model_state)
-             end) =~ "Batch"
+             end) =~ "Iteration: 0, mean_absolute_error:"
     end
 
     test "eval_step/1 evaluates model on a single batch" do
@@ -474,6 +474,22 @@ defmodule Axon.LoopTest do
         |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
         |> Axon.Loop.run(data, %{})
       end
+    end
+
+    test "logs epoch and iteration" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
+      data = [{Nx.tensor([[1.0]]), Nx.tensor([[2.0]])}]
+
+      loop = Axon.Loop.trainer(model, :mean_squared_error, :sgd, log: 1)
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Axon.Loop.run(loop, data, Axon.ModelState.empty(), epochs: 2)
+        end)
+
+      assert output =~ "Epoch: 0, Iteration: 0, loss:"
+      assert output =~ "Epoch: 1, Iteration: 0, loss:"
+      refute output =~ "Batch"
     end
   end
 
