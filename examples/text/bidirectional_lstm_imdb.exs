@@ -12,11 +12,17 @@
 # batch size 32 against binary cross-entropy.
 #
 # The dataset is Keras' pre-tokenized IMDB dump. `imdb.npz` stores the
-# reviews as pickled Python object arrays, which Nx cannot read, so
-# `prepare_imdb.py` (alongside this file) converts it once into flat
-# binaries:
+# reviews as pickled Python object arrays, which Nx cannot read, so it
+# must be converted once into flat little-endian binaries under
+# `IMDB_DIR` (default `/tmp/imdb`):
 #
-#     python prepare_imdb.py --out /tmp/imdb
+#     x_train.bin, x_val.bin   int32, 25000 x 200
+#     y_train.bin, y_val.bin   float32, 25000
+#
+# i.e. the result of `keras.datasets.imdb.load_data(num_words=20000)`
+# followed by `keras.utils.pad_sequences(..., maxlen=200)` (labels cast
+# to float32), each array dumped with NumPy's `.tofile()`:
+#
 #     IMDB_DIR=/tmp/imdb elixir examples/text/bidirectional_lstm_imdb.exs
 #
 # Keras initializes its LSTM differently than Axon does, in ways that
