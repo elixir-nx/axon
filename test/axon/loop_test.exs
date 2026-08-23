@@ -291,6 +291,206 @@ defmodule Axon.LoopTest do
     end
   end
 
+  describe "keep_gradients?" do
+    defp gradients_model do
+      Axon.input("input", shape: {nil, 1}) |> Axon.dense(1, name: "dense", use_bias: false)
+    end
+
+    defp gradients_batch do
+      {Nx.tensor([[1.0], [2.0]]), Nx.tensor([[0.0], [0.0]])}
+    end
+
+    # Asserts every leaf of the init template has the shape and type of the
+    # corresponding leaf of the step output. This is what strict compilation
+    # in `Axon.Loop.run/4` requires of the step state.
+    defp assert_same_template(template, output) do
+      template_leaves = Nx.Defn.Composite.flatten_list([template])
+      output_leaves = Nx.Defn.Composite.flatten_list([output])
+      assert length(template_leaves) == length(output_leaves)
+
+      for {leaf, expected} <- Enum.zip(template_leaves, output_leaves) do
+        assert Nx.shape(leaf) == Nx.shape(expected)
+        assert Nx.type(leaf) == Nx.type(expected)
+      end
+    end
+
+    defp grad_norm(grads) do
+      grads
+      |> Nx.Defn.Composite.reduce(Nx.tensor(0.0), fn g, acc ->
+        Nx.add(acc, Nx.sum(Nx.pow(g, 2)))
+      end)
+      |> Nx.sqrt()
+    end
+
+    test "train_step/4 does not add gradients to the step state by default" do
+      model = gradients_model()
+      batch = gradients_batch()
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      state = init_fn.(batch, Axon.ModelState.empty())
+      refute Map.has_key?(state, :gradients)
+
+      state = step_fn.(batch, state)
+      refute Map.has_key?(state, :gradients)
+    end
+
+    test "train_step/4 returns the gradients the optimizer received" do
+      model = gradients_model()
+      {x, y} = batch = gradients_batch()
+
+      {init_fn, step_fn} =
+        Axon.Loop.train_step(
+          model,
+          :mean_squared_error,
+          Polaris.Optimizers.sgd(learning_rate: 0.1),
+          keep_gradients?: true
+        )
+
+      state = init_fn.(batch, Axon.ModelState.empty())
+      kernel = state.model_state.data["dense"]["kernel"]
+
+      assert %{"dense" => %{"kernel" => init_grad}} = state.gradients
+      assert map_size(state.gradients) == 1
+      assert_equal(init_grad, Nx.broadcast(0.0, {1, 1}))
+      assert Nx.shape(init_grad) == Nx.shape(kernel)
+      assert Nx.type(init_grad) == Nx.type(kernel)
+
+      new_state = step_fn.(batch, state)
+      new_kernel = new_state.model_state.data["dense"]["kernel"]
+
+      assert %{"dense" => %{"kernel" => grad}} = new_state.gradients
+      assert map_size(new_state.gradients) == 1
+
+      # loss = mean((w * x)^2) with x = [1, 2] is 2.5 * w^2, so the gradient
+      # is 5 * w, and plain SGD applies w - lr * grad.
+      assert_all_close(grad, Nx.multiply(kernel, 5.0))
+      assert_all_close(grad, Nx.divide(Nx.subtract(kernel, new_kernel), 0.1))
+      assert_equal(new_state.y_true, y)
+      assert_equal(Nx.shape(new_state.y_pred), Nx.shape(x))
+
+      assert_same_template(state.gradients, new_state.gradients)
+    end
+
+    test "train_step/4 keeps gradients only for trainable parameters" do
+      model =
+        Axon.input("input", shape: {nil, 1})
+        |> Axon.dense(2, name: "dense_0")
+        |> Axon.dense(1, name: "dense_1")
+
+      batch = gradients_batch()
+
+      # Freeze from within the model's init so the frozen parameters reach
+      # the step through the model state it initializes.
+      {model_init_fn, model_apply_fn} = Axon.build(model, mode: :train)
+
+      frozen_init_fn = fn inp, init_state ->
+        model_init_fn.(inp, init_state)
+        |> Axon.ModelState.freeze(fn [layer | _] -> layer == "dense_0" end)
+      end
+
+      {init_fn, step_fn} =
+        Axon.Loop.train_step({frozen_init_fn, model_apply_fn}, :mean_squared_error, :sgd,
+          keep_gradients?: true
+        )
+
+      state = init_fn.(batch, Axon.ModelState.empty())
+      assert Map.keys(state.gradients) == ["dense_1"]
+      assert Map.keys(state.gradients["dense_1"]) == ["bias", "kernel"]
+
+      new_state = step_fn.(batch, state)
+      assert Map.keys(new_state.gradients) == ["dense_1"]
+      assert Map.keys(new_state.gradients["dense_1"]) == ["bias", "kernel"]
+
+      assert_same_template(state.gradients, new_state.gradients)
+      assert_equal(new_state.model_state.data["dense_0"], state.model_state.data["dense_0"])
+    end
+
+    test "train_step/4 keeps unscaled gradients under loss scaling" do
+      model = gradients_model()
+      {x, _} = batch = gradients_batch()
+
+      {model_init_fn, _} = Axon.build(model)
+      model_state = model_init_fn.(x, Axon.ModelState.empty())
+
+      run = fn loss_scale ->
+        {init_fn, step_fn} =
+          Axon.Loop.train_step(model, :mean_squared_error, :sgd,
+            keep_gradients?: true,
+            loss_scale: loss_scale
+          )
+
+        state = init_fn.(batch, Nx.backend_copy(model_state))
+        new_state = step_fn.(batch, state)
+        assert_same_template(state.gradients, new_state.gradients)
+        new_state.gradients
+      end
+
+      assert_all_close(run.(:identity), run.(:static))
+      assert_all_close(run.(:identity), run.(:dynamic))
+    end
+
+    test "trainer/4 exposes gradients to metrics and handlers" do
+      model = gradients_model()
+      data = List.duplicate(gradients_batch(), 4)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        result =
+          model
+          |> Axon.Loop.trainer(:mean_squared_error, :sgd, keep_gradients?: true, log: 0)
+          |> Axon.Loop.metric(&grad_norm/1, "gradient norm", :running_average, [:gradients])
+          |> Axon.Loop.handle_event(:iteration_completed, fn state ->
+            send(self(), {:gradients, state.step_state.gradients})
+            {:continue, state}
+          end)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 1)
+
+        send(self(), {:result, result})
+      end)
+
+      assert_receive {:gradients, %{"dense" => %{"kernel" => _}}}
+      assert_receive {:result, %State{} = result}
+
+      assert %{"dense" => %{"kernel" => grad}} = result.step_state.gradients
+      assert Nx.shape(grad) == {1, 1}
+      assert Nx.to_number(result.metrics[0]["gradient norm"]) > 0
+    end
+
+    test "trainer/4 with keep_gradients? works with donate_state?: true" do
+      model = donation_model()
+      data = donation_data()
+      init_state = donation_init_state(model, data)
+
+      run = fn donate? ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          result =
+            model
+            |> Axon.Loop.trainer(
+              :mean_squared_error,
+              Polaris.Optimizers.adam(learning_rate: 0.01),
+              keep_gradients?: true
+            )
+            |> Axon.Loop.run(data, Nx.backend_copy(init_state),
+              epochs: 2,
+              donate_state?: donate?
+            )
+
+          send(self(), {:result, result})
+        end)
+
+        assert_receive {:result, result}
+        result
+      end
+
+      donating = run.(true)
+      not_donating = run.(false)
+
+      assert_equal(donating.step_state.model_state, not_donating.step_state.model_state)
+      assert_equal(donating.step_state.gradients, not_donating.step_state.gradients)
+      assert map_leaves(donating.step_state, &Nx.donatable?/1) |> Enum.uniq() == [false]
+    end
+  end
+
   describe "metrics" do
     test "uses default names with out of the box metrics" do
       step_fn = fn _, _ -> 1 end
