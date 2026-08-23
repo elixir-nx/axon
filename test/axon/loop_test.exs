@@ -638,6 +638,18 @@ defmodule Axon.LoopTest do
                |> Loop.run([{inputs, targets}], Axon.ModelState.empty())
     end
 
+    test "accepts a loss function that returns a number" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
+
+      assert %State{epoch: 1, step_state: %{loss: loss}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3)
+               |> Loop.trainer(fn _y_true, _y_pred -> 1.0 end, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty())
+
+      assert Nx.to_number(loss) == 1.0
+    end
+
     test "raises when the loss function does not return a scalar" do
       data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
       loss_fn = fn y_true, y_pred -> Nx.subtract(y_true, y_pred) end

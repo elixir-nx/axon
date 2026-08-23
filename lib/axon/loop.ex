@@ -2236,6 +2236,8 @@ defmodule Axon.Loop do
     end
   end
 
+  defp check_loss_output!(loss) when is_number(loss), do: :ok
+
   defp check_loss_output!(loss), do: raise(ArgumentError, non_scalar_loss_message(loss))
 
   defp non_scalar_loss_message(got) do
