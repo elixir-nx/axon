@@ -1561,18 +1561,60 @@ defmodule Axon.Loop do
       iteration. This may help avoid OOMs when training large models, but it will slow
       training down.
 
+    * `:donate_state?` - whether or not to donate the buffers backing the loop's
+      step state to the step function on each iteration. See the section below.
+      Defaults to `false`.
+
     * `:debug` - run loop in debug mode to trace loop progress. Defaults to
       false.
 
   Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
   options are set, the default options set with `Nx.Defn.default_options` are
   used.
+
+  ## Buffer donation
+
+  A training step consumes the model state and optimizer state of the previous
+  iteration and produces new ones of exactly the same shape. Without donation
+  the compiler must allocate memory for the new buffers while the old ones are
+  still live, which roughly doubles the memory needed to hold parameters and
+  optimizer state. Setting `:donate_state?` marks those tensors with
+  `Nx.donatable/1`, which lets supporting compilers such as EXLA write the new
+  values into the old buffers instead:
+
+      Axon.Loop.run(loop, data, %{}, epochs: 10, donate_state?: true)
+
+  Only the `:model_state`, `:optimizer_state`, and `:loss_scale_state` entries
+  of the step state are donated. Predictions, targets, and metrics are left
+  alone because the step function does not read them back, and a donated buffer
+  must be one the step function actually consumes.
+
+  Donation invalidates the donated buffers, so it must only be used when the
+  loop owns its step state exclusively:
+
+    * The tensors passed as `init_state` must not be used again after the loop
+      runs. This matters for fine-tuning, where the model state being trained
+      is one the caller already had a reference to.
+
+    * Event handlers must not hold on to tensors from a previous iteration's
+      step state. Reading `state.step_state` inside a handler is fine, that is
+      the state which was just produced, but stashing its tensors and reading
+      them back on a later iteration is not.
+
+    * Loops run from inside a handler, such as the evaluation loop added by
+      `validate/4`, borrow the training loop's model state and must not donate
+      it. They do not, because `:donate_state?` defaults to `false` and applies
+      only to the `run/4` call it is given to.
+
+  Donation is a hint. Compilers which do not implement it, such as
+  `Nx.Defn.Evaluator`, ignore the mark and the loop behaves as it did before.
   """
   def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
     {strict?, opts} = Keyword.pop(opts, :strict?, true)
+    {donate_state?, opts} = Keyword.pop(opts, :donate_state?, false)
     {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
 
@@ -1661,13 +1703,14 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
+                    :timer.tc(&run_epoch/7, [
                       batch_fn,
                       handler_fns,
                       state,
                       data,
                       debug?,
-                      force_garbage_collection?
+                      force_garbage_collection?,
+                      donate_state?
                     ])
 
                   if debug? do
@@ -1755,7 +1798,15 @@ defmodule Axon.Loop do
     end
   end
 
-  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
+  defp run_epoch(
+         batch_fn,
+         handler_fns,
+         loop_state,
+         data,
+         debug?,
+         force_garbage_collection?,
+         donate_state?
+       ) do
     Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
       case fire_event(:iteration_started, handler_fns, state, debug?) do
         {:halt_epoch, state} ->
@@ -1771,6 +1822,13 @@ defmodule Axon.Loop do
             step_state: step_state,
             metrics: metrics
           } = state
+
+          # The step state we hold is dead as soon as the step function returns
+          # a new one, so its buffers can back the new state instead of new ones
+          # being allocated. The marks must be applied before the strict compile
+          # below, since Nx requires the compile-time templates and the runtime
+          # arguments to agree on what is donated.
+          step_state = maybe_donate_step_state(step_state, donate_state?)
 
           batch_fn =
             case batch_fn do
@@ -1827,6 +1885,25 @@ defmodule Axon.Loop do
       end
     end)
   end
+
+  # Entries of the step state which a step function threads through unchanged
+  # in shape and type, and which it always reads. Everything else in the step
+  # state is either overwritten without being read, like `:y_pred`, or too small
+  # to be worth donating, like `:i`.
+  @donatable_step_state_keys [:model_state, :optimizer_state, :loss_scale_state]
+
+  defp maybe_donate_step_state(step_state, false), do: step_state
+
+  defp maybe_donate_step_state(%{} = step_state, true) when not is_struct(step_state) do
+    Enum.reduce(@donatable_step_state_keys, step_state, fn key, step_state ->
+      case step_state do
+        %{^key => value} -> %{step_state | key => Nx.donatable(value)}
+        %{} -> step_state
+      end
+    end)
+  end
+
+  defp maybe_donate_step_state(step_state, true), do: step_state
 
   defp max_iterations_reached?(max_iters, iters) do
     iters >= max_iters - 1 and max_iters > 0

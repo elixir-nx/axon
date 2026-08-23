@@ -423,7 +423,7 @@ defmodule Axon do
   Using a function:
 
       parameter("kernel", fn input ->
-        Nx.template({elem(Nx.shape(input), 1), 64}, Nx.type(input))
+        Nx.template({Kernel.elem(Nx.shape(input), 1), 64}, Nx.type(input))
       end)
 
   Using the shape DSL:
@@ -516,12 +516,12 @@ defmodule Axon do
         {:axis, n} ->
           shape = hd(shapes)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         {:axis, n, [input: k]} ->
           shape = Enum.at(shapes, k)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         n when is_integer(n) ->
           n
@@ -844,7 +844,7 @@ defmodule Axon do
   defp recur_restructure(structure, args_tuple) do
     Nx.Container.traverse(structure, :ok, fn value, :ok ->
       case value do
-        idx when is_integer(idx) -> {elem(args_tuple, idx), :ok}
+        idx when is_integer(idx) -> {Kernel.elem(args_tuple, idx), :ok}
         container -> recur_restructure(container, args_tuple)
       end
     end)
@@ -921,6 +921,103 @@ defmodule Axon do
     defp block_fun(unquote(i), callback) do
       fn unquote_splicing(args) -> callback.(unquote(args)) end
     end
+  end
+
+  @doc """
+  Defers construction of a subgraph until parent template shapes
+  are known at initialization time.
+
+  `Axon.deferred/2` is useful when the structure or sizing of one
+  part of the graph depends on the shape (and dtype) of another part
+  whose shape isn't statically derivable from the call site — for
+  example, decoders that mirror an encoder's input dim, projection
+  heads that match a backbone's hidden size, or adapter layers that
+  wrap an opaque inner model.
+
+  ## Single-parent form
+
+  When a single `%Axon{}` parent is passed, the factory is an arity-1
+  function receiving a `{parent, template}` tuple:
+
+      input = Axon.input("x", shape: {nil, 784})
+      encoder = Axon.dense(input, 64)
+
+      decoder =
+        Axon.deferred(encoder, fn {enc, t} ->
+          {_, in_dim} = Nx.shape(t)
+          Axon.dense(enc, in_dim)
+        end)
+
+  ## Multi-parent form
+
+  When a list of parents is passed, the factory takes one
+  `{parent, template}` tuple per parent, in the same order:
+
+      Axon.deferred([a, b], fn {a, ta}, {b, tb} ->
+        ...
+      end)
+
+  The factory's arity must equal the number of parents.
+
+  ## Semantics
+
+  The factory is invoked against the resolved parent templates when the
+  graph is traced, and must return an `%Axon{}` rooted at the `parent`
+  values it received — that is how the parent's runtime output is wired
+  into the subgraph.
+
+  The factory must be a pure function of the templates it is given: it
+  is re-invoked every time the graph is traced — by `init_fn` and by
+  `predict_fn` alike — and every invocation must agree on the subgraph
+  for parameters to line up. Do not rely on it running a fixed number
+  of times, and do not give it side effects.
+
+  How often tracing happens depends on the `Nx.Defn` compiler. Under a
+  caching compiler such as EXLA, or under `Axon.compile/4`, the graph
+  is traced once per distinct input signature. Under the default
+  evaluator it is traced on every call, so a large deferred subgraph is
+  rebuilt on every call as well.
+
+  Like blocks, deferred subgraphs prefix their parameters with the
+  deferred layer's name and a dot.
+  """
+  @doc type: :special
+  def deferred(parent_or_parents, factory)
+
+  def deferred(%Axon{} = parent, factory) when is_function(factory, 1) do
+    layer(:deferred, [parent],
+      op_name: :deferred,
+      factory: factory,
+      num_parents: 1
+    )
+  end
+
+  def deferred([_ | _] = parents, factory) when is_function(factory) do
+    expected_arity = length(parents)
+    {:arity, actual_arity} = Function.info(factory, :arity)
+
+    if actual_arity != expected_arity do
+      raise ArgumentError,
+            "Axon.deferred factory must have arity equal to the number of parents " <>
+              "(#{expected_arity}), got arity #{actual_arity}"
+    end
+
+    Enum.each(parents, fn
+      %Axon{} -> :ok
+      other -> raise ArgumentError, "expected Axon graph parent, got: #{inspect(other)}"
+    end)
+
+    layer(:deferred, parents,
+      op_name: :deferred,
+      factory: factory,
+      num_parents: expected_arity
+    )
+  end
+
+  def deferred(parent_or_parents, factory) do
+    raise ArgumentError,
+          "Axon.deferred expects an %Axon{} or non-empty list of %Axon{} parents and a factory " <>
+            "function, got: #{inspect(parent_or_parents)} and #{inspect(factory)}"
   end
 
   @doc """
@@ -2262,6 +2359,83 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a layer that extracts the element at `index` from a tuple-valued
+  container layer.
+
+  This is the counterpart to `fetch/3` for tuples. It is sugar for
+  `Axon.nx(container, &elem(&1, index))` and is the recommended way to
+  pull a single output out of a multi-output model.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container({inp1, inp2}) |> Axon.elem(0)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def elem(%Axon{} = x, index, opts \\ []) when is_integer(index) and index >= 0 do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Kernel.elem(input, index) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :elem
+    )
+  end
+
+  @doc """
+  Adds a layer that fetches the value at `key` from a map-valued
+  container layer.
+
+  This is the counterpart to `elem/3` for maps. It is sugar for
+  `Axon.nx(container, &Map.fetch!(&1, key))`.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container(%{a: inp1, b: inp2}) |> Axon.fetch(:a)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def fetch(%Axon{} = x, key, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Map.fetch!(input, key) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :fetch
+    )
+  end
+
+  @doc """
   Adds a flatten layer to the network.
 
   This layer will flatten all but the batch dimensions
@@ -2744,10 +2918,10 @@ defmodule Axon do
       |> Axon.nx(fn {x, inp} ->
         input_rank = Nx.rank(inp)
         norm_axis = Integer.mod(axis, input_rank)
-        time_dim = elem(Nx.shape(inp), norm_axis)
+        time_dim = Kernel.elem(Nx.shape(inp), norm_axis)
 
         deep_new(x, fn leaf ->
-          if Nx.rank(leaf) == input_rank and elem(Nx.shape(leaf), norm_axis) == time_dim do
+          if Nx.rank(leaf) == input_rank and Kernel.elem(Nx.shape(leaf), norm_axis) == time_dim do
             Nx.reverse(leaf, axes: [norm_axis])
           else
             leaf
@@ -2970,19 +3144,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3204,13 +3378,13 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3387,19 +3561,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )

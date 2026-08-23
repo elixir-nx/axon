@@ -41,9 +41,9 @@ defmodule Axon.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nx, github: "elixir-nx/nx", sparse: "nx", branch: "main", override: true},
-      {:exla, github: "elixir-nx/nx", sparse: "exla", branch: "main", only: :test},
-      {:torchx, github: "elixir-nx/nx", sparse: "torchx", branch: "main", only: :test},
+      {:nx, "~> 0.13.1", nx_opts()},
+      {:exla, "~> 0.13", [only: :test] ++ exla_opts()},
+      {:torchx, "~> 0.13", [only: :test] ++ torchx_opts()},
       {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
       {:kino, "~> 0.7", optional: true},
@@ -60,6 +60,32 @@ defmodule Axon.MixProject do
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url}
     ]
+  end
+
+  # TODO: back to the released Nx once buffer donation (`Nx.donatable/1`,
+  # used by `Axon.Loop.run/4`'s `:donate_state?`) is in a release.
+  defp nx_opts do
+    if path = System.get_env("AXON_NX_PATH") do
+      [path: path, override: true]
+    else
+      [github: "elixir-nx/nx", sparse: "nx", override: true]
+    end
+  end
+
+  defp exla_opts do
+    if path = System.get_env("AXON_EXLA_PATH") do
+      [path: path]
+    else
+      [github: "elixir-nx/nx", sparse: "exla", override: true]
+    end
+  end
+
+  defp torchx_opts do
+    if path = System.get_env("AXON_TORCHX_PATH") do
+      [path: path]
+    else
+      []
+    end
   end
 
   defp docs do
