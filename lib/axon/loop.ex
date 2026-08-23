@@ -320,15 +320,39 @@ defmodule Axon.Loop do
     * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
       doing mixed precision training for numerical stability. Defaults to `:identity` or
       no loss-scaling.
+
+    * `:keep_gradients?` - whether to keep the gradients computed on each
+      iteration in the step state under the `:gradients` key. The gradients
+      have the same structure as `Axon.ModelState.trainable_parameters/1`
+      and are the unscaled gradients passed to the optimizer, before any
+      optimizer transformations such as clipping. Keeping them costs an extra
+      parameter-sized buffer per iteration. Defaults to `false`.
   """
   def train_step(model, loss, optimizer, opts \\ []) do
-    opts = Keyword.validate!(opts, [:seed, loss_scale: :identity])
+    opts = Keyword.validate!(opts, [:seed, loss_scale: :identity, keep_gradients?: false])
     loss_scale = opts[:loss_scale] || :identity
+    keep_gradients? = opts[:keep_gradients?]
 
-    {init_model_fn, forward_model_fn} = build_model_fns(model, :train, opts)
+    {init_model_fn, forward_model_fn} =
+      build_model_fns(model, :train, Keyword.take(opts, [:seed]))
+
     loss_fn = build_loss_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
     {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
+
+    objective_fn = fn trainable_parameters, model_state, loss_scale_state, inp, tar ->
+      # hack to use trainable parameters as grad
+      model_state =
+        update_in(model_state, [Access.key!(:data)], fn data ->
+          tree_merge(data, trainable_parameters, fn _, _, v -> v end)
+        end)
+
+      model_out = forward_model_fn.(model_state, inp)
+      unscaled_loss = loss_fn.(tar, model_out.prediction)
+      scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
+
+      {model_out, scaled_loss, unscaled_loss}
+    end
 
     init_fn = fn
       {inp, tar}, %{} = init_model_state ->
@@ -344,7 +368,7 @@ defmodule Axon.Loop do
         # is never referenced by the returned state and never lowered.
         %{prediction: output} = forward_model_fn.(model_state, inp)
 
-        %{
+        step_state = %{
           i: Nx.tensor(0),
           y_true: zeros_like(tar),
           y_pred: zeros_like(output),
@@ -354,22 +378,29 @@ defmodule Axon.Loop do
           loss_scale_state: loss_scale_state
         }
 
+        if keep_gradients? do
+          # Same trick as the prediction above: trace the backward pass to
+          # learn the shape and type of the gradients the step will produce.
+          # The gradient type is not always the parameter type (the backward
+          # pass is seeded with an f32 constant and loss scales unscale with
+          # an f32 scalar), and the template must match the step output
+          # exactly for the loop to compile. Only the template is kept, the
+          # traced expression is never lowered.
+          {_, gradients} =
+            Nx.Defn.value_and_grad(
+              trainable_parameters,
+              &objective_fn.(&1, model_state, loss_scale_state, inp, tar),
+              fn x -> elem(x, 1) end
+            )
+
+          {gradients, _} = unscale_grads.(gradients, loss_scale_state)
+          Map.put(step_state, :gradients, zeros_like(gradients))
+        else
+          step_state
+        end
+
       data, state ->
         raise_bad_training_inputs!(data, state)
-    end
-
-    objective_fn = fn trainable_parameters, model_state, loss_scale_state, inp, tar ->
-      # hack to use trainable parameters as grad
-      model_state =
-        update_in(model_state, [Access.key!(:data)], fn data ->
-          tree_merge(data, trainable_parameters, fn _, _, v -> v end)
-        end)
-
-      model_out = forward_model_fn.(model_state, inp)
-      unscaled_loss = loss_fn.(tar, model_out.prediction)
-      scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
-
-      {model_out, scaled_loss, unscaled_loss}
     end
 
     step_fn = fn
@@ -409,7 +440,7 @@ defmodule Axon.Loop do
 
         new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
 
-        %{
+        new_state = %{
           state
           | i: Nx.add(i, 1),
             y_true: tar,
@@ -419,6 +450,12 @@ defmodule Axon.Loop do
             optimizer_state: new_optimizer_state,
             loss_scale_state: new_loss_scale_state
         }
+
+        if keep_gradients? do
+          %{new_state | gradients: gradients}
+        else
+          new_state
+        end
 
       data, state ->
         raise_bad_training_inputs!(data, state)
@@ -591,7 +628,8 @@ defmodule Axon.Loop do
         y_true: tensor() | container(tensor()), # True labels for use in metrics
         loss: tensor(), # Running average of loss over epoch
         model_state: container(tensor()), # Model parameters and state
-        optimizer_state: container(tensor()) # Optimizer state associated with each parameter
+        optimizer_state: container(tensor()), # Optimizer state associated with each parameter
+        gradients: container(tensor()) # Gradients of the last batch, only when keep_gradients?: true
       }
 
   `Axon.Loop.run/4` returns the final `%Axon.Loop.State{}`, so you can extract the
@@ -637,6 +675,28 @@ defmodule Axon.Loop do
       |> Axon.Loop.trainer(loss_weights, :sgd)
       |> Axon.Loop.run(data)
 
+  ### Inspecting gradients
+
+  With `keep_gradients?: true` the gradients of each batch are kept in the
+  step state under `:gradients`, so metrics and event handlers can read them.
+  Note the metric transform is the list `[:gradients]`, which passes the
+  gradient container as the single argument to the metric function:
+
+      grad_norm = fn grads ->
+        grads
+        |> Nx.Defn.Composite.reduce(Nx.tensor(0.0), fn g, acc -> Nx.add(acc, Nx.sum(Nx.pow(g, 2))) end)
+        |> Nx.sqrt()
+      end
+
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :adam, keep_gradients?: true)
+      |> Axon.Loop.metric(grad_norm, "gradient norm", :running_average, [:gradients])
+      |> Axon.Loop.handle_event(:iteration_completed, fn state ->
+        IO.inspect(state.step_state.gradients["dense_0"]["kernel"], label: "kernel gradient")
+        {:continue, state}
+      end)
+      |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5)
+
   ## Options
 
     * `:log` - training loss and metric log interval. Set to 0 to silence
@@ -649,13 +709,20 @@ defmodule Axon.Loop do
     * `:loss_scale` - type of loss-scaling to use, if any. Loss-scaling is necessary when
       doing mixed precision training for numerical stability. Defaults to `:identity` or
       no loss-scaling.
+
+    * `:keep_gradients?` - whether to keep the gradients computed on each
+      iteration in the step state under the `:gradients` key. The gradients
+      have the same structure as `Axon.ModelState.trainable_parameters/1`
+      and are the unscaled gradients passed to the optimizer, before any
+      optimizer transformations such as clipping. Keeping them costs an extra
+      parameter-sized buffer per iteration. Defaults to `false`.
   """
   def trainer(model, loss, optimizer, opts \\ []) do
-    opts = Keyword.validate!(opts, [:seed, :loss_scale, log: 50])
+    opts = Keyword.validate!(opts, [:seed, :loss_scale, :keep_gradients?, log: 50])
 
     # Build loss now so we can use it as a metric
     loss_fn = build_loss_fn(loss)
-    step_opts = Keyword.take(opts, [:loss_scale, :seed])
+    step_opts = Keyword.take(opts, [:loss_scale, :seed, :keep_gradients?])
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
