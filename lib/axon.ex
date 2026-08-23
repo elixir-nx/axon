@@ -19,6 +19,10 @@ defmodule Axon do
 
   Notice you can specify some dimensions as `nil`, indicating
   that the dimension size will be filled in at model runtime.
+  Inputs may also declare axis names with the `:names` option
+  (as in `Nx.tensor/2`), which are applied to the input tensor
+  when the model runs and propagate through subsequent layers.
+  Axes produced by layers can be named with `Axon.rename/3`.
   You can then compose inputs with other layers:
 
       model =
@@ -616,30 +620,83 @@ defmodule Axon do
     * `:shape` - the expected input shape, use `nil` for dimensions
       of a dynamic size.
 
+    * `:names` - axis names for the input, as in `Nx.tensor/2`. When
+      given, the input tensor is renamed with `Nx.rename/2` when the
+      model runs, so subsequent layers and custom layers can refer to
+      axes by name. Must have one entry (an atom or `nil`) per dimension.
+      If the incoming tensor already carries a different non-nil name
+      for an axis, an error is raised. Only supported for inputs with
+      a tensor shape (not containers).
+
     * `:optional` - if `true`, the input may be omitted when using
       the model. This needs to be handled in one of the subsequent
       layers. See `optional/2` for more details.
+
+  ## Examples
+
+  Axis names declared on an input propagate through the layers
+  built on top of it. Axes produced by a layer can be named with
+  `rename/3`:
+
+      Axon.input("features", shape: {nil, 784}, names: [:batch, :pixels])
+      |> Axon.dense(128)
+      |> Axon.rename([:batch, :hidden])
+
+  Custom layers can then refer to axes by name:
+
+      input = Axon.input("features", shape: {nil, 784}, names: [:batch, :pixels])
+      Axon.layer(fn x, _opts -> Nx.sum(x, axes: [:pixels]) end, [input])
 
   """
   @doc type: :special
   def input(name, opts \\ [])
 
   def input(name, opts) when is_binary(name) and is_list(opts) do
-    opts = Keyword.validate!(opts, [:shape, :meta, optional: false])
+    opts = Keyword.validate!(opts, [:shape, :names, :meta, optional: false])
     optional = opts[:optional]
     meta = opts[:meta]
 
     input_shape = opts[:shape]
 
     output_shape = input_shape && Axon.Shape.input(input_shape)
+    names = validate_input_names!(opts[:names], output_shape)
 
     layer(:input, [],
       name: name,
       shape: output_shape,
+      names: names,
       meta: meta,
       op_name: :input,
       optional: optional
     )
+  end
+
+  defp validate_input_names!(nil, _shape), do: nil
+
+  defp validate_input_names!(names, shape) do
+    validate_names!(names)
+
+    cond do
+      is_nil(shape) ->
+        names
+
+      Axon.Shape.tensor_shape?(shape) ->
+        Nx.Shape.named_axes!(names, shape)
+
+      true ->
+        raise ArgumentError,
+              "the :names option is only supported for inputs with a tensor shape," <>
+                " got shape: #{inspect(shape)}"
+    end
+  end
+
+  defp validate_names!(names) do
+    if is_list(names) and Enum.all?(names, &is_atom/1) do
+      names
+    else
+      raise ArgumentError,
+            "invalid input names #{inspect(names)}, names must be a list of atoms or nil"
+    end
   end
 
   @doc """
@@ -2579,6 +2636,38 @@ defmodule Axon do
       meta: opts[:meta],
       shape: new_shape,
       op_name: :reshape
+    )
+  end
+
+  @doc """
+  Adds a rename layer to the network.
+
+  This layer renames the axes of its input using `Nx.rename/2`.
+  `names` must contain one entry (an atom or `nil`) per input axis.
+  It is useful for naming axes produced by a layer, such as the
+  feature axis of a dense layer:
+
+      Axon.input("features", shape: {nil, 784}, names: [:batch, :pixels])
+      |> Axon.dense(128)
+      |> Axon.rename([:batch, :hidden])
+
+  See the `:names` option of `input/2` for declaring names on inputs.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  """
+  @doc type: :shape
+  def rename(%Axon{} = x, names, opts \\ []) when is_list(names) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+    names = validate_names!(names)
+
+    layer(:rename, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      names: names,
+      op_name: :rename
     )
   end
 

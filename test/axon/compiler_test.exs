@@ -143,6 +143,118 @@ defmodule CompilerTest do
 
       assert Exception.message(exception) =~ "ambiguous"
     end
+
+    test "applies names to an unnamed input tensor" do
+      model = Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+      input = Nx.iota({2, 8}, type: :f32)
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert ModelState.empty() == init_fn.(input, ModelState.empty())
+
+      result = predict_fn.(ModelState.empty(), input)
+      assert Nx.names(result) == [:batch, :features]
+      assert_equal(result, input)
+    end
+
+    test "names flow into the init template and downstream layers" do
+      model =
+        Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+        |> Axon.dense(4)
+
+      template = Nx.template({2, 8}, :f32)
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"dense_0" => %{"kernel" => kernel}}} =
+               init_fn.(template, ModelState.empty())
+
+      assert Nx.shape(kernel) == {8, 4}
+      assert Nx.names(Axon.get_output_shape(model, template)) == [:batch, nil]
+    end
+
+    test "names are usable from custom layers" do
+      input = Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+      model = Axon.layer(fn x, _opts -> Nx.sum(x, axes: [:features]) end, [input])
+      x = Nx.iota({2, 8}, type: :f32)
+
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      result = predict_fn.(ModelState.empty(), x)
+      assert Nx.names(result) == [:batch]
+      assert_equal(result, Nx.sum(x, axes: [1]))
+    end
+
+    test "accepts input tensors with matching or partial names" do
+      model = Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      named = Nx.iota({2, 8}, type: :f32, names: [:batch, :features])
+      assert Nx.names(predict_fn.(ModelState.empty(), named)) == [:batch, :features]
+
+      partial = Nx.iota({2, 8}, type: :f32, names: [nil, :features])
+      assert Nx.names(predict_fn.(ModelState.empty(), partial)) == [:batch, :features]
+    end
+
+    test "raises on input tensors with conflicting names" do
+      model = Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      assert_raise ArgumentError, ~r/expected axis names \[:batch, :features\]/, fn ->
+        predict_fn.(ModelState.empty(), Nx.iota({2, 8}, type: :f32, names: [:n, :d]))
+      end
+    end
+
+    test "raises on input tensors with a different rank than the names" do
+      model = Axon.input("x", names: [:batch, :features])
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      assert_raise ArgumentError, ~r/invalid names for tensor of rank 3/, fn ->
+        predict_fn.(ModelState.empty(), Nx.iota({2, 8, 1}, type: :f32))
+      end
+    end
+
+    test "raises on container values given to a named input" do
+      model = Axon.input("x", names: [:batch, :features])
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      assert_raise ArgumentError, ~r/must receive a tensor/, fn ->
+        predict_fn.(ModelState.empty(), {Nx.iota({2, 8}), Nx.iota({2, 8})})
+      end
+    end
+
+    test "names on an omitted optional input resolve to none" do
+      input = Axon.input("mask", optional: true, names: [:batch, :seq])
+
+      model =
+        Axon.layer(
+          fn
+            %Axon.None{}, _ -> Nx.tensor(0)
+            %Nx.Tensor{} = x, _ -> Nx.sum(x, axes: [:seq])
+          end,
+          [Axon.optional(input)]
+        )
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert init_fn.(%{}, ModelState.empty()) == ModelState.empty()
+      assert_equal(predict_fn.(ModelState.empty(), %{}), Nx.tensor(0))
+
+      x = Nx.iota({2, 3}, type: :f32)
+      assert_equal(predict_fn.(ModelState.empty(), %{"mask" => x}), Nx.sum(x, axes: [1]))
+    end
+
+    test "only renames inputs which declare names" do
+      x = Axon.input("x", shape: {nil, 2}, names: [:batch, :features])
+      y = Axon.input("y", shape: {nil, 2})
+      model = Axon.container({x, y})
+
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      inputs = %{"x" => Nx.iota({1, 2}, type: :f32), "y" => Nx.iota({1, 2}, type: :f32)}
+      {out_x, out_y} = predict_fn.(ModelState.empty(), inputs)
+
+      assert Nx.names(out_x) == [:batch, :features]
+      assert Nx.names(out_y) == [nil, nil]
+    end
   end
 
   describe "optional" do
@@ -3198,6 +3310,52 @@ defmodule CompilerTest do
 
       assert {init_fn, predict_fn} = Axon.build(mp_model)
       assert Nx.type(predict_fn.(init_fn.(input, ModelState.empty()), input)) == {:bf, 16}
+    end
+  end
+
+  describe "rename" do
+    test "initializes with no params" do
+      model = Axon.input("input", shape: {nil, 8}) |> Axon.rename([:batch, :features])
+      input = random({1, 8})
+
+      assert {init_fn, _predict_fn} = Axon.build(model)
+      assert ModelState.empty() == init_fn.(input, ModelState.empty())
+    end
+
+    test "computes forward pass and names axes" do
+      model = Axon.input("input", shape: {nil, 8}) |> Axon.dense(4)
+      renamed = Axon.rename(model, [:batch, :hidden])
+      input = random({2, 8})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+      assert {_, renamed_predict_fn} = Axon.build(renamed)
+
+      params = init_fn.(input, ModelState.empty())
+      expected = predict_fn.(params, input)
+      result = renamed_predict_fn.(params, input)
+
+      assert Nx.names(result) == [:batch, :hidden]
+      assert_equal(result, expected)
+    end
+
+    test "names are usable from subsequent custom layers" do
+      renamed = Axon.input("input", shape: {nil, 8}) |> Axon.rename([:batch, :features])
+      model = Axon.layer(fn x, _opts -> Nx.sum(x, axes: [:features]) end, [renamed])
+
+      input = Nx.iota({2, 8}, type: :f32)
+
+      assert {_init_fn, predict_fn} = Axon.build(model)
+      assert_equal(predict_fn.(ModelState.empty(), input), Nx.sum(input, axes: [1]))
+    end
+
+    test "raises on names with wrong rank" do
+      model = Axon.input("input") |> Axon.rename([:batch, :features])
+
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      assert_raise Axon.CompileError, ~r/invalid names for tensor of rank 3/, fn ->
+        predict_fn.(ModelState.empty(), random({1, 2, 3}))
+      end
     end
   end
 

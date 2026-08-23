@@ -484,18 +484,24 @@ defmodule Axon.Compiler do
            op: :input,
            hooks: hooks,
            name: name_fn,
-           opts: [shape: _input_shape, optional: optional?]
+           opts: input_opts
          },
          nodes,
          {cache, op_counts, block_cache, model_state_meta},
          %{mode: mode, print_values: print_values}
        ) do
+    optional? = Keyword.fetch!(input_opts, :optional)
+    # Use Keyword.get so models built before :names existed still compile
+    names = Keyword.get(input_opts, :names)
     name = name_fn.(:input, op_counts)
     op_counts = Map.update(op_counts, :input, 1, fn x -> x + 1 end)
     all_inputs = get_all_inputs(nodes)
 
     predict_fun = fn _params, inputs, state, _cache, result_cache, _fn_stacktrace ->
-      value = get_input(all_inputs, inputs, name, optional?)
+      value =
+        all_inputs
+        |> get_input(inputs, name, optional?)
+        |> rename_input(name, names)
 
       # TODO: Add this back in
       # validate_input_shape!(value, shape)
@@ -510,7 +516,11 @@ defmodule Axon.Compiler do
     end
 
     init_fun = fn template, _cache, result_cache, _fn_stacktrace, _keys ->
-      input = get_input(all_inputs, template, name, optional?)
+      input =
+        all_inputs
+        |> get_input(template, name, optional?)
+        |> rename_input(name, names)
+
       {Nx.to_template(input), {%{}, result_cache}}
     end
 
@@ -961,6 +971,39 @@ defmodule Axon.Compiler do
       name_fn.(:input, %{})
     end)
     |> Enum.uniq()
+  end
+
+  defp rename_input(value, _name, nil), do: value
+  defp rename_input(%Axon.None{} = none, _name, _names), do: none
+
+  defp rename_input(%Nx.Tensor{} = tensor, name, names) do
+    actual = Nx.names(tensor)
+
+    if length(actual) == length(names) do
+      actual
+      |> Enum.zip(names)
+      |> Enum.each(fn
+        {nil, _} ->
+          :ok
+
+        {same, same} ->
+          :ok
+
+        {_, _} ->
+          raise ArgumentError,
+                "input #{inspect(name)} expected axis names #{inspect(names)}," <>
+                  " but received a tensor with names #{inspect(actual)}"
+      end)
+    end
+
+    # raises Nx's rank mismatch error when the lengths differ
+    Nx.rename(tensor, names)
+  end
+
+  defp rename_input(other, name, _names) do
+    raise ArgumentError,
+          "input #{inspect(name)} declares axis names, so it must receive" <>
+            " a tensor, got: #{inspect(other)}"
   end
 
   defp get_input(all_input_names, inputs, name, optional?) do

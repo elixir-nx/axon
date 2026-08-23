@@ -9,6 +9,50 @@ defmodule AxonTest do
       assert %Axon{output: id, nodes: nodes} = Axon.input("input", shape: {32, 1, 28, 28})
       assert %Axon.Node{op: :input, parent: []} = nodes[id]
     end
+
+    test "works with names" do
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+
+      assert %Axon.Node{op: :input, opts: opts} = nodes[id]
+      assert opts[:shape] == {nil, 8}
+      assert opts[:names] == [:batch, :features]
+    end
+
+    test "works with names and no shape" do
+      assert %Axon{output: id, nodes: nodes} = Axon.input("x", names: [:batch, :features])
+      assert %Axon.Node{op: :input, opts: opts} = nodes[id]
+      assert opts[:shape] == nil
+      assert opts[:names] == [:batch, :features]
+    end
+
+    test "names default to nil" do
+      assert %Axon{output: id, nodes: nodes} = Axon.input("x", shape: {nil, 8})
+      assert %Axon.Node{op: :input, opts: opts} = nodes[id]
+      assert opts[:names] == nil
+    end
+
+    test "raises on names with wrong rank" do
+      assert_raise ArgumentError, ~r/invalid names for tensor of rank 2/, fn ->
+        Axon.input("x", shape: {nil, 8}, names: [:batch])
+      end
+    end
+
+    test "raises on invalid names" do
+      assert_raise ArgumentError, ~r/names must be a list of atoms or nil/, fn ->
+        Axon.input("x", shape: {nil, 8}, names: ["batch", :features])
+      end
+
+      assert_raise ArgumentError, ~r/names must be a list of atoms or nil/, fn ->
+        Axon.input("x", shape: {nil, 8}, names: :batch)
+      end
+    end
+
+    test "raises on names with container shape" do
+      assert_raise ArgumentError, ~r/only supported for inputs with a tensor shape/, fn ->
+        Axon.input("x", shape: %{a: {nil, 2}}, names: [:batch, :x])
+      end
+    end
   end
 
   describe "constant" do
@@ -780,6 +824,22 @@ defmodule AxonTest do
                |> Axon.transpose([2, 1, 0])
 
       assert %Axon.Node{} = nodes[id]
+    end
+  end
+
+  describe "rename" do
+    test "works with batch input" do
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.input("x", shape: {nil, 8}) |> Axon.rename([:batch, :hidden])
+
+      assert %Axon.Node{op: :rename, op_name: :rename, opts: [names: [:batch, :hidden]]} =
+               nodes[id]
+    end
+
+    test "raises on invalid names" do
+      assert_raise ArgumentError, ~r/names must be a list of atoms or nil/, fn ->
+        Axon.input("x", shape: {nil, 8}) |> Axon.rename([:batch, "hidden"])
+      end
     end
   end
 
