@@ -547,7 +547,11 @@ defmodule Axon do
 
   You may specify the parameter shape as either a static shape or
   as function of the inputs to the given layer. If you specify the
-  parameter shape as a function, it will be given the
+  parameter shape as a function, it will be given the shape of each
+  `Axon` input of the layer as a separate argument, in the order the
+  inputs are passed to `Axon.layer/3`, and must return the parameter
+  shape as a tuple. A layer with two `Axon` inputs must therefore use
+  an arity-2 function.
 
   ## Options
 

@@ -427,7 +427,7 @@ Axon.predict(model, trained_state, %{"tokens" => words})
 Everything above composes with the rest of Axon:
 
 * To stack recurrent layers, feed `sequence` into another `SimpleRNN.simple_rnn/3` with the same `mask`.
-* `Axon.bidirectional/4` runs a layer forward and backward over the sequence and merges the results; it works with any function that takes and returns an `Axon` node, including `simple_rnn/3`.
+* `Axon.bidirectional/4` runs a layer forward and backward over the sequence and merges the results. It works with any function that takes and returns `Axon` nodes, so `Axon.bidirectional(sequence, &SimpleRNN.simple_rnn(&1, 32), &Nx.concatenate([&1, &2], axis: -1))` gives a bidirectional RNN. The function runs inside an `Axon.block/2`, which cannot see nodes from the surrounding graph, so `mask` cannot be passed to it; the backward pass sees the reversed sequence, and the mask would have to be reversed as well.
 * A richer cell only needs a richer carry. An LSTM-style cell would carry `{cell, hidden}` and take maps of per-gate weights as `input_kernel`, `recurrent_kernel` and `bias`; the unroll passes them through untouched.
 * A cell is a plain `defn`, so it can call any `Nx` or `Axon.Layers` function, including normalization, dropout, or attention. What it cannot do is call `Axon.layer/3` or other graph-building functions, since the whole scan runs inside a single layer of the graph.
 
