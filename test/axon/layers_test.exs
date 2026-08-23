@@ -1700,6 +1700,165 @@ defmodule Axon.LayersTest do
         grad_dynamic_bias_carry(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
       )
     end
+
+    # Recurrent-kernel grads used to disagree: older Nx chained while
+    # body VJPs in forward time order. Nx #1785 applies them last-to-first,
+    # so a plain while is enough. These tests lock that in.
+    defn grad_static_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {output, _} =
+          Axon.Layers.static_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
+
+        Nx.sum(Nx.sin(output))
+      end)
+    end
+
+    defn grad_dynamic_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      grad(hidden_kernel, fn x ->
+        {output, _} =
+          Axon.Layers.dynamic_unroll(cell_fn, input, carry, Nx.tensor(0), input_kernel, x, bias)
+
+        Nx.sum(Nx.sin(output))
+      end)
+    end
+
+    defn dynamic_recurrent_loss(input, carry, input_kernel, hidden_kernel, bias, cell_fn) do
+      {output, _} =
+        Axon.Layers.dynamic_unroll(
+          cell_fn,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
+
+      Nx.sum(Nx.sin(output))
+    end
+
+    defp gru_params do
+      key = Nx.Random.key(42)
+      {input, key} = Nx.Random.normal(key, shape: {2, 6, 3})
+      {c, key} = Nx.Random.normal(key, shape: {2, 4})
+
+      {kernels, key} =
+        Enum.map_reduce(~w(wir wiz win), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {3, 4})
+          {{name, t}, key}
+        end)
+
+      {hidden, key} =
+        Enum.map_reduce(~w(whr whz whn), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {4, 4})
+          {{name, t}, key}
+        end)
+
+      {bias, _key} =
+        Enum.map_reduce(~w(br bz bin bhn), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {4})
+          {{name, t}, key}
+        end)
+
+      {input, {c}, Map.new(kernels), Map.new(hidden), Map.new(bias)}
+    end
+
+    test "computes recurrent kernel gradient identical to static unroll for GRU" do
+      {input, carry, input_kernel, hidden_kernel, bias} = gru_params()
+      cell_fn = &Axon.Layers.gru_cell/6
+
+      assert_all_close(
+        grad_static_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn),
+        atol: 1.0e-5
+      )
+    end
+
+    test "computes recurrent kernel gradient identical to static unroll for LSTM" do
+      key = Nx.Random.key(7)
+      {input, key} = Nx.Random.normal(key, shape: {2, 6, 3})
+      {c, key} = Nx.Random.normal(key, shape: {2, 4})
+      {h, key} = Nx.Random.normal(key, shape: {2, 4})
+
+      {input_kernel, key} =
+        Enum.map_reduce(~w(wii wif wig wio), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {3, 4})
+          {{name, t}, key}
+        end)
+
+      {hidden_kernel, key} =
+        Enum.map_reduce(~w(whi whf whg who), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {4, 4})
+          {{name, t}, key}
+        end)
+
+      {bias, _key} =
+        Enum.map_reduce(~w(bi bf bg bo), key, fn name, key ->
+          {t, key} = Nx.Random.normal(key, shape: {4})
+          {{name, t}, key}
+        end)
+
+      input_kernel = Map.new(input_kernel)
+      hidden_kernel = Map.new(hidden_kernel)
+      bias = Map.new(bias)
+      cell_fn = &Axon.Layers.lstm_cell/6
+
+      assert_all_close(
+        grad_static_recurrent(input, {c, h}, input_kernel, hidden_kernel, bias, cell_fn),
+        grad_dynamic_recurrent(input, {c, h}, input_kernel, hidden_kernel, bias, cell_fn),
+        atol: 1.0e-5
+      )
+    end
+
+    test "recurrent kernel gradient matches central finite differences" do
+      {input, carry, input_kernel, hidden_kernel, bias} = gru_params()
+      cell_fn = &Axon.Layers.gru_cell/6
+
+      analytic =
+        grad_dynamic_recurrent(input, carry, input_kernel, hidden_kernel, bias, cell_fn)
+
+      eps = 1.0e-3
+
+      bump = fn delta ->
+        whn = hidden_kernel["whn"]
+        value = Nx.add(whn[0][0], delta)
+        bumped = Nx.indexed_put(whn, Nx.tensor([[0, 0]]), Nx.reshape(value, {1}))
+        Map.put(hidden_kernel, "whn", bumped)
+      end
+
+      up = dynamic_recurrent_loss(input, carry, input_kernel, bump.(eps), bias, cell_fn)
+      down = dynamic_recurrent_loss(input, carry, input_kernel, bump.(-eps), bias, cell_fn)
+      numerical = Nx.divide(Nx.subtract(up, down), 2 * eps)
+
+      assert_all_close(analytic["whn"][0][0], numerical, atol: 1.0e-3)
+    end
+
+    test "preserves the input type through the loop" do
+      input = Nx.iota({2, 4, 2}, type: {:f, 64})
+      carry = {Nx.iota({2, 8}, type: {:f, 64})}
+
+      input_kernel =
+        Map.new(~w(wir wiz win), &{&1, Nx.iota({2, 8}, type: {:f, 64})})
+
+      hidden_kernel =
+        Map.new(~w(whr whz whn), &{&1, Nx.iota({8, 8}, type: {:f, 64})})
+
+      bias =
+        Map.new(~w(br bz bin bhn), &{&1, Nx.iota({}, type: {:f, 64})})
+
+      {output, _} =
+        Axon.Layers.dynamic_unroll(
+          &Axon.Layers.gru_cell/6,
+          input,
+          carry,
+          Nx.tensor(0),
+          input_kernel,
+          hidden_kernel,
+          bias
+        )
+
+      assert Nx.type(output) == {:f, 64}
+    end
   end
 
   describe "group_norm" do
