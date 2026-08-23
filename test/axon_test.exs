@@ -954,4 +954,135 @@ defmodule AxonTest do
       assert %Axon.None{} = Axon.get_output_shape(model, %{"values" => Nx.template({1, 1}, :f32)})
     end
   end
+
+  describe "namespace" do
+    defp init_param_keys(model) do
+      {init_fn, _predict_fn} = Axon.build(model)
+      state = init_fn.(%{"input" => Nx.template({1, 4}, :f32)}, Axon.ModelState.empty())
+      state.data |> Map.keys() |> Enum.sort()
+    end
+
+    test "single namespace prefixes leaf names" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      model =
+        Axon.namespace("attention", fn ->
+          input
+          |> Axon.dense(8, name: "q_proj")
+          |> Axon.dense(8, name: "out_proj")
+        end)
+
+      assert init_param_keys(model) == ["attention.out_proj", "attention.q_proj"]
+    end
+
+    test "pipe form threads an input into an arity-1 closure" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      model =
+        Axon.namespace(input, "ffn", fn x ->
+          x
+          |> Axon.dense(8, name: "up_proj")
+          |> Axon.dense(4, name: "down_proj")
+        end)
+
+      assert init_param_keys(model) == ["ffn.down_proj", "ffn.up_proj"]
+    end
+
+    test "nested namespaces stack with a dot separator" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      model =
+        Axon.namespace("outer", fn ->
+          Axon.namespace("inner", fn ->
+            Axon.dense(input, 8, name: "proj")
+          end)
+        end)
+
+      assert init_param_keys(model) == ["outer.inner.proj"]
+    end
+
+    test "layers from outer scope are not renamed" do
+      input = Axon.input("input", shape: {nil, 4})
+      preprocessed = Axon.dense(input, 4, name: "preprocess")
+
+      model =
+        Axon.namespace(preprocessed, "head", fn x ->
+          Axon.dense(x, 1, name: "logits")
+        end)
+
+      assert init_param_keys(model) == ["head.logits", "preprocess"]
+    end
+
+    test "auto-generated leaf names are also prefixed" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      model =
+        Axon.namespace("block", fn ->
+          input
+          |> Axon.dense(8)
+          |> Axon.dense(8)
+        end)
+
+      keys = init_param_keys(model)
+      assert Enum.all?(keys, &String.starts_with?(&1, "block."))
+      assert length(keys) == 2
+    end
+
+    test "namespace introduces no extra graph node" do
+      input = Axon.input("input", shape: {nil, 4})
+      bare = Axon.dense(input, 8, name: "proj")
+      wrapped = Axon.namespace("ns", fn -> Axon.dense(input, 8, name: "proj") end)
+
+      bare_ops = Axon.get_op_counts(bare)
+      wrapped_ops = Axon.get_op_counts(wrapped)
+
+      assert bare_ops == wrapped_ops
+      refute Map.has_key?(wrapped_ops, :namespace)
+      refute Map.has_key?(wrapped_ops, :block)
+    end
+
+    test "predict produces the same numerical output as the bare form" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      bare = Axon.dense(input, 8, name: "proj")
+      wrapped = Axon.namespace("ns", fn -> Axon.dense(input, 8, name: "proj") end)
+
+      {init_bare, predict_bare} = Axon.build(bare)
+      {init_wrapped, predict_wrapped} = Axon.build(wrapped)
+
+      template = %{"input" => Nx.template({1, 4}, :f32)}
+      state_bare = init_bare.(template, Axon.ModelState.empty())
+      state_wrapped = init_wrapped.(template, Axon.ModelState.empty())
+
+      # Same fan-in shape => identical default initializer values for the
+      # kernel and bias, just stored under different paths. Patch the
+      # wrapped state's params over from the bare state so we compare
+      # apples to apples on the prediction side.
+      patched =
+        update_in(state_wrapped.data, fn _ ->
+          %{"ns.proj" => state_bare.data["proj"]}
+        end)
+
+      inputs = %{"input" => Nx.tensor([[1.0, 2.0, 3.0, 4.0]])}
+      assert_all_close(predict_bare.(state_bare, inputs), predict_wrapped.(patched, inputs))
+    end
+
+    test "raises when the closure does not return an Axon graph" do
+      assert_raise ArgumentError, ~r/expected the closure to return an %Axon{}/, fn ->
+        Axon.namespace("oops", fn -> :not_an_axon end)
+      end
+    end
+
+    test "raises when the pipe form's closure has the wrong arity" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      # Applied dynamically so the compiler's type checker does not flag the
+      # deliberately mismatched arity at compile time.
+      args = [input, "ns", fn -> Axon.dense(input, 8) end]
+
+      assert_raise FunctionClauseError, fn ->
+        apply(Axon, :namespace, args)
+      end
+    end
+  end
 end
