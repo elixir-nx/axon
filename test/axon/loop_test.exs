@@ -117,7 +117,8 @@ defmodule Axon.LoopTest do
       assert %{model_state: %{}} =
                pstate =
                init_fn.(
-                 {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])}, Nx.tensor(0)},
+                 {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])},
+                  {Nx.tensor([[0]]), Nx.tensor([[0]])}},
                  Axon.ModelState.empty()
                )
 
@@ -288,6 +289,170 @@ defmodule Axon.LoopTest do
 
       assert_all_close(state.model_state.data["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
       assert_all_close(state.model_state.data["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
+    end
+
+    test "train_step/3 accepts an objective function" do
+      model = objective_model()
+      {x, y} = objective_batch()
+
+      # Two forward passes plus a penalty read straight from the model state,
+      # none of which a loss function could express
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+        %{prediction: y_pred_scaled} = forward_fn.(model_state, Nx.multiply(inp, 2))
+
+        penalty = model_state.data["dense_1"]["kernel"] |> Nx.pow(2) |> Nx.sum()
+
+        loss =
+          Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean)
+          |> Nx.add(Axon.Losses.mean_squared_error(tar, y_pred_scaled, reduction: :mean))
+          |> Nx.add(Nx.multiply(1.0e-3, penalty))
+
+        {loss, out}
+      end
+
+      {init_fn, step_fn} =
+        Axon.Loop.train_step(model, objective, Polaris.Optimizers.adam(learning_rate: 0.01))
+
+      state = init_fn.({x, y}, Axon.ModelState.empty())
+
+      assert %{
+               i: i,
+               y_true: y_true,
+               y_pred: y_pred,
+               loss: loss,
+               model_state: %Axon.ModelState{},
+               optimizer_state: _,
+               loss_scale_state: _
+             } = state
+
+      assert_equal(i, Nx.tensor(0))
+      assert Nx.shape(y_true) == {2, 1}
+      assert Nx.shape(y_pred) == {2, 1}
+      assert_equal(loss, Nx.tensor(0.0))
+
+      first = step_fn.({x, y}, state)
+      last = Enum.reduce(1..4, first, fn _, state -> step_fn.({x, y}, state) end)
+
+      assert_equal(last.i, Nx.tensor(5))
+      assert Nx.shape(last.y_pred) == {2, 1}
+      assert Nx.to_number(last.loss) < Nx.to_number(first.loss)
+    end
+
+    for loss_scale <- [:identity, :dynamic] do
+      test "train_step/3 with an objective matches the equivalent loss with #{loss_scale} loss scale" do
+        model = objective_model()
+        {x, y} = objective_batch()
+        loss_scale = unquote(loss_scale)
+
+        objective = fn forward_fn, model_state, inp, tar ->
+          %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+          {Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean), out}
+        end
+
+        {model_init_fn, _} = Axon.build(model)
+        initial_state = model_init_fn.(x, Axon.ModelState.empty())
+
+        run = fn loss ->
+          {init_fn, step_fn} =
+            Axon.Loop.train_step(model, loss, Polaris.Optimizers.adam(learning_rate: 0.01),
+              loss_scale: loss_scale
+            )
+
+          state = init_fn.({x, y}, initial_state)
+          Enum.reduce(1..3, state, fn _, state -> step_fn.({x, y}, state) end)
+        end
+
+        from_loss = run.(:mean_squared_error)
+        from_objective = run.(objective)
+
+        assert_all_close(from_objective.model_state.data, from_loss.model_state.data)
+        assert_all_close(from_objective.loss, from_loss.loss)
+        assert_equal(from_objective.loss_scale_state, from_loss.loss_scale_state)
+      end
+    end
+
+    test "train_step/3 objective receives the training-mode forward function" do
+      val = Nx.broadcast(1, {1, 8})
+
+      model = Axon.constant(val) |> Axon.batch_norm(name: "batch_norm")
+
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+        {Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean), out}
+      end
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, objective, :adam)
+
+      state = init_fn.({val, val}, Axon.ModelState.empty())
+      state = step_fn.({val, val}, state)
+
+      assert_all_close(state.model_state.data["batch_norm"]["mean"], Nx.broadcast(0.9, {8}))
+      assert_all_close(state.model_state.data["batch_norm"]["var"], Nx.broadcast(0.1, {8}))
+    end
+
+    test "train_step/3 raises when an objective does not return {loss, output}" do
+      model = objective_model()
+      {x, y} = objective_batch()
+
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = forward_fn.(model_state, inp)
+        Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean)
+      end
+
+      {init_fn, _step_fn} = Axon.Loop.train_step(model, objective, :sgd)
+
+      assert_raise ArgumentError, ~r/objective function must return a 2-tuple/, fn ->
+        init_fn.({x, y}, Axon.ModelState.empty())
+      end
+    end
+
+    test "train_step/3 leaves frozen parameters unchanged with an objective" do
+      model = objective_model()
+      {x, y} = objective_batch()
+
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+        {Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean), out}
+      end
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, objective, :sgd)
+      {init_optimizer_fn, _} = Polaris.Optimizers.sgd()
+
+      state = init_fn.({x, y}, Axon.ModelState.empty())
+
+      model_state =
+        Axon.ModelState.freeze(state.model_state, fn [layer | _] -> layer == "dense_0" end)
+
+      optimizer_state = init_optimizer_fn.(Axon.ModelState.trainable_parameters(model_state))
+      state = %{state | model_state: model_state, optimizer_state: optimizer_state}
+
+      trained = Enum.reduce(1..2, state, fn _, state -> step_fn.({x, y}, state) end)
+
+      assert_equal(trained.model_state.data["dense_0"], model_state.data["dense_0"])
+
+      assert_not_equal(
+        trained.model_state.data["dense_1"]["kernel"],
+        model_state.data["dense_1"]["kernel"]
+      )
+    end
+  end
+
+  defp objective_model do
+    Axon.input("input", shape: {nil, 4})
+    |> Axon.dense(8, name: "dense_0")
+    |> Axon.dense(1, name: "dense_1")
+  end
+
+  defp objective_batch do
+    x = Nx.iota({2, 4}, type: :f32) |> Nx.divide(10)
+    {x, Nx.sum(x, axes: [1], keep_axes: true)}
+  end
+
+  defp objective_data do
+    for i <- 1..4 do
+      x = Nx.iota({2, 4}, type: :f32) |> Nx.add(i) |> Nx.divide(10)
+      {x, Nx.sum(x, axes: [1], keep_axes: true)}
     end
   end
 
@@ -473,6 +638,47 @@ defmodule Axon.LoopTest do
         model
         |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
         |> Axon.Loop.run(data, %{})
+      end
+    end
+
+    test "trainer/3 accepts an objective function" do
+      model = objective_model()
+      data = objective_data()
+
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+        penalty = model_state.data["dense_0"]["kernel"] |> Nx.pow(2) |> Nx.sum()
+        loss = Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean)
+        {Nx.add(loss, Nx.multiply(1.0e-3, penalty)), out}
+      end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        result =
+          model
+          |> Axon.Loop.trainer(objective, :sgd)
+          |> Axon.Loop.metric(:mean_absolute_error)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2)
+
+        send(self(), {:result, result})
+      end)
+
+      assert_receive {:result, result}
+
+      assert %Axon.Loop.State{
+               metrics: %{1 => %{"loss" => loss, "mean_absolute_error" => _}},
+               step_state: %{model_state: %Axon.ModelState{}}
+             } = result
+
+      assert Nx.shape(loss) == {}
+      assert Nx.type(loss) == {:f, 32}
+      assert is_float(Nx.to_number(loss))
+    end
+
+    test "trainer/3 rejects a function which is neither a loss nor an objective" do
+      model = objective_model()
+
+      assert_raise ArgumentError, ~r/arity-4 objective function/, fn ->
+        Axon.Loop.trainer(model, fn _, _, _ -> Nx.tensor(0.0) end, :sgd)
       end
     end
   end
@@ -845,7 +1051,7 @@ defmodule Axon.LoopTest do
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
-      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor(1)}, Axon.ModelState.empty())
+      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1, 0]])}, Axon.ModelState.empty())
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
@@ -1037,6 +1243,29 @@ defmodule Axon.LoopTest do
           fn %{epoch: epoch}, _ -> epoch == 1 end
         )
         |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
+      end)
+    end
+
+    test "skips the loss of a loop trained with an objective" do
+      model = objective_model()
+      data = objective_data()
+
+      objective = fn forward_fn, model_state, inp, tar ->
+        %{prediction: y_pred} = out = forward_fn.(model_state, inp)
+        {Axon.Losses.mean_squared_error(tar, y_pred, reduction: :mean), out}
+      end
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(objective, :sgd)
+        |> Axon.Loop.metric(:mean_absolute_error)
+        |> Axon.Loop.validate(model, data)
+        |> Axon.Loop.handle_event(:epoch_completed, fn %{metrics: metrics} = state ->
+          assert Map.has_key?(metrics, "validation_mean_absolute_error")
+          refute Map.has_key?(metrics, "validation_loss")
+          {:continue, state}
+        end)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2)
       end)
     end
   end

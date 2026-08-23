@@ -299,8 +299,9 @@ defmodule Axon.Loop do
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
-  for multi-output models, or an arity-2 function representing a custom loss
-  function.
+  for multi-output models, an arity-2 function representing a custom loss
+  function, or an arity-4 objective function. See the section on objective
+  functions below.
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
@@ -310,6 +311,65 @@ defmodule Axon.Loop do
   The `update_fn` returns `{scaled_updates, optimizer_state}`, which can then be applied to
   the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
   See `Polaris.Updates` for more information on building optimizers.
+
+  ## Objective functions
+
+  A loss function only sees the targets and the prediction of a single forward
+  pass. When the quantity you want to minimize needs more than that, such as
+  several forward passes of the same model, a penalty on the parameters, or a
+  contrastive objective, pass an objective function instead of a loss. An
+  objective is an arity-4 function of the form:
+
+      objective(forward_fn, model_state, inputs, targets) :: {loss, output}
+
+  where:
+
+    * `forward_fn` is the model's forward function in training mode, the
+      same function `Axon.build/2` returns with `mode: :train` (or the
+      `apply_fn` of a `{init_fn, apply_fn}` model). You never need to build
+      the model yourself.
+
+    * `model_state` is the `%Axon.ModelState{}` being trained. The step
+      differentiates `loss` with respect to it, so any parameter you read
+      from `model_state.data` inside the objective is differentiated too.
+      Frozen parameters are excluded from the update.
+
+    * `inputs` and `targets` are the current batch.
+
+    * `loss` must be a scalar tensor. It is the unscaled loss; the step
+      applies loss scaling around the objective.
+
+    * `output` must be a map with `:prediction` and `:state` keys, exactly
+      what `forward_fn` returns in training mode. `:prediction` becomes
+      `y_pred` in the step state for metrics and `:state` is the updated
+      state of stateful layers such as batch normalization. When the
+      objective runs the model more than once, return whichever output you
+      want to be treated as the prediction.
+
+  The common case is therefore `{loss, forward_fn.(model_state, inputs)}`.
+  For example, an objective which adds an L2 penalty on a kernel to the loss:
+
+      objective = fn forward_fn, model_state, inputs, targets ->
+        %{prediction: y_pred} = output = forward_fn.(model_state, inputs)
+        penalty = model_state.data["dense_0"]["kernel"] |> Nx.pow(2) |> Nx.sum()
+        loss = Axon.Losses.mean_squared_error(targets, y_pred, reduction: :mean)
+        {Nx.add(loss, Nx.multiply(1.0e-3, penalty)), output}
+      end
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, objective, :sgd)
+
+  Or one which runs the model twice and compares the two predictions:
+
+      objective = fn forward_fn, model_state, {anchor, positive}, _targets ->
+        %{prediction: anchor_embedding} = output = forward_fn.(model_state, anchor)
+        %{prediction: positive_embedding} = forward_fn.(model_state, positive)
+        loss = Nx.mean(Nx.pow(Nx.subtract(anchor_embedding, positive_embedding), 2))
+        {loss, output}
+      end
+
+  Objectives run inside the compiled step, so anonymous objectives must use
+  `Nx` functions on tensors (`Nx.add/2` rather than `+`), or be written as
+  `defn` functions.
 
   ## Options
 
@@ -326,7 +386,7 @@ defmodule Axon.Loop do
     loss_scale = opts[:loss_scale] || :identity
 
     {init_model_fn, forward_model_fn} = build_model_fns(model, :train, opts)
-    loss_fn = build_loss_fn(loss)
+    objective_fn = build_objective_fn(loss)
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
     {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
 
@@ -338,11 +398,12 @@ defmodule Axon.Loop do
         optimizer_state = init_optimizer_fn.(trainable_parameters)
         loss_scale_state = init_loss_scale.()
 
-        # This traces the forward pass to learn the shape and type of the
+        # This traces the objective to learn the shape and type of the
         # prediction, it does not compute it. zeros_like/1 reads only the
-        # shape and type off the traced tensors, so the forward expression
+        # shape and type off the traced tensors, so the objective expression
         # is never referenced by the returned state and never lowered.
-        %{prediction: output} = forward_model_fn.(model_state, inp)
+        {_loss, %{prediction: output}} =
+          run_objective!(objective_fn, forward_model_fn, model_state, inp, tar)
 
         %{
           i: Nx.tensor(0),
@@ -358,20 +419,6 @@ defmodule Axon.Loop do
         raise_bad_training_inputs!(data, state)
     end
 
-    objective_fn = fn trainable_parameters, model_state, loss_scale_state, inp, tar ->
-      # hack to use trainable parameters as grad
-      model_state =
-        update_in(model_state, [Access.key!(:data)], fn data ->
-          tree_merge(data, trainable_parameters, fn _, _, v -> v end)
-        end)
-
-      model_out = forward_model_fn.(model_state, inp)
-      unscaled_loss = loss_fn.(tar, model_out.prediction)
-      scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
-
-      {model_out, scaled_loss, unscaled_loss}
-    end
-
     step_fn = fn
       {inp, tar}, %{} = state ->
         %{
@@ -382,14 +429,24 @@ defmodule Axon.Loop do
           loss: loss
         } = state
 
-        trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
-
-        {{model_out, _batch_scaled_loss, batch_loss}, gradients} =
+        # The loss is differentiated with respect to the whole model state,
+        # so the objective can read any parameter straight from it. The
+        # gradients of frozen parameters and layer state are never used and
+        # are eliminated by the compiler.
+        {{_batch_scaled_loss, batch_loss, model_out}, gradients} =
           Nx.Defn.value_and_grad(
-            trainable_parameters,
-            &objective_fn.(&1, model_state, loss_scale_state, inp, tar),
-            fn x -> elem(x, 1) end
+            model_state,
+            fn model_state ->
+              {loss, output} =
+                run_objective!(objective_fn, forward_model_fn, model_state, inp, tar)
+
+              {scale_loss.(loss, loss_scale_state), loss, output}
+            end,
+            &elem(&1, 0)
           )
+
+        trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
+        gradients = Axon.ModelState.trainable_parameters(gradients)
 
         {gradients, new_loss_scale_state} =
           unscale_grads.(gradients, loss_scale_state)
@@ -430,25 +487,20 @@ defmodule Axon.Loop do
     }
   end
 
-  defp tree_merge(lhs, rhs, fun) do
-    Enum.reduce(lhs, %{}, fn {key, val_lhs}, acc ->
-      case Map.get(rhs, key) do
-        nil ->
-          Map.put(acc, key, val_lhs)
+  # Runs the objective and checks its return value. This runs while the
+  # step is traced, so a bad objective raises once, before compilation.
+  defp run_objective!(objective_fn, forward_fn, model_state, inputs, targets) do
+    case objective_fn.(forward_fn, model_state, inputs, targets) do
+      {loss, %{prediction: _, state: _} = output} ->
+        {loss, output}
 
-        %Nx.Tensor{} = val_rhs ->
-          new_val = fun.(key, val_lhs, val_rhs)
-          Map.put(acc, key, new_val)
-
-        val_rhs when is_map(val_lhs) and is_map(val_rhs) ->
-          updated_val = tree_merge(val_lhs, val_rhs, fun)
-          Map.put(acc, key, updated_val)
-
-        val_rhs ->
-          new_val = fun.(key, val_lhs, val_rhs)
-          Map.put(acc, key, new_val)
-      end
-    end)
+      other ->
+        raise ArgumentError,
+              "objective function must return a 2-tuple of {loss, output} where" <>
+                " output is a map with :prediction and :state keys, such as the map" <>
+                " returned by the model's forward function in training mode, got: " <>
+                inspect(other)
+    end
   end
 
   defp raise_bad_training_inputs!(data, state) do
@@ -573,8 +625,10 @@ defmodule Axon.Loop do
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
-  for multi-output models, or an arity-2 function representing a custom loss
-  function.
+  for multi-output models, an arity-2 function representing a custom loss
+  function, or an arity-4 objective function of the form
+  `objective(forward_fn, model_state, inputs, targets) :: {loss, output}`.
+  See `train_step/4` for the objective function contract.
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
@@ -637,6 +691,29 @@ defmodule Axon.Loop do
       |> Axon.Loop.trainer(loss_weights, :sgd)
       |> Axon.Loop.run(data)
 
+  ### Custom objective
+
+  When the loss depends on more than the targets and a single prediction,
+  pass an objective function. It receives the training-mode forward
+  function and the model state and returns the loss along with the forward
+  output to use as the prediction:
+
+      objective = fn forward_fn, model_state, inputs, targets ->
+        %{prediction: y_pred} = output = forward_fn.(model_state, inputs)
+        penalty = model_state.data["dense_0"]["kernel"] |> Nx.pow(2) |> Nx.sum()
+        loss = Axon.Losses.mean_squared_error(targets, y_pred, reduction: :mean)
+        {Nx.add(loss, Nx.multiply(1.0e-3, penalty)), output}
+      end
+
+      model
+      |> Axon.Loop.trainer(objective, :sgd)
+      |> Axon.Loop.run(data)
+
+  The `loss` metric of a loop built from an objective is the running
+  average of the objective's loss kept by the training step. Because it
+  cannot be recomputed from `y_true` and `y_pred` alone, it is not carried
+  over to the evaluator by `validate/4`.
+
   ## Options
 
     * `:log` - training loss and metric log interval. Set to 0 to silence
@@ -652,18 +729,29 @@ defmodule Axon.Loop do
   """
   def trainer(model, loss, optimizer, opts \\ []) do
     opts = Keyword.validate!(opts, [:seed, :loss_scale, log: 50])
-
-    # Build loss now so we can use it as a metric
-    loss_fn = build_loss_fn(loss)
     step_opts = Keyword.take(opts, [:loss_scale, :seed])
-    {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
-
     log_interval = opts[:log] || 50
 
     loop =
-      step_fn
-      |> loop(init_fn)
-      |> metric(loss_fn, "loss")
+      case loss do
+        objective when is_function(objective, 4) ->
+          {init_fn, step_fn} = train_step(model, objective, optimizer, step_opts)
+
+          # The objective's loss is only known inside the training step, so
+          # the metric reads the running average the step keeps in its state
+          step_fn
+          |> loop(init_fn)
+          |> metric(&Function.identity/1, "loss", :running_average, [:loss])
+
+        loss ->
+          # Build loss now so we can use it as a metric
+          loss_fn = build_loss_fn(loss)
+          {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
+
+          step_fn
+          |> loop(init_fn)
+          |> metric(loss_fn, "loss")
+      end
 
     if log_interval > 0 do
       loop
@@ -990,6 +1078,12 @@ defmodule Axon.Loop do
 
   only `:mean_absolute_error` will be computed at validation time.
 
+  Metrics are attached to the evaluator with the default `[:y_true, :y_pred]`
+  transform, so only metrics given as an atom or as an arity-2 function
+  carry over. In particular, the `loss` of a loop built from an objective
+  function (see `trainer/4`) is tracked during training only and is not
+  reported as `validation_loss`.
+
   The returned loop state is altered to contain validation
   metrics for use in later handlers such as early stopping and model
   checkpoints. Since the order of execution of event handlers is in
@@ -1020,8 +1114,13 @@ defmodule Axon.Loop do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
+      # Only metrics which accept the default [:y_true, :y_pred] transform
+      # can be recomputed by the evaluator
       %State{metrics: %{0 => validation_metrics}} =
-        Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
+        Enum.reduce(metric_fns, evaluator, fn
+          {k, {_, v}}, loop when is_atom(v) or is_function(v, 2) -> metric(loop, v, k)
+          {_k, _}, loop -> loop
+        end)
         |> run(validation_data, model_state)
 
       metrics =
@@ -2110,8 +2209,25 @@ defmodule Axon.Loop do
         raise ArgumentError,
               "Invalid loss function #{inspect(invalid)}, a valid loss" <>
                 " function is an atom which matches a function in Axon.Losses," <>
-                " an arity-2 function of the form loss(y_true, y_pred), or a list" <>
-                " of 2-tuples of {loss, weight} for multi-objective models"
+                " an arity-2 function of the form loss(y_true, y_pred), a list" <>
+                " of 2-tuples of {loss, weight} for multi-objective models, or" <>
+                " an arity-4 objective function of the form" <>
+                " objective(forward_fn, model_state, inputs, targets)"
+    end
+  end
+
+  # Builds an objective function from either an objective of the form
+  # objective(forward_fn, model_state, inputs, targets) :: {loss, output}
+  # or anything build_loss_fn/1 accepts, in which case the objective runs
+  # the forward pass once and applies the loss to its prediction.
+  defp build_objective_fn(objective) when is_function(objective, 4), do: objective
+
+  defp build_objective_fn(loss) do
+    loss_fn = build_loss_fn(loss)
+
+    fn forward_fn, model_state, inputs, targets ->
+      %{prediction: prediction} = output = forward_fn.(model_state, inputs)
+      {loss_fn.(targets, prediction), output}
     end
   end
 

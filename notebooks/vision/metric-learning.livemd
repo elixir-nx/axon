@@ -175,7 +175,7 @@ defmodule KinoAxon do
 
     handler = fn state ->
       %Axon.Loop.State{epoch: epoch, iteration: _iter, step_state: step_state} = state
-      Kino.VegaLite.push_many(vl_widget, [%{epoch: epoch, loss: Nx.to_number(step_state[:epoch_avg_loss]), dataset: "train"}])
+      Kino.VegaLite.push_many(vl_widget, [%{epoch: epoch, loss: Nx.to_number(step_state.loss), dataset: "train"}])
       {:continue, state}
     end
 
@@ -186,93 +186,58 @@ end
 
 ### Embedding Model
 
-We wrap our model in a custom train_step that does three things each batch:
+We train the model with an objective function which does three things each batch:
 
 * Embed both anchors and positives through the network.
 * Score them by taking dot products (our raw “how-similar?” numbers).
 * Compute a softmax cross-entropy loss over those scores—using temperature scaling to sharpen or soften the comparison.
 
-The training loop then uses that loss to nudge parameters, pulling same-class vectors together and pushing others apart, one batch at a time.
+`Axon.Loop.trainer/3` accepts an objective function anywhere it accepts a loss. The objective receives the model's training-mode forward function, the model state, the batch inputs and the batch targets, and returns the loss along with the forward output to use as the prediction. The training loop then uses that loss to nudge parameters, pulling same-class vectors together and pushing others apart, one batch at a time.
 
 ```elixir
 defmodule MetricLearning do
   import Nx.Defn
-  require Logger
 
-  defn objective_fn(predict_fn, params, {anchor, positive}) do
-    %{prediction: anchor_embeddings} = predict_fn.(params, %{"input" => anchor})
+  defn objective_fn(predict_fn, params, inputs, labels) do
+    %{"input" => anchor, "positive" => positive} = inputs
+
+    %{prediction: anchor_embeddings, state: state} = predict_fn.(params, %{"input" => anchor})
     %{prediction: positive_embeddings} = predict_fn.(params, %{"input" => positive})
 
     similarities = Nx.dot(anchor_embeddings, [1], positive_embeddings, [1])
     temperature = 0.2
     similarities = similarities / temperature
-    sparse_labels = Nx.iota({10})
 
-    Axon.Losses.categorical_cross_entropy(sparse_labels, similarities,
-      reduction: :mean,
-      sparse: true,
-      from_logits: true
-    )
+    loss =
+      Axon.Losses.categorical_cross_entropy(labels, similarities,
+        reduction: :mean,
+        sparse: true,
+        from_logits: true
+      )
+
+    # The similarities become y_pred in the loop state and the labels y_true
+    {loss, %{prediction: similarities, state: state}}
   end
 
-  defn batch_step(predict_fn, optim, {anchor, positive}, state) do
-    # Compute gradient of objective defined above
-    {loss, gradients} =
-      value_and_grad(state.model_state, &objective_fn(predict_fn, &1, {anchor, positive}))
+  def run(train_images, class_idx_to_train_idxs) do
+    model = MetricModel.build_model()
 
-    {updates, new_optimizer_state} = optim.(gradients, state.optimizer_state, state.model_state)
-    new_params = Polaris.Updates.apply_updates(state.model_state, updates)
-    
-    %{
-      state
-      | model_state: new_params,
-        optimizer_state: new_optimizer_state,
-        epoch_loss: state[:epoch_loss] + loss,
-        epoch_count: state[:epoch_count] + 1,
-        epoch_avg_loss: (state[:epoch_loss] + loss) / (state[:epoch_count] + 1)
-    }
-  end
-
-  def init(template, init_fn, init_optim) do
-    model_state = init_fn.(template, Axon.ModelState.empty())
-
-    %{
-      model_state: model_state,
-      optimizer_state: init_optim.(model_state),
-      epoch_loss: Nx.tensor(0.0),
-      epoch_count: Nx.tensor(0),
-      epoch_avg_loss: Nx.tensor(0.0)
-    }
-  end
-
-   def run(train_images, class_idx_to_train_idxs) do
-
-    {optim_init_fn, optim_update_fn} = Polaris.Optimizers.adam()
-    {init_fn, predict_fn} = Axon.build(MetricModel.build_model(), mode: :train, debug: false)
-
-    step = &batch_step(predict_fn, optim_update_fn, &1, &2)
-    init = fn {template, _}, _state -> init(%{"input" => template}, init_fn, optim_init_fn) end
-
-    training_data = Stream.repeatedly(fn ->
-      GetImages.batch(train_images, class_idx_to_train_idxs)
-    end)
+    training_data =
+      Stream.repeatedly(fn ->
+        {anchors, positives} = GetImages.batch(train_images, class_idx_to_train_idxs)
+        {%{"input" => anchors, "positive" => positives}, Nx.iota({10})}
+      end)
 
     final_state =
-      Axon.Loop.loop(step, init)
-      |> Axon.Loop.log(
-        fn %Axon.Loop.State{epoch: epoch, step_state: state} ->
-          loss_str = :io_lib.format(~c"~.4f", [Nx.to_number(state[:epoch_avg_loss])])
-          "\rEpoch: #{epoch}, Loss: #{loss_str}\n"
-        end,
-        event: :epoch_completed
-      )
+      model
+      |> Axon.Loop.trainer(&objective_fn/4, :adam)
       |> KinoAxon.plot_losses()
       |> Axon.Loop.run(training_data, %{}, iterations: 1000, epochs: 20, compiler: EXLA)
 
+    {_init_fn, predict_fn} = Axon.build(model, mode: :train)
+
     {final_state, predict_fn}
-
   end
-
 end
 
 {final_state, predict_fn} = MetricLearning.run(train_images, class_idx_to_train_idxs)

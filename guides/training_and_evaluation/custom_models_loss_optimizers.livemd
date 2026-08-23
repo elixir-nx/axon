@@ -341,6 +341,70 @@ Epoch: 0, Batch: 1000, loss: 0.1098235
 }
 ```
 
+## Using custom objectives in training loops
+
+A loss function only ever sees the targets and the prediction of a single forward pass. Some training objectives need more than that: contrastive and metric-learning objectives run the model on several inputs and compare the embeddings, regularized objectives add a penalty computed from the parameters, and some objectives are only meaningful when you can see the whole model state. Rather than re-implementing the training step for these cases, `Axon.Loop.trainer/3` and `Axon.Loop.train_step/3` accept an objective function anywhere they accept a loss. An objective is an arity-4 function which matches the following spec:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+objective(
+  forward_fn :: (model_state, inputs -> %{prediction: term, state: term}),
+  model_state :: Axon.ModelState.t(),
+  inputs :: tensor | container(tensor),
+  targets :: tensor | container(tensor)
+) :: {loss :: scalar, %{prediction: term, state: term}}
+```
+
+`forward_fn` is the model's forward function in training mode, so you never have to build the model yourself or remember to pass `mode: :train`. `model_state` is the state being trained; the training step differentiates the returned loss with respect to it, which means any parameter you read from `model_state.data` inside the objective is differentiated too. The objective returns the unscaled loss along with the forward output to use as the prediction. The output must be a map with `:prediction` and `:state` keys, which is exactly what `forward_fn` returns, so the common case is `{loss, forward_fn.(model_state, inputs)}`. `:prediction` becomes `y_pred` in the step state for metrics and `:state` is the updated state of stateful layers such as batch normalization. When the objective runs the model more than once, return whichever output you want to treat as the prediction.
+
+For example, the following objective adds an L2 penalty on the kernel of the first layer to a mean squared error loss:
+
+```elixir
+train_data =
+  Stream.repeatedly(fn ->
+    xs = Nx.random_normal({8, 1})
+    ys = Nx.sin(xs)
+    {xs, ys}
+  end)
+
+model =
+  Axon.input("data")
+  |> Axon.dense(8, name: "dense_0")
+  |> Axon.relu()
+  |> Axon.dense(1, name: "dense_1")
+
+objective = fn forward_fn, model_state, inputs, targets ->
+  %{prediction: y_pred} = output = forward_fn.(model_state, inputs)
+
+  penalty = model_state.data["dense_0"]["kernel"] |> Nx.pow(2) |> Nx.sum()
+  loss = Axon.Losses.mean_squared_error(targets, y_pred, reduction: :mean)
+
+  {Nx.add(loss, Nx.multiply(1.0e-3, penalty)), output}
+end
+
+model
+|> Axon.Loop.trainer(objective, :sgd)
+|> Axon.Loop.run(train_data, %{}, iterations: 1000)
+```
+
+Objectives run inside the compiled training step, so an anonymous objective must use `Nx` functions on tensors (`Nx.add/2` rather than `+`), or you can write it as a `defn` and pass `&MyModule.objective/4`. Here is an objective which runs the model twice and pulls the embeddings of two views of the same input together:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+objective = fn forward_fn, model_state, {anchor, positive}, _targets ->
+  %{prediction: anchor_embedding} = output = forward_fn.(model_state, anchor)
+  %{prediction: positive_embedding} = forward_fn.(model_state, positive)
+
+  loss = Nx.mean(Nx.pow(Nx.subtract(anchor_embedding, positive_embedding), 2))
+
+  {loss, output}
+end
+```
+
+The `loss` reported by a loop built from an objective is the running average of the objective's loss kept by the training step. Because it cannot be recomputed from `y_true` and `y_pred` alone, `Axon.Loop.validate/4` does not report a `validation_loss` for these loops; metrics given as an atom or an arity-2 function, such as `:mean_absolute_error`, are still validated as usual.
+
 ## Using custom optimizers in training loops
 
 As you might expect, it's also possible to customize the optimizer passed to `Axon.Loop.trainer/3`. If you read the `Polaris.Updates` documentation, you'll learn that optimizers are actually represented as the tuple `{init_fn, update_fn}` where `init_fn` initializes optimizer state from model state and `update_fn` scales gradients from optimizer state, gradients, and model state.
