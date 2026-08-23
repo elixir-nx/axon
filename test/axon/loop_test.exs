@@ -430,6 +430,35 @@ defmodule Axon.LoopTest do
       assert_all_close(run.(:identity), run.(:dynamic))
     end
 
+    test "train_step/4 init template matches the gradient type under mixed precision" do
+      # The backward pass yields f32 gradients for bf16 parameters, so the
+      # template cannot simply be zeros of the parameter type.
+      policy =
+        Axon.MixedPrecision.create_policy(
+          params: {:bf, 16},
+          compute: {:bf, 16},
+          output: {:bf, 16}
+        )
+
+      model = Axon.MixedPrecision.apply_policy(gradients_model(), policy)
+      {x, y} = gradients_batch()
+      batch = {Nx.as_type(x, :bf16), Nx.as_type(y, :bf16)}
+
+      for loss_scale <- [:identity, :static, :dynamic] do
+        {init_fn, step_fn} =
+          Axon.Loop.train_step(model, :mean_squared_error, :sgd,
+            keep_gradients?: true,
+            loss_scale: loss_scale
+          )
+
+        state = init_fn.(batch, Axon.ModelState.empty())
+        assert Nx.type(state.model_state.data["dense"]["kernel"]) == {:bf, 16}
+
+        new_state = step_fn.(batch, state)
+        assert_same_template(state.gradients, new_state.gradients)
+      end
+    end
+
     test "trainer/4 exposes gradients to metrics and handlers" do
       model = gradients_model()
       data = List.duplicate(gradients_batch(), 4)
