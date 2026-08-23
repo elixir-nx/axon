@@ -359,6 +359,10 @@ defmodule Axon.PruningTest do
           " in Polaris.Optimizers or a tuple of {init_fn, update_fn}"
 
       assert_raise ArgumentError, message, fn -> Pruning.masked_optimizer(:nope, %{}) end
+
+      assert_raise ArgumentError, ~r/invalid optimizer :module_info/, fn ->
+        Pruning.masked_optimizer(:module_info, %{})
+      end
     end
   end
 end

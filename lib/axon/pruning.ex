@@ -287,7 +287,7 @@ defmodule Axon.Pruning do
 
   defp optimizer_fns(optimizer) when is_atom(optimizer) do
     if Code.ensure_loaded?(Polaris.Optimizers) and
-         function_exported?(Polaris.Optimizers, optimizer, 0) do
+         {optimizer, 0} in Polaris.Optimizers.__info__(:functions) do
       apply(Polaris.Optimizers, optimizer, [])
     else
       invalid_optimizer!(optimizer)
