@@ -311,6 +311,13 @@ defmodule Axon.Loop do
   the model through `model_parameters = Axon.Update.apply_updates(model_parameters, scaled_updates)`.
   See `Polaris.Updates` for more information on building optimizers.
 
+  The step state is initialized in the types a step produces from it: the loss
+  accumulator takes the type of the loss, and optimizer state which an optimizer
+  initializes in f32 but updates in a wider type (for example Adam moments with
+  f64 parameters) starts in that wider type. This keeps the step state a fixed
+  point in shape and type, which `run/4` relies on when it compiles the step
+  function.
+
   ## Options
 
     * `:seed` - seed to use when constructing models. Seed controls random initialization
@@ -330,34 +337,6 @@ defmodule Axon.Loop do
     {init_optimizer_fn, update_optimizer_fn} = build_optimizer_fns(optimizer)
     {init_loss_scale, scale_loss, unscale_grads} = build_loss_scale_fns(loss_scale)
 
-    init_fn = fn
-      {inp, tar}, %{} = init_model_state ->
-        model_state = init_model_fn.(inp, init_model_state)
-        trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
-
-        optimizer_state = init_optimizer_fn.(trainable_parameters)
-        loss_scale_state = init_loss_scale.()
-
-        # This traces the forward pass to learn the shape and type of the
-        # prediction, it does not compute it. zeros_like/1 reads only the
-        # shape and type off the traced tensors, so the forward expression
-        # is never referenced by the returned state and never lowered.
-        %{prediction: output} = forward_model_fn.(model_state, inp)
-
-        %{
-          i: Nx.tensor(0),
-          y_true: zeros_like(tar),
-          y_pred: zeros_like(output),
-          loss: Nx.tensor(0.0),
-          model_state: model_state,
-          optimizer_state: optimizer_state,
-          loss_scale_state: loss_scale_state
-        }
-
-      data, state ->
-        raise_bad_training_inputs!(data, state)
-    end
-
     objective_fn = fn trainable_parameters, model_state, loss_scale_state, inp, tar ->
       # hack to use trainable parameters as grad
       model_state =
@@ -372,62 +351,116 @@ defmodule Axon.Loop do
       {model_out, scaled_loss, unscaled_loss}
     end
 
-    step_fn = fn
-      {inp, tar}, %{} = state ->
-        %{
-          i: i,
-          loss_scale_state: loss_scale_state,
-          model_state: model_state,
-          optimizer_state: optimizer_state,
-          loss: loss
-        } = state
+    step_body = fn {inp, tar}, state ->
+      %{
+        i: i,
+        loss_scale_state: loss_scale_state,
+        model_state: model_state,
+        optimizer_state: optimizer_state,
+        loss: loss
+      } = state
 
+      trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
+
+      {{model_out, _batch_scaled_loss, batch_loss}, gradients} =
+        Nx.Defn.value_and_grad(
+          trainable_parameters,
+          &objective_fn.(&1, model_state, loss_scale_state, inp, tar),
+          fn x -> elem(x, 1) end
+        )
+
+      {gradients, new_loss_scale_state} =
+        unscale_grads.(gradients, loss_scale_state)
+
+      {updates, new_optimizer_state} =
+        update_optimizer_fn.(gradients, optimizer_state, trainable_parameters)
+
+      updated_parameters = Polaris.Updates.apply_updates(trainable_parameters, updates)
+
+      %{prediction: preds, state: updated_state} = model_out
+
+      new_loss =
+        loss
+        |> Nx.multiply(i)
+        |> Nx.add(batch_loss)
+        |> Nx.divide(Nx.add(i, 1))
+
+      new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
+
+      %{
+        state
+        | i: Nx.add(i, 1),
+          y_true: tar,
+          y_pred: preds,
+          loss: new_loss,
+          model_state: new_model_state,
+          optimizer_state: new_optimizer_state,
+          loss_scale_state: new_loss_scale_state
+      }
+    end
+
+    init_fn = fn
+      {inp, tar}, %{} = init_model_state ->
+        model_state = init_model_fn.(inp, init_model_state)
         trainable_parameters = Axon.ModelState.trainable_parameters(model_state)
 
-        {{model_out, _batch_scaled_loss, batch_loss}, gradients} =
-          Nx.Defn.value_and_grad(
-            trainable_parameters,
-            &objective_fn.(&1, model_state, loss_scale_state, inp, tar),
-            fn x -> elem(x, 1) end
-          )
+        optimizer_state = init_optimizer_fn.(trainable_parameters)
+        loss_scale_state = init_loss_scale.()
 
-        {gradients, new_loss_scale_state} =
-          unscale_grads.(gradients, loss_scale_state)
+        # This traces the forward pass to learn the shape and type of the
+        # prediction, it does not compute it. zeros_like/1 reads only the
+        # shape and type off the traced tensors, so the forward expression
+        # is never referenced by the returned state and never lowered.
+        %{prediction: output} = forward_model_fn.(model_state, inp)
 
-        {updates, new_optimizer_state} =
-          update_optimizer_fn.(gradients, optimizer_state, trainable_parameters)
-
-        updated_parameters = Polaris.Updates.apply_updates(trainable_parameters, updates)
-
-        %{prediction: preds, state: updated_state} = model_out
-
-        new_loss =
-          loss
-          |> Nx.multiply(i)
-          |> Nx.add(batch_loss)
-          |> Nx.divide(Nx.add(i, 1))
-
-        new_model_state = Axon.ModelState.update(model_state, updated_parameters, updated_state)
-
-        %{
-          state
-          | i: Nx.add(i, 1),
-            y_true: tar,
-            y_pred: preds,
-            loss: new_loss,
-            model_state: new_model_state,
-            optimizer_state: new_optimizer_state,
-            loss_scale_state: new_loss_scale_state
+        state = %{
+          i: Nx.tensor(0),
+          y_true: zeros_like(tar),
+          y_pred: zeros_like(output),
+          loss: Nx.tensor(0.0),
+          model_state: model_state,
+          optimizer_state: optimizer_state,
+          loss_scale_state: loss_scale_state
         }
+
+        # The loop compiles the step against this state as a template, so the
+        # step must return it with the same shapes and types. Nothing here can
+        # know those types up front: the loss takes the type of the model
+        # output and targets, and optimizers initialize their state in f32
+        # whatever the parameter type (Polaris does), which then promotes on
+        # the first update with f64 gradients. Tracing one step reads the
+        # types the step actually produces; like the forward pass above, the
+        # traced step is never referenced by the returned state and never
+        # lowered.
+        cast_like(state, step_body.({inp, tar}, state))
 
       data, state ->
         raise_bad_training_inputs!(data, state)
+    end
+
+    step_fn = fn
+      {inp, tar}, %{} = state -> step_body.({inp, tar}, state)
+      data, state -> raise_bad_training_inputs!(data, state)
     end
 
     {
       Nx.Defn.jit(init_fn, on_conflict: :reuse),
       Nx.Defn.jit(step_fn, on_conflict: :reuse)
     }
+  end
+
+  # Casts every tensor in `container` to the type of the corresponding tensor
+  # in `like`, which must have the same structure. Only the types of `like`
+  # are read, so a traced `like` is never lowered.
+  defp cast_like(container, like) do
+    leaves = Nx.Defn.Composite.flatten_list([like])
+
+    {container, []} =
+      Nx.Defn.Composite.traverse(container, leaves, fn tensor, [leaf | rest] ->
+        {Nx.as_type(tensor, Nx.type(leaf)), rest}
+      end)
+
+    container
   end
 
   defp tree_merge(lhs, rhs, fun) do
@@ -802,7 +835,9 @@ defmodule Axon.Loop do
       |> Axon.Loop.metric(:true_negatives, "tn", :running_sum)
 
   Accumulation function can be one of the accumulation combinators in Axon.Metrics
-  or an arity-3 function of the form: `accumulate(acc, obs, i) :: new_acc`.
+  or an arity-3 function of the form: `accumulate(acc, obs, i) :: new_acc`. The
+  accumulator starts from zero in the type of the accumulated value, so a metric
+  over f64 tensors accumulates in f64.
   """
   def metric(
         %Loop{metrics: metric_fns} = loop,
@@ -1679,8 +1714,7 @@ defmodule Axon.Loop do
       Logger.debug("Axon.Loop finished initializing loop state in #{us_to_ms(time)}ms")
     end
 
-    # TODO: Can we infer here?
-    zero_metrics = Map.new(metric_fns, fn {k, _} -> {k, Nx.tensor(0, type: :f32)} end)
+    zero_metrics = init_metrics(metric_fns, loop_state.step_state, jit_compile?, jit_opts)
     final_metrics_map = loop_state.metrics
     loop_state = %{loop_state | metrics: zero_metrics}
 
@@ -2047,25 +2081,46 @@ defmodule Axon.Loop do
 
       new_metrics =
         metrics
-        |> Enum.zip_with(metric_fns, fn {k, avg}, {k, {v, _}} ->
-          # In some instances the metric is actually present in the
-          # step state e.g. in a supervised training loop when we
-          # are computing loss but it's already computed as a part
-          # of the step state, so we need to check here
-          metric = String.to_atom(k)
-
-          case pstate do
-            %{^metric => value} ->
-              {k, value}
-
-            %{} ->
-              {k, v.(avg, List.wrap(new_step_state), iter)}
-          end
+        |> Enum.zip_with(metric_fns, fn {k, acc}, {k, {v, _}} ->
+          {k, accumulate_metric(k, v, acc, pstate, new_step_state, iter)}
         end)
         |> Map.new()
 
       {new_step_state, new_metrics}
     end
+  end
+
+  # In some instances the metric is actually present in the step state,
+  # e.g. the loss in a supervised training loop, so it is read from there
+  # instead of being accumulated.
+  defp accumulate_metric(name, metric_fn, acc, pstate, new_step_state, iter) do
+    key = String.to_atom(name)
+
+    case pstate do
+      %{^key => value} -> value
+      %{} -> metric_fn.(acc, List.wrap(new_step_state), iter)
+    end
+  end
+
+  # A metric accumulates in the type of its accumulator merged with the type
+  # of the value it observes, and a metric read straight from the step state
+  # has whatever type the step gives it. The zero each accumulator starts
+  # from must already have that type or the metrics change type after the
+  # first batch and no longer match the template the batch function was
+  # compiled against. Tracing one accumulation from an f32 zero over the
+  # initial step state gives the type without computing the metric.
+  defp init_metrics(metric_fns, _step_state, _jit_compile?, _jit_opts) when metric_fns == %{},
+    do: %{}
+
+  defp init_metrics(metric_fns, step_state, jit_compile?, jit_opts) do
+    infer = fn step_state ->
+      Map.new(metric_fns, fn {name, {metric_fn, _}} ->
+        value = accumulate_metric(name, metric_fn, Nx.tensor(0.0), step_state, step_state, 0)
+        {name, zeros_like(value)}
+      end)
+    end
+
+    maybe_jit(infer, [step_state], jit_compile?, jit_opts)
   end
 
   # Builds a loss function from an atom, function, or list of. Valid loss
