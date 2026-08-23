@@ -2932,6 +2932,14 @@ defmodule Axon do
   indicate that a given token should be ignored in processing. This
   is useful when you have sequences of variable length.
 
+  The output is a `u8` tensor with the same shape as `input`, which
+  is `1` wherever `input` equals `eos_token` and `0` elsewhere. It must
+  be computed from the integer token input, before `Axon.embedding/4`
+  or any other transformation of the tokens. Pass it to `Axon.lstm/4`,
+  `Axon.gru/4` or `Axon.conv_lstm/4` through their `:mask` option, or to
+  custom layers built on `Axon.Layers.dynamic_unroll/7` and
+  `Axon.Layers.static_unroll/7`.
+
   Most commonly, `eos_token` is `0`.
 
   ## Options

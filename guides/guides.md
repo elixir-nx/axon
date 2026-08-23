@@ -9,6 +9,7 @@ Axon is a library for creating and training neural networks in Elixir. The Axon 
 * [Complex models](model_creation/complex_models.livemd)
 * [Multi-input / multi-output models](model_creation/multi_input_multi_output_models.livemd)
 * [Custom layers](model_creation/custom_layers.livemd)
+* [Custom recurrent layers](model_creation/custom_recurrent_layers.livemd)
 * [Model hooks](model_creation/model_hooks.livemd)
 
 ## Model Execution

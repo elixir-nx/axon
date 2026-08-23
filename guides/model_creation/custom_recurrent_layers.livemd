@@ -1,0 +1,434 @@
+# Custom recurrent layers
+
+```elixir
+Mix.install([
+  {:axon, "~> 0.8"}
+])
+```
+
+## Recurrent layers are scans
+
+`Axon.lstm/4`, `Axon.gru/4` and `Axon.conv_lstm/4` are conveniences. Each one is built from three smaller pieces, all of which are public and all of which you can use on their own:
+
+1. A **cell**, such as `Axon.Layers.lstm_cell/8`, which is a `defn` that processes a *single* time step. It takes the input at that step and some carried state, and returns an output and the new state.
+2. An **unroll**, either `Axon.Layers.dynamic_unroll/7` or `Axon.Layers.static_unroll/7`, which scans the cell over the time axis of a sequence, threading the state from one step to the next. It is the tensor equivalent of `Enum.map_reduce/3`.
+3. An `Axon.layer/3` wrapper which declares the trainable parameters and wires everything into a model.
+
+Nothing about the macros used to define the built-in layers is required to write your own. In this guide we build an Elman RNN from scratch, use it to classify padded, variable-length sequences of characters, and train it with `Axon.Loop`. The problem is a scaled-down, synthetic version of the classic "classifying names with a character-level RNN" tutorial: rather than downloading name files we generate words from two made-up languages, so the notebook is self-contained and deterministic.
+
+The only contract you need to know is the one the unroll functions impose on the cell:
+
+```
+cell_fn.(input, carry, mask, input_kernel, recurrent_kernel, bias)
+#=> {output, new_carry}
+```
+
+At each time step `t` the unroll calls the cell with:
+
+* `input` - the sequence at step `t`, with the time axis removed. For a `{batch, time, features}` sequence this is `{batch, features}`.
+* `carry` - whatever state you want to thread between steps, as any container of tensors. Our cell uses `{hidden}`; `Axon.Layers.lstm_cell/8` uses `{cell, hidden}`. Its shape must not change between steps.
+* `mask` - a `{batch, 1}` tensor which is `1` where step `t` is padding for that batch entry, and `0` where it is a real token. The unroll does not apply the mask for you: it is the *cell's* job to honor it.
+* `input_kernel`, `recurrent_kernel`, `bias` - the trainable parameters, passed through unchanged at every step. The unroll never looks inside them, so they can be tensors or any container. The built-in cells receive maps with one weight per gate. Ignore whichever you don't need.
+
+The cell returns the output for step `t` and the carry for step `t + 1`. The unroll stacks the outputs along the time axis and returns `{outputs, final_carry}`.
+
+## Writing a cell
+
+An Elman RNN computes `h_t = tanh(x_t · Wi + h_{t-1} · Wh + b)`, and its output at each step is just the new hidden state. Since a cell is a plain `defn`, it can call any other `Nx` or `Axon.Layers` function; here we use `Axon.Layers.dense/3` for the two matrix products:
+
+```elixir
+defmodule SimpleRNN do
+  import Nx.Defn
+
+  # h_t = tanh(x_t · Wi + h_{t-1} · Wh + b)
+  defn cell(input, {hidden}, mask, input_kernel, recurrent_kernel, bias) do
+    candidate =
+      Nx.tanh(
+        Axon.Layers.dense(input, input_kernel, bias) +
+          Axon.Layers.dense(hidden, recurrent_kernel, 0)
+      )
+
+    # mask is {batch, 1}; 1 means this step is padding, so keep the old state
+    mask = Nx.broadcast(Nx.as_type(mask, :u8), hidden)
+    new_hidden = Nx.select(mask, hidden, candidate)
+
+    {new_hidden, {new_hidden}}
+  end
+
+  def simple_rnn(%Axon{} = x, units, opts \\ []) when is_integer(units) and units > 0 do
+    opts = Keyword.validate!(opts, [:name, unroll: :dynamic, mask: Axon.constant(0)])
+
+    # Shape functions receive one shape per Axon input of the layer, in order:
+    # here the sequence and the mask.
+    input_kernel =
+      Axon.param("input_kernel", fn input_shape, _mask_shape ->
+        {elem(input_shape, tuple_size(input_shape) - 1), units}
+      end)
+
+    recurrent_kernel = Axon.param("recurrent_kernel", {units, units})
+    bias = Axon.param("bias", {units}, initializer: :zeros)
+
+    out =
+      Axon.layer(
+        &simple_rnn_impl/6,
+        [x, opts[:mask], input_kernel, recurrent_kernel, bias],
+        name: opts[:name],
+        op_name: :simple_rnn,
+        unroll: opts[:unroll]
+      )
+
+    {Axon.elem(out, 0), out |> Axon.elem(1) |> Axon.elem(0)}
+  end
+
+  defn simple_rnn_impl(input, mask, input_kernel, recurrent_kernel, bias, opts \\ []) do
+    opts = keyword!(opts, mode: :inference, unroll: :dynamic)
+
+    batch = Nx.axis_size(input, 0)
+    units = Nx.axis_size(recurrent_kernel, 0)
+    carry = {Nx.broadcast(Nx.tensor(0, type: Nx.type(input)), {batch, units})}
+
+    unroll(opts[:unroll], input, carry, mask, input_kernel, recurrent_kernel, bias)
+  end
+
+  deftransformp unroll(:static, input, carry, mask, wi, wh, b),
+    do: Axon.Layers.static_unroll(&cell/6, input, carry, mask, wi, wh, b)
+
+  deftransformp unroll(:dynamic, input, carry, mask, wi, wh, b),
+    do: Axon.Layers.dynamic_unroll(&cell/6, input, carry, mask, wi, wh, b)
+end
+```
+
+The interesting part of `cell/6` is the mask. The unroll gives us a `{batch, 1}` mask for the current step. We broadcast it to the shape of the state and use `Nx.select/3` to keep the previous hidden state wherever the mask is `1`. This means that once a sequence runs into its padding, its hidden state stops changing, and the final state is the state after the last real token. This is exactly what `Axon.Layers.lstm_cell/8` and `Axon.Layers.gru_cell/8` do. If you don't care about padding, you can ignore the `mask` argument entirely.
+
+## Calling the unroll directly
+
+Before wrapping the cell as a layer, it helps to see the unroll work on plain tensors. `static_unroll/7` and `dynamic_unroll/7` take the cell, a `{batch, time, features}` sequence, the initial carry, the mask, and the three parameter arguments. Passing the scalar `0` as the mask disables masking:
+
+```elixir
+key = Nx.Random.key(42)
+# {batch, time, features}
+{input, key} = Nx.Random.normal(key, shape: {2, 5, 3})
+{wi, key} = Nx.Random.normal(key, shape: {3, 4})
+{wh, _key} = Nx.Random.normal(key, shape: {4, 4})
+b = Nx.broadcast(0.0, {4})
+carry = {Nx.broadcast(0.0, {2, 4})}
+no_mask = Nx.tensor(0)
+
+{outputs, {final_hidden}} =
+  Axon.Layers.static_unroll(&SimpleRNN.cell/6, input, carry, no_mask, wi, wh, b)
+
+{Nx.shape(outputs), Nx.shape(final_hidden)}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{{2, 5, 4}, {2, 4}}
+```
+
+The outputs are stacked along axis 1, one per time step, and the final carry is the hidden state after the last step. `dynamic_unroll/7` has the same signature and computes the same thing:
+
+```elixir
+{dyn_outputs, {dyn_hidden}} =
+  Axon.Layers.dynamic_unroll(&SimpleRNN.cell/6, input, carry, no_mask, wi, wh, b)
+
+{Nx.all_close(outputs, dyn_outputs), Nx.all_close(final_hidden, dyn_hidden)}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{#Nx.Tensor<
+   u8
+   1
+ >,
+ #Nx.Tensor<
+   u8
+   1
+ >}
+```
+
+To drive home that the unroll is nothing more than a scan, here is the same computation with `Enum.map_reduce/3` over the time steps, calling the cell directly:
+
+```elixir
+{steps, _final_carry} =
+  Enum.map_reduce(0..4, carry, fn t, carry ->
+    SimpleRNN.cell(input[[.., t, ..]], carry, Nx.broadcast(0, {2, 1}), wi, wh, b)
+  end)
+
+Nx.all_close(Nx.stack(steps, axis: 1), outputs)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  u8
+  1
+>
+```
+
+The difference between the two unrolls is how they end up in the compiled graph:
+
+* `static_unroll/7` inlines one copy of the cell per time step. The whole computation is visible to the compiler, which gives it the most room to optimize, but the graph grows with the sequence length. It suits shorter sequences.
+* `dynamic_unroll/7` compiles to a `defn` `while` loop, so the size of the graph is independent of the sequence length. The length is still fixed at compile time (it is read from the input's shape), but long sequences compile much faster.
+
+Both accept the same arguments, call the cell with the same contract, and return the same values, so you can switch between them freely.
+
+## Wrapping it as an Axon layer
+
+`simple_rnn/3` in the module above turns the cell into a layer that can be used in a model, following the same recipe as the [custom layers guide](custom_layers.livemd):
+
+* The parameters are declared with `Axon.param/3`. `recurrent_kernel` and `bias` have fixed shapes. `input_kernel` depends on the feature size of the input, so its shape is a function. Shape functions receive one shape per Axon input of the layer, in order, so ours takes two arguments: the shape of the sequence and the shape of the mask.
+* `Axon.layer/3` is called with the implementation, the inputs in the order the implementation expects them (the sequence, the mask, and then the three parameters), and options. Options given to `Axon.layer/3` are forwarded to the implementation together with `:mode`, which is how `:unroll` gets there.
+* The `:mask` option defaults to `Axon.constant(0)`. That is the same scalar `0` we passed above, and the unroll broadcasts it to "nothing is masked".
+* `simple_rnn_impl/6` builds an initial carry of zeros from the batch size of the input, then dispatches on the `:unroll` option. Since `:unroll` is an atom rather than a tensor, we do the dispatch in a `deftransformp` that pattern matches on it.
+* The unroll returns `{outputs, {hidden}}`, a container. Just like `Axon.lstm/4`, `simple_rnn/3` uses `Axon.elem/2` to split it into two Axon nodes and returns `{output_sequence, final_hidden}`, so callers can use whichever one they need.
+
+## Padding and masking
+
+Now for some data. We generate words of three to ten letters from two made-up languages: language `0` mostly uses letters from the first half of the alphabet, language `1` from the second half. Letters are encoded as integers `1..26`, and every word is padded with `0` up to a fixed length so it fits in a tensor:
+
+```elixir
+defmodule Names do
+  @max_len 10
+
+  def max_len, do: @max_len
+
+  def word(lang) do
+    for _ <- 1..Enum.random(3..@max_len), do: letter(lang)
+  end
+
+  defp letter(0),
+    do: if(:rand.uniform() < 0.8, do: Enum.random(?a..?m), else: Enum.random(?n..?z))
+
+  defp letter(1),
+    do: if(:rand.uniform() < 0.8, do: Enum.random(?n..?z), else: Enum.random(?a..?m))
+
+  # letters -> ids 1..26, then pad with 0 to max_len
+  def encode(word) do
+    ids = Enum.map(word, &(&1 - ?a + 1))
+    ids ++ List.duplicate(0, @max_len - length(ids))
+  end
+
+  def batch(size) do
+    labels = for _ <- 1..size, do: Enum.random(0..1)
+    words = for lang <- labels, do: encode(word(lang))
+
+    x = Nx.tensor(words)
+    y = labels |> Nx.tensor() |> Nx.new_axis(-1) |> Nx.equal(Nx.tensor([0, 1]))
+    {%{"tokens" => x}, y}
+  end
+end
+
+:rand.seed(:exsss, {1, 2, 3})
+train_data = for _ <- 1..64, do: Names.batch(32)
+test_data = for _ <- 1..8, do: Names.batch(32)
+
+Names.encode(~c"maria")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[13, 1, 18, 9, 1, 0, 0, 0, 0, 0]
+```
+
+The padding is a problem for a recurrent layer: without any extra information, it would keep updating its state on the padding tokens, and the final state of a five letter word would depend on five real letters and five zeros. This is what `Axon.mask/3` is for. It compares the *token* input to the padding token and produces a `{batch, time}` tensor which is `1` wherever the input is padding. Note that the mask has to be computed from the integer tokens, before they go through `Axon.embedding/4`. We pass it to our layer, which passes it to the unroll, which slices it one step at a time and hands it to the cell:
+
+```elixir
+tokens = Axon.input("tokens", shape: {nil, Names.max_len()})
+# 1 where the token is padding
+mask = Axon.mask(tokens, 0)
+
+{sequence, hidden} =
+  tokens
+  |> Axon.embedding(27, 16)
+  |> SimpleRNN.simple_rnn(32, mask: mask, name: "rnn")
+
+model = Axon.dense(hidden, 2, activation: :softmax)
+
+Axon.Display.as_table(model, Nx.template({1, Names.max_len()}, :s64)) |> IO.puts()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
++---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                                                   Model                                                                                   |
++===========================+===============================================================+============================+==================+===============================+
+| Layer                     | Input Shape                                                   | Output Shape               | Options          | Parameters                    |
++===========================+===============================================================+============================+==================+===============================+
+| tokens ( input )          | %{}                                                           | s64[1][10]                 | shape: {nil, 10} |                               |
+|                           |                                                               |                            | optional: false  |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| mask_0 ( mask )           | %{"tokens" => "s64[1][10]"}                                   | u8[1][10]                  | eos_token: 0     |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| embedding_0 ( embedding ) | %{"tokens" => "s64[1][10]"}                                   | f32[1][10][16]             |                  | kernel: f32[27][16]           |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| rnn ( simple_rnn )        | %{"embedding_0" => "f32[1][10][16]", "mask_0" => "u8[1][10]"} | f32[1][10][32], f32[1][32] | unroll: :dynamic | input_kernel: f32[16][32]     |
+|                           |                                                               |                            |                  | recurrent_kernel: f32[32][32] |
+|                           |                                                               |                            |                  | bias: f32[32]                 |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| elem_0 ( elem )           | %{"rnn" => "f32[1][10][32], f32[1][32]"}                      | f32[1][32]                 |                  |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| elem_1 ( elem )           | %{"elem_0" => "f32[1][32]"}                                   | f32[1][32]                 |                  |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| dense_0 ( dense )         | %{"elem_1" => "f32[1][32]"}                                   | f32[1][2]                  |                  |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+| softmax_0 ( softmax )     | %{"dense_0" => "f32[1][2]"}                                   | f32[1][2]                  |                  |                               |
++---------------------------+---------------------------------------------------------------+----------------------------+------------------+-------------------------------+
+Total Parameters: 2066
+Total Parameters Memory: 8.26 kilobytes
+```
+
+The `rnn` layer has two Axon inputs, the embedded sequence and the mask, and the three parameters we declared, with `input_kernel` sized from the embedding dimension. Its output is a container of the output sequence and the final hidden state, which the two `elem` layers unpack.
+
+Let's check that the mask does what we want. We initialize the parameters and run a single five letter word through both the output sequence and the final hidden state:
+
+```elixir
+{init_fn, _} = Axon.build(model)
+params = init_fn.(Nx.template({1, Names.max_len()}, :s64), Axon.ModelState.empty())
+
+# five real letters followed by five padding tokens
+word = Nx.tensor([[3, 7, 12, 5, 9, 0, 0, 0, 0, 0]])
+
+{_, seq_fn} = Axon.build(sequence)
+{_, hidden_fn} = Axon.build(hidden)
+outputs = seq_fn.(params, %{"tokens" => word})
+final = hidden_fn.(params, %{"tokens" => word})
+
+# the final state is the state after the last real letter...
+# ...and it does not change through the padding
+{Nx.all_close(outputs[[.., 4, ..]], final), Nx.all_close(outputs[[.., 9, ..]], final)}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{#Nx.Tensor<
+   u8
+   1
+ >,
+ #Nx.Tensor<
+   u8
+   1
+ >}
+```
+
+Compare that with the same layer without a mask. Because the layer names match (`embedding_0` and `rnn`), we can reuse the same parameters. This time the padding keeps updating the state, so the final hidden state is different:
+
+```elixir
+{_, unmasked_hidden} =
+  tokens
+  |> Axon.embedding(27, 16)
+  |> SimpleRNN.simple_rnn(32, name: "rnn")
+
+{_, unmasked_fn} = Axon.build(unmasked_hidden)
+
+Nx.all_close(unmasked_fn.(params, %{"tokens" => word}), final)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  u8
+  0
+>
+```
+
+Finally, `unroll: :static` builds a different graph but produces the same numbers:
+
+```elixir
+{_, static_hidden} =
+  tokens
+  |> Axon.embedding(27, 16)
+  |> SimpleRNN.simple_rnn(32, mask: mask, name: "rnn", unroll: :static)
+
+{_, static_fn} = Axon.build(static_hidden)
+
+Nx.all_close(static_fn.(params, %{"tokens" => word}), final)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  u8
+  1
+>
+```
+
+## Training
+
+There is nothing special about training a model with a custom recurrent layer. The parameters we declared with `Axon.param/3` are initialized and updated like any others, and gradients flow through both unrolls:
+
+```elixir
+trained_state =
+  model
+  |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adam(learning_rate: 0.01))
+  |> Axon.Loop.metric(:accuracy)
+  |> Axon.Loop.run(train_data, Axon.ModelState.empty(), epochs: 3)
+  |> then(& &1.step_state[:model_state])
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Epoch: 0, Batch: 50, accuracy: 0.8878676 loss: 0.2498889
+Epoch: 1, Batch: 50, accuracy: 0.9381127 loss: 0.2019858
+Epoch: 2, Batch: 50, accuracy: 0.9424019 loss: 0.1850810
+```
+
+```elixir
+model
+|> Axon.Loop.evaluator()
+|> Axon.Loop.metric(:accuracy)
+|> Axon.Loop.run(test_data, trained_state)
+|> then(& &1.metrics)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  0 => %{
+    "accuracy" => #Nx.Tensor<
+      f32
+      0.9375
+    >
+  }
+}
+```
+
+The model classifies words it has never seen, of different lengths, from the state after their last real letter:
+
+```elixir
+words = Nx.tensor([Names.encode(~c"abbey"), Names.encode(~c"trumpy")])
+
+Axon.predict(model, trained_state, %{"tokens" => words})
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Nx.Tensor<
+  f32[2][2]
+  [
+    [0.99391276, 0.0060872077],
+    [0.011035713, 0.9889643]
+  ]
+>
+```
+
+## Going further
+
+Everything above composes with the rest of Axon:
+
+* To stack recurrent layers, feed `sequence` into another `SimpleRNN.simple_rnn/3` with the same `mask`.
+* `Axon.bidirectional/4` runs a layer forward and backward over the sequence and merges the results; it works with any function that takes and returns an `Axon` node, including `simple_rnn/3`.
+* A richer cell only needs a richer carry. An LSTM-style cell would carry `{cell, hidden}` and take maps of per-gate weights as `input_kernel`, `recurrent_kernel` and `bias`; the unroll passes them through untouched.
+* A cell is a plain `defn`, so it can call any `Nx` or `Axon.Layers` function, including normalization, dropout, or attention. What it cannot do is call `Axon.layer/3` or other graph-building functions, since the whole scan runs inside a single layer of the graph.
+
+`Axon.Layers.lstm_cell/8` and `Axon.Layers.gru_cell/8` are the built-in implementations of the same contract, and `Axon.lstm/4` is the built-in equivalent of `simple_rnn/3`. They are good references for adding things like gate activations or recurrent dropout to your own cell.

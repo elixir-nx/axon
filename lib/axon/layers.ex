@@ -2357,7 +2357,7 @@ defmodule Axon.Layers do
   LSTM Cell.
 
   When combined with `Axon.Layers.*_unroll`, implements a
-  LSTM-based RNN. More memory efficient than traditional LSTM.
+  LSTM-based RNN.
 
   ## References
 
@@ -2465,13 +2465,56 @@ defmodule Axon.Layers do
   @doc """
   Dynamically unrolls an RNN.
 
-  Unrolls implement a `scan` operation which applies a
-  transformation on the leading axis of `input_sequence` carrying
-  some state. In this instance `cell_fn` is an RNN cell function
-  such as `lstm_cell` or `gru_cell`.
+  Unrolls implement a `scan` over the time axis (axis 1) of
+  `input_sequence`: `cell_fn` is applied to one time step at a time,
+  threading `carry` from each step to the next, much like
+  `Enum.map_reduce/3`. `cell_fn` may be a built-in cell such as
+  `lstm_cell/8` or `gru_cell/8`, or any function with the same
+  contract:
 
-  This function will make use of an `defn` while-loop such and thus
-  may be more efficient for long sequences.
+      cell_fn.(input, carry, mask, input_kernel, recurrent_kernel, bias)
+      #=> {output, new_carry}
+
+  At step `t`:
+
+    * `input` is `input_sequence[[.., t]]`, shape `{batch, features...}`
+
+    * `carry` is the state returned by the previous step (initially the
+      `carry` argument). It may be any container of tensors, for example
+      `{hidden}` for a GRU or `{cell, hidden}` for an LSTM. Its shape
+      must not change between steps.
+
+    * `mask` is `{batch, 1}`, `1` where step `t` is padding for that
+      batch entry. The cell is responsible for honoring it, typically by
+      returning the previous carry unchanged with `Nx.select/3`, as the
+      built-in cells do.
+
+    * `input_kernel`, `recurrent_kernel` and `bias` are the arguments of
+      the same name, passed through unchanged on every step. They are
+      opaque to the unroll and may be tensors or any container (the
+      built-in cells take maps of per-gate weights).
+
+    * `output` is the per-step output, shape `{batch, ...}`
+
+  ## Arguments
+
+    * `input_sequence` - `{batch, time, features...}` tensor
+
+    * `carry` - initial state
+
+    * `mask` - `{batch, time}` tensor, or the scalar `0` to disable
+      masking. See `Axon.mask/3`.
+
+    * `input_kernel`, `recurrent_kernel`, `bias` - forwarded to `cell_fn`
+
+  Returns `{outputs, final_carry}`, where `outputs` stacks the per-step
+  outputs along axis 1 (`{batch, time, ...}`) and `final_carry` is the
+  carry after the last step.
+
+  This function compiles to a `defn` while-loop, so the size of the
+  compiled graph does not depend on the sequence length. See
+  `static_unroll/7` for the alternative, and the "Custom recurrent
+  layers" guide for a complete example.
   """
   defn dynamic_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
     time_steps = Nx.axis_size(input_sequence, 1)
@@ -2539,14 +2582,15 @@ defmodule Axon.Layers do
   @doc """
   Statically unrolls an RNN.
 
-  Unrolls implement a `scan` operation which applies a
-  transformation on the leading axis of `input_sequence` carrying
-  some state. In this instance `cell_fn` is an RNN cell function
-  such as `lstm_cell` or `gru_cell`.
+  Accepts the same arguments and returns the same values as
+  `dynamic_unroll/7`; see it for the `cell_fn` contract and the
+  semantics of `carry` and `mask`.
 
-  This function inlines the unrolling of the sequence such that
-  the entire operation appears as a part of the compilation graph.
-  This makes it suitable for shorter sequences.
+  This function inlines one copy of `cell_fn` per time step into the
+  graph, so the compiled graph grows with the sequence length. This
+  suits shorter sequences and gives the compiler the whole computation
+  to optimize. For longer sequences prefer `dynamic_unroll/7`, which
+  compiles to a while-loop instead.
   """
   defn static_unroll(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias) do
     static_unroll_loop(cell_fn, input_sequence, carry, mask, input_kernel, recurrent_kernel, bias)
