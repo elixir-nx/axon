@@ -172,6 +172,13 @@ Epoch: 0, Batch: 950, loss: 0.0563023
 
 `Axon.Loop.run/4` expects a loop to execute, some data to loop over, and any initial state you explicitly want your loop to start with. `Axon.Loop.run/4` will then iterate over your data, executing a step function on each batch, and accumulating some generic loop state. In the case of a supervised training loop, this generic loop state actually represents training state including your model's trained parameters.
 
+`Axon.Loop.run/4` returns that final `%Axon.Loop.State{}`, so you can pattern match on it to grab just the trained model state:
+
+```elixir
+%Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+  Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
+```
+
 `Axon.Loop.run/4` also accepts options which control the loops execution. This includes `:iterations` which controls the number of iterations per epoch a loop should execute for, and `:epochs` which controls the number of epochs a loop should execute for:
 
 ```elixir

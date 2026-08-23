@@ -100,7 +100,7 @@ model =
   |> Axon.dense(128)
   |> Axon.dense(10, activation: :softmax)
 
-model_state =
+%Axon.Loop.State{step_state: %{model_state: model_state}} =
   model
   |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(0.005))
   |> Axon.Loop.metric(:accuracy)
