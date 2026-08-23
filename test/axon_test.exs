@@ -26,10 +26,9 @@ defmodule AxonTest do
       assert opts[:names] == [:batch, :features]
     end
 
-    test "names default to nil" do
+    test "does not store names when not given" do
       assert %Axon{output: id, nodes: nodes} = Axon.input("x", shape: {nil, 8})
-      assert %Axon.Node{op: :input, opts: opts} = nodes[id]
-      assert opts[:names] == nil
+      assert %Axon.Node{op: :input, opts: [shape: {nil, 8}, optional: false]} = nodes[id]
     end
 
     test "raises on names with wrong rank" do
@@ -839,6 +838,10 @@ defmodule AxonTest do
     test "raises on invalid names" do
       assert_raise ArgumentError, ~r/names must be a list of atoms or nil/, fn ->
         Axon.input("x", shape: {nil, 8}) |> Axon.rename([:batch, "hidden"])
+      end
+
+      assert_raise ArgumentError, ~r/names must be a list of atoms or nil/, fn ->
+        Axon.input("x", shape: {nil, 8}) |> Axon.rename(:batch)
       end
     end
   end

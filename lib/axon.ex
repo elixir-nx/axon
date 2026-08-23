@@ -625,8 +625,9 @@ defmodule Axon do
       model runs, so subsequent layers and custom layers can refer to
       axes by name. Must have one entry (an atom or `nil`) per dimension.
       If the incoming tensor already carries a different non-nil name
-      for an axis, an error is raised. Only supported for inputs with
-      a tensor shape (not containers).
+      for an axis, an error is raised; where `nil` is declared, the
+      incoming name is kept. Only supported for inputs with a tensor
+      shape (not containers).
 
     * `:optional` - if `true`, the input may be omitted when using
       the model. This needs to be handled in one of the subsequent
@@ -661,13 +662,15 @@ defmodule Axon do
     output_shape = input_shape && Axon.Shape.input(input_shape)
     names = validate_input_names!(opts[:names], output_shape)
 
-    layer(:input, [],
-      name: name,
-      shape: output_shape,
-      names: names,
-      meta: meta,
-      op_name: :input,
-      optional: optional
+    # :names is only stored when given so unnamed inputs keep their
+    # existing node opts (and display output) unchanged
+    input_opts = if names, do: [names: names], else: []
+
+    layer(
+      :input,
+      [],
+      [name: name, shape: output_shape] ++
+        input_opts ++ [meta: meta, op_name: :input, optional: optional]
     )
   end
 
@@ -2659,7 +2662,7 @@ defmodule Axon do
 
   """
   @doc type: :shape
-  def rename(%Axon{} = x, names, opts \\ []) when is_list(names) do
+  def rename(%Axon{} = x, names, opts \\ []) do
     opts = Keyword.validate!(opts, [:name, :meta])
     names = validate_names!(names)
 

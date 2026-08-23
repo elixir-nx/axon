@@ -195,6 +195,17 @@ defmodule CompilerTest do
       assert Nx.names(predict_fn.(ModelState.empty(), partial)) == [:batch, :features]
     end
 
+    test "keeps incoming names where the input declares nil" do
+      model = Axon.input("x", shape: {nil, 8}, names: [nil, :features])
+      assert {_init_fn, predict_fn} = Axon.build(model)
+
+      named = Nx.iota({2, 8}, type: :f32, names: [:batch, nil])
+      assert Nx.names(predict_fn.(ModelState.empty(), named)) == [:batch, :features]
+
+      unnamed = Nx.iota({2, 8}, type: :f32)
+      assert Nx.names(predict_fn.(ModelState.empty(), unnamed)) == [nil, :features]
+    end
+
     test "raises on input tensors with conflicting names" do
       model = Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
       assert {_init_fn, predict_fn} = Axon.build(model)

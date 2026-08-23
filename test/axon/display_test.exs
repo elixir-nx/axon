@@ -66,6 +66,7 @@ defmodule Axon.DisplayTest do
       assert table =~ ~s|f32[2][8]|
       assert table =~ ~s|f32[2][4]|
       refute table =~ ~s|batch:|
+      refute table =~ ~s|names:|
     end
   end
 

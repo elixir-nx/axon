@@ -979,24 +979,30 @@ defmodule Axon.Compiler do
   defp rename_input(%Nx.Tensor{} = tensor, name, names) do
     actual = Nx.names(tensor)
 
-    if length(actual) == length(names) do
-      actual
-      |> Enum.zip(names)
-      |> Enum.each(fn
-        {nil, _} ->
-          :ok
+    names =
+      if length(actual) == length(names) do
+        # declared names win over nil, incoming names are kept where
+        # the input declares nil, and conflicting names are an error
+        Enum.zip_with(actual, names, fn
+          actual_name, nil ->
+            actual_name
 
-        {same, same} ->
-          :ok
+          nil, declared_name ->
+            declared_name
 
-        {_, _} ->
-          raise ArgumentError,
-                "input #{inspect(name)} expected axis names #{inspect(names)}," <>
-                  " but received a tensor with names #{inspect(actual)}"
-      end)
-    end
+          same, same ->
+            same
 
-    # raises Nx's rank mismatch error when the lengths differ
+          _, _ ->
+            raise ArgumentError,
+                  "input #{inspect(name)} expected axis names #{inspect(names)}," <>
+                    " but received a tensor with names #{inspect(actual)}"
+        end)
+      else
+        # let Nx raise its rank mismatch error
+        names
+      end
+
     Nx.rename(tensor, names)
   end
 
