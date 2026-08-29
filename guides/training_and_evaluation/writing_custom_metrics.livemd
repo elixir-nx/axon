@@ -99,7 +99,7 @@ Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 950, loss: 0.0681635 my weird metric: -5.2842808
+Epoch: 0, Iteration: 950, loss: 0.0681635 my weird metric: -5.2842808
 ```
 
 <!-- livebook:{"output":true} -->
@@ -229,7 +229,7 @@ Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 950, dense_0_kernel_mean: -0.1978206 dense_0_kernel_var: 0.2699870 loss: 0.0605523
+Epoch: 0, Iteration: 950, dense_0_kernel_mean: -0.1978206 dense_0_kernel_var: 0.2699870 loss: 0.0605523
 ```
 
 <!-- livebook:{"output":true} -->
@@ -380,7 +380,7 @@ Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 950, dense_0_kernel_ema_mean: -0.0139760 loss: 0.0682910
+Epoch: 0, Iteration: 950, dense_0_kernel_ema_mean: -0.0139760 loss: 0.0682910
 ```
 
 <!-- livebook:{"output":true} -->
