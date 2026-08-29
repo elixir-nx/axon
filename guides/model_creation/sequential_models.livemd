@@ -90,7 +90,7 @@ Your model is more involved and as a result so is the execution graph! Now, usin
 ```
 
 ```elixir
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
