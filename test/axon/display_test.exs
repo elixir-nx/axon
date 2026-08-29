@@ -43,6 +43,31 @@ defmodule Axon.DisplayTest do
 
       assert table =~ ~s|%{maybe: none, out: f32[1][2]}|
     end
+
+    test "renders axis names" do
+      model =
+        Axon.input("x", shape: {nil, 8}, names: [:batch, :features])
+        |> Axon.dense(4)
+        |> Axon.rename([:batch, :hidden])
+
+      table = Axon.Display.as_table(model, Nx.template({2, 8}, :f32))
+
+      assert table =~ ~s|f32[batch: 2][features: 8]|
+      assert table =~ ~s|names: [:batch, :features]|
+      assert table =~ ~s|f32[batch: 2][4]|
+      assert table =~ ~s|f32[batch: 2][hidden: 4]|
+      assert table =~ ~s|kernel: f32[8][4]|
+    end
+
+    test "renders unnamed axes without names" do
+      model = Axon.input("x", shape: {nil, 8}) |> Axon.dense(4)
+      table = Axon.Display.as_table(model, Nx.template({2, 8}, :f32))
+
+      assert table =~ ~s|f32[2][8]|
+      assert table =~ ~s|f32[2][4]|
+      refute table =~ ~s|batch:|
+      refute table =~ ~s|names:|
+    end
   end
 
   describe "as_graph/3" do
