@@ -117,7 +117,7 @@ Axon.Loop.run(loop, train_data, %{}, iterations: 500)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 500, loss: 0.3053460
+Epoch: 0, Iteration: 500, loss: 0.3053460
 ```
 
 <!-- livebook:{"output":true} -->
@@ -270,7 +270,7 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 1000, loss: 0.1098235
+Epoch: 0, Iteration: 1000, loss: 0.1098235
 ```
 
 <!-- livebook:{"output":true} -->
@@ -375,7 +375,7 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 1000, loss: 0.0992607
+Epoch: 0, Iteration: 1000, loss: 0.0992607
 ```
 
 <!-- livebook:{"output":true} -->

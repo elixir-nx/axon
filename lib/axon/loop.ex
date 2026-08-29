@@ -639,8 +639,10 @@ defmodule Axon.Loop do
 
   ## Options
 
-    * `:log` - training loss and metric log interval. Set to 0 to silence
-      training logs. Defaults to 50
+    * `:log` - training loss and metric log interval, in iterations. Every
+      `:log` iterations the loop writes a line of the form
+      `Epoch: 0, Iteration: 50, loss: 0.1234567` to standard output. Set to 0
+      to silence training logs. Defaults to 50
 
     * `:seed` - seed to use when constructing models. Seed controls random initialization
       of model parameters. Defaults to no seed which constructs a random seed for you at
@@ -710,9 +712,9 @@ defmodule Axon.Loop do
       |> Enum.join(" ")
 
     if log_epochs do
-      "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{metrics}"
+      "\rEpoch: #{Nx.to_number(epoch)}, Iteration: #{Nx.to_number(iter)}, #{metrics}"
     else
-      "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
+      "\rIteration: #{Nx.to_number(iter)}, #{metrics}"
     end
   end
 
@@ -754,6 +756,9 @@ defmodule Axon.Loop do
         model
         |> Axon.Loop.evaluator()
         |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
+
+  The evaluator logs `Iteration: N, <metrics>` as it runs; an evaluation loop
+  runs a single pass over the data so no epoch is printed.
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
@@ -931,7 +936,7 @@ defmodule Axon.Loop do
 
   In most cases, this is useful for inspecting the contents of
   the loop state at intermediate stages. For example, the default
-  `trainer` loop factory attaches IO logging of epoch, batch, loss
+  `trainer` loop factory attaches IO logging of epoch, iteration, loss
   and metrics.
 
   It's also possible to log loop state to files by changing the
