@@ -289,6 +289,54 @@ defmodule Axon.LoopTest do
       assert_all_close(state.model_state.data["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
       assert_all_close(state.model_state.data["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
     end
+
+    test "train_step/3 applies parameter constraints after the update" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      w =
+        Axon.param("w", {1, 4},
+          initializer: fn shape, type -> Nx.broadcast(Nx.tensor(-1.0, type: type), shape) end,
+          constraint: :non_neg
+        )
+
+      model = Axon.layer(fn x, w, _opts -> Nx.multiply(x, w) end, [input, w], name: "custom")
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      x = Nx.broadcast(1.0, {2, 4})
+      y = Nx.broadcast(-2.0, {2, 4})
+
+      state = init_fn.({x, y}, Axon.ModelState.empty())
+      assert_equal(state.model_state.data["custom"]["w"], Nx.broadcast(-1.0, {1, 4}))
+      assert %{"custom" => %{"w" => constraint}} = state.model_state.constraints
+
+      state = step_fn.({x, y}, state)
+
+      # SGD alone would keep the parameter negative
+      assert_equal(state.model_state.data["custom"]["w"], Nx.broadcast(0.0, {1, 4}))
+      assert %{"custom" => %{"w" => ^constraint}} = state.model_state.constraints
+    end
+
+    test "train_step/3 does not constrain frozen parameters" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      w =
+        Axon.param("w", {1, 4},
+          initializer: fn shape, type -> Nx.broadcast(Nx.tensor(-1.0, type: type), shape) end,
+          constraint: :non_neg
+        )
+
+      model = Axon.layer(fn x, w, _opts -> Nx.multiply(x, w) end, [input, w], name: "custom")
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      x = Nx.broadcast(1.0, {2, 4})
+      y = Nx.broadcast(-2.0, {2, 4})
+
+      state = init_fn.({x, y}, Axon.ModelState.empty())
+      state = %{state | model_state: Axon.ModelState.freeze(state.model_state)}
+      state = step_fn.({x, y}, state)
+
+      assert_equal(state.model_state.data["custom"]["w"], Nx.broadcast(-1.0, {1, 4}))
+    end
   end
 
   describe "metrics" do
@@ -531,6 +579,30 @@ defmodule Axon.LoopTest do
                |> Axon.dense(3)
                |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
                |> Loop.run(data, Axon.ModelState.empty(), strict?: false)
+    end
+  end
+
+  describe "constraints" do
+    test "run/4 applies constraints attached to the initial model state" do
+      model = Axon.input("input", shape: {nil, 4}) |> Axon.dense(8, name: "dense_0")
+      {init_fn, _} = Axon.build(model)
+      constraint = Axon.Constraints.max_norm(max: 0.1)
+
+      model_state =
+        init_fn.(Nx.template({1, 4}, :f32), Axon.ModelState.empty())
+        |> Axon.ModelState.constrain(&match?(["dense_0", "kernel"], &1), constraint)
+
+      data = [{Nx.broadcast(1.0, {2, 4}), Nx.broadcast(5.0, {2, 8})}]
+
+      %State{step_state: %{model_state: trained}} =
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, :sgd, log: 0)
+        |> Axon.Loop.run(data, model_state, epochs: 1)
+
+      kernel = trained.data["dense_0"]["kernel"]
+      column_norms = Nx.sqrt(Nx.sum(Nx.multiply(kernel, kernel), axes: [0]))
+      assert Nx.to_number(Nx.all(Nx.less_equal(column_norms, 0.1 + 1.0e-5))) == 1
+      assert %{"dense_0" => %{"kernel" => ^constraint}} = trained.constraints
     end
   end
 
@@ -1056,6 +1128,35 @@ defmodule Axon.LoopTest do
       %State{step_state: deserialized_step_state} = Axon.Loop.deserialize_state(serialized)
 
       assert_equal(step_state, deserialized_step_state)
+    end
+
+    test "serialize_state/deserialize_state preserve parameter constraints" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2, name: "dense_0")
+      {init_fn, _} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      step_state =
+        init_fn.({Nx.tensor([[1.0]]), Nx.tensor([[1.0, 1.0]])}, Axon.ModelState.empty())
+
+      model_state =
+        Axon.ModelState.constrain(
+          step_state.model_state,
+          &match?(["dense_0", "kernel"], &1),
+          Axon.Constraints.non_neg()
+        )
+
+      negative = Nx.broadcast(-1.0, {1, 2})
+      model_state = put_in(model_state, [Access.key!(:data), "dense_0", "kernel"], negative)
+      state = %State{step_state: %{step_state | model_state: model_state}}
+
+      serialized = Axon.Loop.serialize_state(state)
+      %State{step_state: deserialized_step_state} = Axon.Loop.deserialize_state(serialized)
+
+      assert_equal(state.step_state, deserialized_step_state)
+      assert %{"dense_0" => %{"kernel" => f}} = deserialized_step_state.model_state.constraints
+      assert is_function(f, 1)
+
+      applied = Axon.ModelState.apply_constraints(deserialized_step_state.model_state)
+      assert_equal(applied.data["dense_0"]["kernel"], Nx.broadcast(0.0, {1, 2}))
     end
 
     test "serialize_state/deserialize_state preserve loop state with step state serialization" do

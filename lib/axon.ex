@@ -283,6 +283,8 @@ defmodule Axon do
 
   @type t :: %__MODULE__{}
 
+  @valid_constraints [:max_norm, :min_max_norm, :non_neg, :unit_norm]
+
   defstruct [
     :nodes,
     :output
@@ -413,6 +415,12 @@ defmodule Axon do
     * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
     * `:type` - parameter type. Defaults to `{:f, 32}`.
     * `:kind` - parameter kind. Defaults to `:parameter`.
+    * `:constraint` - parameter constraint applied after each optimizer
+      update. Either one of `#{inspect(@valid_constraints)}` (a function
+      in `Axon.Constraints` with default options) or an arity-1 function
+      receiving the parameter tensor and returning the projected tensor.
+      Defaults to `nil` (no constraint). Constraints only apply to
+      trainable (`kind: :parameter`) parameters that are not frozen.
 
   ## Examples
 
@@ -434,12 +442,23 @@ defmodule Axon do
 
       parameter("kernel", {32, 64}, type: {:bf, 16}, initializer: :lecun_normal)
 
+  With a constraint:
+
+      parameter("kernel", {32, 64}, constraint: Axon.Constraints.max_norm(max: 2.0))
+
   """
   @doc type: :special
   def parameter(name, template, opts \\ [])
 
   def parameter(name, shape, opts) when is_tuple(shape) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: {:f, 32},
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop!(opts, :type)
 
     template = Nx.template(shape, type)
@@ -447,8 +466,11 @@ defmodule Axon do
   end
 
   def parameter(name, %Nx.Tensor{} = template, opts) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter)
+    opts =
+      Keyword.validate!(opts, initializer: :glorot_uniform, kind: :parameter, constraint: nil)
+
     initializer = validate_initializer!(opts[:initializer])
+    constraint = validate_constraint!(opts[:constraint])
     kind = opts[:kind] || :parameter
 
     template = Nx.to_template(template)
@@ -457,6 +479,7 @@ defmodule Axon do
       name: name,
       template: template,
       initializer: initializer,
+      constraint: constraint,
       kind: kind,
       # Legacy
       type: Nx.type(template),
@@ -465,9 +488,17 @@ defmodule Axon do
   end
 
   def parameter(name, function, opts) when is_function(function) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: nil, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: nil,
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop!(opts, :type)
     initializer = validate_initializer!(opts[:initializer])
+    constraint = validate_constraint!(opts[:constraint])
     kind = opts[:kind] || :parameter
 
     template =
@@ -486,12 +517,20 @@ defmodule Axon do
       name: name,
       template: template,
       initializer: initializer,
+      constraint: constraint,
       kind: kind
     }
   end
 
   def parameter(name, shape_dsl, opts) when is_list(shape_dsl) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: {:f, 32},
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop!(opts, :type)
 
     if Enum.all?(shape_dsl, &is_integer/1) do
@@ -547,18 +586,40 @@ defmodule Axon do
 
   You may specify the parameter shape as either a static shape or
   as function of the inputs to the given layer. If you specify the
-  parameter shape as a function, it will be given the
+  parameter shape as a function, it will be given the shapes of the
+  layer inputs and must return the parameter shape.
 
   ## Options
 
     * `:initializer` - parameter initializer. Defaults to `:glorot_uniform`.
+    * `:type` - parameter type. Defaults to `{:f, 32}`.
+    * `:kind` - parameter kind. Defaults to `:parameter`.
+    * `:constraint` - parameter constraint applied after each optimizer
+      update. Either one of `#{inspect(@valid_constraints)}` (a function
+      in `Axon.Constraints` with default options) or an arity-1 function
+      receiving the parameter tensor and returning the projected tensor.
+      Defaults to `nil` (no constraint). Constraints only apply to
+      trainable (`kind: :parameter`) parameters that are not frozen.
+
+  ## Examples
+
+      param("kernel", {32, 64})
+      param("kernel", fn input_shape -> {elem(input_shape, 1), 64} end)
+      param("kernel", {32, 64}, constraint: :non_neg)
 
   """
   @doc type: :special
   def param(name, shape, opts \\ [])
 
   def param(name, shape, opts) when is_binary(name) and is_tuple(shape) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: {:f, 32},
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop(opts, :type, {:f, 32})
 
     template = Nx.template(shape, type)
@@ -566,7 +627,14 @@ defmodule Axon do
   end
 
   def param(name, shape, opts) when is_binary(name) and is_function(shape) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: {:f, 32},
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop(opts, :type, {:f, 32})
 
     {:arity, arity} = Function.info(shape, :arity)
@@ -582,7 +650,14 @@ defmodule Axon do
   end
 
   def param(name, shape_dsl, opts) when is_binary(name) and is_list(shape_dsl) do
-    opts = Keyword.validate!(opts, initializer: :glorot_uniform, type: {:f, 32}, kind: :parameter)
+    opts =
+      Keyword.validate!(opts,
+        initializer: :glorot_uniform,
+        type: {:f, 32},
+        kind: :parameter,
+        constraint: nil
+      )
+
     {type, opts} = Keyword.pop(opts, :type, {:f, 32})
 
     if Enum.all?(shape_dsl, &is_integer/1) do
@@ -4677,6 +4752,24 @@ defmodule Axon do
           "initializer must be one of #{inspect(@valid_initializers)}," <>
             " or an arity-3 function accepting initializer shape, type, and key" <>
             " got #{inspect(initializer)}"
+  end
+
+  defp validate_constraint!(nil), do: nil
+
+  defp validate_constraint!(constraint)
+       when is_atom(constraint) and constraint in @valid_constraints do
+    apply(Axon.Constraints, constraint, [])
+  end
+
+  defp validate_constraint!(constraint) when is_function(constraint, 1) do
+    constraint
+  end
+
+  defp validate_constraint!(constraint) do
+    raise ArgumentError,
+          "constraint must be one of #{inspect(@valid_constraints)}," <>
+            " or an arity-1 function accepting a parameter tensor," <>
+            " got #{inspect(constraint)}"
   end
 
   # Names are generated lazily at inspect, initialization, and compile
