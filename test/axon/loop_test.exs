@@ -117,7 +117,8 @@ defmodule Axon.LoopTest do
       assert %{model_state: %{}} =
                pstate =
                init_fn.(
-                 {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])}, Nx.tensor(0)},
+                 {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])},
+                  {Nx.tensor([[2]]), Nx.tensor([[2]])}},
                  Axon.ModelState.empty()
                )
 
@@ -289,6 +290,39 @@ defmodule Axon.LoopTest do
       assert_all_close(state.model_state.data["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
       assert_all_close(state.model_state.data["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
     end
+
+    test "train_step/3 initializes the step state in the types the step produces" do
+      model = precision_model({:f, 64})
+      batch = precision_batch()
+
+      for loss_scale <- [:identity, :dynamic, :static] do
+        {init_fn, step_fn} =
+          Loop.train_step(model, :mean_squared_error, :adam, loss_scale: loss_scale)
+
+        state = init_fn.(batch, Axon.ModelState.empty())
+        next = step_fn.(batch, state)
+
+        assert Nx.type(state.loss) == {:f, 64}
+        assert Nx.type(elem(state.optimizer_state, 1).mu["dense_0"]["kernel"]) == {:f, 64}
+        assert Nx.type(state.model_state.data["dense_0"]["kernel"]) == {:f, 64}
+        assert leaf_types(state) == leaf_types(next)
+      end
+    end
+
+    test "train_step/3 keeps f32 state under an f16 policy" do
+      model = precision_model({:f, 16})
+      batch = precision_batch()
+
+      {init_fn, step_fn} = Loop.train_step(model, :mean_squared_error, :adam)
+
+      state = init_fn.(batch, Axon.ModelState.empty())
+      next = step_fn.(batch, state)
+
+      assert Nx.type(state.loss) == {:f, 32}
+      assert Nx.type(elem(state.optimizer_state, 1).mu["dense_0"]["kernel"]) == {:f, 32}
+      assert Nx.type(state.model_state.data["dense_0"]["kernel"]) == {:f, 16}
+      assert leaf_types(state) == leaf_types(next)
+    end
   end
 
   describe "metrics" do
@@ -370,6 +404,67 @@ defmodule Axon.LoopTest do
       i = 10
 
       assert_equal(sum_tp_fun.(cur_sum, List.wrap(output), i), Nx.tensor(26))
+    end
+  end
+
+  # A dense model with every parameter, computation and output in `type`.
+  defp precision_model(type) do
+    policy = Axon.MixedPrecision.create_policy(params: type, compute: type, output: type)
+
+    Axon.input("input", shape: {nil, 4})
+    |> Axon.dense(8, activation: :relu)
+    |> Axon.dense(1)
+    |> Axon.MixedPrecision.apply_policy(policy)
+  end
+
+  defp precision_batch(target_type \\ {:f, 32}) do
+    {Nx.iota({2, 4}, type: :f32), Nx.tensor([[1.0], [0.0]], type: target_type)}
+  end
+
+  defp leaf_types(container) do
+    container
+    |> List.wrap()
+    |> Nx.Defn.Composite.flatten_list()
+    |> Enum.map(&Nx.type/1)
+  end
+
+  describe "step state types" do
+    test "runs a strict loop with an f64 mixed precision policy" do
+      model = precision_model({:f, 64})
+      data = List.duplicate(precision_batch(), 3)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        state =
+          model
+          |> Loop.trainer(:mean_squared_error, :adam)
+          |> Loop.metric(:mean_absolute_error)
+          |> Loop.run(data, Axon.ModelState.empty(), epochs: 2)
+
+        assert %State{epoch: 2, metrics: metrics, step_state: step_state} = state
+        assert Nx.type(step_state.loss) == {:f, 64}
+        assert Nx.type(step_state.model_state.data["dense_0"]["kernel"]) == {:f, 64}
+        assert Nx.type(metrics[1]["loss"]) == {:f, 64}
+        assert Nx.type(metrics[1]["mean_absolute_error"]) == {:f, 64}
+      end)
+    end
+
+    test "runs a strict loop with f64 targets and an f32 model" do
+      model = Axon.input("input", shape: {nil, 4}) |> Axon.dense(8) |> Axon.dense(1)
+      data = List.duplicate(precision_batch({:f, 64}), 3)
+
+      for optimizer <- [:sgd, :adam] do
+        ExUnit.CaptureIO.capture_io(fn ->
+          state =
+            model
+            |> Loop.trainer(:mean_squared_error, optimizer)
+            |> Loop.run(data, Axon.ModelState.empty(), epochs: 1)
+
+          assert %State{epoch: 1, metrics: metrics, step_state: step_state} = state
+          assert Nx.type(step_state.loss) == {:f, 64}
+          assert Nx.type(step_state.model_state.data["dense_0"]["kernel"]) == {:f, 32}
+          assert Nx.type(metrics[0]["loss"]) == {:f, 64}
+        end)
+      end
     end
   end
 
@@ -1049,7 +1144,7 @@ defmodule Axon.LoopTest do
       loss = :binary_cross_entropy
 
       {init_fn, _} = Axon.Loop.train_step(model, loss, optimizer)
-      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor(1)}, Axon.ModelState.empty())
+      step_state = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1, 0]])}, Axon.ModelState.empty())
       state = %State{step_state: step_state}
 
       serialized = Axon.Loop.serialize_state(state)
