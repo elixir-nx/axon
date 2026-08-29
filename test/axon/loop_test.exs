@@ -462,6 +462,76 @@ defmodule Axon.LoopTest do
         strict?: false
       )
     end
+
+    test "raises a clear error when a batch changes shape under strict compilation" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      message =
+        assert_raise ArgumentError,
+                     ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                     fn ->
+                       Axon.input("input", shape: {nil, 4})
+                       |> Axon.dense(3)
+                       |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                       |> Loop.run(data, Axon.ModelState.empty())
+                     end
+
+      assert message.message =~ "f32[8][4]"
+      assert message.message =~ "f32[4][4]"
+      assert message.message =~ "strict?: false"
+    end
+
+    test "raises a clear error when a batch changes type under strict compilation" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({8, 4}), Nx.iota({8, 3}, type: :f32)}
+      ]
+
+      assert_raise ArgumentError,
+                   ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+
+    test "raises a clear error when a batch changes shape in an evaluation loop" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      model = Axon.input("input", shape: {nil, 4}) |> Axon.dense(3)
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(Nx.template({8, 4}, :f32), Axon.ModelState.empty())
+
+      assert_raise ArgumentError,
+                   ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                   fn ->
+                     model
+                     |> Loop.evaluator()
+                     |> Loop.metric(:mean_absolute_error)
+                     |> Loop.run(data, model_state)
+                   end
+    end
+
+    test "recompiles for new batch shapes with strict?: false" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 2}}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3)
+               |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty(), strict?: false)
+    end
   end
 
   describe "trainer" do
@@ -476,6 +546,124 @@ defmodule Axon.LoopTest do
       end
     end
 
+    test "raises a clear error when targets and predictions have different shapes" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 2}, type: :f32)}]
+
+      assert_raise ArgumentError,
+                   ~r/targets given to Axon.Losses.mean_squared_error\/3 have shape \{8, 2\} but the model prediction has shape \{8, 3\}/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+
+    test "points at the batch axis when inputs and targets are batched differently" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}]
+
+      assert_raise ArgumentError, ~r/batch axes differ \(4 vs 8\)/, fn ->
+        Axon.input("input", shape: {nil, 4})
+        |> Axon.dense(3)
+        |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+        |> Loop.run(data, Axon.ModelState.empty())
+      end
+    end
+
+    test "suggests one-hot encoding for categorical_cross_entropy with integer labels" do
+      labels = Nx.tensor([[0], [1], [2], [0], [1], [2], [0], [1]])
+      data = [{Nx.iota({8, 4}, type: :f32), labels}]
+
+      message =
+        assert_raise ArgumentError,
+                     ~r/have shape \{8, 1\} but the model prediction has shape \{8, 3\}/,
+                     fn ->
+                       Axon.input("input", shape: {nil, 4})
+                       |> Axon.dense(3, activation: :softmax)
+                       |> Loop.trainer(:categorical_cross_entropy, :sgd, log: 0)
+                       |> Loop.run(data, Axon.ModelState.empty())
+                     end
+
+      assert message.message =~ "one-hot encode"
+      assert message.message =~ "sparse: true"
+    end
+
+    test "does not check shapes for custom loss functions" do
+      labels = Nx.tensor([[0], [1], [2], [0], [1], [2], [0], [1]])
+      data = [{Nx.iota({8, 4}, type: :f32), labels}]
+
+      loss_fn = &Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 1}}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3, activation: :softmax)
+               |> Loop.trainer(loss_fn, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty())
+    end
+
+    test "raises when a built-in loss is used with a container output" do
+      model =
+        Axon.container({Axon.input("a", shape: {nil, 1}), Axon.input("b", shape: {nil, 2})})
+
+      inputs = %{"a" => Nx.iota({8, 1}, type: :f32), "b" => Nx.iota({8, 2}, type: :f32)}
+      targets = {Nx.iota({8, 1}, type: :f32), Nx.iota({8, 2}, type: :f32)}
+
+      assert_raise ArgumentError,
+                   ~r/expected the targets and the model prediction to be tensors/,
+                   fn ->
+                     model
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run([{inputs, targets}], Axon.ModelState.empty())
+                   end
+    end
+
+    test "raises when a multi-output loss list gets non-tuple targets" do
+      model =
+        Axon.container({Axon.input("a", shape: {nil, 1}), Axon.input("b", shape: {nil, 2})})
+
+      inputs = %{"a" => Nx.iota({8, 1}, type: :f32), "b" => Nx.iota({8, 2}, type: :f32)}
+      losses = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
+
+      assert_raise ArgumentError, ~r/tuples with 2 elements/, fn ->
+        model
+        |> Loop.trainer(losses, :sgd, log: 0)
+        |> Loop.run([{inputs, Nx.iota({8, 1}, type: :f32)}], Axon.ModelState.empty())
+      end
+
+      targets = {Nx.iota({8, 1}, type: :f32), Nx.iota({8, 2}, type: :f32)}
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 1}}} =
+               model
+               |> Loop.trainer(losses, :sgd, log: 0)
+               |> Loop.run([{inputs, targets}], Axon.ModelState.empty())
+    end
+
+    test "accepts a loss function that returns a number" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
+
+      assert %State{epoch: 1, step_state: %{loss: loss}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3)
+               |> Loop.trainer(fn _y_true, _y_pred -> 1.0 end, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty())
+
+      assert Nx.to_number(loss) == 1.0
+    end
+
+    test "raises when the loss function does not return a scalar" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
+      loss_fn = fn y_true, y_pred -> Nx.subtract(y_true, y_pred) end
+
+      assert_raise ArgumentError,
+                   ~r/expected the loss function to return a scalar tensor, got #Nx.Tensor<\s*f32\[8\]\[3\]/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(loss_fn, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+ 
     test "logs epoch and iteration" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       data = [{Nx.tensor([[1.0]]), Nx.tensor([[2.0]])}]

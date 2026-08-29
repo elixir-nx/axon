@@ -367,6 +367,7 @@ defmodule Axon.Loop do
 
       model_out = forward_model_fn.(model_state, inp)
       unscaled_loss = loss_fn.(tar, model_out.prediction)
+      check_loss_output!(unscaled_loss)
       scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
 
       {model_out, scaled_loss, unscaled_loss}
@@ -574,7 +575,13 @@ defmodule Axon.Loop do
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
   for multi-output models, or an arity-2 function representing a custom loss
-  function.
+  function. Built-in losses expect the targets to have exactly the same shape
+  as the model prediction, and every loss function must return a scalar; the
+  training step raises with the offending shapes otherwise. To train
+  `:categorical_cross_entropy` on integer class labels, one-hot encode the
+  targets or pass
+  `&Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)`
+  as a custom loss.
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
@@ -630,7 +637,9 @@ defmodule Axon.Loop do
 
   ### Multiple objectives with multi-output model
 
-      model = {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 2})}
+      model =
+        Axon.container({Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 2})})
+
       loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
 
       model
@@ -1569,9 +1578,11 @@ defmodule Axon.Loop do
     * `:garbage_collect` - whether or not to garbage collect after
       each loop iteration. This may prevent OOMs, but it will slow down training.
 
-    * `:strict?` - whether or not to compile step functions strictly. If this flag
-      is set, the loop will raise on any cache miss during the training loop. Defaults
-      to true.
+    * `:strict?` - whether or not to compile step functions strictly. When set,
+      the step function is compiled once for the shape and type of the first batch
+      and the loop raises if any later batch differs (for example a smaller final
+      batch). Set to `false` to recompile for every new batch shape instead.
+      Defaults to `true`.
 
     * `:force_garbage_collection?` - whether or not to force garbage collection after each
       iteration. This may help avoid OOMs when training large models, but it will slow
@@ -1833,6 +1844,7 @@ defmodule Axon.Loop do
 
         {:continue, state} ->
           %State{
+            epoch: epoch,
             iteration: iters,
             max_iteration: max_iters,
             step_state: step_state,
@@ -1846,22 +1858,26 @@ defmodule Axon.Loop do
           # arguments to agree on what is donated.
           step_state = maybe_donate_step_state(step_state, donate_state?)
 
-          batch_fn =
+          {batch_fn, batch_template} =
             case batch_fn do
               {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts} ->
                 cond do
                   jit_compile? and strict? ->
-                    Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+                    compiled =
+                      Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+
+                    {compiled, Nx.to_template(data)}
 
                   jit_compile? ->
-                    Nx.Defn.jit(batch_fn, jit_opts)
+                    {Nx.Defn.jit(batch_fn, jit_opts), nil}
 
                   true ->
-                    batch_fn
+                    {batch_fn, nil}
                 end
 
-              {:compiled, batch_fn} ->
-                batch_fn
+              {:compiled, batch_fn, batch_template} ->
+                check_batch_compatible!(batch_template, data, epoch, iters)
+                {batch_fn, batch_template}
             end
 
           if debug? do
@@ -1875,7 +1891,7 @@ defmodule Axon.Loop do
             Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
           end
 
-          batch_fn = {:compiled, batch_fn}
+          batch_fn = {:compiled, batch_fn, batch_template}
           state = %{state | step_state: new_step_state, metrics: new_metrics}
 
           case fire_event(:iteration_completed, handler_fns, state, debug?) do
@@ -1907,6 +1923,37 @@ defmodule Axon.Loop do
   # state is either overwritten without being read, like `:y_pred`, or too small
   # to be worth donating, like `:i`.
   @donatable_step_state_keys [:model_state, :optimizer_state, :loss_scale_state]
+
+  # The step function is compiled once, for the first batch, when strict?: true.
+  # Nx raises on a later batch of a different shape, but only says which
+  # argument position disagreed with the template; report the batch and the
+  # fix instead. Nx.compatible?/2 is the same per-leaf predicate the compiled
+  # function applies, so this never rejects a batch Nx would have accepted.
+  defp check_batch_compatible!(nil, _data, _epoch, _iteration), do: :ok
+
+  defp check_batch_compatible!(template, data, epoch, iteration) do
+    unless Nx.compatible?(template, data) do
+      raise ArgumentError, """
+      batch #{iteration} of epoch #{epoch} does not have the same shape and type as the batch \
+      the loop was compiled for.
+
+      Compiled for:
+
+      #{inspect(template)}
+
+      Got:
+
+      #{inspect(Nx.to_template(data))}
+
+      Every batch must have the same shape and type when Axon.Loop.run/4 runs with \
+      strict?: true (the default), because the step function is compiled once for the \
+      first batch. This usually happens when the last batch of a dataset is smaller than \
+      the others. Drop the partial batch (for example with Nx.to_batched/3 and \
+      leftover: :discard), pad it to the full batch size, or pass strict?: false to \
+      Axon.Loop.run/4 to recompile the step function for every new batch shape.
+      """
+    end
+  end
 
   defp maybe_donate_step_state(step_state, false), do: step_state
 
@@ -2080,18 +2127,21 @@ defmodule Axon.Loop do
   # joint, multi-objective loss function.
   # TODO(seanmor5): Configurable per-batch reductions
   # TODO(seanmor5): Configurable multi-objective reductions
-  # TODO(seanmor5): Should we trace custom loss functions and provide a
-  # more clear error if the output shape is wrong?
   defp build_loss_fn(loss) do
     case loss do
       loss_name when is_atom(loss_name) and loss_name in @valid_axon_losses ->
-        &apply(Axon.Losses, loss_name, [&1, &2, [reduction: :mean]])
+        fn y_true, y_pred ->
+          check_loss_shapes!(loss_name, y_true, y_pred)
+          apply(Axon.Losses, loss_name, [y_true, y_pred, [reduction: :mean]])
+        end
 
       loss_fn when is_function(loss, 2) ->
         loss_fn
 
       [{_, _} | _] = losses ->
         fn y_true, y_pred ->
+          check_multi_output_shapes!(length(losses), y_true, y_pred)
+
           {_, loss} =
             Enum.reduce(losses, {0, Nx.tensor(0)}, fn {loss, weight}, {i, acc_loss} ->
               loss_fn = build_loss_fn(loss)
@@ -2118,6 +2168,88 @@ defmodule Axon.Loop do
                 " an arity-2 function of the form loss(y_true, y_pred), or a list" <>
                 " of 2-tuples of {loss, weight} for multi-objective models"
     end
+  end
+
+  # The built-in losses all document y_true and y_pred as having identical
+  # shapes and the trainer never passes sparse: true, so anything else would
+  # either fail with a raw Nx broadcast error or silently broadcast into a
+  # meaningless loss (e.g. integer labels against one-hot predictions). These
+  # checks run while the step function is traced, so they must only read
+  # shapes and never inspect an expression tensor directly.
+  defp check_loss_shapes!(loss_name, %Nx.Tensor{} = y_true, %Nx.Tensor{} = y_pred) do
+    true_shape = Nx.shape(y_true)
+    pred_shape = Nx.shape(y_pred)
+
+    if true_shape != pred_shape do
+      raise ArgumentError,
+            "the targets given to Axon.Losses.#{loss_name}/3 have shape #{inspect(true_shape)}" <>
+              " but the model prediction has shape #{inspect(pred_shape)}," <>
+              " Axon.Losses.#{loss_name}/3 expects targets and predictions of the same shape. " <>
+              loss_shape_hint(loss_name, true_shape, pred_shape)
+    end
+  end
+
+  defp check_loss_shapes!(loss_name, y_true, y_pred) do
+    raise ArgumentError,
+          "expected the targets and the model prediction to be tensors when training with" <>
+            " the built-in loss #{inspect(loss_name)}, got targets:" <>
+            " #{inspect(Nx.to_template(y_true))} and prediction:" <>
+            " #{inspect(Nx.to_template(y_pred))}. For models with container outputs pass" <>
+            " a list of {loss, weight} tuples, one per output, or a custom loss function" <>
+            " to Axon.Loop.trainer/4"
+  end
+
+  defp loss_shape_hint(loss_name, true_shape, pred_shape) do
+    cond do
+      tuple_size(true_shape) > 0 and tuple_size(pred_shape) > 0 and
+          elem(true_shape, 0) != elem(pred_shape, 0) ->
+        "The batch axes differ (#{elem(true_shape, 0)} vs #{elem(pred_shape, 0)}), which" <>
+          " usually means the inputs and targets in your dataset are not batched together;" <>
+          " make sure every {input, target} pair given to Axon.Loop.run/4 comes from the" <>
+          " same batch"
+
+      loss_name == :categorical_cross_entropy and
+          (tuple_size(true_shape) < tuple_size(pred_shape) or
+             elem(true_shape, tuple_size(true_shape) - 1) == 1) ->
+        "If your targets are integer class labels, either one-hot encode them, e.g." <>
+          " Nx.equal(Nx.reshape(labels, {:auto, 1}), Nx.iota({1, num_classes})), or use" <>
+          " sparse targets through a custom loss:" <>
+          " &Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)"
+
+      true ->
+        "Check that the output size of the last layer of your model matches your targets"
+    end
+  end
+
+  defp check_multi_output_shapes!(n, y_true, y_pred) do
+    unless is_tuple(y_true) and tuple_size(y_true) == n and
+             is_tuple(y_pred) and tuple_size(y_pred) == n do
+      raise ArgumentError,
+            "a list of #{n} weighted losses expects the model prediction and the targets to" <>
+              " be tuples with #{n} elements, one per output, got targets:" <>
+              " #{inspect(Nx.to_template(y_true))} and prediction:" <>
+              " #{inspect(Nx.to_template(y_pred))}"
+    end
+  end
+
+  # The training step keeps a running average of the loss against a scalar
+  # accumulator, so a non-scalar loss changes the step state template and only
+  # fails on the next batch with an unrelated-looking Nx compile error.
+  defp check_loss_output!(%Nx.Tensor{} = loss) do
+    if Nx.shape(loss) != {} do
+      raise ArgumentError, non_scalar_loss_message(Nx.to_template(loss))
+    end
+  end
+
+  defp check_loss_output!(loss) when is_number(loss), do: :ok
+
+  defp check_loss_output!(loss), do: raise(ArgumentError, non_scalar_loss_message(loss))
+
+  defp non_scalar_loss_message(got) do
+    "expected the loss function to return a scalar tensor, got #{inspect(got)}." <>
+      " The training step accumulates a single loss value per batch, so custom loss" <>
+      " functions must reduce the per-example loss to a scalar, for example with Nx.mean/1," <>
+      " and functions from Axon.Losses must be called with reduction: :mean or reduction: :sum"
   end
 
   # Builds model init and forward functions from an Axon struct,
