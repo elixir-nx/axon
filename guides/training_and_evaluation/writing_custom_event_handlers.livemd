@@ -102,15 +102,15 @@ Axon.Loop.run(loop, train_data, %{}, epochs: 5, iterations: 100)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 50, loss: 0.0990703
+Epoch: 0, Iteration: 50, loss: 0.0990703
 My weird handler: fired
-Epoch: 1, Batch: 50, loss: 0.0567622
+Epoch: 1, Iteration: 50, loss: 0.0567622
 My weird handler: fired
-Epoch: 2, Batch: 50, loss: 0.0492784
+Epoch: 2, Iteration: 50, loss: 0.0492784
 My weird handler: fired
-Epoch: 3, Batch: 50, loss: 0.0462587
+Epoch: 3, Iteration: 50, loss: 0.0462587
 My weird handler: fired
-Epoch: 4, Batch: 50, loss: 0.0452806
+Epoch: 4, Iteration: 50, loss: 0.0452806
 My weird handler: fired
 ```
 
@@ -198,7 +198,7 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 50, loss: 0.2201974
+Epoch: 0, Iteration: 50, loss: 0.2201974
 stopping loop
 ```
 
@@ -292,7 +292,7 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 0, loss: 0.0000000
+Epoch: 0, Iteration: 0, loss: 0.0000000
 stopping epoch
 
 stopping epoch

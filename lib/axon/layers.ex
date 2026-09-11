@@ -411,6 +411,10 @@ defmodule Axon.Layers do
       of interior padding applied is given by `kernel_dilation - 1`.
       Defaults to `1` or no dilation.
 
+    * `:feature_group_size` - feature group size for the convolution.
+      Splits the input channels into that many groups, each convolved
+      with its own slice of the kernel. Defaults to `1`.
+
     * `:channels ` - channel configuration. One of `:first` or `:last`.
       Defaults to `:last`.
 
@@ -468,6 +472,7 @@ defmodule Axon.Layers do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
+        feature_group_size: 1,
         channels: :last,
         mode: :inference
       )
@@ -490,6 +495,7 @@ defmodule Axon.Layers do
       padding: padding,
       input_dilation: strides,
       kernel_dilation: opts[:kernel_dilation],
+      feature_group_size: opts[:feature_group_size],
       channels: opts[:channels]
     )
   end
@@ -2002,7 +2008,8 @@ defmodule Axon.Layers do
   end
 
   @doc ~S"""
-  Functional implementation of a learnable scale layer.
+  Functional implementation of a learnable scale layer (sometimes
+  called LayerScale).
 
   Multiplies the input elementwise by `scale` broadcast along the
   `:channel_index` axis:
@@ -2471,8 +2478,8 @@ defmodule Axon.Layers do
     feature_dims = list_duplicate(0, Nx.rank(input_sequence) - 2)
     mask = get_mask(mask, input_sequence)
 
-    initial_shape =
-      unroll_initial_shape_transform(
+    init_sequence =
+      unroll_initial_zeros(
         cell_fn,
         input_sequence,
         carry,
@@ -2482,7 +2489,6 @@ defmodule Axon.Layers do
         bias
       )
 
-    init_sequence = Nx.broadcast(0.0, initial_shape)
     t = Nx.tensor(0)
 
     {_, output, carry, _, _, _, _, _} =
@@ -2512,7 +2518,7 @@ defmodule Axon.Layers do
     [0, i] ++ feature_dims
   end
 
-  deftransformp unroll_initial_shape_transform(
+  deftransformp unroll_initial_zeros(
                   cell_fn,
                   inp,
                   carry,
@@ -2526,7 +2532,8 @@ defmodule Axon.Layers do
     mask_token = Nx.slice_along_axis(mask, 0, 1, axis: 1)
     mask_token = Nx.reshape(mask_token, {Nx.axis_size(seq, 0), 1})
     {seq, _} = cell_fn.(seq, carry, mask_token, inp_kernel, hid_kernel, bias)
-    Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+    shape = Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
+    Nx.broadcast(Nx.tensor(0, type: Nx.type(seq)), shape)
   end
 
   @doc """

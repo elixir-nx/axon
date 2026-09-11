@@ -6,15 +6,14 @@ defmodule Axon.LoopTest do
   alias Axon.Loop.State
 
   describe "factories" do
-    test "loop/3 creates a basic loop with defaults" do
+    test "loop/2 creates a basic loop with defaults" do
       step_fn = fn _, _ -> Nx.tensor(1) end
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.loop(step_fn)
 
       assert_equal(init_fn.(Nx.tensor(1), %{}), %{})
       assert_equal(update_fn.({}, %{}), Nx.tensor(1))
-      assert_equal(transform.(%{}), %{})
     end
 
     test "trainer/3 returns a supervised training loop with basic case" do
@@ -40,22 +39,18 @@ defmodule Axon.LoopTest do
 
       for loss <- valid_axon_losses do
         for optimizer <- valid_axon_optimizers do
-          assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+          assert %Loop{init: init_fn, step: update_fn} =
                    Loop.trainer(model, loss, optimizer)
 
           assert %{model_state: %Axon.ModelState{}} =
                    pstate =
                    init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
-          state = %State{step_state: pstate}
-
           assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                    apply(Nx.Defn.jit(update_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
           assert_equal(tar, Nx.tensor([[1]]))
           assert_equal(pred, Nx.tensor([[1]]))
-
-          assert_equal(transform.(state), Axon.ModelState.empty())
         end
       end
     end
@@ -64,13 +59,11 @@ defmodule Axon.LoopTest do
       model = Axon.input("input", shape: {nil, 1})
       custom_loss_fn = fn _, _ -> Nx.tensor(5.0, backend: Nx.Defn.Expr) end
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.trainer(model, custom_loss_fn, :adam)
 
       assert %{model_state: %{}} =
                pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
-
-      state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
                apply(Nx.Defn.jit(update_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
@@ -78,49 +71,39 @@ defmodule Axon.LoopTest do
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
       assert_equal(loss, Nx.tensor(5.0))
-
-      assert_equal(transform.(state), Axon.ModelState.empty())
     end
 
     test "trainer/3 returns a supervised training loop with custom optimizer" do
       model = Axon.input("input", shape: {nil, 1})
       optimizer = Polaris.Optimizers.rmsprop(learning_rate: 1.0e-3)
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.trainer(model, :mean_squared_error, optimizer)
 
       assert %{model_state: %{}} =
                pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
 
-      state = %State{step_state: pstate}
-
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                apply(Nx.Defn.jit(update_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
-
-      assert_equal(transform.(state), Axon.ModelState.empty())
     end
 
     test "trainer/3 returns a supervised training loop with custom model" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.build(mode: :train)
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.trainer(model, :mean_squared_error, :adam)
 
       assert %{model_state: %{}} =
                pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[1]])}, Axon.ModelState.empty())
-
-      state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred} =
                apply(Nx.Defn.jit(update_fn), [{Nx.tensor([[1]]), Nx.tensor([[1]])}, pstate])
 
       assert_equal(tar, Nx.tensor([[1]]))
       assert_equal(pred, Nx.tensor([[1]]))
-
-      assert_equal(transform.(state), Axon.ModelState.empty())
     end
 
     test "trainer/3 returns a supervised training loop with multi-loss" do
@@ -128,7 +111,7 @@ defmodule Axon.LoopTest do
         {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 1})}
         |> Axon.container()
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.trainer(model, [mean_squared_error: 0.5, mean_absolute_error: 0.5], :adam)
 
       assert %{model_state: %{}} =
@@ -137,8 +120,6 @@ defmodule Axon.LoopTest do
                  {%{"input_0" => Nx.tensor([[2]]), "input_1" => Nx.tensor([[2]])}, Nx.tensor(0)},
                  Axon.ModelState.empty()
                )
-
-      state = %State{step_state: pstate}
 
       assert %{model_state: %{}, y_true: tar, y_pred: pred, loss: loss} =
                apply(Nx.Defn.jit(update_fn), [
@@ -150,8 +131,6 @@ defmodule Axon.LoopTest do
       assert_equal(tar, {Nx.tensor([[2]]), Nx.tensor([[2]])})
       assert_equal(pred, {Nx.tensor([[1]]), Nx.tensor([[1]])})
       assert_equal(loss, Nx.tensor(1.0))
-
-      assert_equal(transform.(state), Axon.ModelState.empty())
     end
 
     test "trainer/3 raises on bad inputs" do
@@ -182,21 +161,17 @@ defmodule Axon.LoopTest do
 
       expected_pred = Axon.predict(model, model_state, inp)
 
-      assert %Loop{init: init_fn, step: update_fn, output_transform: transform} =
+      assert %Loop{init: init_fn, step: update_fn} =
                Loop.evaluator(model)
 
       assert %{model_state: _, y_true: _, y_pred: _} =
                pstate = init_fn.({Nx.tensor([[1]]), Nx.tensor([[2]])}, model_state)
-
-      state = %State{step_state: pstate, metrics: %{"my_metric" => {}}}
 
       assert %{y_true: tar, y_pred: pred} =
                apply(Nx.Defn.jit(update_fn), [{Nx.tensor([[1]]), Nx.tensor([[2]])}, pstate])
 
       assert_equal(tar, Nx.tensor([[2]]))
       assert_equal(pred, expected_pred)
-
-      assert_equal(transform.(state), %{"my_metric" => {}})
     end
 
     test "evaluator/1 runs a supervised evaluator loop" do
@@ -212,8 +187,9 @@ defmodule Axon.LoopTest do
       assert %Loop{} = loop = Loop.metric(loop, :mean_absolute_error)
 
       assert ExUnit.CaptureIO.capture_io(fn ->
-               assert %{0 => %{"mean_absolute_error" => _}} = Loop.run(loop, data, model_state)
-             end) =~ "Batch"
+               assert %State{metrics: %{0 => %{"mean_absolute_error" => _}}} =
+                        Loop.run(loop, data, model_state)
+             end) =~ "Iteration: 0, mean_absolute_error:"
     end
 
     test "eval_step/1 evaluates model on a single batch" do
@@ -231,6 +207,64 @@ defmodule Axon.LoopTest do
       # Older versions of the loop API had backend mismatches,
       # so just verify there was a successful result here
       assert %{y_true: _, y_pred: _} = apply(Nx.Defn.jit(step_fn), [{inp, tar}, pstate])
+    end
+
+    test "eval_step/1 evaluates models which output a container" do
+      inp = Nx.tensor([[1.0]])
+      tar = Nx.tensor([[2.0]])
+
+      dense = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
+
+      model =
+        Axon.container(%{
+          logits: dense,
+          maybe: Axon.input("optional", shape: {nil, 1}, optional: true) |> Axon.optional()
+        })
+
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(%{"input" => inp}, Axon.ModelState.empty())
+
+      {eval_init_fn, eval_step_fn} = Axon.Loop.eval_step(model)
+
+      assert %{y_pred: %{logits: logits, maybe: %Axon.None{}}} =
+               pstate = apply(Nx.Defn.jit(eval_init_fn), [{%{"input" => inp}, tar}, model_state])
+
+      assert_equal(logits, Nx.tensor([[0.0]]))
+
+      assert %{y_pred: %{logits: logits, maybe: %Axon.None{}}} =
+               apply(Nx.Defn.jit(eval_step_fn), [{%{"input" => inp}, tar}, pstate])
+
+      assert_equal(logits, Axon.predict(model, model_state, %{"input" => inp}).logits)
+    end
+
+    test "validate/4 works with models which output a container" do
+      inp = Nx.tensor([[1.0]])
+      tar = Nx.tensor([[2.0]])
+      data = List.duplicate({inp, tar}, 2)
+
+      model =
+        Axon.input("input", shape: {nil, 1})
+        |> Axon.dense(1)
+        |> then(&Axon.container(%{logits: &1}))
+
+      loss = fn y_true, %{logits: logits} ->
+        Axon.Losses.mean_squared_error(y_true, logits, reduction: :mean)
+      end
+
+      metric = fn y_true, %{logits: logits} ->
+        Axon.Metrics.mean_absolute_error(y_true, logits)
+      end
+
+      loop =
+        model
+        |> Axon.Loop.trainer(loss, :sgd)
+        |> Axon.Loop.metric(metric, "mae")
+        |> Axon.Loop.validate(model, data)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert %Axon.Loop.State{step_state: %{model_state: %Axon.ModelState{}}} =
+                 Axon.Loop.run(loop, data, Axon.ModelState.empty(), epochs: 1)
+      end)
     end
 
     test "train_step/3 updates stateful layers after single step" do
@@ -292,7 +326,7 @@ defmodule Axon.LoopTest do
              end) =~ "Metric accuracy declared twice in loop."
     end
 
-    test "computes running average by default with supervised output transform" do
+    test "computes running average by default with supervised transform" do
       step_fn = fn _, _ -> 1 end
 
       loop =
@@ -315,7 +349,7 @@ defmodule Axon.LoopTest do
       assert_equal(avg_acc_fun.(cur_avg_acc, List.wrap(output), i), Nx.tensor(0.75))
     end
 
-    test "computes a running sum with custom output transform" do
+    test "computes a running sum with custom transform" do
       step_fn = fn _, _ -> 1 end
 
       loop =
@@ -428,6 +462,76 @@ defmodule Axon.LoopTest do
         strict?: false
       )
     end
+
+    test "raises a clear error when a batch changes shape under strict compilation" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      message =
+        assert_raise ArgumentError,
+                     ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                     fn ->
+                       Axon.input("input", shape: {nil, 4})
+                       |> Axon.dense(3)
+                       |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                       |> Loop.run(data, Axon.ModelState.empty())
+                     end
+
+      assert message.message =~ "f32[8][4]"
+      assert message.message =~ "f32[4][4]"
+      assert message.message =~ "strict?: false"
+    end
+
+    test "raises a clear error when a batch changes type under strict compilation" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({8, 4}), Nx.iota({8, 3}, type: :f32)}
+      ]
+
+      assert_raise ArgumentError,
+                   ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+
+    test "raises a clear error when a batch changes shape in an evaluation loop" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      model = Axon.input("input", shape: {nil, 4}) |> Axon.dense(3)
+      {init_fn, _} = Axon.build(model)
+      model_state = init_fn.(Nx.template({8, 4}, :f32), Axon.ModelState.empty())
+
+      assert_raise ArgumentError,
+                   ~r/batch 1 of epoch 0 does not have the same shape and type/,
+                   fn ->
+                     model
+                     |> Loop.evaluator()
+                     |> Loop.metric(:mean_absolute_error)
+                     |> Loop.run(data, model_state)
+                   end
+    end
+
+    test "recompiles for new batch shapes with strict?: false" do
+      data = [
+        {Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)},
+        {Nx.iota({4, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}
+      ]
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 2}}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3)
+               |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty(), strict?: false)
+    end
   end
 
   describe "trainer" do
@@ -440,6 +544,140 @@ defmodule Axon.LoopTest do
         |> Axon.Loop.trainer(:categorical_cross_entropy, :adam)
         |> Axon.Loop.run(data, %{})
       end
+    end
+
+    test "raises a clear error when targets and predictions have different shapes" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 2}, type: :f32)}]
+
+      assert_raise ArgumentError,
+                   ~r/targets given to Axon.Losses.mean_squared_error\/3 have shape \{8, 2\} but the model prediction has shape \{8, 3\}/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+
+    test "points at the batch axis when inputs and targets are batched differently" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({4, 3}, type: :f32)}]
+
+      assert_raise ArgumentError, ~r/batch axes differ \(4 vs 8\)/, fn ->
+        Axon.input("input", shape: {nil, 4})
+        |> Axon.dense(3)
+        |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+        |> Loop.run(data, Axon.ModelState.empty())
+      end
+    end
+
+    test "suggests one-hot encoding for categorical_cross_entropy with integer labels" do
+      labels = Nx.tensor([[0], [1], [2], [0], [1], [2], [0], [1]])
+      data = [{Nx.iota({8, 4}, type: :f32), labels}]
+
+      message =
+        assert_raise ArgumentError,
+                     ~r/have shape \{8, 1\} but the model prediction has shape \{8, 3\}/,
+                     fn ->
+                       Axon.input("input", shape: {nil, 4})
+                       |> Axon.dense(3, activation: :softmax)
+                       |> Loop.trainer(:categorical_cross_entropy, :sgd, log: 0)
+                       |> Loop.run(data, Axon.ModelState.empty())
+                     end
+
+      assert message.message =~ "one-hot encode"
+      assert message.message =~ "sparse: true"
+    end
+
+    test "does not check shapes for custom loss functions" do
+      labels = Nx.tensor([[0], [1], [2], [0], [1], [2], [0], [1]])
+      data = [{Nx.iota({8, 4}, type: :f32), labels}]
+
+      loss_fn = &Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 1}}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3, activation: :softmax)
+               |> Loop.trainer(loss_fn, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty())
+    end
+
+    test "raises when a built-in loss is used with a container output" do
+      model =
+        Axon.container({Axon.input("a", shape: {nil, 1}), Axon.input("b", shape: {nil, 2})})
+
+      inputs = %{"a" => Nx.iota({8, 1}, type: :f32), "b" => Nx.iota({8, 2}, type: :f32)}
+      targets = {Nx.iota({8, 1}, type: :f32), Nx.iota({8, 2}, type: :f32)}
+
+      assert_raise ArgumentError,
+                   ~r/expected the targets and the model prediction to be tensors/,
+                   fn ->
+                     model
+                     |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+                     |> Loop.run([{inputs, targets}], Axon.ModelState.empty())
+                   end
+    end
+
+    test "raises when a multi-output loss list gets non-tuple targets" do
+      model =
+        Axon.container({Axon.input("a", shape: {nil, 1}), Axon.input("b", shape: {nil, 2})})
+
+      inputs = %{"a" => Nx.iota({8, 1}, type: :f32), "b" => Nx.iota({8, 2}, type: :f32)}
+      losses = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
+
+      assert_raise ArgumentError, ~r/tuples with 2 elements/, fn ->
+        model
+        |> Loop.trainer(losses, :sgd, log: 0)
+        |> Loop.run([{inputs, Nx.iota({8, 1}, type: :f32)}], Axon.ModelState.empty())
+      end
+
+      targets = {Nx.iota({8, 1}, type: :f32), Nx.iota({8, 2}, type: :f32)}
+
+      assert %State{epoch: 1, event_counts: %{iteration_completed: %{total: 1}}} =
+               model
+               |> Loop.trainer(losses, :sgd, log: 0)
+               |> Loop.run([{inputs, targets}], Axon.ModelState.empty())
+    end
+
+    test "accepts a loss function that returns a number" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
+
+      assert %State{epoch: 1, step_state: %{loss: loss}} =
+               Axon.input("input", shape: {nil, 4})
+               |> Axon.dense(3)
+               |> Loop.trainer(fn _y_true, _y_pred -> 1.0 end, :sgd, log: 0)
+               |> Loop.run(data, Axon.ModelState.empty())
+
+      assert Nx.to_number(loss) == 1.0
+    end
+
+    test "raises when the loss function does not return a scalar" do
+      data = [{Nx.iota({8, 4}, type: :f32), Nx.iota({8, 3}, type: :f32)}]
+      loss_fn = fn y_true, y_pred -> Nx.subtract(y_true, y_pred) end
+
+      assert_raise ArgumentError,
+                   ~r/expected the loss function to return a scalar tensor, got #Nx.Tensor<\s*f32\[8\]\[3\]/,
+                   fn ->
+                     Axon.input("input", shape: {nil, 4})
+                     |> Axon.dense(3)
+                     |> Loop.trainer(loss_fn, :sgd, log: 0)
+                     |> Loop.run(data, Axon.ModelState.empty())
+                   end
+    end
+ 
+    test "logs epoch and iteration" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
+      data = [{Nx.tensor([[1.0]]), Nx.tensor([[2.0]])}]
+
+      loop = Axon.Loop.trainer(model, :mean_squared_error, :sgd, log: 1)
+
+      output =
+        ExUnit.CaptureIO.capture_io(fn ->
+          Axon.Loop.run(loop, data, Axon.ModelState.empty(), epochs: 2)
+        end)
+
+      assert output =~ "Epoch: 0, Iteration: 0, loss:"
+      assert output =~ "Epoch: 1, Iteration: 0, loss:"
+      refute output =~ "Batch"
     end
   end
 
@@ -868,7 +1106,6 @@ defmodule Axon.LoopTest do
                event_counts: %{iteration_completed: %{total: 15}}
              } =
                loop
-               |> Map.put(:output_transform, & &1)
                |> Loop.checkpoint(event: :iteration_completed, filter: [every: {:epoch, 2}])
                |> Loop.run(data, Axon.ModelState.empty(), epochs: 3)
 
@@ -965,8 +1202,6 @@ defmodule Axon.LoopTest do
         state1 =
           model
           |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-          # TODO: Make this an actual function or configurable
-          |> Map.put(:output_transform, & &1)
           |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 3, iterations: 5)
 
         model
@@ -1007,6 +1242,208 @@ defmodule Axon.LoopTest do
         )
         |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
       end)
+    end
+  end
+
+  describe "buffer donation" do
+    defp donation_model,
+      do: Axon.input("input", shape: {nil, 4}) |> Axon.dense(8) |> Axon.dense(1)
+
+    defp donation_data do
+      for i <- 1..4 do
+        xs = Nx.iota({2, 4}, type: :f32) |> Nx.add(i)
+        {xs, Nx.sum(xs, axes: [1], keep_axes: true)}
+      end
+    end
+
+    defp donation_init_state(model, data) do
+      {init_fn, _} = Axon.build(model)
+      [{xs, _} | _] = data
+      Nx.Defn.jit_apply(init_fn, [xs, Axon.ModelState.empty()])
+    end
+
+    # Runs every tensor in `container` through `fun`, returning the results.
+    defp map_leaves(container, fun) do
+      {_, acc} =
+        Nx.Defn.Composite.traverse(container, [], fn tensor, acc ->
+          {tensor, [fun.(tensor) | acc]}
+        end)
+
+      acc
+    end
+
+    test "the state a donating loop returns is not itself donatable" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        result =
+          model
+          |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adam(learning_rate: 0.01))
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2, donate_state?: true)
+
+        send(self(), {:result, result})
+      end)
+
+      assert_receive {:result, result}
+
+      # Otherwise the mark would follow the caller out of the loop and donate
+      # buffers they never offered on their next `Nx.Defn.jit` call.
+      assert map_leaves(result.step_state, &Nx.donatable?/1) |> Enum.uniq() == [false]
+    end
+
+    test "donating state does not change the parameters a loop converges to" do
+      model = donation_model()
+      data = donation_data()
+      init_state = donation_init_state(model, data)
+
+      run = fn donate? ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          %Axon.Loop.State{step_state: %{model_state: model_state}} =
+            model
+            |> Axon.Loop.trainer(
+              :mean_squared_error,
+              Polaris.Optimizers.adam(learning_rate: 0.01)
+            )
+            |> Axon.Loop.run(data, Nx.backend_copy(init_state),
+              epochs: 3,
+              donate_state?: donate?
+            )
+
+          send(self(), {:result, model_state})
+        end)
+
+        assert_receive {:result, result}
+        result
+      end
+
+      assert_equal(run.(true), run.(false))
+    end
+
+    test "donating state works when the loop is not JIT compiled" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        assert %Axon.Loop.State{step_state: %{model_state: %Axon.ModelState{}}} =
+                 model
+                 |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+                 |> Axon.Loop.run(data, Axon.ModelState.empty(),
+                   epochs: 2,
+                   donate_state?: true,
+                   jit_compile?: false
+                 )
+      end)
+    end
+
+    test "donating state works with frozen parameters and stateful layers" do
+      model =
+        Axon.input("input", shape: {nil, 4})
+        |> Axon.dense(8)
+        |> Axon.batch_norm()
+        |> Axon.dense(1)
+
+      data = donation_data()
+
+      frozen_state =
+        model
+        |> donation_init_state(data)
+        |> Axon.ModelState.freeze(fn [layer | _] -> layer == "dense_0" end)
+
+      run = fn donate? ->
+        ExUnit.CaptureIO.capture_io(fn ->
+          %Axon.Loop.State{step_state: %{model_state: model_state}} =
+            model
+            |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+            |> Axon.Loop.run(data, Nx.backend_copy(frozen_state),
+              epochs: 2,
+              donate_state?: donate?
+            )
+
+          send(self(), {:result, model_state})
+        end)
+
+        assert_receive {:result, result}
+        result
+      end
+
+      # Frozen parameters are read but never updated, so they can only be
+      # donated to an output which is the argument itself, and the running
+      # statistics of a stateful layer are updated outside the optimizer.
+      assert_equal(run.(true), run.(false))
+    end
+
+    test "donating state does not affect loops run from event handlers" do
+      model = donation_model()
+      data = donation_data()
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+        |> Axon.Loop.metric(:mean_absolute_error)
+        |> Axon.Loop.validate(model, data)
+        |> Axon.Loop.handle_event(:epoch_completed, fn %{metrics: metrics} = state ->
+          assert Map.has_key?(metrics, "validation_mean_absolute_error")
+          {:continue, state}
+        end)
+        |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 2, donate_state?: true)
+      end)
+    end
+
+    @tag :exla_only
+    test "donated model state and optimizer state buffers are consumed by the next step" do
+      model = donation_model()
+      data = donation_data()
+
+      # Capture the state produced by the first iteration, then check whether
+      # the buffers behind it survive the iterations that follow.
+      {:ok, captured} = Agent.start_link(fn -> nil end)
+
+      capture = fn %State{iteration: iteration, step_state: step_state} = state ->
+        if iteration == 0 do
+          Agent.update(captured, fn nil ->
+            Map.take(step_state, [:model_state, :optimizer_state])
+          end)
+        end
+
+        {:continue, state}
+      end
+
+      run = fn donate? ->
+        Agent.update(captured, fn _ -> nil end)
+
+        ExUnit.CaptureIO.capture_io(fn ->
+          model
+          |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adam(learning_rate: 0.01))
+          |> Axon.Loop.handle_event(:iteration_completed, capture)
+          |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 1, donate_state?: donate?)
+        end)
+
+        captured
+        |> Agent.get(& &1)
+        |> map_leaves(&Nx.backend_deallocate/1)
+        |> Enum.uniq()
+      end
+
+      assert run.(true) == [:already_deallocated]
+      assert run.(false) == [:ok]
+    end
+
+    @tag :exla_only
+    test "donating state does not consume the state the loop was given" do
+      model = donation_model()
+      data = donation_data()
+      init_state = donation_init_state(model, data)
+
+      ExUnit.CaptureIO.capture_io(fn ->
+        model
+        |> Axon.Loop.trainer(:mean_squared_error, :sgd)
+        |> Axon.Loop.run(data, init_state, epochs: 1, donate_state?: true)
+      end)
+
+      # `init_fn` copies the state it is given into the step state, so the
+      # tensors the caller passed in are not the ones being donated.
+      assert map_leaves(init_state, &Nx.backend_deallocate/1) |> Enum.uniq() == [:ok]
     end
   end
 
@@ -1062,7 +1499,6 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.early_stop("counter", mode: :min, patience: 2)
           # TODO: This API needs to change
-          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
           |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
 
         assert %{epoch: 3} = state
@@ -1090,7 +1526,6 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.early_stop("counter", mode: :max, patience: 2)
           # TODO: This API needs to change
-          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
           |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 5, iterations: 5)
 
         assert %{epoch: 3} = state
@@ -1155,7 +1590,6 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :min, patience: 2)
           # TODO: This API needs to change
-          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
           |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 7, iterations: 5)
 
         assert %{step_state: %{optimizer_state: optimizer_state}} = state
@@ -1191,7 +1625,6 @@ defmodule Axon.LoopTest do
           |> Axon.Loop.metric(my_metric, "counter", :running_sum)
           |> Axon.Loop.reduce_lr_on_plateau("counter", factor: 0.5, mode: :max, patience: 2)
           # TODO: This API needs to change
-          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
           |> Axon.Loop.run(data, Axon.ModelState.empty(), epochs: 7, iterations: 5)
 
         assert %{step_state: %{optimizer_state: optimizer_state}} = state

@@ -29,7 +29,7 @@ defmodule Axon.IntegrationTest do
       end)
 
     ExUnit.CaptureIO.capture_io(fn ->
-      model_state =
+      %{step_state: %{model_state: model_state}} =
         model
         |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
         |> Axon.Loop.run(data, Axon.ModelState.empty(), iterations: 100, epochs: 20)
@@ -40,7 +40,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.run(data, model_state, iterations: 100)
 
-      assert_greater_equal(get_in(eval_results, [0, "accuracy"]), 0.9)
+      assert_greater_equal(get_in(eval_results.metrics, [0, "accuracy"]), 0.9)
     end)
   end
 
@@ -69,8 +69,6 @@ defmodule Axon.IntegrationTest do
           :categorical_cross_entropy,
           Polaris.Optimizers.adam(learning_rate: 5.0e-3)
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -84,7 +82,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.run(train, model_state)
 
-      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+      assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
       assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
       assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -117,8 +115,6 @@ defmodule Axon.IntegrationTest do
           :categorical_cross_entropy,
           Polaris.Optimizers.adam(learning_rate: 5.0e-3)
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -132,7 +128,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.run(train, model_state)
 
-      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+      assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
       assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
       assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -168,8 +164,6 @@ defmodule Axon.IntegrationTest do
           :categorical_cross_entropy,
           Polaris.Optimizers.adam(learning_rate: 5.0e-3)
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -183,7 +177,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.run(train, model_state)
 
-      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+      assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
       assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
       assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -218,8 +212,6 @@ defmodule Axon.IntegrationTest do
           :categorical_cross_entropy,
           Polaris.Optimizers.adam(learning_rate: 5.0e-3)
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -233,7 +225,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.run(train, model_state)
 
-      assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+      assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
       assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
       assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -265,8 +257,6 @@ defmodule Axon.IntegrationTest do
           Polaris.Optimizers.adam(learning_rate: 5.0e-3),
           seed: 1
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -278,8 +268,6 @@ defmodule Axon.IntegrationTest do
           Polaris.Optimizers.adam(learning_rate: 5.0e-3),
           seed: 1
         )
-        # TODO: Fix default output transform
-        |> Map.update(:output_transform, nil, fn _ -> & &1 end)
         |> Axon.Loop.metric(:accuracy)
         |> Axon.Loop.validate(model, train)
         |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -340,8 +328,6 @@ defmodule Axon.IntegrationTest do
               :categorical_cross_entropy,
               Polaris.Optimizers.unquote(optimizer)(unquote_splicing(args))
             )
-            # TODO: Fix default output transform
-            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
             |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -355,7 +341,7 @@ defmodule Axon.IntegrationTest do
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.run(train, model_state)
 
-          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+          assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.7)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -395,7 +381,7 @@ defmodule Axon.IntegrationTest do
         |> Axon.nx(fn seq -> Nx.squeeze(seq[[0..-1//1, -1, 0..-1//1]]) end)
 
       ExUnit.CaptureIO.capture_io(fn ->
-        %Axon.ModelState{data: dynamic} =
+        %{step_state: %{model_state: %Axon.ModelState{data: dynamic}}} =
           dynamic_model
           |> Axon.Loop.trainer(
             :mean_squared_error,
@@ -404,7 +390,7 @@ defmodule Axon.IntegrationTest do
           )
           |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 1)
 
-        %Axon.ModelState{data: static} =
+        %{step_state: %{model_state: %Axon.ModelState{data: static}}} =
           static_model
           |> Axon.Loop.trainer(
             :mean_squared_error,
@@ -457,8 +443,6 @@ defmodule Axon.IntegrationTest do
           results =
             model
             |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: unquote(scale))
-            # TODO: Fix default output transform
-            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
             |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -472,7 +456,7 @@ defmodule Axon.IntegrationTest do
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.run(train, model_state)
 
-          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+          assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -510,8 +494,6 @@ defmodule Axon.IntegrationTest do
           results =
             model
             |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: unquote(scale))
-            # TODO: Fix default output transform
-            |> Map.update(:output_transform, nil, fn _ -> & &1 end)
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.validate(model, train)
             |> Axon.Loop.run(train, Axon.ModelState.empty(), epochs: 10)
@@ -525,7 +507,7 @@ defmodule Axon.IntegrationTest do
             |> Axon.Loop.metric(:accuracy)
             |> Axon.Loop.run(train, model_state)
 
-          assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+          assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
           assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
           assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])
@@ -571,8 +553,6 @@ defmodule Axon.IntegrationTest do
         results =
           mp_model
           |> Axon.Loop.trainer(:categorical_cross_entropy, :adam, loss_scale: :dynamic)
-          # TODO: Fix default output transform
-          |> Map.update(:output_transform, nil, fn _ -> & &1 end)
           |> Axon.Loop.metric(:accuracy)
           |> Axon.Loop.validate(model, train)
           |> Axon.Loop.run(train, initial_state, epochs: 10)
@@ -586,7 +566,7 @@ defmodule Axon.IntegrationTest do
           |> Axon.Loop.metric(:accuracy)
           |> Axon.Loop.run(train, model_state)
 
-        assert %{0 => %{"accuracy" => final_model_val_accuracy}} = eval_results
+        assert %{metrics: %{0 => %{"accuracy" => final_model_val_accuracy}}} = eval_results
 
         assert_greater_equal(last_epoch_metrics["validation_accuracy"], 0.60)
         assert_all_close(final_model_val_accuracy, last_epoch_metrics["validation_accuracy"])

@@ -102,11 +102,11 @@ Axon.Loop.run(loop, train_data, %{}, epochs: 5, iterations: 100)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 50, loss: 0.5345965
-Epoch: 1, Batch: 50, loss: 0.4578816
-Epoch: 2, Batch: 50, loss: 0.4527244
-Epoch: 3, Batch: 50, loss: 0.4466343
-Epoch: 4, Batch: 50, loss: 0.4401709
+Epoch: 0, Iteration: 50, loss: 0.5345965
+Epoch: 1, Iteration: 50, loss: 0.4578816
+Epoch: 2, Iteration: 50, loss: 0.4527244
+Epoch: 3, Iteration: 50, loss: 0.4466343
+Epoch: 4, Iteration: 50, loss: 0.4401709
 ```
 
 <!-- livebook:{"output":true} -->
@@ -174,15 +174,15 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 50, loss: 0.3220241
+Epoch: 0, Iteration: 50, loss: 0.3220241
 epoch is over
-Epoch: 1, Batch: 50, loss: 0.2309804
+Epoch: 1, Iteration: 50, loss: 0.2309804
 epoch is over
-Epoch: 2, Batch: 50, loss: 0.1759415
+Epoch: 2, Iteration: 50, loss: 0.1759415
 epoch is over
-Epoch: 3, Batch: 50, loss: 0.1457551
+Epoch: 3, Iteration: 50, loss: 0.1457551
 epoch is over
-Epoch: 4, Batch: 50, loss: 0.1247821
+Epoch: 4, Iteration: 50, loss: 0.1247821
 epoch is over
 ```
 
@@ -251,11 +251,11 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 50, loss: 0.3180207
-Epoch: 1, Batch: 50, loss: 0.1975918
-Epoch: 2, Batch: 50, loss: 0.1353940
-Epoch: 3, Batch: 50, loss: 0.1055405
-Epoch: 4, Batch: 50, loss: 0.0890203
+Epoch: 0, Iteration: 50, loss: 0.3180207
+Epoch: 1, Iteration: 50, loss: 0.1975918
+Epoch: 2, Iteration: 50, loss: 0.1353940
+Epoch: 3, Iteration: 50, loss: 0.1055405
+Epoch: 4, Iteration: 50, loss: 0.0890203
 ```
 
 <!-- livebook:{"output":true} -->

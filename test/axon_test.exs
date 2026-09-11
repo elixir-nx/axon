@@ -680,6 +680,67 @@ defmodule AxonTest do
     end
   end
 
+  describe "elem" do
+    test "extracts a tuple element from a container output" do
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 2})
+
+      model = Axon.container({inp1, inp2}) |> Axon.elem(1)
+
+      inputs = %{
+        "input_0" => Nx.tensor([[1.0]]),
+        "input_1" => Nx.tensor([[3.0, 4.0]])
+      }
+
+      assert Axon.predict(model, Axon.ModelState.empty(), inputs) ==
+               Nx.tensor([[3.0, 4.0]])
+    end
+
+    test "tags the resulting layer with the :elem op_name" do
+      inp = Axon.input("input", shape: {nil, 1})
+
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.container({inp, inp}) |> Axon.elem(0)
+
+      assert %Axon.Node{op_name: :elem} = nodes[id]
+    end
+  end
+
+  describe "fetch" do
+    test "extracts a map value from a container output" do
+      inp1 = Axon.input("input_0", shape: {nil, 1})
+      inp2 = Axon.input("input_1", shape: {nil, 2})
+
+      model = Axon.container(%{a: inp1, b: inp2}) |> Axon.fetch(:b)
+
+      inputs = %{
+        "input_0" => Nx.tensor([[1.0]]),
+        "input_1" => Nx.tensor([[3.0, 4.0]])
+      }
+
+      assert Axon.predict(model, Axon.ModelState.empty(), inputs) ==
+               Nx.tensor([[3.0, 4.0]])
+    end
+
+    test "tags the resulting layer with the :fetch op_name" do
+      inp = Axon.input("input", shape: {nil, 1})
+
+      assert %Axon{output: id, nodes: nodes} =
+               Axon.container(%{a: inp}) |> Axon.fetch(:a)
+
+      assert %Axon.Node{op_name: :fetch} = nodes[id]
+    end
+
+    test "raises at predict time when key is missing" do
+      inp = Axon.input("input", shape: {nil, 1})
+      model = Axon.container(%{a: inp}) |> Axon.fetch(:missing)
+
+      assert_raise Axon.CompileError, fn ->
+        Axon.predict(model, Axon.ModelState.empty(), %{"input" => Nx.tensor([[1.0]])})
+      end
+    end
+  end
+
   describe "embedding" do
     test "works with defaults" do
       assert %Axon{output: id, nodes: nodes} =
@@ -894,176 +955,134 @@ defmodule AxonTest do
     end
   end
 
-  describe "capture" do
-    test "captures entire model with single input" do
-      model =
-        Axon.input("features", shape: {nil, 10})
-        |> Axon.dense(32, name: "dense1")
-        |> Axon.dense(16, name: "dense2")
-
-      captured = Axon.capture(model)
-      assert is_function(captured, 1)
-
-      # Use with new input
-      new_input = Axon.input("my_input", shape: {nil, 10})
-      new_model = captured.(new_input)
-
-      # Verify new model has the new input
-      assert %{"my_input" => _} = Axon.get_inputs(new_model)
-      refute Map.has_key?(Axon.get_inputs(new_model), "features")
-
-      # Verify layers are preserved
-      props = Axon.properties(new_model)
-      assert Map.has_key?(props, "dense1")
-      assert Map.has_key?(props, "dense2")
+  describe "namespace" do
+    defp init_param_keys(model) do
+      {init_fn, _predict_fn} = Axon.build(model)
+      state = init_fn.(%{"input" => Nx.template({1, 4}, :f32)}, Axon.ModelState.empty())
+      state.data |> Map.keys() |> Enum.sort()
     end
 
-    test "captures up to specific layer with :to option" do
+    test "single namespace prefixes leaf names" do
+      input = Axon.input("input", shape: {nil, 4})
+
       model =
-        Axon.input("features", shape: {nil, 10})
-        |> Axon.dense(32, name: "hidden1")
-        |> Axon.relu(name: "relu1")
-        |> Axon.dense(16, name: "hidden2")
-        |> Axon.dense(2, name: "output")
+        Axon.namespace("attention", fn ->
+          input
+          |> Axon.dense(8, name: "q_proj")
+          |> Axon.dense(8, name: "out_proj")
+        end)
 
-      captured = Axon.capture(model, to: "hidden2")
-
-      new_input = Axon.input("x", shape: {nil, 10})
-      new_model = captured.(new_input)
-
-      props = Axon.properties(new_model)
-      assert Map.has_key?(props, "hidden1")
-      assert Map.has_key?(props, "relu1")
-      assert Map.has_key?(props, "hidden2")
-      refute Map.has_key?(props, "output")
+      assert init_param_keys(model) == ["attention.out_proj", "attention.q_proj"]
     end
 
-    test "captures multi-output models with :to before or after the head split" do
-      shared =
-        Axon.input("x", shape: {nil, 4})
-        |> Axon.dense(8, name: "trunk")
-        |> Axon.relu(name: "shared")
+    test "pipe form threads an input into an arity-1 closure" do
+      input = Axon.input("input", shape: {nil, 4})
 
       model =
-        Axon.container(%{
-          a: Axon.dense(shared, 2, name: "head_a"),
-          b: Axon.dense(shared, 3, name: "head_b")
-        })
+        Axon.namespace(input, "ffn", fn x ->
+          x
+          |> Axon.dense(8, name: "up_proj")
+          |> Axon.dense(4, name: "down_proj")
+        end)
 
-      template = %{"y" => Nx.template({1, 4}, :f32)}
-      new_input = Axon.input("y", shape: {nil, 4})
-
-      # Capture shared trunk: single tensor, both heads and container dropped
-      to_shared = Axon.capture(model, to: "shared").(new_input)
-      shared_props = Axon.properties(to_shared)
-      assert Map.has_key?(shared_props, "shared")
-      assert Map.has_key?(shared_props, "trunk")
-      refute Map.has_key?(shared_props, "head_a")
-      refute Map.has_key?(shared_props, "head_b")
-      refute Map.has_key?(shared_props, "container_0")
-      assert %Nx.Tensor{shape: {1, 8}} = Axon.get_output_shape(to_shared, template)
-
-      # Capture one head after the split: sibling head and container dropped
-      to_head = Axon.capture(model, to: "head_a").(new_input)
-      head_props = Axon.properties(to_head)
-      assert Map.has_key?(head_props, "head_a")
-      assert Map.has_key?(head_props, "shared")
-      refute Map.has_key?(head_props, "head_b")
-      refute Map.has_key?(head_props, "container_0")
-      assert %Nx.Tensor{shape: {1, 2}} = Axon.get_output_shape(to_head, template)
-
-      # No :to keeps the multi-output container
-      full = Axon.capture(model).(new_input)
-      full_props = Axon.properties(full)
-      assert Map.has_key?(full_props, "head_a")
-      assert Map.has_key?(full_props, "head_b")
-      assert Map.has_key?(full_props, "container_0")
-
-      assert %{a: %Nx.Tensor{shape: {1, 2}}, b: %Nx.Tensor{shape: {1, 3}}} =
-               Axon.get_output_shape(full, template)
+      assert init_param_keys(model) == ["ffn.down_proj", "ffn.up_proj"]
     end
 
-    test "works with multiple inputs using map" do
-      input1 = Axon.input("image", shape: {nil, 784})
-      input2 = Axon.input("text", shape: {nil, 128})
+    test "nested namespaces stack with a dot separator" do
+      input = Axon.input("input", shape: {nil, 4})
 
       model =
-        Axon.concatenate(input1, input2)
-        |> Axon.dense(64, name: "combined")
+        Axon.namespace("outer", fn ->
+          Axon.namespace("inner", fn ->
+            Axon.dense(input, 8, name: "proj")
+          end)
+        end)
 
-      captured = Axon.capture(model)
-
-      new_image = Axon.input("my_image", shape: {nil, 784})
-      new_text = Axon.input("my_text", shape: {nil, 128})
-
-      new_model = captured.(%{"image" => new_image, "text" => new_text})
-
-      inputs = Axon.get_inputs(new_model)
-      assert Map.has_key?(inputs, "my_image")
-      assert Map.has_key?(inputs, "my_text")
-      refute Map.has_key?(inputs, "image")
-      refute Map.has_key?(inputs, "text")
+      assert init_param_keys(model) == ["outer.inner.proj"]
     end
 
-    test "raises on invalid layer name" do
-      model =
-        Axon.input("features", shape: {nil, 10})
-        |> Axon.dense(32, name: "dense1")
+    test "layers from outer scope are not renamed" do
+      input = Axon.input("input", shape: {nil, 4})
+      preprocessed = Axon.dense(input, 4, name: "preprocess")
 
-      assert_raise ArgumentError, ~r/layer "nonexistent" not found/, fn ->
-        Axon.capture(model, to: "nonexistent")
+      model =
+        Axon.namespace(preprocessed, "head", fn x ->
+          Axon.dense(x, 1, name: "logits")
+        end)
+
+      assert init_param_keys(model) == ["head.logits", "preprocess"]
+    end
+
+    test "auto-generated leaf names are also prefixed" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      model =
+        Axon.namespace("block", fn ->
+          input
+          |> Axon.dense(8)
+          |> Axon.dense(8)
+        end)
+
+      keys = init_param_keys(model)
+      assert Enum.all?(keys, &String.starts_with?(&1, "block."))
+      assert length(keys) == 2
+    end
+
+    test "namespace introduces no extra graph node" do
+      input = Axon.input("input", shape: {nil, 4})
+      bare = Axon.dense(input, 8, name: "proj")
+      wrapped = Axon.namespace("ns", fn -> Axon.dense(input, 8, name: "proj") end)
+
+      bare_ops = Axon.get_op_counts(bare)
+      wrapped_ops = Axon.get_op_counts(wrapped)
+
+      assert bare_ops == wrapped_ops
+      refute Map.has_key?(wrapped_ops, :namespace)
+      refute Map.has_key?(wrapped_ops, :block)
+    end
+
+    test "predict produces the same numerical output as the bare form" do
+      input = Axon.input("input", shape: {nil, 4})
+
+      bare = Axon.dense(input, 8, name: "proj")
+      wrapped = Axon.namespace("ns", fn -> Axon.dense(input, 8, name: "proj") end)
+
+      {init_bare, predict_bare} = Axon.build(bare)
+      {init_wrapped, predict_wrapped} = Axon.build(wrapped)
+
+      template = %{"input" => Nx.template({1, 4}, :f32)}
+      state_bare = init_bare.(template, Axon.ModelState.empty())
+      state_wrapped = init_wrapped.(template, Axon.ModelState.empty())
+
+      # Same fan-in shape => identical default initializer values for the
+      # kernel and bias, just stored under different paths. Patch the
+      # wrapped state's params over from the bare state so we compare
+      # apples to apples on the prediction side.
+      patched =
+        update_in(state_wrapped.data, fn _ ->
+          %{"ns.proj" => state_bare.data["proj"]}
+        end)
+
+      inputs = %{"input" => Nx.tensor([[1.0, 2.0, 3.0, 4.0]])}
+      assert_all_close(predict_bare.(state_bare, inputs), predict_wrapped.(patched, inputs))
+    end
+
+    test "raises when the closure does not return an Axon graph" do
+      assert_raise ArgumentError, ~r/expected the closure to return an %Axon{}/, fn ->
+        Axon.namespace("oops", fn -> :not_an_axon end)
       end
     end
 
-    test "raises on missing inputs for multi-input model" do
-      input1 = Axon.input("a", shape: {nil, 10})
-      input2 = Axon.input("b", shape: {nil, 10})
+    test "raises when the pipe form's closure has the wrong arity" do
+      input = Axon.input("input", shape: {nil, 4})
 
-      model = Axon.add(input1, input2) |> Axon.dense(5)
-      captured = Axon.capture(model)
+      # Applied dynamically so the compiler's type checker does not flag the
+      # deliberately mismatched arity at compile time.
+      args = [input, "ns", fn -> Axon.dense(input, 8) end]
 
-      new_a = Axon.input("new_a", shape: {nil, 10})
-
-      assert_raise ArgumentError, ~r/missing inputs/, fn ->
-        captured.(%{"a" => new_a})
+      assert_raise FunctionClauseError, fn ->
+        apply(Axon, :namespace, args)
       end
-    end
-
-    test "raises when single input passed to multi-input model" do
-      input1 = Axon.input("a", shape: {nil, 10})
-      input2 = Axon.input("b", shape: {nil, 10})
-
-      model = Axon.add(input1, input2)
-      captured = Axon.capture(model)
-
-      single_input = Axon.input("x", shape: {nil, 10})
-
-      assert_raise ArgumentError, ~r/model has 2 inputs/, fn ->
-        captured.(single_input)
-      end
-    end
-
-    test "captured model can be executed" do
-      model =
-        Axon.input("features", shape: {nil, 2})
-        |> Axon.dense(4, name: "dense1", kernel_initializer: :ones, bias_initializer: :zeros)
-        |> Axon.relu(name: "relu")
-        |> Axon.dense(2, name: "dense2", kernel_initializer: :ones, bias_initializer: :zeros)
-
-      # Capture up to relu
-      captured = Axon.capture(model, to: "relu")
-      new_input = Axon.input("x", shape: {nil, 2})
-      new_model = captured.(new_input)
-
-      # Build and run
-      {init_fn, predict_fn} = Axon.build(new_model)
-      params = init_fn.(Nx.template({1, 2}, :f32), Axon.ModelState.empty())
-
-      input = Nx.tensor([[1.0, 2.0]])
-      result = predict_fn.(params, input)
-
-      # With ones kernel: [1,2] dot ones(2,4) = [3,3,3,3], relu keeps it positive
-      assert Nx.shape(result) == {1, 4}
     end
   end
 end

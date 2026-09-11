@@ -62,11 +62,13 @@ defmodule Axon.MixProject do
     ]
   end
 
+  # TODO: back to the released Nx once buffer donation (`Nx.donatable/1`,
+  # used by `Axon.Loop.run/4`'s `:donate_state?`) is in a release.
   defp nx_opts do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      []
+      [github: "elixir-nx/nx", sparse: "nx", override: true]
     end
   end
 
@@ -74,7 +76,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path]
     else
-      []
+      [github: "elixir-nx/nx", sparse: "exla", override: true]
     end
   end
 

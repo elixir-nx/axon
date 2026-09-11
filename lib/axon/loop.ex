@@ -66,13 +66,12 @@ defmodule Axon.Loop do
   state. For machine learning tasks, the initialization function will return things like
   initial model parameters and optimizer state.
 
-  Typically, the final output of the loop is the accumulated final state; however, you
-  may optionally apply an output transform to extract specific values at the end of the
-  loop. For example, `Axon.Loop.trainer/4` by default extracts trained model state:
+  The final output of the loop is the accumulated final state. If you are only interested
+  in specific values, you can extract them from the returned state. For example, loops
+  built with `Axon.Loop.trainer/4` keep the trained model state in the step state:
 
-      output_transform = fn state ->
-        state.step_state[:model_state]
-      end
+      %Axon.Loop.State{step_state: %{model_state: model_state}} =
+        Axon.Loop.run(loop, data)
 
   ## Initialize and Step
 
@@ -131,7 +130,7 @@ defmodule Axon.Loop do
       |> Axon.Loop.metric("Accuracy", :accuracy, fn %{y_true: y_, y_pred: y} -> [y_, y] end)
       |> Axon.Loop.run(data)
 
-  Because metrics work directly on `step_state`, you typically need to provide an output
+  Because metrics work directly on `step_state`, you typically need to provide a
   transform to indicate which values should be passed to your metric function. By default,
   Axon assumes a supervised training task with the fields `:y_true` and `:y_pred` present
   in the step state. See `Axon.Loop.metric/4` for more information.
@@ -186,8 +185,8 @@ defmodule Axon.Loop do
   Axon loops are typically created from one of the factory functions provided in this
   module:
 
-    * `Axon.Loop.loop/3` - Creates a loop from step function and optional initialization
-      functions and output transform functions.
+    * `Axon.Loop.loop/2` - Creates a loop from step function and an optional
+      initialization function.
 
     * `Axon.Loop.trainer/3` - Creates a supervised training loop from model, loss, and
       optimizer.
@@ -196,9 +195,10 @@ defmodule Axon.Loop do
 
   ## Running loops
 
-  In order to execute a loop, you should use `Axon.Loop.run/3`:
+  In order to execute a loop, you should use `Axon.Loop.run/4`, which returns the
+  final `%Axon.Loop.State{}`:
 
-      Axon.Loop.run(loop, data, epochs: 10)
+      Axon.Loop.run(loop, data, %{}, epochs: 10)
 
   ## Resuming loops
 
@@ -273,7 +273,6 @@ defmodule Axon.Loop do
     :init,
     :step,
     :attached_state,
-    :output_transform,
     metrics: %{},
     handlers: @default_handlers
   ]
@@ -339,7 +338,10 @@ defmodule Axon.Loop do
         optimizer_state = init_optimizer_fn.(trainable_parameters)
         loss_scale_state = init_loss_scale.()
 
-        # TODO: is this expensive? Will it compute the entire forward?
+        # This traces the forward pass to learn the shape and type of the
+        # prediction, it does not compute it. zeros_like/1 reads only the
+        # shape and type off the traced tensors, so the forward expression
+        # is never referenced by the returned state and never lowered.
         %{prediction: output} = forward_model_fn.(model_state, inp)
 
         %{
@@ -365,6 +367,7 @@ defmodule Axon.Loop do
 
       model_out = forward_model_fn.(model_state, inp)
       unscaled_loss = loss_fn.(tar, model_out.prediction)
+      check_loss_output!(unscaled_loss)
       scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
 
       {model_out, scaled_loss, unscaled_loss}
@@ -476,16 +479,14 @@ defmodule Axon.Loop do
 
     init_fn = fn
       {inp, tar}, state ->
-        # TODO: Is this expensive
+        # Traces the forward pass for its shape and type only, see the
+        # equivalent call in train_step/3
         output = forward_model_fn.(state, inp)
-        output_type = Nx.type(output)
-        output_shape = Nx.shape(output)
-        y_pred = Nx.broadcast(Nx.tensor(0, type: output_type), output_shape)
 
         %{
           model_state: state,
           y_true: zeros_like(tar),
-          y_pred: y_pred
+          y_pred: zeros_like(output)
         }
 
       data, state ->
@@ -514,8 +515,7 @@ defmodule Axon.Loop do
   ## Loop Factories
 
   @doc """
-  Creates a loop from `step_fn`, an optional `init_fn`, and an
-  optional `output_transform`.
+  Creates a loop from `step_fn` and an optional `init_fn`.
 
   `step_fn` is an arity-2 function which takes a batch and state
   and returns an updated step state:
@@ -540,18 +540,12 @@ defmodule Axon.Loop do
   within `Nx.Defn.jit/3`. While JIT-compilation will work with anonymous functions,
   `def`, and `defn`, it is recommended that you use the stricter `defn` to define
   both functions in order to avoid bugs or cryptic errors.
-
-  `output_transform/1` applies a transformation on the final accumulated loop state.
-  This is useful for extracting specific fields from a loop and piping them into
-  additional functions.
   """
-  def loop(step_fn, init_fn \\ &default_init/2, output_transform \\ & &1)
-      when is_function(step_fn, 2) and is_function(init_fn, 2) and
-             is_function(output_transform, 1) do
+  def loop(step_fn, init_fn \\ &default_init/2)
+      when is_function(step_fn, 2) and is_function(init_fn, 2) do
     %Loop{
       init: init_fn,
-      step: step_fn,
-      output_transform: output_transform
+      step: step_fn
     }
   end
 
@@ -581,7 +575,13 @@ defmodule Axon.Loop do
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
   for multi-output models, or an arity-2 function representing a custom loss
-  function.
+  function. Built-in losses expect the targets to have exactly the same shape
+  as the model prediction, and every loss function must return a scalar; the
+  training step raises with the offending shapes otherwise. To train
+  `:categorical_cross_entropy` on integer class labels, one-hot encode the
+  targets or pass
+  `&Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)`
+  as a custom loss.
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
@@ -600,6 +600,14 @@ defmodule Axon.Loop do
         model_state: container(tensor()), # Model parameters and state
         optimizer_state: container(tensor()) # Optimizer state associated with each parameter
       }
+
+  `Axon.Loop.run/4` returns the final `%Axon.Loop.State{}`, so you can extract the
+  trained model state from the loop's step state:
+
+      %Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+        model
+        |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
+        |> Axon.Loop.run(data)
 
   ## Examples
 
@@ -629,7 +637,9 @@ defmodule Axon.Loop do
 
   ### Multiple objectives with multi-output model
 
-      model = {Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 2})}
+      model =
+        Axon.container({Axon.input("input_0", shape: {nil, 1}), Axon.input("input_1", shape: {nil, 2})})
+
       loss_weights = [mean_squared_error: 0.5, mean_absolute_error: 0.5]
 
       model
@@ -638,8 +648,10 @@ defmodule Axon.Loop do
 
   ## Options
 
-    * `:log` - training loss and metric log interval. Set to 0 to silence
-      training logs. Defaults to 50
+    * `:log` - training loss and metric log interval, in iterations. Every
+      `:log` iterations the loop writes a line of the form
+      `Epoch: 0, Iteration: 50, loss: 0.1234567` to standard output. Set to 0
+      to silence training logs. Defaults to 50
 
     * `:seed` - seed to use when constructing models. Seed controls random initialization
       of model parameters. Defaults to no seed which constructs a random seed for you at
@@ -658,11 +670,10 @@ defmodule Axon.Loop do
     {init_fn, step_fn} = train_step(model, loss_fn, optimizer, step_opts)
 
     log_interval = opts[:log] || 50
-    output_transform = fn state -> state.step_state[:model_state] end
 
     loop =
       step_fn
-      |> loop(init_fn, output_transform)
+      |> loop(init_fn)
       |> metric(loss_fn, "loss")
 
     if log_interval > 0 do
@@ -710,9 +721,9 @@ defmodule Axon.Loop do
       |> Enum.join(" ")
 
     if log_epochs do
-      "\rEpoch: #{Nx.to_number(epoch)}, Batch: #{Nx.to_number(iter)}, #{metrics}"
+      "\rEpoch: #{Nx.to_number(epoch)}, Iteration: #{Nx.to_number(iter)}, #{metrics}"
     else
-      "\rBatch: #{Nx.to_number(iter)}, #{metrics}"
+      "\rIteration: #{Nx.to_number(iter)}, #{metrics}"
     end
   end
 
@@ -747,14 +758,21 @@ defmodule Axon.Loop do
       |> Axon.Loop.evaluator()
       |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
 
-  This function applies an output transform which returns the map of metrics accumulated
-  over the given loop.
+  `Axon.Loop.run/4` returns the final `%Axon.Loop.State{}`. The accumulated metrics
+  are available in the `:metrics` field, keyed by epoch:
+
+      %Axon.Loop.State{metrics: %{0 => metrics}} =
+        model
+        |> Axon.Loop.evaluator()
+        |> Axon.Loop.run(data, trained_model_state, compiler: EXLA)
+
+  The evaluator logs `Iteration: N, <metrics>` as it runs; an evaluation loop
+  runs a single pass over the data so no epoch is printed.
   """
   def evaluator(model) do
     {init_fn, step_fn} = eval_step(model)
-    output_transform = fn state -> state.metrics end
 
-    loop(step_fn, init_fn, output_transform)
+    loop(step_fn, init_fn)
     |> log(&supervised_log_message_fn(&1, false), event: :iteration_completed)
   end
 
@@ -770,15 +788,15 @@ defmodule Axon.Loop do
 
   By default, metrics assume a supervised learning task and extract the fields
   `[:y_true, :y_pred]` from the step state. If you wish to work on a different
-  value, you can use an output transform. An output transform is a list of keys
-  to extract from the output state, or a function which returns a flattened list
-  of values to pass to the given metric function. Values received from output
-  transforms are passed to the given metric using:
+  value, you can use a transform. A transform is a list of keys to extract from
+  the step state, or a function which returns a flattened list of values to pass
+  to the given metric function. Values received from transforms are passed to the
+  given metric using:
 
-      value = output_transform.(step_state)
+      value = transform.(step_state)
       apply(metric, value)
 
-  Thus, even if you want your metric to work on a container, your output transform
+  Thus, even if you want your metric to work on a container, your transform
   must return a list.
 
   `metric` must be an atom which matches the name of a metric in `Axon.Metrics`, or
@@ -927,7 +945,7 @@ defmodule Axon.Loop do
 
   In most cases, this is useful for inspecting the contents of
   the loop state at intermediate stages. For example, the default
-  `trainer` loop factory attaches IO logging of epoch, batch, loss
+  `trainer` loop factory attaches IO logging of epoch, iteration, loss
   and metrics.
 
   It's also possible to log loop state to files by changing the
@@ -1016,10 +1034,12 @@ defmodule Axon.Loop do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
-      metrics =
+      %State{metrics: %{0 => validation_metrics}} =
         Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
         |> run(validation_data, model_state)
-        |> Access.get(0)
+
+      metrics =
+        validation_metrics
         |> Map.new(fn {k, v} ->
           {"validation_#{k}", v}
         end)
@@ -1537,6 +1557,12 @@ defmodule Axon.Loop do
   `data` must be an Enumerable or Stream which yields batches of
   data on each iteration.
 
+  It returns the final `%Axon.Loop.State{}`. Values of interest, such as
+  the trained model state, can be extracted from the returned state:
+
+      %Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+        Axon.Loop.run(loop, data)
+
   ## Options
 
     * `:epochs` - max epochs to run loop for. Must be non-negative integer.
@@ -1552,13 +1578,19 @@ defmodule Axon.Loop do
     * `:garbage_collect` - whether or not to garbage collect after
       each loop iteration. This may prevent OOMs, but it will slow down training.
 
-    * `:strict?` - whether or not to compile step functions strictly. If this flag
-      is set, the loop will raise on any cache miss during the training loop. Defaults
-      to true.
+    * `:strict?` - whether or not to compile step functions strictly. When set,
+      the step function is compiled once for the shape and type of the first batch
+      and the loop raises if any later batch differs (for example a smaller final
+      batch). Set to `false` to recompile for every new batch shape instead.
+      Defaults to `true`.
 
     * `:force_garbage_collection?` - whether or not to force garbage collection after each
       iteration. This may help avoid OOMs when training large models, but it will slow
       training down.
+
+    * `:donate_state?` - whether or not to donate the buffers backing the loop's
+      step state to the step function on each iteration. See the section below.
+      Defaults to `false`.
 
     * `:debug` - run loop in debug mode to trace loop progress. Defaults to
       false.
@@ -1566,12 +1598,50 @@ defmodule Axon.Loop do
   Additional options are forwarded to `Nx.Defn.jit` as JIT-options. If no JIT
   options are set, the default options set with `Nx.Defn.default_options` are
   used.
+
+  ## Buffer donation
+
+  A training step consumes the model state and optimizer state of the previous
+  iteration and produces new ones of exactly the same shape. Without donation
+  the compiler must allocate memory for the new buffers while the old ones are
+  still live, which roughly doubles the memory needed to hold parameters and
+  optimizer state. Setting `:donate_state?` marks those tensors with
+  `Nx.donatable/1`, which lets supporting compilers such as EXLA write the new
+  values into the old buffers instead:
+
+      Axon.Loop.run(loop, data, %{}, epochs: 10, donate_state?: true)
+
+  Only the `:model_state`, `:optimizer_state`, and `:loss_scale_state` entries
+  of the step state are donated. Predictions, targets, and metrics are left
+  alone because the step function does not read them back, and a donated buffer
+  must be one the step function actually consumes.
+
+  Donation invalidates the donated buffers, so it must only be used when the
+  loop owns its step state exclusively:
+
+    * The tensors passed as `init_state` must not be used again after the loop
+      runs. This matters for fine-tuning, where the model state being trained
+      is one the caller already had a reference to.
+
+    * Event handlers must not hold on to tensors from a previous iteration's
+      step state. Reading `state.step_state` inside a handler is fine, that is
+      the state which was just produced, but stashing its tensors and reading
+      them back on a later iteration is not.
+
+    * Loops run from inside a handler, such as the evaluation loop added by
+      `validate/4`, borrow the training loop's model state and must not donate
+      it. They do not, because `:donate_state?` defaults to `false` and applies
+      only to the `run/4` call it is given to.
+
+  Donation is a hint. Compilers which do not implement it, such as
+  `Nx.Defn.Evaluator`, ignore the mark and the loop behaves as it did before.
   """
   def run(loop, data, init_state \\ %{}, opts \\ []) do
     {max_epochs, opts} = Keyword.pop(opts, :epochs, 1)
     {max_iterations, opts} = Keyword.pop(opts, :iterations, -1)
     {jit_compile?, opts} = Keyword.pop(opts, :jit_compile?, true)
     {strict?, opts} = Keyword.pop(opts, :strict?, true)
+    {donate_state?, opts} = Keyword.pop(opts, :donate_state?, false)
     {force_garbage_collection?, jit_opts} = Keyword.pop(opts, :force_garbage_collection?, false)
     debug? = Keyword.get(jit_opts, :debug, false)
 
@@ -1584,8 +1654,7 @@ defmodule Axon.Loop do
       step: step_fn,
       handlers: handler_fns,
       metrics: metric_fns,
-      attached_state: attached_state,
-      output_transform: output_transform
+      attached_state: attached_state
     } = loop
 
     sample_data =
@@ -1660,13 +1729,14 @@ defmodule Axon.Loop do
                   end
 
                   {time, status_batch_fn_and_state} =
-                    :timer.tc(&run_epoch/6, [
+                    :timer.tc(&run_epoch/7, [
                       batch_fn,
                       handler_fns,
                       state,
                       data,
                       debug?,
-                      force_garbage_collection?
+                      force_garbage_collection?,
+                      donate_state?
                     ])
 
                   if debug? do
@@ -1719,8 +1789,9 @@ defmodule Axon.Loop do
         &Map.put(&2, &1, zero_metrics)
       )
 
-    state = %State{state | metrics: final_metrics_map, status: status}
-    output_transform.(state)
+    step_state = maybe_clear_donatable_marks(state.step_state, donate_state?)
+
+    %State{state | step_state: step_state, metrics: final_metrics_map, status: status}
   end
 
   ## Helpers
@@ -1754,7 +1825,15 @@ defmodule Axon.Loop do
     end
   end
 
-  defp run_epoch(batch_fn, handler_fns, loop_state, data, debug?, force_garbage_collection?) do
+  defp run_epoch(
+         batch_fn,
+         handler_fns,
+         loop_state,
+         data,
+         debug?,
+         force_garbage_collection?,
+         donate_state?
+       ) do
     Enum.reduce_while(data, {:continue, batch_fn, loop_state}, fn data, {_, batch_fn, state} ->
       case fire_event(:iteration_started, handler_fns, state, debug?) do
         {:halt_epoch, state} ->
@@ -1765,28 +1844,40 @@ defmodule Axon.Loop do
 
         {:continue, state} ->
           %State{
+            epoch: epoch,
             iteration: iters,
             max_iteration: max_iters,
             step_state: step_state,
             metrics: metrics
           } = state
 
-          batch_fn =
+          # The step state we hold is dead as soon as the step function returns
+          # a new one, so its buffers can back the new state instead of new ones
+          # being allocated. The marks must be applied before the strict compile
+          # below, since Nx requires the compile-time templates and the runtime
+          # arguments to agree on what is donated.
+          step_state = maybe_donate_step_state(step_state, donate_state?)
+
+          {batch_fn, batch_template} =
             case batch_fn do
               {:non_compiled, batch_fn, jit_compile?, strict?, jit_opts} ->
                 cond do
                   jit_compile? and strict? ->
-                    Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+                    compiled =
+                      Nx.Defn.compile(batch_fn, [data, iters, step_state, metrics], jit_opts)
+
+                    {compiled, Nx.to_template(data)}
 
                   jit_compile? ->
-                    Nx.Defn.jit(batch_fn, jit_opts)
+                    {Nx.Defn.jit(batch_fn, jit_opts), nil}
 
                   true ->
-                    batch_fn
+                    {batch_fn, nil}
                 end
 
-              {:compiled, batch_fn} ->
-                batch_fn
+              {:compiled, batch_fn, batch_template} ->
+                check_batch_compatible!(batch_template, data, epoch, iters)
+                {batch_fn, batch_template}
             end
 
           if debug? do
@@ -1800,7 +1891,7 @@ defmodule Axon.Loop do
             Logger.debug("Axon.Loop finished batch step execution in #{us_to_ms(time)}ms")
           end
 
-          batch_fn = {:compiled, batch_fn}
+          batch_fn = {:compiled, batch_fn, batch_template}
           state = %{state | step_state: new_step_state, metrics: new_metrics}
 
           case fire_event(:iteration_completed, handler_fns, state, debug?) do
@@ -1824,6 +1915,69 @@ defmodule Axon.Loop do
               end
           end
       end
+    end)
+  end
+
+  # Entries of the step state which a step function threads through unchanged
+  # in shape and type, and which it always reads. Everything else in the step
+  # state is either overwritten without being read, like `:y_pred`, or too small
+  # to be worth donating, like `:i`.
+  @donatable_step_state_keys [:model_state, :optimizer_state, :loss_scale_state]
+
+  # The step function is compiled once, for the first batch, when strict?: true.
+  # Nx raises on a later batch of a different shape, but only says which
+  # argument position disagreed with the template; report the batch and the
+  # fix instead. Nx.compatible?/2 is the same per-leaf predicate the compiled
+  # function applies, so this never rejects a batch Nx would have accepted.
+  defp check_batch_compatible!(nil, _data, _epoch, _iteration), do: :ok
+
+  defp check_batch_compatible!(template, data, epoch, iteration) do
+    unless Nx.compatible?(template, data) do
+      raise ArgumentError, """
+      batch #{iteration} of epoch #{epoch} does not have the same shape and type as the batch \
+      the loop was compiled for.
+
+      Compiled for:
+
+      #{inspect(template)}
+
+      Got:
+
+      #{inspect(Nx.to_template(data))}
+
+      Every batch must have the same shape and type when Axon.Loop.run/4 runs with \
+      strict?: true (the default), because the step function is compiled once for the \
+      first batch. This usually happens when the last batch of a dataset is smaller than \
+      the others. Drop the partial batch (for example with Nx.to_batched/3 and \
+      leftover: :discard), pad it to the full batch size, or pass strict?: false to \
+      Axon.Loop.run/4 to recompile the step function for every new batch shape.
+      """
+    end
+  end
+
+  defp maybe_donate_step_state(step_state, false), do: step_state
+
+  defp maybe_donate_step_state(%{} = step_state, true) when not is_struct(step_state) do
+    Enum.reduce(@donatable_step_state_keys, step_state, fn key, step_state ->
+      case step_state do
+        %{^key => value} -> %{step_state | key => Nx.donatable(value)}
+        %{} -> step_state
+      end
+    end)
+  end
+
+  defp maybe_donate_step_state(step_state, true), do: step_state
+
+  # A donated argument the step function returns as-is keeps its mark, so the
+  # final state must be swept before it is handed to the caller. Otherwise the
+  # mark would follow the caller out of the loop and donate buffers they never
+  # offered on their next `Nx.Defn.jit` call.
+  defp maybe_clear_donatable_marks(step_state, false), do: step_state
+
+  defp maybe_clear_donatable_marks(step_state, true) do
+    Nx.Defn.Composite.traverse(step_state, fn
+      %Nx.Tensor{donatable?: true} = tensor -> %{tensor | donatable?: false}
+      tensor -> tensor
     end)
   end
 
@@ -1973,18 +2127,21 @@ defmodule Axon.Loop do
   # joint, multi-objective loss function.
   # TODO(seanmor5): Configurable per-batch reductions
   # TODO(seanmor5): Configurable multi-objective reductions
-  # TODO(seanmor5): Should we trace custom loss functions and provide a
-  # more clear error if the output shape is wrong?
   defp build_loss_fn(loss) do
     case loss do
       loss_name when is_atom(loss_name) and loss_name in @valid_axon_losses ->
-        &apply(Axon.Losses, loss_name, [&1, &2, [reduction: :mean]])
+        fn y_true, y_pred ->
+          check_loss_shapes!(loss_name, y_true, y_pred)
+          apply(Axon.Losses, loss_name, [y_true, y_pred, [reduction: :mean]])
+        end
 
       loss_fn when is_function(loss, 2) ->
         loss_fn
 
       [{_, _} | _] = losses ->
         fn y_true, y_pred ->
+          check_multi_output_shapes!(length(losses), y_true, y_pred)
+
           {_, loss} =
             Enum.reduce(losses, {0, Nx.tensor(0)}, fn {loss, weight}, {i, acc_loss} ->
               loss_fn = build_loss_fn(loss)
@@ -2011,6 +2168,88 @@ defmodule Axon.Loop do
                 " an arity-2 function of the form loss(y_true, y_pred), or a list" <>
                 " of 2-tuples of {loss, weight} for multi-objective models"
     end
+  end
+
+  # The built-in losses all document y_true and y_pred as having identical
+  # shapes and the trainer never passes sparse: true, so anything else would
+  # either fail with a raw Nx broadcast error or silently broadcast into a
+  # meaningless loss (e.g. integer labels against one-hot predictions). These
+  # checks run while the step function is traced, so they must only read
+  # shapes and never inspect an expression tensor directly.
+  defp check_loss_shapes!(loss_name, %Nx.Tensor{} = y_true, %Nx.Tensor{} = y_pred) do
+    true_shape = Nx.shape(y_true)
+    pred_shape = Nx.shape(y_pred)
+
+    if true_shape != pred_shape do
+      raise ArgumentError,
+            "the targets given to Axon.Losses.#{loss_name}/3 have shape #{inspect(true_shape)}" <>
+              " but the model prediction has shape #{inspect(pred_shape)}," <>
+              " Axon.Losses.#{loss_name}/3 expects targets and predictions of the same shape. " <>
+              loss_shape_hint(loss_name, true_shape, pred_shape)
+    end
+  end
+
+  defp check_loss_shapes!(loss_name, y_true, y_pred) do
+    raise ArgumentError,
+          "expected the targets and the model prediction to be tensors when training with" <>
+            " the built-in loss #{inspect(loss_name)}, got targets:" <>
+            " #{inspect(Nx.to_template(y_true))} and prediction:" <>
+            " #{inspect(Nx.to_template(y_pred))}. For models with container outputs pass" <>
+            " a list of {loss, weight} tuples, one per output, or a custom loss function" <>
+            " to Axon.Loop.trainer/4"
+  end
+
+  defp loss_shape_hint(loss_name, true_shape, pred_shape) do
+    cond do
+      tuple_size(true_shape) > 0 and tuple_size(pred_shape) > 0 and
+          elem(true_shape, 0) != elem(pred_shape, 0) ->
+        "The batch axes differ (#{elem(true_shape, 0)} vs #{elem(pred_shape, 0)}), which" <>
+          " usually means the inputs and targets in your dataset are not batched together;" <>
+          " make sure every {input, target} pair given to Axon.Loop.run/4 comes from the" <>
+          " same batch"
+
+      loss_name == :categorical_cross_entropy and
+          (tuple_size(true_shape) < tuple_size(pred_shape) or
+             elem(true_shape, tuple_size(true_shape) - 1) == 1) ->
+        "If your targets are integer class labels, either one-hot encode them, e.g." <>
+          " Nx.equal(Nx.reshape(labels, {:auto, 1}), Nx.iota({1, num_classes})), or use" <>
+          " sparse targets through a custom loss:" <>
+          " &Axon.Losses.categorical_cross_entropy(&1, &2, sparse: true, reduction: :mean)"
+
+      true ->
+        "Check that the output size of the last layer of your model matches your targets"
+    end
+  end
+
+  defp check_multi_output_shapes!(n, y_true, y_pred) do
+    unless is_tuple(y_true) and tuple_size(y_true) == n and
+             is_tuple(y_pred) and tuple_size(y_pred) == n do
+      raise ArgumentError,
+            "a list of #{n} weighted losses expects the model prediction and the targets to" <>
+              " be tuples with #{n} elements, one per output, got targets:" <>
+              " #{inspect(Nx.to_template(y_true))} and prediction:" <>
+              " #{inspect(Nx.to_template(y_pred))}"
+    end
+  end
+
+  # The training step keeps a running average of the loss against a scalar
+  # accumulator, so a non-scalar loss changes the step state template and only
+  # fails on the next batch with an unrelated-looking Nx compile error.
+  defp check_loss_output!(%Nx.Tensor{} = loss) do
+    if Nx.shape(loss) != {} do
+      raise ArgumentError, non_scalar_loss_message(Nx.to_template(loss))
+    end
+  end
+
+  defp check_loss_output!(loss) when is_number(loss), do: :ok
+
+  defp check_loss_output!(loss), do: raise(ArgumentError, non_scalar_loss_message(loss))
+
+  defp non_scalar_loss_message(got) do
+    "expected the loss function to return a scalar tensor, got #{inspect(got)}." <>
+      " The training step accumulates a single loss value per batch, so custom loss" <>
+      " functions must reduce the per-example loss to a scalar, for example with Nx.mean/1," <>
+      " and functions from Axon.Losses must be called with reduction: :mean or reduction: :sum"
   end
 
   # Builds model init and forward functions from an Axon struct,
@@ -2081,13 +2320,13 @@ defmodule Axon.Loop do
             " for more information"
   end
 
-  # Builds a metric function from an atom or function and an output transform.
+  # Builds a metric function from an atom or function and a transform.
   # A valid metric is an atom which matches the name of a function in
   # Axon.Metrics or a function which takes an arbitrary number of parameters
-  # and returns an output of arbitrary shape/type. Output transforms are field(s)
+  # and returns an output of arbitrary shape/type. Transforms are field(s)
   # to extract from the step state, or a function which transforms the step
   # state before it is passed to the metric function.
-  # TODO(seanmor5): Reconsider the form of output transform
+  # TODO(seanmor5): Reconsider the form of the metric transform
   defp build_metric_fn(metric, accumulator, transform_or_fields) do
     transform_fn =
       case transform_or_fields do
@@ -2108,7 +2347,7 @@ defmodule Axon.Loop do
 
         invalid ->
           raise ArgumentError,
-                "Invalid output transform #{inspect(invalid)}, a valid output" <>
+                "Invalid metric transform #{inspect(invalid)}, a valid" <>
                   " transform is an atom or list of atoms specifying field(s)" <>
                   " to extract from the step state, or an arity-1 function" <>
                   " applied to the step state"

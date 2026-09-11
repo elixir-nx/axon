@@ -224,12 +224,29 @@ defmodule Axon.Display do
     "#{type}#{shape}"
   end
 
+  defp render_output_shape(%Axon.None{}), do: "none"
+
   defp render_output_shape(shapes) when is_tuple(shapes) do
     shapes
     |> Tuple.to_list()
     |> Enum.map(&render_output_shape(&1))
     |> Enum.join(", ")
   end
+
+  defp render_output_shape(%{} = shapes) do
+    rendered =
+      shapes
+      |> Enum.sort()
+      |> Enum.map_join(", ", &render_output_entry/1)
+
+    "%{#{rendered}}"
+  end
+
+  defp render_output_entry({key, shape}) when is_atom(key),
+    do: "#{key}: #{render_output_shape(shape)}"
+
+  defp render_output_entry({key, shape}),
+    do: "#{inspect(key)} => #{render_output_shape(shape)}"
 
   defp type_str({type, size}), do: "#{Atom.to_string(type)}#{size}"
 
@@ -376,11 +393,17 @@ defmodule Axon.Display do
 
   defp expand_output_shape(%Nx.Tensor{} = tensor), do: Nx.shape(tensor)
 
+  defp expand_output_shape(%Axon.None{}), do: :none
+
   defp expand_output_shape(shapes) when is_tuple(shapes) do
     shapes
     |> Tuple.to_list()
     |> Enum.map(&expand_output_shape/1)
     |> List.to_tuple()
+  end
+
+  defp expand_output_shape(%{} = shapes) do
+    Map.new(shapes, fn {key, shape} -> {key, expand_output_shape(shape)} end)
   end
 
   defp generate_mermaid_node_entry(%{id: id, op: :input, name: name, shape: shape}) do

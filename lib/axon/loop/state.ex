@@ -2,6 +2,13 @@ defmodule Axon.Loop.State do
   @moduledoc """
   Accumulated state in an Axon.Loop.
 
+  This is what `Axon.Loop.run/4` returns. Any values of interest, such as
+  the trained model state of a supervised training loop, are extracted from
+  the returned state:
+
+      %Axon.Loop.State{step_state: %{model_state: model_state}} =
+        Axon.Loop.run(loop, data)
+
   Loop state is a struct:
 
       %State{

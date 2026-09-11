@@ -195,7 +195,7 @@ Let's see what an element of the input and target look like
 Looks right (and tricky). Let's see how the model does.
 
 ```elixir
-params =
+%Axon.Loop.State{step_state: %{model_state: params}} =
   model
   |> Axon.Loop.trainer(:mean_squared_error, Polaris.Optimizers.adamw(learning_rate: 0.001))
   |> Axon.Loop.validate(model, test_data)

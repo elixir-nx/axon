@@ -114,7 +114,7 @@ Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 950, loss: 0.0563023
+Epoch: 0, Iteration: 950, loss: 0.0563023
 ```
 
 <!-- livebook:{"output":true} -->
@@ -172,6 +172,13 @@ Epoch: 0, Batch: 950, loss: 0.0563023
 
 `Axon.Loop.run/4` expects a loop to execute, some data to loop over, and any initial state you explicitly want your loop to start with. `Axon.Loop.run/4` will then iterate over your data, executing a step function on each batch, and accumulating some generic loop state. In the case of a supervised training loop, this generic loop state actually represents training state including your model's trained parameters.
 
+`Axon.Loop.run/4` returns that final `%Axon.Loop.State{}`, so you can pattern match on it to grab just the trained model state:
+
+```elixir
+%Axon.Loop.State{step_state: %{model_state: trained_model_state}} =
+  Axon.Loop.run(loop, train_data, %{}, iterations: 1000)
+```
+
 `Axon.Loop.run/4` also accepts options which control the loops execution. This includes `:iterations` which controls the number of iterations per epoch a loop should execute for, and `:epochs` which controls the number of epochs a loop should execute for:
 
 ```elixir
@@ -181,9 +188,9 @@ Axon.Loop.run(loop, train_data, %{}, epochs: 3, iterations: 500)
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 450, loss: 0.0935063
-Epoch: 1, Batch: 450, loss: 0.0576384
-Epoch: 2, Batch: 450, loss: 0.0428323
+Epoch: 0, Iteration: 450, loss: 0.0935063
+Epoch: 1, Iteration: 450, loss: 0.0576384
+Epoch: 2, Iteration: 450, loss: 0.0428323
 ```
 
 <!-- livebook:{"output":true} -->
@@ -250,7 +257,7 @@ model
 <!-- livebook:{"output":true} -->
 
 ```
-Epoch: 0, Batch: 900, loss: 0.1492715
+Epoch: 0, Iteration: 900, loss: 0.1492715
 ```
 
 <!-- livebook:{"output":true} -->

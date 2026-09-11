@@ -364,6 +364,20 @@ defmodule CompilerTest do
       assert Nx.type(scale) == {:f, 32}
     end
 
+    test "default initializer is ones (forward pass is identity)" do
+      model = Axon.input("input_0", shape: {nil, 3}) |> Axon.scale(name: "scale")
+
+      input = Nx.tensor([[1.0, 2.0, 3.0]])
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"scale" => %{"scale" => scale}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(scale, Nx.tensor([1.0, 1.0, 1.0]))
+      assert_equal(predict_fn.(params, input), input)
+    end
+
     test "applies small init multiplicatively" do
       model =
         Axon.input("input_0", shape: {nil, 3})
@@ -1883,6 +1897,57 @@ defmodule CompilerTest do
       assert_equal(
         predict_fn.(params, input3),
         Axon.Layers.conv_transpose(input3, kernel, bias, opts3)
+      )
+    end
+
+    test "initializes with feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 2)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               init_fn.(input, ModelState.empty())
+
+      # input channels are divided by the feature group size
+      assert Nx.shape(kernel) == {2, 2, 3, 8}
+      assert Nx.shape(bias) == {8}
+    end
+
+    test "raises when input channels are not divisible by the feature group size" do
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, name: "conv", kernel_size: 2, feature_group_size: 4)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, _} = Axon.build(model)
+
+      assert_raise ArgumentError,
+                   ~r/input channels must be evenly divisible by feature group size/,
+                   fn -> init_fn.(input, ModelState.empty()) end
+    end
+
+    test "computes forward pass with feature group size" do
+      opts = [feature_group_size: 2, strides: 2]
+
+      model =
+        Axon.input("input", shape: {nil, 4, 4, 6})
+        |> Axon.conv_transpose(8, [name: "conv", kernel_size: 2] ++ opts)
+
+      input = random({1, 4, 4, 6})
+
+      assert {init_fn, predict_fn} = Axon.build(model)
+
+      assert %ModelState{data: %{"conv" => %{"kernel" => kernel, "bias" => bias}}} =
+               params = init_fn.(input, ModelState.empty())
+
+      assert_equal(
+        predict_fn.(params, input),
+        Axon.Layers.conv_transpose(input, kernel, bias, opts)
       )
     end
 
@@ -5868,14 +5933,61 @@ defmodule CompilerTest do
 
       input = Nx.broadcast(1, {1, 10})
 
+      # Each direction carries its own copy of the wrapped layer's
+      # parameters — they are not tied to one another.
       assert %ModelState{
                data: %{
-                 "bidirectional" => %{"lstm" => _}
+                 "bidirectional_forward" => %{"lstm" => _},
+                 "bidirectional_backward" => %{"lstm" => _}
                }
              } = params = init_fn.(input, ModelState.empty())
 
+      refute get_in(params.data, ["bidirectional_forward", "lstm", "input_kernel", "wii"]) ==
+               get_in(params.data, ["bidirectional_backward", "lstm", "input_kernel", "wii"])
+
       out = predict_fn.(params, input)
       assert Nx.shape(out) == {1, 20, 32}
+    end
+
+    test "passes LSTM state through un-reversed (Keras-equivalent)" do
+      # For LSTM-shaped output `{seq, {cell, hidden}}` the per-step
+      # outputs are un-reversed so they align with the forward run, but
+      # the state is left alone — so the merged hidden is the final
+      # state of each direction's run.
+      input = Axon.input("input", shape: {nil, 5, 3})
+
+      bidi =
+        input
+        |> Axon.bidirectional(
+          &Axon.lstm(&1, 4, name: "lstm", recurrent_initializer: :zeros),
+          &Nx.concatenate([&1, &2], axis: -1),
+          name: "bidirectional"
+        )
+
+      state_model = Axon.nx(bidi, fn {_seq, {_c, h}} -> h end)
+      seq_model = Axon.nx(bidi, &elem(&1, 0))
+
+      x = Nx.iota({2, 5, 3}, type: :f32) |> Nx.divide(10.0)
+
+      {state_init, state_predict} = Axon.build(state_model)
+      params = state_init.(x, ModelState.empty())
+
+      state_out = state_predict.(params, x)
+      assert Nx.shape(state_out) == {2, 8}
+
+      {_seq_init, seq_predict} = Axon.build(seq_model)
+      seq_out = seq_predict.(params, x)
+      assert Nx.shape(seq_out) == {2, 5, 8}
+
+      # Forward direction: the merged state's first half is the merged
+      # sequence's LAST timestep, first half (both are `fwd_h_T`).
+      assert_all_close(state_out[[.., 0..3]], seq_out[[.., -1, 0..3]])
+
+      # Backward direction: after un-reversal, position 0 of the merged
+      # sequence corresponds to the final step of the reversed-input
+      # run, so the merged state's second half is the merged sequence's
+      # FIRST timestep, second half.
+      assert_all_close(state_out[[.., 4..7]], seq_out[[.., 0, 4..7]])
     end
   end
 
@@ -6019,6 +6131,179 @@ defmodule CompilerTest do
       end
 
       assert_equal(predict_fn.(ModelState.empty(), input), real_fn.(input))
+    end
+  end
+
+  describe "deferred" do
+    test "single-parent factory sees parent output template and sizes a downstream layer" do
+      input = Axon.input("x", shape: {nil, 16})
+      encoder = Axon.dense(input, 8)
+
+      # Factory receives encoder's *output* template ({n, 8}) and doubles it.
+      model =
+        Axon.deferred(encoder, fn {enc, t} ->
+          {_, hidden} = Nx.shape(t)
+          Axon.dense(enc, hidden * 2)
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      x = random({2, 16}, type: {:f, 32})
+      state = init_fn.(x, ModelState.empty())
+
+      assert %ModelState{data: data} = state
+      assert %{"dense_0" => %{"kernel" => k0}} = data
+      assert Nx.shape(k0) == {16, 8}
+
+      assert %{"deferred_0" => %{"dense_0" => %{"kernel" => k1}}} = data
+      assert Nx.shape(k1) == {8, 16}
+
+      out = predict_fn.(state, %{"x" => x})
+      assert Nx.shape(out) == {2, 16}
+    end
+
+    test "autoencoder pattern via multi-parent form ties decoder output to input dim" do
+      input = Axon.input("x", shape: {nil, 16})
+      encoder = Axon.dense(input, 8)
+
+      # Decoder needs the original input dim. Pass both encoder and input as
+      # parents; use the input parent's template to recover in_dim.
+      decoder =
+        Axon.deferred([encoder, input], fn {enc, _t_enc}, {_p_in, t_in} ->
+          {_, in_dim} = Nx.shape(t_in)
+          Axon.dense(enc, in_dim)
+        end)
+
+      {init_fn, predict_fn} = Axon.build(decoder)
+
+      x = random({2, 16}, type: {:f, 32})
+      state = init_fn.(x, ModelState.empty())
+
+      assert %ModelState{
+               data: %{"deferred_0" => %{"dense_0" => %{"kernel" => k_dec}}}
+             } = state
+
+      assert Nx.shape(k_dec) == {8, 16}
+
+      out = predict_fn.(state, %{"x" => x})
+      assert Nx.shape(out) == {2, 16}
+    end
+
+    test "multi-parent factory receives one tuple per parent" do
+      a = Axon.input("a", shape: {nil, 4})
+      b = Axon.input("b", shape: {nil, 6})
+
+      model =
+        Axon.deferred([a, b], fn {pa, ta}, {pb, tb} ->
+          {_, da} = Nx.shape(ta)
+          {_, db} = Nx.shape(tb)
+          Axon.add(Axon.dense(pa, da + db), Axon.dense(pb, da + db))
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      inputs = %{
+        "a" => random({3, 4}, type: {:f, 32}),
+        "b" => random({3, 6}, type: {:f, 32})
+      }
+
+      state = init_fn.(inputs, ModelState.empty())
+
+      assert %ModelState{
+               data: %{
+                 "deferred_0" => %{
+                   "dense_0" => %{"kernel" => k_a},
+                   "dense_1" => %{"kernel" => k_b}
+                 }
+               }
+             } = state
+
+      assert Nx.shape(k_a) == {4, 10}
+      assert Nx.shape(k_b) == {6, 10}
+
+      out = predict_fn.(state, inputs)
+      assert Nx.shape(out) == {3, 10}
+    end
+
+    test "factory is re-invoked per trace and yields a stable subgraph" do
+      counter = :counters.new(1, [])
+
+      model =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.deferred(fn {p, _t} ->
+          :counters.add(counter, 1, 1)
+          Axon.dense(p, 4)
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      input = random({2, 4}, type: {:f, 32})
+      state = init_fn.(input, ModelState.empty())
+
+      # The subgraph is materialized while tracing, so the factory has run.
+      # How many times is up to the Nx.Defn compiler - a caching compiler
+      # traces once per input signature, the evaluator traces per call - so
+      # only the fact that it ran is asserted here.
+      assert :counters.get(counter, 1) >= 1
+
+      # Whatever the trace count, every invocation must agree on the
+      # subgraph, so repeated predicts line up with the same parameters and
+      # produce the same result.
+      out1 = predict_fn.(state, input)
+      out2 = predict_fn.(state, input)
+
+      assert Nx.shape(out1) == {2, 4}
+      assert_equal(out1, out2)
+    end
+
+    test "init and predict agree on the subgraph built from templates" do
+      model =
+        Axon.input("x", shape: {nil, 4})
+        |> Axon.deferred(fn {p, t} ->
+          {_, features} = Nx.shape(t)
+          Axon.dense(p, features * 3, name: "inner")
+        end)
+
+      {init_fn, predict_fn} = Axon.build(model)
+
+      input = random({2, 4}, type: {:f, 32})
+      state = init_fn.(input, ModelState.empty())
+
+      assert %ModelState{data: %{"deferred_0" => %{"inner" => %{"kernel" => kernel}}}} = state
+      assert Nx.shape(kernel) == {4, 12}
+
+      # Predict rebuilds the subgraph from its own templates; if the two
+      # disagreed the parameters would not line up here.
+      out = predict_fn.(state, input)
+      assert Nx.shape(out) == {2, 12}
+    end
+
+    test "raises when factory arity does not match parent count" do
+      a = Axon.input("a", shape: {nil, 4})
+      b = Axon.input("b", shape: {nil, 6})
+
+      assert_raise ArgumentError, ~r/arity equal to the number of parents/, fn ->
+        Axon.deferred([a, b], fn {_pa, _ta} -> a end)
+      end
+    end
+
+    test "raises when parents list contains non-Axon values" do
+      a = Axon.input("a", shape: {nil, 4})
+
+      assert_raise ArgumentError, ~r/expected Axon graph parent/, fn ->
+        Axon.deferred([a, :not_axon], fn {_, _}, {_, _} -> a end)
+      end
+    end
+
+    test "raises when factory does not return an Axon graph" do
+      input = Axon.input("x", shape: {nil, 4})
+      model = Axon.deferred(input, fn {_p, _t} -> :not_a_graph end)
+
+      {init_fn, _} = Axon.build(model)
+
+      assert_raise ArgumentError, ~r/must return an %Axon{}/, fn ->
+        init_fn.(random({1, 4}, type: {:f, 32}), ModelState.empty())
+      end
     end
   end
 end

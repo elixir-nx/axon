@@ -207,10 +207,10 @@ defmodule Axon do
 
       IO.inspect model
 
-      model_state =
+      %Axon.Loop.State{step_state: %{model_state: model_state}} =
         model
         |> Axon.Loop.trainer(:categorical_cross_entropy, Polaris.Optimizers.adamw(learning_rate: 0.005))
-        |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
+        |> Axon.Loop.run(train_data, %{}, epochs: 10, compiler: EXLA)
 
   See `Polaris.Updates` and `Axon.Loop` for a more in-depth treatment of
   model optimization and model training.
@@ -423,7 +423,7 @@ defmodule Axon do
   Using a function:
 
       parameter("kernel", fn input ->
-        Nx.template({elem(Nx.shape(input), 1), 64}, Nx.type(input))
+        Nx.template({Kernel.elem(Nx.shape(input), 1), 64}, Nx.type(input))
       end)
 
   Using the shape DSL:
@@ -516,12 +516,12 @@ defmodule Axon do
         {:axis, n} ->
           shape = hd(shapes)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         {:axis, n, [input: k]} ->
           shape = Enum.at(shapes, k)
           axis = normalize_axis(n, tuple_size(shape))
-          elem(shape, axis)
+          Kernel.elem(shape, axis)
 
         n when is_integer(n) ->
           n
@@ -844,7 +844,7 @@ defmodule Axon do
   defp recur_restructure(structure, args_tuple) do
     Nx.Container.traverse(structure, :ok, fn value, :ok ->
       case value do
-        idx when is_integer(idx) -> {elem(args_tuple, idx), :ok}
+        idx when is_integer(idx) -> {Kernel.elem(args_tuple, idx), :ok}
         container -> recur_restructure(container, args_tuple)
       end
     end)
@@ -921,6 +921,200 @@ defmodule Axon do
     defp block_fun(unquote(i), callback) do
       fn unquote_splicing(args) -> callback.(unquote(args)) end
     end
+  end
+
+  @doc """
+  Defers construction of a subgraph until parent template shapes
+  are known at initialization time.
+
+  `Axon.deferred/2` is useful when the structure or sizing of one
+  part of the graph depends on the shape (and dtype) of another part
+  whose shape isn't statically derivable from the call site — for
+  example, decoders that mirror an encoder's input dim, projection
+  heads that match a backbone's hidden size, or adapter layers that
+  wrap an opaque inner model.
+
+  ## Single-parent form
+
+  When a single `%Axon{}` parent is passed, the factory is an arity-1
+  function receiving a `{parent, template}` tuple:
+
+      input = Axon.input("x", shape: {nil, 784})
+      encoder = Axon.dense(input, 64)
+
+      decoder =
+        Axon.deferred(encoder, fn {enc, t} ->
+          {_, in_dim} = Nx.shape(t)
+          Axon.dense(enc, in_dim)
+        end)
+
+  ## Multi-parent form
+
+  When a list of parents is passed, the factory takes one
+  `{parent, template}` tuple per parent, in the same order:
+
+      Axon.deferred([a, b], fn {a, ta}, {b, tb} ->
+        ...
+      end)
+
+  The factory's arity must equal the number of parents.
+
+  ## Semantics
+
+  The factory is invoked against the resolved parent templates when the
+  graph is traced, and must return an `%Axon{}` rooted at the `parent`
+  values it received — that is how the parent's runtime output is wired
+  into the subgraph.
+
+  The factory must be a pure function of the templates it is given: it
+  is re-invoked every time the graph is traced — by `init_fn` and by
+  `predict_fn` alike — and every invocation must agree on the subgraph
+  for parameters to line up. Do not rely on it running a fixed number
+  of times, and do not give it side effects.
+
+  How often tracing happens depends on the `Nx.Defn` compiler. Under a
+  caching compiler such as EXLA, or under `Axon.compile/4`, the graph
+  is traced once per distinct input signature. Under the default
+  evaluator it is traced on every call, so a large deferred subgraph is
+  rebuilt on every call as well.
+
+  Like blocks, deferred subgraphs prefix their parameters with the
+  deferred layer's name and a dot.
+  """
+  @doc type: :special
+  def deferred(parent_or_parents, factory)
+
+  def deferred(%Axon{} = parent, factory) when is_function(factory, 1) do
+    layer(:deferred, [parent],
+      op_name: :deferred,
+      factory: factory,
+      num_parents: 1
+    )
+  end
+
+  def deferred([_ | _] = parents, factory) when is_function(factory) do
+    expected_arity = length(parents)
+    {:arity, actual_arity} = Function.info(factory, :arity)
+
+    if actual_arity != expected_arity do
+      raise ArgumentError,
+            "Axon.deferred factory must have arity equal to the number of parents " <>
+              "(#{expected_arity}), got arity #{actual_arity}"
+    end
+
+    Enum.each(parents, fn
+      %Axon{} -> :ok
+      other -> raise ArgumentError, "expected Axon graph parent, got: #{inspect(other)}"
+    end)
+
+    layer(:deferred, parents,
+      op_name: :deferred,
+      factory: factory,
+      num_parents: expected_arity
+    )
+  end
+
+  def deferred(parent_or_parents, factory) do
+    raise ArgumentError,
+          "Axon.deferred expects an %Axon{} or non-empty list of %Axon{} parents and a factory " <>
+            "function, got: #{inspect(parent_or_parents)} and #{inspect(factory)}"
+  end
+
+  @doc """
+  Wraps a subgraph construction in a name prefix.
+
+  Every layer built *inside* the given closure has its name prefixed
+  with `prefix <> "."`. Layers passed in from outer scope (including
+  inputs) are left untouched. Unlike `Axon.block/2`, `namespace`
+  introduces no extra graph node and performs no parameter sharing —
+  it only renames the leaves built within its boundary.
+
+  This is most useful for hoisting `name:` plumbing out of builder
+  functions: leaves use bare names like `"q_proj"` and the caller
+  decides at composition time where the prefix is applied.
+
+  ## Bare form
+
+  An arity-0 closure captures its inputs from lexical scope:
+
+      attention_output =
+        Axon.namespace("attention", fn ->
+          query
+          |> Axon.dense(q_size, name: "q_proj")
+          |> Axon.reshape({:batch, :auto, heads, head_size}, name: "q_heads")
+        end)
+
+  ## Pipe form
+
+  `namespace/3` accepts an input and an arity-1 closure for use
+  inside a pipeline:
+
+      hidden_state
+      |> Axon.namespace("attention", &self_attention(&1, opts))
+      |> Axon.add(residual)
+
+  ## Nesting
+
+  Namespaces stack. An inner namespace runs first, then the outer
+  one wraps its names again, producing `"outer.inner.leaf"`:
+
+      Axon.namespace("outer", fn ->
+        Axon.namespace("inner", fn ->
+          Axon.dense(input, 8, name: "proj")
+        end)
+      end)
+      # => "outer.inner.proj"
+
+  ## Inputs
+
+  An `Axon.input/2` defined *inside* the closure is renamed like any
+  other layer, which means the predict-step input map must use the
+  prefixed key. To avoid surprises, define inputs at the top level
+  and pass them in.
+  """
+  @doc type: :special
+  def namespace(prefix, fun) when is_binary(prefix) and is_function(fun, 0) do
+    boundary = System.unique_integer([:positive, :monotonic])
+
+    case fun.() do
+      %Axon{} = axon ->
+        rewrite_namespace_names(axon, prefix, boundary)
+
+      other ->
+        raise ArgumentError,
+              "Axon.namespace/2 expected the closure to return an %Axon{}, got: " <>
+                inspect(other)
+    end
+  end
+
+  @doc """
+  Pipe-friendly variant of `namespace/2`.
+
+  Calls `fun.(input)` inside a `namespace/2` boundary. Useful for
+  threading an input through a builder while applying a name prefix
+  to everything the builder constructs:
+
+      Axon.namespace(hidden_state, "ffn", &ffn(&1, opts))
+
+  """
+  @doc type: :special
+  def namespace(%Axon{} = input, prefix, fun)
+      when is_binary(prefix) and is_function(fun, 1) do
+    namespace(prefix, fn -> fun.(input) end)
+  end
+
+  defp rewrite_namespace_names(%Axon{} = axon, prefix, boundary) do
+    Axon.map_nodes(axon, fn
+      %Axon.Node{id: id, name: name_fn} = node when id > boundary ->
+        %{node | name: prepend_namespace(prefix, name_fn)}
+
+      node ->
+        node
+    end)
+  end
+
+  defp prepend_namespace(prefix, name_fn) do
+    fn op, op_counts -> prefix <> "." <> name_fn.(op, op_counts) end
   end
 
   @doc """
@@ -1199,6 +1393,9 @@ defmodule Axon do
 
     * `:kernel_dilation` - dilation to apply to kernel. Defaults to `1`.
 
+    * `:feature_group_size` - feature group size for convolution. Defaults
+      to `1`.
+
     * `:channels` - channels location. One of `:first` or `:last`.
       Defaults to `:last`.
 
@@ -1217,6 +1414,7 @@ defmodule Axon do
         strides: 1,
         padding: :valid,
         kernel_dilation: 1,
+        feature_group_size: 1,
         channels: :last
       ])
 
@@ -1224,9 +1422,10 @@ defmodule Axon do
     strides = opts[:strides]
     padding = opts[:padding]
     kernel_dilation = opts[:kernel_dilation]
+    feature_group_size = opts[:feature_group_size]
     channels = opts[:channels]
 
-    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, 1)
+    kernel_shape = &Axon.Shape.conv_kernel(&1, units, kernel_size, channels, feature_group_size)
     kernel = param("kernel", kernel_shape, initializer: opts[:kernel_initializer])
 
     {inputs, op} =
@@ -1244,6 +1443,7 @@ defmodule Axon do
         strides: strides,
         padding: padding,
         kernel_dilation: kernel_dilation,
+        feature_group_size: feature_group_size,
         channels: channels,
         op_name: :conv_transpose
       )
@@ -2256,6 +2456,83 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a layer that extracts the element at `index` from a tuple-valued
+  container layer.
+
+  This is the counterpart to `fetch/3` for tuples. It is sugar for
+  `Axon.nx(container, &elem(&1, index))` and is the recommended way to
+  pull a single output out of a multi-output model.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container({inp1, inp2}) |> Axon.elem(0)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def elem(%Axon{} = x, index, opts \\ []) when is_integer(index) and index >= 0 do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Kernel.elem(input, index) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :elem
+    )
+  end
+
+  @doc """
+  Adds a layer that fetches the value at `key` from a map-valued
+  container layer.
+
+  This is the counterpart to `elem/3` for maps. It is sugar for
+  `Axon.nx(container, &Map.fetch!(&1, key))`.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  ## Examples
+
+      iex> inp1 = Axon.input("input_0", shape: {nil, 1})
+      iex> inp2 = Axon.input("input_1", shape: {nil, 2})
+      iex> model = Axon.container(%{a: inp1, b: inp2}) |> Axon.fetch(:a)
+      iex> Axon.predict(model, Axon.ModelState.empty(), %{
+      ...>   "input_0" => Nx.tensor([[1.0]]),
+      ...>   "input_1" => Nx.tensor([[1.0, 2.0]])
+      ...> })
+      #Nx.Tensor<
+        f32[1][1]
+        [
+          [1.0]
+        ]
+      >
+  """
+  @doc type: :special
+  def fetch(%Axon{} = x, key, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(fn input, _opts -> Map.fetch!(input, key) end, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :fetch
+    )
+  end
+
+  @doc """
   Adds a flatten layer to the network.
 
   This layer will flatten all but the batch dimensions
@@ -2682,32 +2959,71 @@ defmodule Axon do
   the results with the given merge function.
 
   This is most commonly used with RNNs to capture the dependencies
-  of a sequence in both directions.
+  of a sequence in both directions. The function is invoked once on
+  the input and once on the input reversed along `:axis`. Per-step
+  outputs produced by the reversed run are un-reversed so they align
+  with the forward outputs before being passed to `merge_fun`.
+
+  When `forward_fun` returns a container of tensors with mixed rank
+  (e.g. an LSTM returns `{sequence, {cell, hidden}}`), only leaves
+  that share the input's rank and `:axis`-th dimension are treated as
+  per-step outputs and un-reversed. Aggregate leaves like an LSTM's
+  final state — whose `:axis`-th dimension is the hidden axis, not
+  time — are left alone, so the merged result is the final state of
+  each direction's run (matching Keras' `Bidirectional(LSTM(...))`
+  behaviour).
+
+  Each direction is built as its own block and so carries its own
+  parameters — the two directions are trained independently rather
+  than sharing one set of weights. When `:name` is given, they are
+  named `"<name>_forward"` and `"<name>_backward"`.
 
   ## Options
 
-    * `axis` - Axis to reverse.
+    * `name` - layer name. Used to name each direction's block.
+
+    * `axis` - Axis to reverse. Defaults to `1`.
   """
   def bidirectional(%Axon{} = input, forward_fun, merge_fun, opts \\ [])
       when is_function(forward_fun, 1) and is_function(merge_fun, 2) do
     opts = Keyword.validate!(opts, [:name, axis: 1])
+    axis = opts[:axis]
 
-    fun =
-      Axon.block(
-        fn x ->
-          Axon.container(forward_fun.(x))
-        end,
-        name: opts[:name]
-      )
+    # Each direction gets its own block, and therefore its own
+    # parameters. A single block shared between the two calls would tie
+    # the forward and backward weights together, halving the layer's
+    # capacity (Keras' `Bidirectional` likewise gives each direction an
+    # independent copy of the wrapped layer).
+    forward_fun_block = bidirectional_block(forward_fun, opts[:name], "forward")
+    backward_fun_block = bidirectional_block(forward_fun, opts[:name], "backward")
 
-    forward_out = fun.(input)
+    forward_out = forward_fun_block.(input)
 
-    backward_out =
+    fwd_on_reversed =
       input
-      |> Axon.nx(&Nx.reverse(&1, axes: [opts[:axis]]))
-      |> fun.()
-      |> Axon.nx(fn x ->
-        deep_new(x, &Nx.reverse(&1, axes: [opts[:axis]]))
+      |> Axon.nx(&Nx.reverse(&1, axes: [axis]))
+      |> backward_fun_block.()
+
+    # Pair the reversed-input output with the original input so the
+    # un-reverse step below can compare each leaf's rank and `axis`-th
+    # dimension against the input at runtime. Leaves that align to the
+    # scanned axis are un-reversed; aggregate leaves (like LSTM state)
+    # are passed through untouched.
+    backward_out =
+      {fwd_on_reversed, input}
+      |> Axon.container()
+      |> Axon.nx(fn {x, inp} ->
+        input_rank = Nx.rank(inp)
+        norm_axis = Integer.mod(axis, input_rank)
+        time_dim = Kernel.elem(Nx.shape(inp), norm_axis)
+
+        deep_new(x, fn leaf ->
+          if Nx.rank(leaf) == input_rank and Kernel.elem(Nx.shape(leaf), norm_axis) == time_dim do
+            Nx.reverse(leaf, axes: [norm_axis])
+          else
+            leaf
+          end
+        end)
       end)
 
     {forward_out, backward_out}
@@ -2715,6 +3031,14 @@ defmodule Axon do
     |> Axon.nx(fn {forward, backward} ->
       deep_merge(forward, backward, merge_fun)
     end)
+  end
+
+  defp bidirectional_block(forward_fun, nil, _direction) do
+    Axon.block(fn x -> Axon.container(forward_fun.(x)) end)
+  end
+
+  defp bidirectional_block(forward_fun, name, direction) when is_binary(name) do
+    Axon.block(fn x -> Axon.container(forward_fun.(x)) end, name: "#{name}_#{direction}")
   end
 
   @doc """
@@ -2917,19 +3241,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3151,13 +3475,13 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3334,19 +3658,19 @@ defmodule Axon do
       end
 
     output_sequence =
-      layer(fn x, _ -> elem(x, 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(x, 0) end, [output],
         name: output_sequence_name,
         op_name: :elem
       )
 
     new_c =
-      layer(fn x, _ -> elem(elem(x, 1), 0) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 0) end, [output],
         name: new_c_name,
         op_name: :elem
       )
 
     new_h =
-      layer(fn x, _ -> elem(elem(x, 1), 1) end, [output],
+      layer(fn x, _ -> Kernel.elem(Kernel.elem(x, 1), 1) end, [output],
         name: new_h_name,
         op_name: :elem
       )
@@ -3469,12 +3793,17 @@ defmodule Axon do
   This is commonly used as the `gamma` in residual blocks of modern
   Transformer architectures (CaiT, ConvNeXt, BEiT, EVA, etc.).
 
+  Initializing the scale to a small constant — typically
+  `Axon.Initializers.full(1.0e-6)` — dampens each block's contribution
+  at initialization and is sometimes called LayerScale.
+
   ## Options
 
     * `:name` - layer name.
 
     * `:scale_initializer` - initializer for the scale weights.
-      Defaults to `Axon.Initializers.full(1.0e-6)`.
+      Defaults to `:ones`. Pass `Axon.Initializers.full(1.0e-6)` (or a
+      similar small constant) for the LayerScale recipe.
 
     * `:channel_index` - input feature axis along which the scale is
       broadcast. Defaults to `-1`.
@@ -3485,7 +3814,7 @@ defmodule Axon do
       Keyword.validate!(opts, [
         :name,
         :meta,
-        scale_initializer: Axon.Initializers.full(1.0e-6),
+        scale_initializer: :ones,
         channel_index: -1
       ])
 

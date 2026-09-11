@@ -27,9 +27,12 @@ defmodule XOR do
   end
 
   defp train_model(model, data, epochs) do
-    model
-    |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
-    |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 1000, compiler: EXLA)
+    %Axon.Loop.State{step_state: %{model_state: model_state}} =
+      model
+      |> Axon.Loop.trainer(:binary_cross_entropy, :sgd)
+      |> Axon.Loop.run(data, %{}, epochs: epochs, iterations: 1000, compiler: EXLA)
+
+    model_state
   end
 
   def run do

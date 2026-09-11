@@ -4,7 +4,12 @@ defmodule Axon.ModelState do
 
   This data structure represents all the state needed for
   a model to perform inference.
+
+  Most functions in this module are defined as transforms, which
+  means they can be called from within `defn`.
   """
+  import Nx.Defn, only: [deftransform: 1, deftransform: 2]
+
   @derive {
     Nx.Container,
     keep: [:parameters, :state, :frozen_parameters], containers: [:data]
@@ -16,14 +21,14 @@ defmodule Axon.ModelState do
   @doc """
   Updates the given model state.
   """
-  def update(
-        %ModelState{
-          state: state,
-          frozen_parameters: frozen
-        } = model_state,
-        updated_parameters,
-        updated_state \\ %{}
-      ) do
+  deftransform update(
+                 %ModelState{
+                   state: state,
+                   frozen_parameters: frozen
+                 } = model_state,
+                 updated_parameters,
+                 updated_state \\ %{}
+               ) do
     updated_state =
       state
       |> tree_diff(frozen)
@@ -40,7 +45,8 @@ defmodule Axon.ModelState do
   Merges 2 states with function.
   """
   # TODO: Don't assume these have the same shapes
-  def merge(%ModelState{} = lhs, %ModelState{data: rhs_data}, fun) when is_function(fun, 3) do
+  deftransform merge(%ModelState{} = lhs, %ModelState{data: rhs_data}, fun)
+               when is_function(fun, 3) do
     update_in(lhs, [Access.key!(:data)], fn data ->
       tree_merge(data, rhs_data, fun)
     end)
@@ -65,7 +71,7 @@ defmodule Axon.ModelState do
   The default mask returns `true` for all paths, and is equivalent to
   freezing the entire model.
   """
-  def freeze(%ModelState{data: data} = model_state, mask \\ fn _ -> true end) do
+  deftransform freeze(%ModelState{data: data} = model_state, mask \\ fn _ -> true end) do
     frozen_paths =
       data
       |> get_paths()
@@ -103,10 +109,10 @@ defmodule Axon.ModelState do
   The default mask returns `true` for all paths, and is equivalent to
   unfreezing the entire model.
   """
-  def unfreeze(
-        %ModelState{data: data, frozen_parameters: frozen} = model_state,
-        mask \\ fn _ -> true end
-      ) do
+  deftransform unfreeze(
+                 %ModelState{data: data, frozen_parameters: frozen} = model_state,
+                 mask \\ fn _ -> true end
+               ) do
     unfrozen_paths =
       data
       |> get_paths()
@@ -130,11 +136,11 @@ defmodule Axon.ModelState do
   @doc """
   Returns the trainable parameters in the given model state.
   """
-  def trainable_parameters(%ModelState{
-        data: data,
-        parameters: parameters,
-        frozen_parameters: frozen
-      }) do
+  deftransform trainable_parameters(%ModelState{
+                 data: data,
+                 parameters: parameters,
+                 frozen_parameters: frozen
+               }) do
     parameters
     |> tree_diff(frozen)
     |> then(&tree_get(data, &1))
@@ -143,7 +149,7 @@ defmodule Axon.ModelState do
   @doc """
   Returns the frozen parameters in the given model state.
   """
-  def frozen_parameters(%ModelState{data: data, state: state, frozen_parameters: frozen}) do
+  deftransform frozen_parameters(%ModelState{data: data, state: state, frozen_parameters: frozen}) do
     frozen
     |> tree_diff(state)
     |> then(&tree_get(data, &1))
@@ -152,7 +158,7 @@ defmodule Axon.ModelState do
   @doc """
   Returns the trainable state in the given model state.
   """
-  def trainable_state(%ModelState{data: data, state: state, frozen_parameters: frozen}) do
+  deftransform trainable_state(%ModelState{data: data, state: state, frozen_parameters: frozen}) do
     state
     |> tree_diff(frozen)
     |> then(&tree_get(data, &1))
@@ -161,7 +167,11 @@ defmodule Axon.ModelState do
   @doc """
   Returns the frozen state in the given model state.
   """
-  def frozen_state(%ModelState{data: data, parameters: parameters, frozen_parameters: frozen}) do
+  deftransform frozen_state(%ModelState{
+                 data: data,
+                 parameters: parameters,
+                 frozen_parameters: frozen
+               }) do
     frozen
     |> tree_diff(parameters)
     |> then(&tree_get(data, &1))
@@ -170,7 +180,7 @@ defmodule Axon.ModelState do
   @doc """
   Returns an empty model state.
   """
-  def empty() do
+  deftransform empty() do
     new(%{})
   end
 
@@ -178,11 +188,11 @@ defmodule Axon.ModelState do
   Returns a new model state struct from the given parameter
   map.
   """
-  def new(data)
+  deftransform new(data)
 
-  def new(%Axon.ModelState{} = model_state), do: model_state
+  deftransform new(%Axon.ModelState{} = model_state), do: model_state
 
-  def new(data) when is_map(data) do
+  deftransform new(data) when is_map(data) do
     %Axon.ModelState{
       data: data,
       parameters: transform_to_parameters(data),
@@ -215,7 +225,7 @@ defmodule Axon.ModelState do
       )
 
   """
-  def tie(model_state, destination, source, opts \\ []) do
+  deftransform tie(model_state, destination, source, opts \\ []) do
     update_in(model_state, [Access.key!(:data)], fn data ->
       shared = Axon.ModelState.SharedParameter.new(source, opts)
       [key | rest] = Enum.reverse(destination)

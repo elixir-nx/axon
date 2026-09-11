@@ -462,8 +462,9 @@ Axon supports manual training loops but provides the `Axon.Loop` module for conv
 
 ```elixir
 # High-level approach using Axon.Loop:
-model_state = Axon.Loop.trainer(model, :categorical_cross_entropy, optimizer)
-               |> Axon.Loop.run(train_data, epochs: 10, compiler: EXLA)
+%Axon.Loop.State{step_state: %{model_state: model_state}} =
+  Axon.Loop.trainer(model, :categorical_cross_entropy, optimizer)
+  |> Axon.Loop.run(train_data, %{}, epochs: 10, compiler: EXLA)
 
 # Manual loop structure (simplified):
 model = # ...

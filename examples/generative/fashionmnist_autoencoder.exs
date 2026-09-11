@@ -45,10 +45,13 @@ defmodule FashionMNIST do
   end
 
   defp train_model(model, train_images, epochs) do
-    model
-    |> Axon.Loop.trainer(:mean_squared_error, :adam)
-    |> Axon.Loop.metric(:mean_absolute_error, "Error")
-    |> Axon.Loop.run(Stream.zip(train_images, train_images), %{}, epochs: epochs, compiler: EXLA)
+    %Axon.Loop.State{step_state: %{model_state: model_state}} =
+      model
+      |> Axon.Loop.trainer(:mean_squared_error, :adam)
+      |> Axon.Loop.metric(:mean_absolute_error, "Error")
+      |> Axon.Loop.run(Stream.zip(train_images, train_images), %{}, epochs: epochs, compiler: EXLA)
+
+    model_state
   end
 
   def run do

@@ -31,7 +31,7 @@ defmodule MnistDenoising do
     # Train with noisy images as input and train images as targets
     model = build_model({nil, @image_channels, @image_side_pixels, @image_side_pixels})
 
-    model_state =
+    %Axon.Loop.State{step_state: %{model_state: model_state}} =
       model
       |> Axon.Loop.trainer(:binary_cross_entropy, :adam)
       |> Axon.Loop.run(train_data, %{}, epochs: @epochs, compiler: EXLA)
