@@ -261,6 +261,28 @@ defmodule Axon.LossesTest do
     end
   end
 
+  describe "quantile" do
+    test "charges the quantile for under-prediction and its complement for over-prediction" do
+      y_true = Nx.tensor([10.0, 10.0])
+      y_pred = Nx.tensor([8.0, 12.0])
+
+      assert_all_close(
+        Axon.Losses.quantile(y_true, y_pred, quantile: 0.9),
+        Nx.tensor([1.8, 0.2])
+      )
+    end
+
+    test "is half the mean absolute error at the median" do
+      y_true = Nx.tensor([1.0, 4.0, 2.5])
+      y_pred = Nx.tensor([0.5, 5.0, 2.0])
+
+      assert_all_close(
+        Axon.Losses.quantile(y_true, y_pred, reduction: :mean),
+        Nx.divide(Axon.Losses.mean_absolute_error(y_true, y_pred, reduction: :mean), 2)
+      )
+    end
+  end
+
   describe "cosine_similarity" do
     test "supports eps" do
       y_true = Nx.tensor([[0.0, 1.0], [1.0, 1.0]])
