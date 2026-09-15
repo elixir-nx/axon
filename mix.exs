@@ -186,7 +186,8 @@ defmodule Axon.MixProject do
         ],
         Loop: [
           Axon.Loop,
-          Axon.Loop.State
+          Axon.Loop.State,
+          Axon.LearningRateFinder
         ]
       ],
       before_closing_body_tag: &before_closing_body_tag/1

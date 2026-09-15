@@ -2127,7 +2127,8 @@ defmodule Axon.Loop do
   # joint, multi-objective loss function.
   # TODO(seanmor5): Configurable per-batch reductions
   # TODO(seanmor5): Configurable multi-objective reductions
-  defp build_loss_fn(loss) do
+  @doc false
+  def build_loss_fn(loss) do
     case loss do
       loss_name when is_atom(loss_name) and loss_name in @valid_axon_losses ->
         fn y_true, y_pred ->
