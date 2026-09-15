@@ -16,6 +16,13 @@ defmodule Axon.ModelState do
   }
   defstruct [:data, :parameters, :state, :frozen_parameters]
 
+  @type t :: %__MODULE__{
+          data: map(),
+          parameters: map(),
+          state: map(),
+          frozen_parameters: map()
+        }
+
   alias __MODULE__
 
   @doc """
