@@ -663,7 +663,7 @@ defmodule Axon.LoopTest do
                      |> Loop.run(data, Axon.ModelState.empty())
                    end
     end
- 
+
     test "logs epoch and iteration" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       data = [{Nx.tensor([[1.0]]), Nx.tensor([[2.0]])}]
@@ -1217,6 +1217,27 @@ defmodule Axon.LoopTest do
   end
 
   describe "validate" do
+    test "keeps a metric's accumulator and transform" do
+      model = Axon.input("input", shape: {nil, 1})
+
+      # the metric looks at the targets only and sums them across batches
+      sum_targets = fn y_true -> Nx.sum(y_true) end
+
+      loop =
+        model
+        |> Loop.trainer(:mean_squared_error, :sgd, log: 0)
+        |> Loop.metric(sum_targets, "target_sum", :running_sum, [:y_true])
+        |> Loop.validate(model, [
+          {Nx.tensor([[1.0]]), Nx.tensor([[2.0]])},
+          {Nx.tensor([[1.0]]), Nx.tensor([[3.0]])}
+        ])
+
+      assert %State{metrics: %{0 => metrics}} =
+               Loop.run(loop, [{Nx.tensor([[1.0]]), Nx.tensor([[1.0]])}], %{}, epochs: 1)
+
+      assert_equal(metrics["validation_target_sum"], Nx.tensor(5.0))
+    end
+
     test "adds validation_* metrics to metrics map" do
       model = Axon.input("input") |> Axon.dense(1)
 

@@ -1034,8 +1034,11 @@ defmodule Axon.Loop do
     validation_loop = fn %State{metrics: metrics, step_state: step_state} = state ->
       %{model_state: model_state} = step_state
 
+      # The evaluator reuses the loop's metrics as they were declared, with
+      # their accumulators and transforms, rather than re-registering the raw
+      # metric functions with the defaults.
       %State{metrics: %{0 => validation_metrics}} =
-        Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
+        %Loop{evaluator | metrics: metric_fns}
         |> run(validation_data, model_state)
 
       metrics =
