@@ -663,7 +663,7 @@ defmodule Axon.LoopTest do
                      |> Loop.run(data, Axon.ModelState.empty())
                    end
     end
- 
+
     test "logs epoch and iteration" do
       model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(1)
       data = [{Nx.tensor([[1.0]]), Nx.tensor([[2.0]])}]
