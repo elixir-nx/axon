@@ -299,8 +299,10 @@ defmodule Axon.Loop do
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
-  for multi-output models, or an arity-2 function representing a custom loss
-  function.
+  for multi-output models, an arity-2 function `loss(y_true, y_pred)`, or an
+  arity-3 function `loss(y_true, y_pred, x)` which also receives the batch
+  inputs, for a loss that needs something from the batch besides the targets,
+  such as a per-sample weight carried under its own input key.
 
   `optimizer` must be an atom matching the name of a valid optimizer in `Polaris.Optimizers`,
   or a `{init_fn, update_fn}` tuple where `init_fn` is an arity-1 function which
@@ -346,6 +348,7 @@ defmodule Axon.Loop do
 
         %{
           i: Nx.tensor(0),
+          x: zeros_like(inp),
           y_true: zeros_like(tar),
           y_pred: zeros_like(output),
           loss: Nx.tensor(0.0),
@@ -366,7 +369,7 @@ defmodule Axon.Loop do
         end)
 
       model_out = forward_model_fn.(model_state, inp)
-      unscaled_loss = loss_fn.(tar, model_out.prediction)
+      unscaled_loss = loss_fn.(tar, model_out.prediction, inp)
       check_loss_output!(unscaled_loss)
       scaled_loss = scale_loss.(unscaled_loss, loss_scale_state)
 
@@ -413,6 +416,7 @@ defmodule Axon.Loop do
         %{
           state
           | i: Nx.add(i, 1),
+            x: inp,
             y_true: tar,
             y_pred: preds,
             loss: new_loss,
@@ -485,6 +489,7 @@ defmodule Axon.Loop do
 
         %{
           model_state: state,
+          x: zeros_like(inp),
           y_true: zeros_like(tar),
           y_pred: zeros_like(output)
         }
@@ -497,6 +502,7 @@ defmodule Axon.Loop do
       {inp, tar}, %{model_state: model_state} ->
         %{
           model_state: model_state,
+          x: inp,
           y_true: tar,
           y_pred: forward_model_fn.(model_state, inp)
         }
@@ -574,9 +580,12 @@ defmodule Axon.Loop do
 
   `loss` must be an atom which matches a function in `Axon.Losses`, a list
   of `{loss, weight}` tuples representing a basic weighted loss function
-  for multi-output models, or an arity-2 function representing a custom loss
-  function. Built-in losses expect the targets to have exactly the same shape
-  as the model prediction, and every loss function must return a scalar; the
+  for multi-output models, an arity-2 function `loss(y_true, y_pred)`, or an
+  arity-3 function `loss(y_true, y_pred, x)` which also receives the batch
+  inputs, for a loss that needs something from the batch besides the targets,
+  such as a per-sample weight carried under its own input key. Built-in
+  losses expect the targets to have exactly the same shape as the model
+  prediction, and every loss function must return a scalar; the
   training step raises with the offending shapes otherwise. To train
   `:categorical_cross_entropy` on integer class labels, one-hot encode the
   targets or pass
@@ -594,6 +603,7 @@ defmodule Axon.Loop do
   fields for `step_state`:
 
       %{
+        x: tensor() | container(tensor()), # Batch inputs for use in metrics
         y_pred: tensor() | container(tensor()), # Model predictions for use in metrics
         y_true: tensor() | container(tensor()), # True labels for use in metrics
         loss: tensor(), # Running average of loss over epoch
@@ -674,7 +684,7 @@ defmodule Axon.Loop do
     loop =
       step_fn
       |> loop(init_fn)
-      |> metric(loss_fn, "loss")
+      |> metric(loss_fn, "loss", :running_average, [:y_true, :y_pred, :x])
 
     if log_interval > 0 do
       loop
@@ -1035,7 +1045,11 @@ defmodule Axon.Loop do
       %{model_state: model_state} = step_state
 
       %State{metrics: %{0 => validation_metrics}} =
-        Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop -> metric(loop, v, k) end)
+        Enum.reduce(metric_fns, evaluator, fn {k, {_, v}}, loop ->
+          # a loss that takes the batch inputs needs them from the evaluator's state too
+          fields = if is_function(v, 3), do: [:y_true, :y_pred, :x], else: [:y_true, :y_pred]
+          metric(loop, v, k, :running_average, fields)
+        end)
         |> run(validation_data, model_state)
 
       metrics =
@@ -2122,24 +2136,29 @@ defmodule Axon.Loop do
 
   # Builds a loss function from an atom, function, or list of. Valid loss
   # functions must be one of an atom matching the name of a function in
-  # Axon.Losses, an arity-2 function of the form loss(y_true, y_pred),
-  # or a list of 2-tuples of {loss, weight} for constructing a simple
-  # joint, multi-objective loss function.
+  # Axon.Losses, an arity-2 function of the form loss(y_true, y_pred), an
+  # arity-3 function loss(y_true, y_pred, x) which also gets the batch
+  # inputs, or a list of 2-tuples of {loss, weight} for constructing a simple
+  # joint, multi-objective loss function. The built function always takes
+  # the inputs as its third argument.
   # TODO(seanmor5): Configurable per-batch reductions
   # TODO(seanmor5): Configurable multi-objective reductions
   defp build_loss_fn(loss) do
     case loss do
       loss_name when is_atom(loss_name) and loss_name in @valid_axon_losses ->
-        fn y_true, y_pred ->
+        fn y_true, y_pred, _x ->
           check_loss_shapes!(loss_name, y_true, y_pred)
           apply(Axon.Losses, loss_name, [y_true, y_pred, [reduction: :mean]])
         end
 
       loss_fn when is_function(loss, 2) ->
+        fn y_true, y_pred, _x -> loss_fn.(y_true, y_pred) end
+
+      loss_fn when is_function(loss, 3) ->
         loss_fn
 
       [{_, _} | _] = losses ->
-        fn y_true, y_pred ->
+        fn y_true, y_pred, x ->
           check_multi_output_shapes!(length(losses), y_true, y_pred)
 
           {_, loss} =
@@ -2151,7 +2170,7 @@ defmodule Axon.Loop do
 
               new_acc_loss =
                 y_true_i
-                |> loss_fn.(y_pred_i)
+                |> loss_fn.(y_pred_i, x)
                 |> Nx.multiply(weight)
                 |> Nx.add(acc_loss)
 
@@ -2165,8 +2184,10 @@ defmodule Axon.Loop do
         raise ArgumentError,
               "Invalid loss function #{inspect(invalid)}, a valid loss" <>
                 " function is an atom which matches a function in Axon.Losses," <>
-                " an arity-2 function of the form loss(y_true, y_pred), or a list" <>
-                " of 2-tuples of {loss, weight} for multi-objective models"
+                " an arity-2 function of the form loss(y_true, y_pred), an arity-3" <>
+                " function of the form loss(y_true, y_pred, x) which also receives the" <>
+                " batch inputs, or a list of 2-tuples of {loss, weight} for" <>
+                " multi-objective models"
     end
   end
 
