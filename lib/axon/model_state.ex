@@ -12,9 +12,9 @@ defmodule Axon.ModelState do
 
   @derive {
     Nx.Container,
-    keep: [:parameters, :state, :frozen_parameters], containers: [:data]
+    keep: [:parameters, :state, :frozen_parameters, :constraints], containers: [:data]
   }
-  defstruct [:data, :parameters, :state, :frozen_parameters]
+  defstruct [:data, :parameters, :state, :frozen_parameters, constraints: %{}]
 
   alias __MODULE__
 
@@ -134,6 +134,67 @@ defmodule Axon.ModelState do
   end
 
   @doc """
+  Constrains parameters in the given model state using the given mask.
+
+  The mask is an arity 1 function which takes the access path to the
+  leaf parameter and returns `true` if `constraint` should be applied
+  to it or `false` otherwise. `constraint` is an arity 1 function which
+  receives a parameter tensor and returns the projected tensor, such as
+  the functions in `Axon.Constraints`:
+
+      Axon.ModelState.constrain(
+        model_state,
+        &match?([_, "kernel"], &1),
+        Axon.Constraints.max_norm(max: 2.0)
+      )
+
+  Constraints are applied by `apply_constraints/1`, which
+  `Axon.Loop.train_step/4` calls after every optimizer update. Only
+  trainable, non-frozen parameters are constrained.
+
+  Constraints are stored as functions in the model state metadata, so
+  they are serialized along with the model state and can only be
+  deserialized when the module defining the constraint is available.
+  """
+  deftransform constrain(
+                 %ModelState{data: data, constraints: constraints} = model_state,
+                 mask,
+                 constraint
+               )
+               when is_function(mask, 1) and is_function(constraint, 1) do
+    constraints =
+      data
+      |> get_paths()
+      |> Enum.filter(mask)
+      |> Enum.reduce(constraints, &put_path(&2, &1, constraint))
+
+    %{model_state | constraints: constraints}
+  end
+
+  @doc """
+  Applies the constraints in the given model state to its
+  trainable parameters.
+
+  Parameters without a constraint, frozen parameters, and state
+  are left untouched.
+  """
+  deftransform apply_constraints(
+                 %ModelState{
+                   data: data,
+                   parameters: parameters,
+                   frozen_parameters: frozen,
+                   constraints: constraints
+                 } = model_state
+               ) do
+    active =
+      parameters
+      |> tree_diff(frozen)
+      |> then(&tree_get(constraints, &1))
+
+    %{model_state | data: constrain_tree(data, active)}
+  end
+
+  @doc """
   Returns the trainable parameters in the given model state.
   """
   deftransform trainable_parameters(%ModelState{
@@ -197,7 +258,8 @@ defmodule Axon.ModelState do
       data: data,
       parameters: transform_to_parameters(data),
       state: %{},
-      frozen_parameters: %{}
+      frozen_parameters: %{},
+      constraints: %{}
     }
   end
 
@@ -278,6 +340,31 @@ defmodule Axon.ModelState do
   defp traverse(map, acc) do
     Enum.flat_map(map, fn {k, value} ->
       traverse(value, [k | acc])
+    end)
+  end
+
+  defp put_path(map, [key], value), do: Map.put(map, key, value)
+
+  defp put_path(map, [key | rest], value) do
+    Map.update(map, key, put_path(%{}, rest, value), &put_path(&1, rest, value))
+  end
+
+  defp constrain_tree(data, constraints) do
+    Enum.reduce(constraints, data, fn
+      {key, fun}, acc when is_function(fun, 1) ->
+        case acc do
+          %{^key => %Nx.Tensor{} = tensor} -> Map.put(acc, key, fun.(tensor))
+          %{} -> acc
+        end
+
+      {key, inner}, acc when is_map(inner) ->
+        case acc do
+          %{^key => %{} = nested} when not is_struct(nested) ->
+            Map.put(acc, key, constrain_tree(nested, inner))
+
+          %{} ->
+            acc
+        end
     end)
   end
 
