@@ -1005,6 +1005,62 @@ defmodule Axon.Losses do
   end
 
   @doc """
+  Quantile loss, also known as pinball loss.
+
+  For a quantile $q$ and error $d = y_{true} - y_{pred}$ the loss is
+  $\max(q \cdot d, (q - 1) \cdot d)$. It is minimized when `y_pred` is
+  the $q$-th quantile of `y_true`, so a model trained with it predicts a
+  quantile instead of a mean. Under-predicting costs $q$ per unit and
+  over-predicting costs $1 - q$, which is what pushes the prediction up
+  to a high quantile or down to a low one. With $q = 0.5$ it is half the
+  mean absolute error.
+
+  ## Argument Shapes
+
+    * `y_true` - $(d_0, d_1, ..., d_n)$
+    * `y_pred` - $(d_0, d_1, ..., d_n)$
+
+  ## Options
+
+    * `:reduction` - reduction mode. One of `:mean`, `:sum`, or `:none`.
+      Defaults to `:none`.
+
+    * `:quantile` - the quantile to predict, strictly between 0 and 1.
+      Defaults to `0.5`.
+
+  ## Examples
+
+      iex> y_true = Nx.tensor([[1.0], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.quantile(y_true, y_pred, quantile: 0.9)
+      #Nx.Tensor<
+        f32[3][1]
+        [
+          [0.17999998],
+          [0.029999996],
+          [0.00999999]
+        ]
+      >
+
+      iex> y_true = Nx.tensor([[1.0], [1.5], [2.0]])
+      iex> y_pred = Nx.tensor([[0.8], [1.8], [2.1]])
+      iex> Axon.Losses.quantile(y_true, y_pred, quantile: 0.9, reduction: :mean)
+      #Nx.Tensor<
+        f32
+        0.07333332
+      >
+  """
+  defn quantile(y_true, y_pred, opts \\ []) do
+    opts = keyword!(opts, reduction: :none, quantile: 0.5)
+
+    quantile = opts[:quantile]
+    error = y_true - y_pred
+
+    Nx.max(quantile * error, (quantile - 1) * error)
+    |> reduction(opts[:reduction])
+  end
+
+  @doc """
   Connectionist Temporal Classification loss.
 
   ## Argument Shapes
