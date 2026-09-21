@@ -75,7 +75,7 @@ model =
 
 {init_fn, predict_fn} = Axon.build(model, compiler: EXLA)
 
-params = init_fn.(Nx.template({1, 784}, :f32), %{})
+params = init_fn.(Nx.template({1, 784}, :f32), Axon.ModelState.empty())
 predict_fn.(params, input)
 ```
 

@@ -121,7 +121,7 @@ graph TD;
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
@@ -186,7 +186,7 @@ out = Axon.layer(&CustomLayers1.my_layer/3, [input, alpha], op_name: :my_layer)
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->

@@ -27,7 +27,7 @@ model =
   |> Axon.dense(1)
 
 {init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 
@@ -47,7 +47,7 @@ You can also explicitly specify the mode:
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(model, mode: :inference)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 
@@ -71,7 +71,7 @@ By specifying `mode: :train`, you tell your models to execute in training mode. 
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(model, mode: :train)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 
@@ -108,7 +108,7 @@ model =
   |> Axon.dense(1)
 
 {init_fn, predict_fn} = Axon.build(model, mode: :train)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 

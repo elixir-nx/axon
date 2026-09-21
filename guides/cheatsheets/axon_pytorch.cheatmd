@@ -317,7 +317,7 @@ model = Axon.input("input", shape: {nil, 784})
 # 3. Initialize parameters using an input shape template and a map with optional values for the parameters.
 #    The second argument is useful when loading saved parameters.
 input_template = Nx.template({1, 784}, :f32)
-params = init_fn.(input_template, %{})
+params = init_fn.(input_template, Axon.ModelState.empty())
 # `params` now holds the initialized parameters (e.g., a nested map)
 ```
 

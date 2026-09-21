@@ -106,7 +106,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model1)
 
-      params1 = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params1 = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       # Inputs are referenced by name
       predict_fn.(params1, %{"input_0" => x, "input_1" => y})
 
@@ -175,7 +175,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model)
 
-      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       predict_fn.(params, inputs)
 
   You may either set the default JIT compiler or backend globally, or
@@ -185,7 +185,7 @@ defmodule Axon do
 
       {init_fn, predict_fn} = Axon.build(model, compiler: EXLA, mode: :train)
 
-      params = init_fn.(Nx.template({1, 1}, {:f, 32}), %{})
+      params = init_fn.(Nx.template({1, 1}, {:f, 32}), Axon.ModelState.empty())
       predict_fn.(params, inputs)
 
   `predict_fn` by default runs in inference mode, which performs certain
@@ -4377,19 +4377,67 @@ defmodule Axon do
 
   ## `init_fn`
 
-  The `init_fn` receives two arguments, the input template and
-  an optional map with initial parameters for layers:
+  The `init_fn` receives two arguments, an input template (a tensor,
+  an `Nx.template/2`, or a container/map of them matching the model
+  inputs) and an `Axon.ModelState` with initial parameters. It returns
+  a new `Axon.ModelState` holding every parameter and state entry the
+  model declares:
 
       {init_fn, predict_fn} = Axon.build(model)
-      init_fn.(Nx.template({1, 1}, {:f, 32}), %{"dense_0" => dense_params})
+
+      # initialize everything from the layers' initializers
+      model_state = init_fn.(Nx.template({1, 1}, :f32), Axon.ModelState.empty())
+
+      # start from pre-trained parameters for some layers
+      model_state =
+        init_fn.(
+          Nx.template({1, 1}, :f32),
+          Axon.ModelState.new(%{"dense_0" => dense_params})
+        )
+
+  Initialization is a pure function: the model (`%Axon{}`) never carries
+  parameters, nothing is allocated or cached on the backend, and calling
+  `init_fn` again returns an equivalent state. The template is needed
+  only because parameter shapes depend on input shapes; no computation
+  is run on the template values.
+
+  Given an initial state, `init_fn`:
+
+    * uses the tensors found in the initial state for the parameters
+      they name, casting them to the model's precision policy when the
+      types differ (a warning is logged when a cast happens);
+
+    * initializes every parameter that is not present in the initial
+      state from the layer's initializer. When the initial state is not
+      empty, the initialized parameters are logged at `:debug` level so
+      you can verify that a set of loaded parameters covered the whole
+      model;
+
+    * ignores keys in the initial state that do not correspond to any
+      parameter of the model and logs them in a warning, which is useful
+      for tracking down naming mismatches when porting parameters from
+      other frameworks.
+
+  Because of this, running `init_fn` with your loaded parameters is the
+  recommended way to validate them before inference.
 
   ## `predict_fn`
 
-  The `predict_fn` receives two arguments, the trained parameters
-  and the actual inputs:
+  The `predict_fn` receives two arguments, a model state (typically the
+  one returned by `init_fn` or a trained one) and the actual inputs:
 
       {_init_fn, predict_fn} = Axon.build(model, opts)
-      predict_fn.(params, input)
+      predict_fn.(model_state, input)
+
+  `predict_fn` is also a pure function of its arguments: it does not
+  mutate the model state or keep hidden state on the backend, so the
+  same state and inputs always produce the same output. In `:inference`
+  mode (the default) it returns the model output. In `:train` mode it
+  returns `%{prediction: output, state: updated_state}`, where
+  `updated_state` contains the layer state (such as batch normalization
+  statistics) computed during the forward pass; it is up to the caller
+  to merge it back with `Axon.ModelState.update/3`, which is what
+  `Axon.Loop` does.
 
   ## Options
 
@@ -4398,8 +4446,9 @@ defmodule Axon do
       passed, it uses the default compiler configured in `Nx.Defn`;
 
     * `:debug` - if `true`, will log graph traversal and generation
-      metrics. Also forwarded to JIT if debug mode is available
-      for your chosen compiler or backend. Defaults to `false`
+      timing metrics with `Logger.debug/1`. Also forwarded to JIT if
+      debug mode is available for your chosen compiler or backend.
+      Defaults to `false`
 
     * `:print_values` - if `true`, will print intermediate layer
       values to the screen for inspection. This is useful if you need
