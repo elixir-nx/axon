@@ -2533,6 +2533,31 @@ defmodule Axon do
   end
 
   @doc """
+  Adds a layer which stops gradients from flowing through the input.
+
+  The output is the input unchanged, but the backward pass treats it
+  as a constant, so nothing before this layer learns from the loss of
+  anything after it. Use it to share a component between two paths
+  while training it through one of them only, like a trend that also
+  scales a seasonal component, or to freeze a pretrained branch.
+
+  ## Options
+
+    * `:name` - layer name.
+
+  """
+  @doc type: :special
+  def stop_grad(%Axon{} = x, opts \\ []) do
+    opts = Keyword.validate!(opts, [:name, :meta])
+
+    layer(:stop_grad, [x],
+      name: opts[:name],
+      meta: opts[:meta],
+      op_name: :stop_grad
+    )
+  end
+
+  @doc """
   Adds a flatten layer to the network.
 
   This layer will flatten all but the batch dimensions
