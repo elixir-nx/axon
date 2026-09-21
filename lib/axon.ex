@@ -3978,7 +3978,7 @@ defmodule Axon do
   @doc """
   Attaches a hook to the given Axon model.
 
-  Hooks compile down to `Nx.Defn.Kernel.hook/3` and provide the same
+  Hooks compile down to `Nx.Defn.Kernel.io_call/3` and provide the same
   functionality for adding side-effecting operations to a compiled
   model. For example, you can use hooks to inspect intermediate activations,
   send data to an external service, and more.

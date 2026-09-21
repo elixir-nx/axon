@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+* Depend on the released Nx, EXLA and Torchx 1.0 instead of Nx's main branch
+
 ## v0.8.1 (2026-03-11)
 
 ### Bug Fixes
