@@ -2,6 +2,20 @@ defmodule Axon.LossesTest do
   use Axon.Case, async: true
   doctest Axon.Losses
 
+  defmodule InDefn do
+    import Nx.Defn
+
+    defn softmax_cross_entropy_sparse(y_true, logits) do
+      y_pred = Axon.Activations.softmax(logits)
+      Axon.Losses.categorical_cross_entropy(y_true, y_pred, sparse: true, reduction: :mean)
+    end
+
+    defn softmax_cross_entropy(y_true, logits) do
+      y_pred = Axon.Activations.softmax(logits)
+      Axon.Losses.categorical_cross_entropy(y_true, y_pred, reduction: :mean)
+    end
+  end
+
   describe "binary_cross_entropy" do
     test "supports class weights" do
       y_true = Nx.tensor([0, 1, 0, 1, 0])
@@ -145,6 +159,22 @@ defmodule Axon.LossesTest do
           sparse: true,
           reduction: :mean
         ),
+        Nx.tensor(7.562242031097412)
+      )
+    end
+
+    test "supports sparse targets when y_pred is a softmax output" do
+      # softmax caches logits metadata, which only survives inside a compiled defn
+      y_true = Nx.tensor([1, 0, 2])
+      logits = Nx.tensor([[15.0, 2.0, -22.0], [-5.0, -2.0, 3.0], [2.0, 1.96, 1.20]])
+
+      assert_equal(
+        InDefn.softmax_cross_entropy_sparse(y_true, logits),
+        Nx.tensor(7.562242031097412)
+      )
+
+      assert_equal(
+        InDefn.softmax_cross_entropy(Nx.tensor([[0, 1, 0], [1, 0, 0], [0, 0, 1]]), logits),
         Nx.tensor(7.562242031097412)
       )
     end
