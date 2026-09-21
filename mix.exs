@@ -2,7 +2,7 @@ defmodule Axon.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/elixir-nx/axon"
-  @version "0.8.1"
+  @version "0.9.0"
 
   def project do
     [
@@ -46,9 +46,9 @@ defmodule Axon.MixProject do
       {:torchx, "~> 1.0", [only: :test] ++ torchx_opts()},
       {:ex_doc, "~> 0.34", only: :docs},
       {:table_rex, "~> 3.1 or ~> 4.1", optional: true},
-      {:kino, "~> 0.7", optional: true},
+      {:kino, "~> 0.19", optional: true},
       {:kino_vega_lite, "~> 0.1.7", optional: true},
-      {:polaris, "~> 0.1"},
+      {:polaris, "~> 0.2"},
       {:makeup, "~> 1.2.1", only: :docs},
       {:makeup_syntect, "~> 0.1", only: :docs}
     ]
@@ -62,12 +62,11 @@ defmodule Axon.MixProject do
     ]
   end
 
-  # Nx stays an override because kino still declares `nx ~> 0.1`
   defp nx_opts do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      [override: true]
+      []
     end
   end
 

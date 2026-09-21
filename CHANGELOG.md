@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased
+## v0.9.0 (2026-09-21)
 
 ### Enhancements
 
-* Depend on the released Nx, EXLA and Torchx 1.0 instead of Nx's main branch
+* Upgrade to Nx ecosystem 1.0
 
 ## v0.8.1 (2026-03-11)
 
