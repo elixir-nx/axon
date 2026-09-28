@@ -5781,6 +5781,123 @@ defmodule CompilerTest do
     end
   end
 
+  describe "initial state diagnostics" do
+    @describetag :capture_log
+
+    test "logs parameters initialized from scratch when initial state is partial" do
+      model =
+        Axon.input("input", shape: {nil, 1})
+        |> Axon.dense(2, name: "dense_0")
+        |> Axon.dense(2, name: "dense_1")
+
+      {init_fn, _} = Axon.build(model)
+      template = Nx.template({1, 1}, :f32)
+
+      %ModelState{data: %{"dense_0" => dense_0}} = init_fn.(template, ModelState.empty())
+
+      log =
+        capture_log(fn ->
+          init_fn.(template, ModelState.new(%{"dense_0" => dense_0}))
+        end)
+
+      assert log =~
+               "were initialized from scratch: \"dense_1.bias\", \"dense_1.kernel\""
+
+      refute log =~ "dense_0.kernel"
+      refute log =~ "were ignored"
+    end
+
+    test "does not log initialized parameters for an empty initial state" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2)
+      {init_fn, _} = Axon.build(model)
+
+      refute capture_log(fn -> init_fn.(Nx.template({1, 1}, :f32), ModelState.empty()) end) =~
+               "initialized from scratch"
+    end
+
+    test "warns once with full paths for unexpected keys" do
+      model = Axon.input("input", shape: {nil, 1}) |> Axon.dense(2, name: "dense_0")
+      {init_fn, _} = Axon.build(model)
+      template = Nx.template({1, 1}, :f32)
+      %ModelState{data: %{"dense_0" => dense_0}} = init_fn.(template, ModelState.empty())
+
+      init_state =
+        ModelState.new(%{
+          "dense_0" => Map.put(dense_0, "foo", Nx.tensor(1.0)),
+          "dense_9" => %{"kernel" => Nx.tensor(1.0)}
+        })
+
+      log = capture_log(fn -> init_fn.(template, init_state) end)
+
+      # an entirely unknown subtree is reported by its root
+      assert log =~ "were ignored: \"dense_0.foo\", \"dense_9\""
+      # one aggregated warning, not one line per key
+      assert length(String.split(log, "were ignored")) == 2
+      refute log =~ "initialized from scratch"
+    end
+
+    test "uses nested paths for block parameters" do
+      block = Axon.block(&Axon.dense(&1, 2, name: "dense_0"))
+      model = Axon.input("input", shape: {nil, 1}) |> block.()
+
+      {init_fn, _} = Axon.build(model)
+      template = Nx.template({1, 1}, :f32)
+
+      %ModelState{data: %{"block_0" => %{"dense_0" => dense_0}}} =
+        init_fn.(template, ModelState.empty())
+
+      init_state =
+        ModelState.new(%{
+          "block_0" => %{"dense_0" => Map.delete(dense_0, "bias"), "extra" => Nx.tensor(1.0)}
+        })
+
+      log = capture_log(fn -> init_fn.(template, init_state) end)
+
+      assert log =~ "initialized from scratch: \"block_0.dense_0.bias\""
+      assert log =~ "were ignored: \"block_0.extra\""
+    end
+
+    test "uses nested paths for composite parameters" do
+      {model, _} = Axon.input("input", shape: {nil, 2, 1}) |> Axon.lstm(2, name: "lstm")
+
+      {init_fn, _} = Axon.build(model)
+      template = Nx.template({1, 2, 1}, :f32)
+
+      %ModelState{data: %{"lstm" => lstm}} = init_fn.(template, ModelState.empty())
+
+      init_state =
+        ModelState.new(%{
+          "lstm" => Map.update!(lstm, "input_kernel", &Map.delete(&1, "wii"))
+        })
+
+      log = capture_log(fn -> init_fn.(template, init_state) end)
+
+      assert log =~ "initialized from scratch: \"lstm.input_kernel.wii\""
+    end
+
+    test "names the full path when casting initial parameters to the policy" do
+      block = Axon.block(&Axon.dense(&1, 2, name: "dense_0"))
+      model = Axon.input("input", shape: {nil, 1}) |> block.()
+
+      {init_fn, _} = Axon.build(model)
+      template = Nx.template({1, 1}, :f32)
+
+      %ModelState{data: %{"block_0" => %{"dense_0" => dense_0}}} =
+        init_fn.(template, ModelState.empty())
+
+      init_state =
+        ModelState.new(%{
+          "block_0" => %{
+            "dense_0" => Map.update!(dense_0, "kernel", &Nx.as_type(&1, :f16))
+          }
+        })
+
+      log = capture_log(fn -> init_fn.(template, init_state) end)
+
+      assert log =~ "initial type for parameter block_0.dense_0.kernel does not match policy"
+    end
+  end
+
   describe "instrumentation" do
     @describetag :capture_log
 

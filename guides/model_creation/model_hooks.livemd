@@ -32,7 +32,7 @@ model =
 {init_fn, predict_fn} = Axon.build(model)
 
 input = Nx.iota({2, 4}, type: :f32)
-params = init_fn.(input, %{})
+params = init_fn.(input, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
@@ -118,7 +118,7 @@ model =
   |> Axon.relu()
 
 {init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(input, %{})
+params = init_fn.(input, Axon.ModelState.empty())
 
 predict_fn.(params, input)
 ```
@@ -172,7 +172,7 @@ model =
 On initialization:
 
 ```elixir
-params = init_fn.(input, %{})
+params = init_fn.(input, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
@@ -363,7 +363,7 @@ model =
   |> Axon.relu()
 
 {init_fn, predict_fn} = Axon.build(model, mode: :train)
-params = init_fn.(input, %{})
+params = init_fn.(input, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
@@ -423,7 +423,7 @@ predict_fn.(params, input)
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(model, mode: :inference)
-params = init_fn.(input, %{})
+params = init_fn.(input, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->

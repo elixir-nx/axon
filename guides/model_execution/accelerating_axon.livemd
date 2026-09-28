@@ -66,7 +66,7 @@ Now all tensors and operations on them will run on the configured backend:
   |> Nx.Random.uniform(shape: {2, 128})
 
 {init_fn, predict_fn} = Axon.build(model)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 
@@ -105,7 +105,7 @@ And now let's build another model, this time passing the EXLA compiler as an opt
   |> Nx.Random.uniform(shape: {2, 128})
 
 {init_fn, predict_fn} = Axon.build(model, compiler: EXLA)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 predict_fn.(params, inputs)
 ```
 
@@ -159,8 +159,8 @@ exla_predict_fn = EXLA.jit(predict_fn)
 ```elixir
 Benchee.run(
   %{
-    "elixir init" => fn -> init_fn.(inputs, %{}) end,
-    "exla init" => fn -> exla_init_fn.(inputs, %{}) end
+    "elixir init" => fn -> init_fn.(inputs, Axon.ModelState.empty()) end,
+    "exla init" => fn -> exla_init_fn.(inputs, Axon.ModelState.empty()) end
   },
   time: 10,
   memory_time: 5,

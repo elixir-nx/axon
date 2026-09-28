@@ -72,7 +72,7 @@ graph TD;
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(inputs, %{})
+params = init_fn.(inputs, Axon.ModelState.empty())
 ```
 
 <!-- livebook:{"output":true} -->
@@ -158,7 +158,7 @@ When executed, containers will return a data structure which matches their input
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 ```
 
@@ -199,7 +199,7 @@ out = Axon.container(%{x1: x1, x2: x2})
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 ```
 
@@ -242,7 +242,7 @@ out = Axon.container({%{x1: {x1, x2}, x2: %{x1: x1, x2: {x2}}}})
 
 ```elixir
 {init_fn, predict_fn} = Axon.build(out)
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 ```
 

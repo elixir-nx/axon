@@ -81,7 +81,7 @@ And you can use `Axon.build/2` on `out` as you would any other Axon model:
 ```
 
 ```elixir
-params = init_fn.(template, %{})
+params = init_fn.(template, Axon.ModelState.empty())
 predict_fn.(params, Nx.iota({2, 8}, type: :f32))
 ```
 
