@@ -5097,6 +5097,22 @@ defmodule CompilerTest do
   end
 
   describe "block" do
+    test "nests constraints of layers inside the block" do
+      block =
+        Axon.block(fn x ->
+          a = Axon.param("a", {1, 1}, constraint: :non_neg)
+          Axon.layer(fn x, a, _opts -> Nx.add(x, a) end, [x, a], name: "custom_0")
+        end)
+
+      model = block.(Axon.input("features"))
+      {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{constraints: %{"block_0" => %{"custom_0" => %{"a" => f}}}} =
+               init_fn.(Nx.template({1, 1}, :f32), ModelState.empty())
+
+      assert is_function(f, 1)
+    end
+
     test "initializes correctly with single dense layer, used once" do
       block = Axon.block(&Axon.dense(&1, 32))
       model = block.(Axon.input("features"))
@@ -5874,6 +5890,47 @@ defmodule CompilerTest do
   end
 
   describe "parameters" do
+    test "collects constraints into model state metadata" do
+      a = Axon.param("a", {2, 2}, constraint: :non_neg)
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(fn x, a, _opts -> Nx.add(x, a) end, [input, a], name: "custom")
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{constraints: %{"custom" => %{"a" => f}}} =
+               init_fn.(Nx.template({1, 2}, :f32), ModelState.empty())
+
+      assert is_function(f, 1)
+    end
+
+    test "has no constraints when none are declared" do
+      a = Axon.param("a", {2, 2})
+      input = Axon.input("input")
+
+      model =
+        Axon.layer(fn x, a, _opts -> Nx.add(x, a) end, [input, a], name: "custom")
+
+      {init_fn, _} = Axon.build(model)
+
+      assert %ModelState{constraints: %{}} =
+               init_fn.(Nx.template({1, 2}, :f32), ModelState.empty())
+    end
+
+    test "preserves constraints of the initial model state" do
+      model = Axon.input("input", shape: {nil, 2}) |> Axon.dense(4, name: "dense_0")
+      {init_fn, _} = Axon.build(model)
+      constraint = Axon.Constraints.max_norm(max: 1.0)
+
+      model_state =
+        init_fn.(Nx.template({1, 2}, :f32), ModelState.empty())
+        |> ModelState.constrain(&match?(["dense_0", "kernel"], &1), constraint)
+
+      assert %ModelState{constraints: %{"dense_0" => %{"kernel" => ^constraint}}} =
+               init_fn.(Nx.template({1, 2}, :f32), model_state)
+    end
+
     test "supports passing a template instead of a function as the shape" do
       a = Axon.param("a", {1, 1})
       input = Axon.input("input")

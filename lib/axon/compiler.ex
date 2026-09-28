@@ -65,7 +65,8 @@ defmodule Axon.Compiler do
         to_model_funs(
           id,
           nodes,
-          {%{}, %{}, %{}, %{parameters: %{}, state: %{}, frozen_parameters: %{}}},
+          {%{}, %{}, %{},
+           %{parameters: %{}, state: %{}, frozen_parameters: %{}, constraints: %{}}},
           config
         )
       end)
@@ -161,7 +162,8 @@ defmodule Axon.Compiler do
               data: init_params,
               parameters: parameters,
               state: %{},
-              frozen_parameters: %{}
+              frozen_parameters: %{},
+              constraints: %{}
             }
         end
 
@@ -296,7 +298,21 @@ defmodule Axon.Compiler do
   end
 
   defp merge_model_state!(state, init_state) do
-    %{state | data: merge_params!(state.data, init_state.data)}
+    %{
+      state
+      | data: merge_params!(state.data, init_state.data),
+        constraints: merge_constraints(state.constraints, init_state.constraints)
+    }
+  end
+
+  defp merge_constraints(compiled, given) do
+    Map.merge(compiled, given, fn
+      _key, compiled_val, given_val when is_map(compiled_val) and is_map(given_val) ->
+        merge_constraints(compiled_val, given_val)
+
+      _key, _compiled_val, given_val ->
+        given_val
+    end)
   end
 
   defp merge_params!(params, init_params) do
@@ -331,13 +347,15 @@ defmodule Axon.Compiler do
   defp normalize_blocks(params, %{
          state: meta_state,
          parameters: meta_params,
-         frozen_parameters: frozen
+         frozen_parameters: frozen,
+         constraints: constraints
        }) do
     model_state = %Axon.ModelState{
       data: %{},
       state: meta_state,
       parameters: meta_params,
-      frozen_parameters: frozen
+      frozen_parameters: frozen,
+      constraints: constraints
     }
 
     # Blocks are kinda hacky and produce a model state,
@@ -355,6 +373,11 @@ defmodule Axon.Compiler do
           if model_state.state == %{},
             do: state,
             else: Map.put(state, key, model_state.state)
+        end)
+        |> update_in([Access.key!(:constraints)], fn constraints ->
+          if model_state.constraints == %{},
+            do: constraints,
+            else: Map.put(constraints, key, model_state.constraints)
         end)
         |> update_in([Access.key!(:data)], fn state ->
           Map.put(state, key, model_state.data)
@@ -886,15 +909,29 @@ defmodule Axon.Compiler do
     # Get parameter metadata for the layer
     model_state_meta =
       Enum.reduce(layer_params, model_state_meta, fn
-        %{kind: :parameter, frozen: frozen?, name: param_name}, acc ->
+        %{kind: :parameter, frozen: frozen?, name: param_name, constraint: constraint}, acc ->
           meta =
             Map.update!(acc, :parameters, fn layer_meta ->
               Map.update(layer_meta, name, [param_name], &[param_name | &1])
             end)
 
-          if frozen? do
-            Map.update!(meta, :frozen_parameters, fn layer_meta ->
-              Map.update(layer_meta, name, [param_name], &[param_name | &1])
+          meta =
+            if frozen? do
+              Map.update!(meta, :frozen_parameters, fn layer_meta ->
+                Map.update(layer_meta, name, [param_name], &[param_name | &1])
+              end)
+            else
+              meta
+            end
+
+          if constraint do
+            Map.update!(meta, :constraints, fn layer_meta ->
+              Map.update(
+                layer_meta,
+                name,
+                %{param_name => constraint},
+                &Map.put(&1, param_name, constraint)
+              )
             end)
           else
             meta

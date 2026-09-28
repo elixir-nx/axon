@@ -168,13 +168,15 @@ defmodule Axon.MixProject do
           Axon.MixedPrecision,
           Axon.None,
           Axon.StatefulOutput,
-          Axon.Initializers
+          Axon.Initializers,
+          Axon.Constraints
         ],
         Summary: [
           Axon.Display
         ],
         Functional: [
           Axon.Activations,
+          Axon.Constraints,
           Axon.Initializers,
           Axon.Layers,
           Axon.Losses,
