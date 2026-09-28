@@ -172,14 +172,14 @@ defmodule Axon.Activations do
       iex> Axon.Activations.gelu(Nx.tensor([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], names: [:data]))
       #Nx.Tensor<
         f32[data: 7]
-        [-0.0040496886, -0.04550028, -0.15865526, 0.0, 0.8413447, 1.9544997, 2.9959502]
+        [-0.0040496914, -0.045500267, -0.15865526, 0.0, 0.8413447, 1.9544997, 2.9959502]
       >
 
       iex> Axon.Activations.gelu(Nx.tensor([[-1.0, -2.0, -3.0], [1.0, 2.0, 3.0]], type: {:bf, 16}, names: [:batch, :data]))
       #Nx.Tensor<
         bf16[batch: 2][data: 3]
         [
-          [-0.16, -0.0469, -0.00586],
+          [-0.158, -0.0454, -0.00424],
           [0.84, 1.95, 2.98]
         ]
       >
@@ -192,12 +192,12 @@ defmodule Axon.Activations do
   defblock GeLU, gelu(x) do
     sqrt2 = Nx.sqrt(Nx.tensor(2, type: Nx.type(x)))
 
+    # erfc avoids cancellation in 1 + erf(x / sqrt(2)) for negative inputs.
     x
     |> Nx.divide(sqrt2)
-    |> Nx.erf()
-    |> Nx.add(1)
-    |> Nx.multiply(x)
-    |> Nx.divide(2)
+    |> Nx.negate()
+    |> Nx.erfc()
+    |> Nx.multiply(Nx.divide(x, 2))
   end
 
   @doc ~S"""
@@ -865,5 +865,5 @@ defmodule Axon.Activations do
     Nx.Defn.Expr.metadata(output, %{logits: input})
   end
 
-  deftransformp wrap(axis), do: List.wrap(axis)
+  deftransformp(wrap(axis), do: List.wrap(axis))
 end

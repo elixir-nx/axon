@@ -342,6 +342,57 @@ defmodule Axon.ActivationsTest do
   end
 
   describe "gelu" do
+    test "does not overflow for large finite f32 inputs" do
+      input = Nx.tensor([-3.0e38, 3.0e38])
+      assert_equal(jit(&Axon.Activations.gelu/1).(input), Nx.tensor([0.0, 3.0e38]))
+    end
+
+    test "retains small negative tails and saturates positive tails" do
+      for type <- [:f32, :f64] do
+        input = Nx.tensor([-100.0, -8.0, -6.0, -4.0, 0.0, 4.0, 6.0, 8.0, 100.0], type: type)
+
+        expected =
+          Nx.tensor(
+            Enum.map([-100.0, -8.0, -6.0, -4.0, 0.0, 4.0, 6.0, 8.0, 100.0], fn x ->
+              x / 2 * :math.erfc(-x / :math.sqrt(2))
+            end),
+            type: type
+          )
+
+        actual = jit(&Axon.Activations.gelu/1).(input)
+        assert_all_close(actual, expected, atol: 0.0, rtol: 5.0e-6)
+      end
+    end
+
+    test "preserves vectorized axes in the tails" do
+      input = Nx.tensor([[-8.0, -6.0], [6.0, 8.0]]) |> Nx.vectorize(:batch)
+      actual = jit(&Axon.Activations.gelu/1).(input)
+
+      expected =
+        Nx.tensor([[-4.976768459417427e-15, -5.919525870226208e-9], [6.0, 8.0]])
+        |> Nx.vectorize(:batch)
+
+      assert_all_close(actual, expected, atol: 0.0, rtol: 5.0e-6)
+    end
+
+    test "differentiates a nonlinear composition in the negative tail" do
+      values = [-8.0, -6.0, -4.0, -1.0, 0.0, 1.0, 6.0]
+      input = Nx.tensor(values)
+
+      actual =
+        jit(fn x -> grad(x, fn x -> Nx.sum(Nx.sin(Axon.Activations.gelu(x))) end) end).(input)
+
+      expected =
+        Nx.tensor(
+          Enum.map(values, fn x ->
+            cdf = :math.erfc(-x / :math.sqrt(2)) / 2
+            :math.cos(x * cdf) * (cdf + x * :math.exp(-x * x / 2) / :math.sqrt(2 * :math.pi()))
+          end)
+        )
+
+      assert_all_close(actual, expected, atol: 0.0, rtol: 1.0e-5)
+    end
+
     test "forward matches jax for rank 1 and type {:f, 32}" do
       a = Nx.tensor([0.33406558632850647, 0.5005938410758972, 0.8558046817779541])
       expected = Nx.tensor([0.21074023842811584, 0.34624648094177246, 0.6880216598510742])
