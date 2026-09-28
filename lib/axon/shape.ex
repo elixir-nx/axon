@@ -64,6 +64,31 @@ defmodule Axon.Shape do
   defp is_dim(_), do: false
 
   @doc """
+  Returns `true` if the given input shape is a plain tensor shape,
+  that is a tuple of dimension sizes, as opposed to a container of
+  shapes.
+
+  ## Examples
+
+      iex> Axon.Shape.tensor_shape?({nil, 32})
+      true
+
+      iex> Axon.Shape.tensor_shape?({})
+      true
+
+      iex> Axon.Shape.tensor_shape?({{nil, 32}, {nil, 8}})
+      false
+
+      iex> Axon.Shape.tensor_shape?(%{a: {nil, 32}})
+      false
+  """
+  def tensor_shape?(shape) when is_tuple(shape) do
+    tuple_size(shape) == 0 or is_dim(elem(shape, 0))
+  end
+
+  def tensor_shape?(_shape), do: false
+
+  @doc """
   Determines if two shapes are compatible. Shapes are compatible
   if they are equal, or if all non-nil dimensions are equal.
 

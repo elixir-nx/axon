@@ -220,7 +220,7 @@ defmodule Axon.Display do
 
   defp render_output_shape(%Nx.Tensor{} = template) do
     type = type_str(Nx.type(template))
-    shape = shape_string(Nx.shape(template))
+    shape = shape_string(Nx.shape(template), Nx.names(template))
     "#{type}#{shape}"
   end
 
@@ -276,19 +276,32 @@ defmodule Axon.Display do
       %Parameter{name: name, template: %Nx.Tensor{} = template} ->
         type = Nx.type(template)
         shape = Nx.shape(template)
-        "#{name}: #{type_str(type)}#{shape_string(shape)}"
+        "#{name}: #{type_str(type)}#{shape_string(shape, Nx.names(template))}"
 
       %Parameter{name: name, template: shape_fn} when is_function(shape_fn) ->
-        shape = Nx.shape(apply(shape_fn, input_shapes))
-        "#{name}: #{type_str(type)}#{shape_string(shape)}"
+        template = apply(shape_fn, input_shapes)
+        "#{name}: #{type_str(type)}#{template_shape_string(template)}"
     end)
     |> Enum.join("\n")
   end
 
+  defp template_shape_string(%Nx.Tensor{} = template),
+    do: shape_string(Nx.shape(template), Nx.names(template))
+
+  defp template_shape_string(shape) when is_tuple(shape), do: shape_string(shape)
+
   defp shape_string(shape) do
+    shape_string(shape, List.duplicate(nil, tuple_size(shape)))
+  end
+
+  defp shape_string(shape, names) do
     shape
     |> Tuple.to_list()
-    |> Enum.map(fn n -> "[#{n}]" end)
+    |> Enum.zip(names)
+    |> Enum.map(fn
+      {n, nil} -> "[#{n}]"
+      {n, name} -> "[#{name}: #{n}]"
+    end)
     |> Enum.join("")
   end
 
