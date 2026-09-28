@@ -66,7 +66,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_NX_PATH") do
       [path: path, override: true]
     else
-      []
+      [github: "elixir-nx/nx", branch: "main", sparse: "nx", override: true]
     end
   end
 
@@ -74,7 +74,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_EXLA_PATH") do
       [path: path, override: true]
     else
-      []
+      [github: "elixir-nx/nx", branch: "main", sparse: "exla"]
     end
   end
 
@@ -82,7 +82,7 @@ defmodule Axon.MixProject do
     if path = System.get_env("AXON_TORCHX_PATH") do
       [path: path]
     else
-      []
+      [github: "elixir-nx/nx", branch: "main", sparse: "torchx"]
     end
   end
 
