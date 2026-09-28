@@ -289,6 +289,90 @@ defmodule Axon.LoopTest do
       assert_all_close(state.model_state.data["instance_norm"]["mean"], Nx.broadcast(0.9, {8}))
       assert_all_close(state.model_state.data["instance_norm"]["var"], Nx.broadcast(0.1, {8}))
     end
+
+    test "train_step/3 updates only trainable parameters" do
+      model =
+        Axon.input("input")
+        |> Axon.dense(3, name: "dense_0")
+        |> Axon.tanh()
+        |> Axon.dense(2, name: "dense_1")
+
+      inp = Nx.iota({4, 4}, type: :f32)
+      tar = Nx.iota({4, 2}, type: :f32)
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      state = init_fn.({inp, tar}, Axon.ModelState.empty())
+
+      frozen_model_state =
+        Axon.ModelState.freeze(state.model_state, fn
+          ["dense_0" | _] -> true
+          _ -> false
+        end)
+
+      new_state = step_fn.({inp, tar}, %{state | model_state: frozen_model_state})
+
+      # frozen parameters are not in the gradient, so they must come back
+      # untouched from the merge
+      assert_equal(
+        new_state.model_state.data["dense_0"]["kernel"],
+        frozen_model_state.data["dense_0"]["kernel"]
+      )
+
+      assert_equal(
+        new_state.model_state.data["dense_0"]["bias"],
+        frozen_model_state.data["dense_0"]["bias"]
+      )
+
+      assert_not_equal(
+        new_state.model_state.data["dense_1"]["kernel"],
+        frozen_model_state.data["dense_1"]["kernel"]
+      )
+
+      assert_not_equal(
+        new_state.model_state.data["dense_1"]["bias"],
+        frozen_model_state.data["dense_1"]["bias"]
+      )
+
+      # the model state metadata must survive the update
+      assert new_state.model_state.parameters == frozen_model_state.parameters
+      assert new_state.model_state.frozen_parameters == frozen_model_state.frozen_parameters
+    end
+
+    test "train_step/3 updates nested parameters" do
+      block = Axon.block(&Axon.dense(&1, 4, name: "inner"), name: "block")
+
+      model =
+        Axon.input("input")
+        |> block.()
+        |> Axon.tanh()
+        |> block.()
+        |> Axon.batch_norm(name: "norm")
+        |> Axon.dense(2, name: "out")
+
+      inp = Nx.iota({4, 4}, type: :f32)
+      tar = Nx.iota({4, 2}, type: :f32)
+
+      {init_fn, step_fn} = Axon.Loop.train_step(model, :mean_squared_error, :sgd)
+
+      state = init_fn.({inp, tar}, Axon.ModelState.empty())
+      new_state = step_fn.({inp, tar}, state)
+
+      # nested trainable parameters are updated
+      assert_not_equal(
+        new_state.model_state.data["block"]["inner"]["kernel"],
+        state.model_state.data["block"]["inner"]["kernel"]
+      )
+
+      # state is updated alongside the nested parameters
+      assert_not_equal(
+        new_state.model_state.data["norm"]["mean"],
+        state.model_state.data["norm"]["mean"]
+      )
+
+      assert new_state.model_state.parameters == state.model_state.parameters
+      assert new_state.model_state.state == state.model_state.state
+    end
   end
 
   describe "metrics" do
