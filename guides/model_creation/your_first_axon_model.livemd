@@ -68,16 +68,16 @@ You can see this in action by actually executing your model. You can build the `
 Notice that `Axon.build/2` returns a tuple of `{init_fn, predict_fn}`. `init_fn` has the signature:
 
 ```
-init_fn.(template :: map(tensor) | tensor, initial_params :: map) :: map(tensor)
+init_fn.(template :: map(tensor) | tensor, initial_state :: Axon.ModelState.t()) :: Axon.ModelState.t()
 ```
 
 while `predict_fn` has the signature:
 
 ```
-predict_fn.(params :: map(tensor), input :: map(tensor) | tensor)
+predict_fn.(model_state :: Axon.ModelState.t(), input :: map(tensor) | tensor)
 ```
 
-`init_fn` returns all of your model's trainable parameters and state. You need to pass a template of the expected inputs because the shape of certain model parameters often depend on the shape of model inputs. You also need to pass any initial parameters you want your model to start with. This is useful for things like transfer learning, which you can read about in another guide.
+`init_fn` returns all of your model's trainable parameters and state. You need to pass a template of the expected inputs because the shape of certain model parameters often depend on the shape of model inputs. You also need to pass any initial parameters you want your model to start with. This is useful for things like transfer learning, which you can read about in another guide. Parameters missing from the initial state are initialized from scratch (and logged at `:debug` level when the initial state is not empty), while keys in the initial state that do not correspond to any model parameter are ignored with a warning.
 
 `predict_fn` returns transformed inputs from your model's trainable parameters and the given inputs.
 

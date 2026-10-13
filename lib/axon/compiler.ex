@@ -178,10 +178,9 @@ defmodule Axon.Compiler do
           params
         end)
 
-      out =
-        params
-        |> normalize_blocks(model_state_meta)
-        |> merge_model_state!(init_model_state)
+      initialized = normalize_blocks(params, model_state_meta)
+      log_initialized_parameters(initialized.data, init_model_state.data)
+      out = merge_model_state!(initialized, init_model_state)
 
       if debug? do
         Logger.debug("Axon finished init expression generation in #{us_to_ms(time)}ms")
@@ -295,22 +294,75 @@ defmodule Axon.Compiler do
     end
   end
 
-  defp merge_model_state!(state, init_state) do
-    %{state | data: merge_params!(state.data, init_state.data)}
+  defp log_initialized_parameters(_data, init_data) when init_data == %{}, do: :ok
+
+  defp log_initialized_parameters(data, init_data) do
+    case missing_paths(data, init_data, []) do
+      [] ->
+        :ok
+
+      paths ->
+        Logger.debug(
+          "the following parameters were not present in the initial model state" <>
+            " and were initialized from scratch: " <> format_paths(paths)
+        )
+    end
   end
 
-  defp merge_params!(params, init_params) do
-    Enum.reduce(init_params, params, fn {key, value}, params ->
+  # Leaves in `data` (the freshly initialized state) that have no
+  # counterpart in `init_data`. Paths are accumulated in reverse.
+  defp missing_paths(data, init_data, path) do
+    Enum.flat_map(data, fn
+      {key, %{} = nested} when not is_struct(nested) ->
+        case init_data do
+          %{^key => %{} = init_nested} when not is_struct(init_nested) ->
+            missing_paths(nested, init_nested, [key | path])
+
+          %{^key => _} ->
+            []
+
+          _ ->
+            missing_paths(nested, %{}, [key | path])
+        end
+
+      {key, _leaf} ->
+        if Map.has_key?(init_data, key), do: [], else: [[key | path]]
+    end)
+  end
+
+  defp format_paths(paths) do
+    paths
+    |> Enum.map(&Enum.join(Enum.reverse(&1), "."))
+    |> Enum.sort()
+    |> Enum.map_join(", ", &inspect/1)
+  end
+
+  defp merge_model_state!(state, init_state) do
+    {data, unexpected} = merge_params!(state.data, init_state.data, [])
+
+    if unexpected != [] do
+      Logger.warning(
+        "the following keys in the initial model state do not correspond to any" <>
+          " parameter of the model and were ignored: " <> format_paths(unexpected)
+      )
+    end
+
+    %{state | data: data}
+  end
+
+  defp merge_params!(params, init_params, path) do
+    Enum.reduce(init_params, {params, []}, fn {key, value}, {params, unexpected} ->
       case params do
         %{^key => %{} = nested} when not is_struct(nested) ->
-          %{params | key => merge_params!(nested, value)}
+          {merged, nested_unexpected} = merge_params!(nested, value, [key | path])
+          {%{params | key => merged}, nested_unexpected ++ unexpected}
 
         %{^key => template} ->
-          %{params | key => merge_type(key, template, value)}
+          name = Enum.join(Enum.reverse([key | path]), ".")
+          {%{params | key => merge_type(name, template, value)}, unexpected}
 
         _ ->
-          Logger.warning("found unexpected key in the initial parameters map: #{inspect(key)}")
-          params
+          {params, [[key | path] | unexpected]}
       end
     end)
   end
