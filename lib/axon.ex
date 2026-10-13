@@ -547,7 +547,18 @@ defmodule Axon do
 
   You may specify the parameter shape as either a static shape or
   as function of the inputs to the given layer. If you specify the
-  parameter shape as a function, it will be given the
+  parameter shape as a function, it will be given the input shapes
+  of the layer, one per input, in the order they were passed to
+  `Axon.layer/3`.
+
+  The variance scaling initializers (`:glorot_uniform` and friends)
+  read a shape the way they read a convolution kernel: the last two
+  axes are fan in and fan out and every leading axis is receptive
+  field. For a parameter with a leading axis that means something
+  else, such as one kernel per group in `{groups, in, out}`, the
+  computed fans are `groups` times too large and the values start
+  `sqrt(groups)` too small. Pass a scaled initializer in that case,
+  for example `Axon.Initializers.glorot_uniform(scale: groups)`.
 
   ## Options
 
