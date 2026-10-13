@@ -11,6 +11,45 @@ defmodule AxonTest do
     end
   end
 
+  describe "param" do
+    test "defaults to no constraint" do
+      assert %Axon.Parameter{constraint: nil} = Axon.param("k", {1, 1})
+      assert %Axon.Parameter{constraint: nil} = Axon.parameter("k", {1, 1})
+    end
+
+    test "stores a named constraint as a function" do
+      assert %Axon.Parameter{constraint: f} = Axon.param("k", {1, 1}, constraint: :non_neg)
+      assert is_function(f, 1)
+      assert Nx.to_number(f.(Nx.tensor(-1.0))) == 0.0
+
+      assert %Axon.Parameter{constraint: f} =
+               Axon.parameter("k", fn x -> x end, constraint: :unit_norm)
+
+      assert is_function(f, 1)
+    end
+
+    test "stores a custom constraint function" do
+      constraint = fn x -> Nx.multiply(x, 2) end
+
+      assert %Axon.Parameter{constraint: ^constraint} =
+               Axon.param("k", {1, 1}, constraint: constraint)
+    end
+
+    test "fails on bad constraints" do
+      assert_raise ArgumentError, ~r/constraint must be one of/, fn ->
+        Axon.param("k", {1, 1}, constraint: :bad)
+      end
+
+      assert_raise ArgumentError, ~r/constraint must be one of/, fn ->
+        Axon.param("k", {1, 1}, constraint: fn a, _b -> a end)
+      end
+
+      assert_raise ArgumentError, ~r/constraint must be one of/, fn ->
+        Axon.parameter("k", Nx.template({1, 1}, :f32), constraint: :bad)
+      end
+    end
+  end
+
   describe "constant" do
     test "works with defaults" do
       assert %Axon{output: id, nodes: nodes} = Axon.constant(Nx.tensor(1.0))

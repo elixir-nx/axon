@@ -5,6 +5,7 @@ defmodule Axon.Parameter do
     :template,
     :shape,
     :initializer,
+    :constraint,
     :children,
     type: {:f, 32},
     frozen: false,
