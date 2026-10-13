@@ -73,6 +73,29 @@ defmodule Axon.LoopTest do
       assert_equal(loss, Nx.tensor(5.0))
     end
 
+    test "trainer/3 passes the batch inputs to an arity-3 loss" do
+      model = Axon.input("input", shape: {nil, 1})
+
+      # the weight rides along in the inputs under its own key
+      weighted_loss = fn y_true, y_pred, x ->
+        Nx.mean(Nx.multiply(Nx.abs(Nx.subtract(y_true, y_pred)), x["weight"]))
+      end
+
+      assert %Loop{init: init_fn, step: update_fn} = Loop.trainer(model, weighted_loss, :sgd)
+
+      inputs = %{"input" => Nx.tensor([[1.0], [1.0]]), "weight" => Nx.tensor([[1.0], [3.0]])}
+      targets = Nx.tensor([[3.0], [3.0]])
+
+      pstate = init_fn.({inputs, targets}, Axon.ModelState.empty())
+
+      assert %{x: x, loss: loss} =
+               apply(Nx.Defn.jit(update_fn), [{inputs, targets}, pstate])
+
+      # errors of 2 weighted 1 and 3, averaged
+      assert_equal(loss, Nx.tensor(4.0))
+      assert_equal(x["weight"], Nx.tensor([[1.0], [3.0]]))
+    end
+
     test "trainer/3 returns a supervised training loop with custom optimizer" do
       model = Axon.input("input", shape: {nil, 1})
       optimizer = Polaris.Optimizers.rmsprop(learning_rate: 1.0e-3)
