@@ -43,6 +43,52 @@ defmodule Axon.QuantizationTest do
     end
   end
 
+  describe "quantize_model" do
+    test "preserves metadata from the layer it replaces" do
+      model =
+        Axon.input("input", shape: {nil, 8})
+        |> Axon.dense(4, name: "d", meta: %{units: 4, use_bias: true, tag: :attn})
+
+      quantized = Axon.Quantization.quantize_model(model)
+
+      metas =
+        Axon.reduce_nodes(quantized, [], fn
+          %Axon.Node{op_name: :input}, acc -> acc
+          %Axon.Node{meta: meta}, acc -> [meta | acc]
+        end)
+
+      assert [meta] = metas
+      assert meta[:tag] == :attn
+      assert meta[:units] == 4
+      assert meta[:use_bias] == true
+    end
+  end
+
+  describe "QTensor.from_tensor/2" do
+    test "quantizes float tensors regardless of precision" do
+      for type <- [{:f, 32}, {:f, 64}, {:bf, 16}] do
+        input = Nx.iota({4, 8}, type: type) |> Nx.subtract(16) |> Nx.divide(7)
+
+        assert %QTensor{value: value, scale: scale} = QTensor.from_tensor(input)
+        assert Nx.type(value) == {:s, 8}
+        assert Nx.shape(value) == {4, 8}
+        assert Nx.shape(scale) == {8}
+      end
+    end
+
+    test "raises on non-float tensors" do
+      assert_raise ArgumentError, ~r/expected a float tensor/, fn ->
+        QTensor.from_tensor(Nx.iota({4, 8}, type: {:s, 32}))
+      end
+    end
+
+    test "raises on tensors that are not rank 2" do
+      assert_raise ArgumentError, ~r/expected a 2d tensor/, fn ->
+        QTensor.from_tensor(Nx.iota({4, 8, 2}, type: {:f, 32}))
+      end
+    end
+  end
+
   describe "weight_only_quantized_dense" do
     test "inits and executes properly" do
       model =

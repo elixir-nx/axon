@@ -32,134 +32,83 @@ defmodule Axon.Quantization.QTensor do
   deftransformp dynamically_quantize_per_channel(input, opts \\ []) do
     opts = Keyword.validate!(opts, [:min, :max, :type])
 
-    unless Nx.type(input) == {:f, 32}, do: raise(ArgumentError, "expected a float tensor")
+    input =
+      case Nx.type(input) do
+        {:f, 32} -> input
+        {:f, _} -> Nx.as_type(input, {:f, 32})
+        {:bf, _} -> Nx.as_type(input, {:f, 32})
+        other -> raise ArgumentError, "expected a float tensor, got #{inspect(other)}"
+      end
+
     unless Nx.rank(input) == 2, do: raise(ArgumentError, "expected a 2d tensor")
 
     target_dtype = opts[:type]
-    eps = Nx.Constants.epsilon(:f32)
     block_size = {1, Nx.axis_size(input, 1)}
-    zero_point_type = {:s, 64}
 
-    {scale, zero_point} =
-      choose_quantization_params_affine(input,
-        mapping_type: :symmetric,
-        block_size: block_size,
-        type: opts[:type],
-        min: opts[:min],
-        max: opts[:max],
-        eps: eps,
-        zero_point_type: zero_point_type
-      )
-
-    quantized_value =
-      quantize_affine(input, scale, zero_point,
-        block_size: block_size,
-        type: target_dtype,
-        min: opts[:min],
-        max: opts[:max]
-      )
-
-    struct(__MODULE__, value: Nx.transpose(quantized_value), scale: scale, zero_point: zero_point)
-  end
-
-  deftransformp quantize_affine(
-                  input,
-                  scale,
-                  zero_point,
-                  opts \\ []
-                ) do
-    opts = Keyword.validate!(opts, [:block_size, :type, :min, :max, zero_point_domain: :int])
-
-    target_dtype = opts[:type]
-    quant_min = opts[:min]
-    quant_max = opts[:max]
-    block_size = opts[:block_size]
-    zero_point_domain = opts[:zero_point_domain]
+    {quant_min, quant_max} = get_and_check_qmin_qmax(target_dtype, opts[:min], opts[:max])
+    zero_point_value = trunc((quant_max + quant_min + 1) / 2)
 
     {shape_for_reduction, reduction_dims} = get_reduction_params(block_size, Nx.shape(input))
-
     original_shape = Nx.shape(input)
-    input = Nx.reshape(input, shape_for_reduction)
 
     scale_shape =
       Enum.reduce(reduction_dims, shape_for_reduction, fn i, shape ->
         put_elem(shape, i, 1)
       end)
 
-    scale = Nx.reshape(scale, scale_shape)
-    zero_point = Nx.reshape(zero_point, scale_shape)
-
-    quant =
-      case zero_point_domain do
-        :int ->
-          Nx.clip(
-            Nx.add(Nx.round(Nx.multiply(input, Nx.divide(1, scale))), zero_point),
-            quant_min,
-            quant_max
-          )
-
-        other ->
-          raise "unsupported zero point domain #{other}"
-      end
-
-    Nx.as_type(Nx.reshape(quant, original_shape), target_dtype)
-  end
-
-  deftransformp choose_quantization_params_affine(input, opts \\ []) do
-    opts =
-      Keyword.validate!(opts, [
-        :mapping_type,
-        :block_size,
-        :type,
-        :min,
-        :max,
-        :eps,
-        :scale_type,
-        :zero_point_type,
-        :zero_point_domain,
-        preserve_zero: true
-      ])
-
-    mapping_type = opts[:mapping_type]
-    block_size = opts[:block_size]
-    target_dtype = opts[:type]
-    preserve_zero = opts[:preserve_zero]
-
-    {quant_min, quant_max} =
-      get_and_check_qmin_qmax(target_dtype, opts[:min], opts[:max])
-
-    scale_dtype = opts[:scale_type] || Nx.type(input)
-    zero_point_dtype = opts[:zero_point_type] || Nx.type(input)
-    eps = opts[:eps] || Nx.Constants.epsilon(Nx.type(input))
-
-    {shape_for_reduction, reduction_dims} = get_reduction_params(block_size, Nx.shape(input))
     input = Nx.reshape(input, shape_for_reduction)
 
-    min_val = Nx.reduce_min(input, axes: reduction_dims, keep_axes: false)
-    max_val = Nx.reduce_max(input, axes: reduction_dims, keep_axes: false)
+    {value, scale, zero_point} =
+      do_quantize_kernel(input,
+        reduction_dims: reduction_dims,
+        scale_shape: scale_shape,
+        original_shape: original_shape,
+        quant_min: quant_min,
+        quant_max: quant_max,
+        zero_point_value: zero_point_value,
+        target_dtype: target_dtype
+      )
 
-    {min_val_neg, max_val_pos} =
-      if preserve_zero do
-        {Nx.min(min_val, Nx.broadcast(0, min_val)), Nx.max(max_val, Nx.broadcast(0, max_val))}
-      else
-        {min_val, max_val}
-      end
+    struct(__MODULE__, value: Nx.transpose(value), scale: scale, zero_point: zero_point)
+  end
 
-    {scale, zero_point} =
-      case mapping_type do
-        :symmetric ->
-          max_val_pos = Nx.max(Nx.negate(min_val_neg), max_val_pos)
-          scale = Nx.divide(max_val_pos, Nx.divide(Nx.subtract(quant_max, quant_min), 2))
-          zero_point = Nx.broadcast(trunc((quant_max + quant_min + 1) / 2), scale)
-          {scale, zero_point}
+  defnp do_quantize_kernel(input, opts \\ []) do
+    opts =
+      keyword!(opts, [
+        :reduction_dims,
+        :scale_shape,
+        :original_shape,
+        :quant_min,
+        :quant_max,
+        :zero_point_value,
+        :target_dtype
+      ])
 
-        other ->
-          raise "unsupported mapping #{other}"
-      end
+    min_val = Nx.reduce_min(input, axes: opts[:reduction_dims])
+    max_val = Nx.reduce_max(input, axes: opts[:reduction_dims])
 
-    scale = Nx.clip(scale, eps, Nx.reduce_max(scale))
+    min_val_neg = Nx.min(min_val, 0)
+    max_val_pos = Nx.max(max_val, 0)
+    max_val_pos = Nx.max(Nx.negate(min_val_neg), max_val_pos)
 
-    {Nx.as_type(scale, scale_dtype), Nx.as_type(zero_point, zero_point_dtype)}
+    divisor = (opts[:quant_max] - opts[:quant_min]) / 2
+    scale = max_val_pos / divisor
+    scale = Nx.clip(scale, Nx.Constants.epsilon(:f32), Nx.reduce_max(scale))
+    zero_point = Nx.broadcast(opts[:zero_point_value], scale)
+
+    scale_r = Nx.reshape(scale, opts[:scale_shape])
+    zero_point_r = Nx.reshape(zero_point, opts[:scale_shape])
+
+    value =
+      input
+      |> Nx.multiply(Nx.divide(1, scale_r))
+      |> Nx.round()
+      |> Nx.add(zero_point_r)
+      |> Nx.clip(opts[:quant_min], opts[:quant_max])
+      |> Nx.reshape(opts[:original_shape])
+      |> Nx.as_type(opts[:target_dtype])
+
+    {value, scale, Nx.as_type(zero_point, {:s, 64})}
   end
 
   deftransformp get_and_check_qmin_qmax(target_dtype, quant_min, quant_max) do
