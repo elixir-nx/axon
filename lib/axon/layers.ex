@@ -1942,6 +1942,13 @@ defmodule Axon.Layers do
   end
 
   @doc false
+  # Internal version of Nx.rename for constructing rename layers
+  deftransform rename(x, opts \\ []) do
+    opts = Keyword.validate!(opts, [:names, mode: :inference])
+    Nx.rename(x, opts[:names])
+  end
+
+  @doc false
   # Internal version of Nx.pad for constructing pad layers without
   # worrying about batch or channel dimensions
   defn pad(x, opts \\ []) do
