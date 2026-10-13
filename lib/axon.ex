@@ -1128,6 +1128,13 @@ defmodule Axon do
   `kernel` and `bias` are layer parameters. `units` specifies the
   number of output units.
 
+  The input may have any rank of at least 2. The kernel has shape
+  `{last_input_dim, units}` and is applied along the last axis, so an
+  input of shape `{batch, positions, features}` produces an output of
+  shape `{batch, positions, units}` with the same kernel and bias shared
+  across the positions. This is how a per-timestep linear layer over a
+  sequence is built.
+
   Compiles to `Axon.Layers.dense/4`.
 
   ## Options
