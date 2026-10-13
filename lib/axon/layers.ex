@@ -1902,6 +1902,23 @@ defmodule Axon.Layers do
   ## Shape
 
   @doc """
+  Returns the input unchanged while stopping gradients from flowing
+  back through it.
+
+  ## Examples
+
+      iex> Axon.Layers.stop_grad(Nx.tensor([1.0, 2.0]))
+      #Nx.Tensor<
+        f32[2]
+        [1.0, 2.0]
+      >
+  """
+  @doc type: :special
+  defn stop_grad(input, _opts \\ []) do
+    Nx.Defn.Kernel.stop_grad(input)
+  end
+
+  @doc """
   Flattens input to shape of `{batch, units}` by folding outer
   dimensions.
 

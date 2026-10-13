@@ -3058,6 +3058,32 @@ defmodule CompilerTest do
     end
   end
 
+  describe "stop_grad" do
+    test "passes the input through and blocks the gradient" do
+      model =
+        Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense") |> Axon.stop_grad()
+
+      {init_fn, predict_fn} = Axon.build(model)
+      input = Nx.tensor([[1.0, 2.0]])
+      params = init_fn.(input, Axon.ModelState.empty())
+
+      plain = Axon.input("input", shape: {nil, 2}) |> Axon.dense(1, name: "dense")
+      {_, plain_predict_fn} = Axon.build(plain)
+      assert_equal(predict_fn.(params, input), plain_predict_fn.(params, input))
+
+      # tensors go in as arguments, a closure over them would not compile on EXLA
+      grad_fn =
+        Nx.Defn.jit(fn data, input ->
+          Nx.Defn.grad(data, fn data -> Nx.sum(predict_fn.(%{params | data: data}, input)) end)
+        end)
+
+      grads = grad_fn.(params.data, input)
+
+      assert_equal(grads["dense"]["kernel"], Nx.tensor([[0.0], [0.0]]))
+      assert_equal(grads["dense"]["bias"], Nx.tensor([0.0]))
+    end
+  end
+
   describe "flatten" do
     test "initializes with no params" do
       model = Axon.input("input_0", shape: {nil, 32}) |> Axon.flatten()
