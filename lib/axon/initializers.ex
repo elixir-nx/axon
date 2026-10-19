@@ -591,7 +591,7 @@ defmodule Axon.Initializers do
           {1, 1}
 
         rank == 1 ->
-          {elem(shape, 0), elem(shape, 0)}
+          {1, 1}
 
         rank == 2 ->
           {elem(shape, 0), elem(shape, 1)}
@@ -600,7 +600,9 @@ defmodule Axon.Initializers do
           {elem(shape, rank - 2), elem(shape, rank - 1)}
       end
 
-    receptive_field_size = Nx.size(shape) / in_size / out_size
+    # The product of the dimensions before the last two. Dividing the size by the
+    # fans instead fails when a dimension is 0.
+    receptive_field_size = shape |> Tuple.to_list() |> Enum.drop(-2) |> Enum.product()
     fan_in = in_size * receptive_field_size
     fan_out = out_size * receptive_field_size
 

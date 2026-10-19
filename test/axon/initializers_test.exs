@@ -3,6 +3,23 @@ defmodule Axon.InitializersTest do
 
   doctest Axon.Initializers
 
+  describe "variance scaling" do
+    test "initializes zero-size shapes" do
+      initializers = [
+        Axon.Initializers.lecun_uniform(),
+        Axon.Initializers.lecun_normal(),
+        Axon.Initializers.glorot_uniform(),
+        Axon.Initializers.glorot_normal(),
+        Axon.Initializers.he_uniform(),
+        Axon.Initializers.he_normal()
+      ]
+
+      for init_fn <- initializers, shape <- [{0, 4}, {4, 0}, {0, 3, 3, 2}] do
+        assert Nx.shape(init_fn.(shape, :f32, Nx.Random.key(0))) == shape
+      end
+    end
+  end
+
   describe "lecun_uniform/1" do
     test "matches jax with defaults" do
       init_fn = Axon.Initializers.lecun_uniform()
