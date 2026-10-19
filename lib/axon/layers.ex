@@ -2478,6 +2478,11 @@ defmodule Axon.Layers do
     feature_dims = list_duplicate(0, Nx.rank(input_sequence) - 2)
     mask = get_mask(mask, input_sequence)
 
+    # One spare step of zeros keeps the slices in the loop body valid for a
+    # sequence of any length, including 0. The loop never reads it.
+    input_sequence = pad_one_step(input_sequence)
+    mask = pad_one_step(mask)
+
     init_sequence =
       unroll_initial_zeros(
         cell_fn,
@@ -2486,7 +2491,8 @@ defmodule Axon.Layers do
         mask,
         input_kernel,
         recurrent_kernel,
-        bias
+        bias,
+        time_steps + 1
       )
 
     t = Nx.tensor(0)
@@ -2511,13 +2517,20 @@ defmodule Axon.Layers do
          bias}
       end
 
-    {output, carry}
+    {Nx.slice_along_axis(output, 0, time_steps, axis: 1), carry}
+  end
+
+  deftransformp pad_one_step(tensor) do
+    padding = [{0, 0, 0}, {0, 1, 0} | List.duplicate({0, 0, 0}, Nx.rank(tensor) - 2)]
+    Nx.pad(tensor, 0, padding)
   end
 
   deftransformp compute_indices(i, feature_dims) do
     [0, i] ++ feature_dims
   end
 
+  # Zeros for the outputs of `steps` steps. The cell runs on one step of zeros to get
+  # the shape and type of its output, so it does not read the sequence.
   deftransformp unroll_initial_zeros(
                   cell_fn,
                   inp,
@@ -2525,15 +2538,14 @@ defmodule Axon.Layers do
                   mask,
                   inp_kernel,
                   hid_kernel,
-                  bias
+                  bias,
+                  steps
                 ) do
-    seq = Nx.slice_along_axis(inp, 0, 1, axis: 1)
-    seq = Nx.squeeze(seq, axes: [1])
-    mask_token = Nx.slice_along_axis(mask, 0, 1, axis: 1)
-    mask_token = Nx.reshape(mask_token, {Nx.axis_size(seq, 0), 1})
-    {seq, _} = cell_fn.(seq, carry, mask_token, inp_kernel, hid_kernel, bias)
-    shape = Tuple.insert_at(Nx.shape(seq), 1, elem(Nx.shape(inp), 1))
-    Nx.broadcast(Nx.tensor(0, type: Nx.type(seq)), shape)
+    step_shape = Tuple.delete_at(Nx.shape(inp), 1)
+    step = Nx.broadcast(Nx.tensor(0, type: Nx.type(inp)), step_shape)
+    mask_token = Nx.broadcast(Nx.tensor(0, type: Nx.type(mask)), {elem(step_shape, 0), 1})
+    {output, _} = cell_fn.(step, carry, mask_token, inp_kernel, hid_kernel, bias)
+    Nx.broadcast(Nx.tensor(0, type: Nx.type(output)), Tuple.insert_at(Nx.shape(output), 1, steps))
   end
 
   @doc """
@@ -2564,8 +2576,20 @@ defmodule Axon.Layers do
     time_steps = elem(Nx.shape(input_sequence), 1)
     mask = get_mask(mask, input_sequence)
 
+    empty_output =
+      unroll_initial_zeros(
+        cell_fn,
+        input_sequence,
+        carry,
+        mask,
+        input_kernel,
+        recurrent_kernel,
+        bias,
+        0
+      )
+
     {carry, outputs} =
-      for t <- 0..(time_steps - 1), reduce: {carry, []} do
+      for t <- 0..(time_steps - 1)//1, reduce: {carry, []} do
         {carry, outputs} ->
           input = Nx.slice_along_axis(input_sequence, t, 1, axis: 1)
           input = Nx.squeeze(input, axes: [1])
@@ -2575,16 +2599,16 @@ defmodule Axon.Layers do
           {output, carry} =
             cell_fn.(input, carry, mask_token, input_kernel, recurrent_kernel, bias)
 
-          {carry, [output | outputs]}
+          {carry, [Nx.new_axis(output, 1) | outputs]}
       end
 
-    {Nx.stack(Enum.reverse(outputs), axis: 1), carry}
+    {Nx.concatenate([empty_output | Enum.reverse(outputs)], axis: 1), carry}
   end
 
   deftransformp get_mask(mask, sequence) do
     case Nx.shape(mask) do
       {} ->
-        Nx.broadcast(mask, {Nx.axis_size(sequence, 0), 1})
+        Nx.broadcast(mask, {Nx.axis_size(sequence, 0), Nx.axis_size(sequence, 1)})
 
       _ ->
         mask

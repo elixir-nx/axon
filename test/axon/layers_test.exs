@@ -1264,6 +1264,48 @@ defmodule Axon.LayersTest do
   end
 
   describe "dynamic_unroll" do
+    test "an empty sequence or an empty batch gives an empty output" do
+      gru = fn batch ->
+        {Nx.broadcast(0.0, {batch, 8}),
+         %{
+           "wir" => Nx.iota({2, 8}, type: {:f, 32}),
+           "wiz" => Nx.iota({2, 8}, type: {:f, 32}),
+           "win" => Nx.iota({2, 8}, type: {:f, 32})
+         },
+         %{
+           "whr" => Nx.iota({8, 8}, type: {:f, 32}),
+           "whz" => Nx.iota({8, 8}, type: {:f, 32}),
+           "whn" => Nx.iota({8, 8}, type: {:f, 32})
+         },
+         %{
+           "br" => Nx.iota({}, type: {:f, 32}),
+           "bz" => Nx.iota({}, type: {:f, 32}),
+           "bin" => Nx.iota({}, type: {:f, 32}),
+           "bhn" => Nx.iota({}, type: {:f, 32})
+         }}
+      end
+
+      for {input_shape, batch} <- [{{2, 0, 2}, 2}, {{0, 4, 2}, 0}],
+          unroll <- [&Axon.Layers.static_unroll/7, &Axon.Layers.dynamic_unroll/7] do
+        {carry, input_kernel, hidden_kernel, bias} = gru.(batch)
+        input = Nx.broadcast(0.0, input_shape)
+
+        {output, {new_carry}} =
+          unroll.(
+            &Axon.Layers.gru_cell/6,
+            input,
+            {carry},
+            Nx.tensor(0),
+            input_kernel,
+            hidden_kernel,
+            bias
+          )
+
+        assert Nx.shape(output) == {batch, elem(input_shape, 1), 8}
+        assert Nx.shape(new_carry) == {batch, 8}
+      end
+    end
+
     test "computes carry and output identical to static_unroll" do
       input = Nx.iota({2, 4, 2}, type: {:f, 32})
       carry = {Nx.iota({2, 8}, type: {:f, 32})}
