@@ -334,7 +334,7 @@ defmodule Axon.Losses do
           softmax_cross_entropy_from_logits(y_true, logits, sparse: sparse)
 
         logits? ->
-          softmax_cross_entropy_from_logits(y_true, logits)
+          softmax_cross_entropy_from_logits(y_true, logits, sparse: sparse)
 
         sparse ->
           # If y_true is not at least rank 2, add a new axis to select
